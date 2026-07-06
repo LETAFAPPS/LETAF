@@ -1,0 +1,960 @@
+import { ScrollView } from "std-widgets.slint";
+import { AssetIcon, SearchIcon } from "../components/icons.slint";
+import { EmptyState } from "../components/empty_state.slint";
+import { OutlineBtn, PageBtn } from "../components/buttons.slint";
+import { Theme } from "../theme.slint";
+import { FinanceKpi, FinanceTab, FinanceEntryRow, FinanceCashFlowPoint, FinanceCalendarCell, FinanceDayRow } from "../types.slint";
+
+// ── Tela: Financeiro (contas a pagar / a receber) ─────────────────
+// Inspirada nas mockups Phosphor: 4 KPIs no topo, tabs com
+// contagem/total, busca e lista. Toda derivação acontece em
+// `desktop/src/ui/finance.rs` (AI_RULES §1/§14).
+
+// ── KPI Card ─────────────────────────────────────────────────────
+// Mesmo padrão visual dos demais (Dashboard/Relatórios). Sem faixa
+// lateral colorida — só o valor é colorido.
+component FinanceKpiCard inherits Rectangle {
+    in property <FinanceKpi> data;
+
+    height: 104px;
+    border-radius: 12px;
+    border-width: 1px;
+    border-color: Theme.card-border;
+    drop-shadow-blur: 12px;
+    drop-shadow-offset-y: 0px;
+    drop-shadow-color: Theme.card-shadow;
+    background: Theme.surface;
+
+    VerticalLayout {
+        padding-left: 16px; padding-right: 14px;
+        padding-top: 14px; padding-bottom: 14px;
+        spacing: 4px;
+        alignment: center;
+        Text {
+            text: root.data.label;
+            font-size: 9px; font-weight: 700;
+            color: Theme.text-secondary;
+            letter-spacing: 1px;
+            overflow: elide;
+        }
+        Text {
+            text: root.data.value-display;
+            font-size: 18px; font-weight: 800;
+            color: root.data.value-neutral ? Theme.text-primary : root.data.accent-color;
+            overflow: elide;
+        }
+        // Empurra o subtítulo um pouco mais para baixo.
+        Rectangle { height: 6px; background: transparent; }
+        Text {
+            text: root.data.sub-text;
+            font-size: 10px;
+            // Preto no claro / claro no escuro (segue o tema).
+            color: Theme.text-primary;
+            overflow: elide;
+        }
+    }
+}
+
+// ── Linha de Resumo (4 KPIs) ─────────────────────────────────────
+component FinanceKpiRow inherits Rectangle {
+    in property <[FinanceKpi]> kpis;
+    height: 104px;
+    min-width: 0;
+    property <length> col-w: kpis.length > 0
+        ? (self.width - (kpis.length - 1) * 8px) / kpis.length
+        : self.width;
+    background: transparent;
+    if kpis.length >= 1: FinanceKpiCard { x: 0; width: parent.col-w; data: root.kpis[0]; }
+    if kpis.length >= 2: FinanceKpiCard { x: parent.col-w + 8px; width: parent.col-w; data: root.kpis[1]; }
+    if kpis.length >= 3: FinanceKpiCard { x: 2 * parent.col-w + 16px; width: parent.col-w; data: root.kpis[2]; }
+    if kpis.length >= 4: FinanceKpiCard { x: 3 * parent.col-w + 24px; width: parent.col-w; data: root.kpis[3]; }
+}
+
+// ── Linha de lançamento ──────────────────────────────────────────
+component FinanceListRow inherits Rectangle {
+    in property <FinanceEntryRow> data;
+    callback action-clicked();
+    callback edit-clicked();
+    callback delete-clicked();
+    height: 72px;
+    border-radius: 12px;
+    border-width: 1px;
+    border-color: Theme.card-border;
+    drop-shadow-blur: 12px;
+    drop-shadow-offset-y: 0px;
+    drop-shadow-color: Theme.card-shadow;
+    background: ta.has-hover ? Theme.row-hover : Theme.surface;
+    ta := TouchArea {
+        clicked => { root.edit-clicked(); }
+    }
+    HorizontalLayout {
+        padding-left: 18px; padding-right: 18px;
+        spacing: 14px;
+
+        // Ícone (seta) com cor por kind
+        Rectangle {
+            width: 36px; height: 36px;
+            y: (parent.height - 36px) / 2;
+            border-radius: 8px;
+            // Entrada = verde, saída = vermelho (mesmo tom dos valores).
+            background: root.data.kind == "receivable"
+                ? #2E7D32.transparentize(0.88)
+                : #E53935.transparentize(0.88);
+            if root.data.kind == "receivable": AssetIcon {
+                width: 100%; height: 100%; icon-size: 18px;
+                icon-color: #2E7D32;
+                source: @image-url("../assets/icons/1.2/entrada-estoque.svg");
+            }
+            if root.data.kind != "receivable": AssetIcon {
+                width: 100%; height: 100%; icon-size: 18px;
+                icon-color: #E53935;
+                source: @image-url("../assets/icons/1.2/saida-estoque.svg");
+            }
+        }
+
+        // Descrição + party
+        VerticalLayout {
+            horizontal-stretch: 2;
+            min-width: 0;
+            alignment: center;
+            spacing: 2px;
+            HorizontalLayout {
+                spacing: 6px;
+                alignment: start;
+                Text {
+                    text: root.data.description;
+                    font-size: 13px; font-weight: 700;
+                    color: Theme.text-primary;
+                    vertical-alignment: center;
+                    overflow: elide;
+                }
+                // Pílula de parcelas: largura definida pelo conteúdo
+                // (não estica a linha inteira), padding mínimo, fonte
+                // 9px, centralizada verticalmente.
+                if root.data.installment-label != "": Rectangle {
+                    height: 16px;
+                    width: badge-text.preferred-width + 10px;
+                    y: (parent.height - 16px) / 2;
+                    border-radius: 4px;
+                    background: Theme.border;
+                    badge-text := Text {
+                        x: 5px; y: 0;
+                        width: parent.width - 10px;
+                        height: parent.height;
+                        text: root.data.installment-label;
+                        font-size: 9px; font-weight: 700;
+                        color: Theme.text-secondary;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+            Text {
+                text: root.data.party-name;
+                font-size: 11px;
+                color: Theme.text-secondary;
+                overflow: elide;
+            }
+        }
+
+        // Vencimento
+        VerticalLayout {
+            width: 110px;
+            alignment: center;
+            spacing: 2px;
+            Text {
+                text: root.data.due-date-display;
+                font-size: 12px; font-weight: 600;
+                color: Theme.text-primary;
+                horizontal-alignment: left;
+            }
+            Text {
+                text: root.data.days-display;
+                font-size: 10px;
+                color: Theme.text-secondary;
+                horizontal-alignment: left;
+            }
+        }
+
+        // Gap extra entre VENCIMENTO e STATUS — espelha o header.
+        Rectangle { width: 14px; background: transparent; }
+
+        // Status badge — célula de 92px (alinhada ao header) com o
+        // badge encostado à esquerda, não centralizado.
+        Rectangle {
+            width: 92px; background: transparent;
+            y: (parent.height - 22px) / 2;
+            height: 22px;
+            Rectangle {
+                x: 0;
+                width: 78px; height: 22px;
+                Text {
+                    width: parent.width; height: parent.height;
+                    text: root.data.status-label;
+                    font-size: 11px; font-weight: 700;
+                    color: root.data.status-color;
+                    horizontal-alignment: left; vertical-alignment: center;
+                }
+            }
+        }
+
+        // Valor — wrapper de 110px com texto encolhido em 14px à
+        // direita; espelha o header e desliga o valor da borda
+        // direita da coluna.
+        Rectangle {
+            width: 110px; background: transparent;
+            Text {
+                width: parent.width - 14px; height: parent.height;
+                x: 0;
+                text: root.data.amount-display;
+                font-size: 13px; font-weight: 800;
+                color: root.data.amount-color;
+                horizontal-alignment: right;
+                vertical-alignment: center;
+            }
+        }
+
+        // Ação
+        if root.data.action-label != "": action-ta := TouchArea {
+            width: 80px; height: 30px;
+            y: (parent.height - 30px) / 2;
+            clicked => { root.action-clicked(); }
+            Rectangle {
+                border-radius: 6px;
+                border-width: 1px;
+                border-color: Theme.primary;
+                background: action-ta.has-hover ? Theme.primary : transparent;
+                Text {
+                    width: parent.width; height: parent.height;
+                    text: root.data.action-label;
+                    font-size: 12px; font-weight: 700;
+                    color: action-ta.has-hover ? white : Theme.primary;
+                    horizontal-alignment: center; vertical-alignment: center;
+                }
+            }
+        }
+        if root.data.action-label == "": Rectangle {
+            width: 80px; background: transparent;
+        }
+
+        // Excluir (sempre disponível). Ícone "✕" — mesma convenção
+        // do botão de fechar modais. O modal de confirmação evita
+        // exclusão acidental.
+        del-ta := TouchArea {
+            width: 30px; height: 30px;
+            y: (parent.height - 30px) / 2;
+            clicked => { root.delete-clicked(); }
+            Rectangle {
+                width: 30px; height: 30px;
+                border-radius: 6px;
+                background: del-ta.has-hover ? #FFEBEE : transparent;
+                AssetIcon { width: parent.width; height: parent.height; icon-size: 14px; icon-color: del-ta.has-hover ? #C62828 : Theme.text-secondary; source: @image-url("../assets/icons/1.2/fechar.svg"); }
+            }
+        }
+    }
+}
+
+// ── Calendário ────────────────────────────────────────────────
+// Célula de um dia. Mostra número + pílula com total agregado.
+// Cor da pílula reflete o tom (verde/vermelho/cinza).
+component CalendarCell inherits TouchArea {
+    in property <FinanceCalendarCell> data;
+    callback selected();
+    height: 78px;
+    clicked => { if (root.data.in-month) { root.selected(); } }
+    Rectangle {
+        border-radius: 8px;
+        border-width: root.data.selected ? 2px : 1px;
+        border-color: root.data.selected
+            ? Theme.primary
+            : (root.data.today ? Theme.accent : Theme.border);
+        background: root.data.in-month
+            ? (root.has-hover ? Theme.row-hover : Theme.surface)
+            : #f5f5f4;
+        VerticalLayout {
+            padding: 6px;
+            spacing: 4px;
+            // Topo: número do dia (à esquerda) + count (à direita)
+            HorizontalLayout {
+                spacing: 0px;
+                Text {
+                    horizontal-stretch: 1;
+                    text: root.data.in-month ? root.data.day : "";
+                    font-size: 12px;
+                    font-weight: root.data.today ? 800 : 600;
+                    color: root.data.today
+                        ? Theme.accent
+                        : (root.data.in-month ? Theme.text-primary : Theme.text-secondary);
+                    horizontal-alignment: left;
+                    vertical-alignment: top;
+                }
+                if root.data.count > 1: Rectangle {
+                    width: 18px; height: 16px;
+                    border-radius: 8px;
+                    background: Theme.border;
+                    Text {
+                        width: parent.width; height: parent.height;
+                        text: root.data.count;
+                        font-size: 9px; font-weight: 700;
+                        color: Theme.text-secondary;
+                        horizontal-alignment: center; vertical-alignment: center;
+                    }
+                }
+            }
+            // Spacer + pílula no fundo
+            Rectangle { vertical-stretch: 1; background: transparent; }
+            if root.data.count > 0: Rectangle {
+                height: 18px;
+                border-radius: 4px;
+                background: root.data.total-tone == "pos"
+                    ? #E8F5E9
+                    : (root.data.total-tone == "neg" ? #FFEBEE : Theme.border);
+                Text {
+                    x: 6px; y: 0;
+                    width: parent.width - 12px; height: parent.height;
+                    text: root.data.total-display;
+                    font-size: 10px; font-weight: 700;
+                    color: root.data.total-tone == "pos"
+                        ? #2E7D32
+                        : (root.data.total-tone == "neg" ? #C62828 : Theme.text-primary);
+                    vertical-alignment: center;
+                    overflow: elide;
+                }
+            }
+        }
+    }
+}
+
+// Linha do painel lateral.
+component DayDetailRow inherits Rectangle {
+    in property <FinanceDayRow> data;
+    callback settle();
+    callback delete-clicked();
+    // Altura calibrada (76px) — alta o bastante pra mostrar título,
+    // subtítulo e badge de status, baixa o bastante pra caber
+    // múltiplos lançamentos do dia sem cortar.
+    height: 76px;
+    min-width: 0;
+    border-radius: 8px;
+    border-width: 1px;
+    border-color: Theme.card-border;
+    drop-shadow-blur: 12px;
+    drop-shadow-offset-y: 0px;
+    drop-shadow-color: Theme.card-shadow;
+    background: ta.has-hover ? Theme.row-hover : Theme.surface;
+    ta := TouchArea { }
+    HorizontalLayout {
+        padding: 10px;
+        spacing: 10px;
+        VerticalLayout {
+            horizontal-stretch: 1;
+            min-width: 0;
+            alignment: center;
+            spacing: 3px;
+            Text {
+                text: root.data.title;
+                font-size: 12px; font-weight: 700;
+                color: Theme.text-primary;
+                overflow: elide;
+            }
+            Text {
+                text: root.data.subtitle;
+                font-size: 10px;
+                color: Theme.text-secondary;
+                overflow: elide;
+            }
+            if root.data.status != "": HorizontalLayout {
+                spacing: 4px;
+                alignment: start;
+                Rectangle {
+                    width: 6px; height: 6px;
+                    y: (parent.height - 6px) / 2;
+                    border-radius: 3px;
+                    background: root.data.amount-tone == "pos" ? #2E7D32 : #E65100;
+                }
+                Text {
+                    text: root.data.status-label;
+                    font-size: 10px; font-weight: 600;
+                    color: Theme.text-secondary;
+                    vertical-alignment: center;
+                    overflow: elide;
+                }
+            }
+        }
+        VerticalLayout {
+            alignment: center;
+            spacing: 6px;
+            Text {
+                text: root.data.amount-display;
+                font-size: 13px; font-weight: 800;
+                color: root.data.amount-tone == "pos" ? #2E7D32 : #E53935;
+                horizontal-alignment: right;
+            }
+            // Botão de ação ("Receber"/"Pagar") + lixeira lado a lado.
+            // Mesma ergonomia da lista principal (clicar no card abre
+            // edição, clique no botão age, clique na lixeira exclui).
+            HorizontalLayout {
+                spacing: 6px;
+                alignment: end;
+                if root.data.can-settle: action-ta := TouchArea {
+                    width: 76px; height: 26px;
+                    clicked => { root.settle(); }
+                    Rectangle {
+                        border-radius: 5px;
+                        border-width: 1px;
+                        border-color: Theme.primary;
+                        background: action-ta.has-hover ? Theme.primary : transparent;
+                        Text {
+                            width: parent.width; height: parent.height;
+                            text: root.data.kind == "receivable" ? "Receber" : "Pagar";
+                            font-size: 11px; font-weight: 700;
+                            color: action-ta.has-hover ? white : Theme.primary;
+                            horizontal-alignment: center; vertical-alignment: center;
+                        }
+                    }
+                }
+                del-ta := TouchArea {
+                    width: 26px; height: 26px;
+                    clicked => { root.delete-clicked(); }
+                    Rectangle {
+                        width: 26px; height: 26px;
+                        border-radius: 5px;
+                        background: del-ta.has-hover ? #FFEBEE : transparent;
+                        AssetIcon { width: parent.width; height: parent.height; icon-size: 12px; icon-color: del-ta.has-hover ? #C62828 : Theme.text-secondary; source: @image-url("../assets/icons/1.2/fechar.svg"); }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// Toggle Lista | Calendário no header — controle segmentado (mesmo
+// padrão do seletor de período dos Relatórios): pílula externa + cada
+// opção com cantos próprios e altura correta.
+component ViewToggle inherits HorizontalLayout {
+    in property <string> active;
+    callback set-mode(string);
+    Rectangle {
+        // Card um pouco maior (40px); com padding 4px os botões internos
+        // ficam 32px — mesma altura dos botões Receber/Pagar ao lado.
+        height: 40px;
+        border-radius: 10px;
+        border-width: 1px;
+        border-color: Theme.card-border;
+        drop-shadow-blur: 12px;
+        drop-shadow-offset-y: 0px;
+        drop-shadow-color: Theme.card-shadow;
+        background: Theme.surface;
+        HorizontalLayout {
+            padding: 4px; spacing: 4px;
+            list-ta := TouchArea {
+                width: 76px;
+                clicked => { root.set-mode("list"); }
+                Rectangle {
+                    border-radius: 7px;
+                    background: root.active == "list"
+                        ? Theme.primary
+                        : (list-ta.has-hover ? Theme.row-hover : transparent);
+                    Text {
+                        width: parent.width; height: parent.height;
+                        text: "Lista";
+                        font-size: 12px; font-weight: 700;
+                        color: root.active == "list" ? white : Theme.text-primary;
+                        horizontal-alignment: center; vertical-alignment: center;
+                    }
+                }
+            }
+            cal-ta := TouchArea {
+                width: 96px;
+                clicked => { root.set-mode("calendar"); }
+                Rectangle {
+                    border-radius: 7px;
+                    background: root.active == "calendar"
+                        ? Theme.primary
+                        : (cal-ta.has-hover ? Theme.row-hover : transparent);
+                    Text {
+                        width: parent.width; height: parent.height;
+                        text: "Calendário";
+                        font-size: 12px; font-weight: 700;
+                        color: root.active == "calendar" ? white : Theme.text-primary;
+                        horizontal-alignment: center; vertical-alignment: center;
+                    }
+                }
+            }
+        }
+    }
+}
+
+// Chip de filtro de status (Todos / Pendentes / Vencidos / Pagos).
+// Tamanho ajustado ao texto, fundo primário quando ativo.
+component StatusFilterChip inherits TouchArea {
+    in property <string> label;
+    in property <bool> active: false;
+    height: 30px;
+    width: txt.preferred-width + 24px;
+    Rectangle {
+        border-radius: 6px;
+        // Selecionado = só CONTORNO na cor de destaque (estilo Relatórios).
+        border-width: root.active ? 1.5px : 1px;
+        border-color: root.active ? Theme.sidebar-sel-bg : Theme.border;
+        background: root.active
+            ? transparent
+            : (root.has-hover ? Theme.row-hover : Theme.surface);
+        txt := Text {
+            width: parent.width; height: parent.height;
+            text: root.label;
+            font-size: 12px; font-weight: root.active ? 700 : 400;
+            color: root.active ? Theme.sidebar-sel-bg : Theme.text-secondary;
+            horizontal-alignment: center; vertical-alignment: center;
+        }
+    }
+}
+
+// ── Página principal ────────────────────────────────────────────
+export component FinancePage inherits Rectangle {
+    in property <[FinanceKpi]> kpis;
+    in property <[FinanceTab]> tabs;
+    in property <[FinanceEntryRow]> entries;
+    in property <[FinanceCashFlowPoint]> cash-flow;
+    in property <string> cash-flow-summary;
+    in property <string> active-tab: "receivable";
+    in-out property <string> search-query;
+    /// Filtro de status. "all" | "open" | "overdue" | "settled".
+    in property <string> status-filter: "all";
+
+    // ── Calendário ──
+    in property <string> view-mode: "list";       // "list" | "calendar"
+    in property <string> cal-title;               // "Maio · 2026"
+    in property <string> cal-month-total;         // "R$ 6.099,00"
+    in property <[FinanceCalendarCell]> cal-cells;
+    in property <string> cal-selected;            // "" se nenhum
+    in property <string> cal-detail-header;       // "HOJE · DIA 12/05"
+    in property <string> cal-detail-summary;      // "2 lançamentos +R$ 30,00"
+    in property <[FinanceDayRow]> cal-detail-rows;
+
+    callback set-tab(string);
+    callback search-changed(string);
+    callback set-status-filter(string);
+    // Troca a página de um grupo de status: (status-key, page).
+    callback set-group-page(string, int);
+    callback open-new(string);
+    callback open-edit(string);
+    callback mark-settled(string);
+    callback request-delete(string);
+    callback set-view(string);
+    callback cal-prev();
+    callback cal-next();
+    callback cal-today();
+    callback cal-select-day(int);
+
+    background: transparent;
+
+    VerticalLayout {
+        // Padding zero: o ScrollView raiz do main.slint já aplica 24px
+        // para as telas "normais" (não master-detail). Duplicar aqui
+        // dava ~48px de borda — comparado às outras páginas a tela
+        // ficava encolhida.
+        padding: 0;
+        spacing: 16px;
+
+        // ── Header: título + toggle + botão "Nova" ────────
+        HorizontalLayout {
+            spacing: 12px;
+            VerticalLayout {
+                horizontal-stretch: 1;
+                alignment: center;
+                spacing: 2px;
+                Text {
+                    text: "Financeiro";
+                    font-size: 22px; font-weight: 800;
+                    color: Theme.text-primary;
+                    horizontal-alignment: left;
+                }
+                Text {
+                    text: "Contas a pagar e a receber";
+                    font-size: 11px;
+                    color: Theme.text-secondary;
+                    horizontal-alignment: left;
+                }
+            }
+            VerticalLayout {
+                alignment: center;
+                ViewToggle {
+                    active: root.view-mode;
+                    set-mode(m) => { root.set-view(m); }
+                }
+            }
+            // Receber/Pagar — estilo outline (igual Sangria/Suprimento),
+            // menores; verde (receber) e vermelho (pagar).
+            VerticalLayout {
+                alignment: center;
+                OutlineBtn {
+                    label: "Receber";
+                    btn-color: #2E7D32;
+                    hover-color: #1B5E20;
+                    width: 108px; height: 32px;
+                    clicked => { root.open-new("receivable"); }
+                }
+            }
+            VerticalLayout {
+                alignment: center;
+                OutlineBtn {
+                    label: "Pagar";
+                    btn-color: #E53935;
+                    hover-color: #B71C1C;
+                    width: 96px; height: 32px;
+                    clicked => { root.open-new("payable"); }
+                }
+            }
+        }
+
+        // ── 4 KPIs — só no modo Lista ────────────────────
+        // No modo Calendário a tela mostra apenas o grid mensal +
+        // painel lateral; KPIs e Fluxo de Caixa ficam fora pra dar
+        // espaço total ao calendário.
+        if root.view-mode == "list": FinanceKpiRow { kpis: root.kpis; }
+
+        // ── Barra de busca (lista) ───────────────────────
+        // Lista unificada (receber + pagar): placeholder genérico.
+        if root.view-mode == "list": Rectangle {
+            height: 40px;
+            border-radius: 8px;
+            border-width: 1px;
+            border-color: search-input.has-focus ? Theme.primary : Theme.card-border;
+            background: Theme.surface;
+            drop-shadow-blur: 6px;
+            drop-shadow-offset-y: 0px;
+            drop-shadow-color: Theme.card-shadow;
+            SearchIcon {
+                x: 14px;
+                y: (parent.height - self.height) / 2;
+                width: 16px; height: 16px;
+                icon-size: 16px;
+                icon-color: Theme.text-secondary;
+            }
+            search-input := TextInput {
+                x: 40px; y: 0;
+                width: parent.width - 54px;
+                height: parent.height;
+                text <=> root.search-query;
+                font-size: 13px;
+                color: Theme.text-primary;
+                vertical-alignment: center;
+                single-line: true;
+                edited => { root.search-changed(self.text); }
+            }
+            if search-input.text == "" && !search-input.has-focus: Text {
+                x: 40px; y: 0;
+                height: parent.height;
+                text: "Buscar cliente, fornecedor, descrição…";
+                font-size: 13px;
+                color: Theme.text-secondary;
+                vertical-alignment: center;
+            }
+        }
+
+        // ── Chips de filtro de status ────────────────────
+        // Ortogonal ao toggle Receber/Pagar: combina os dois.
+        if root.view-mode == "list": HorizontalLayout {
+            spacing: 8px;
+            alignment: start;
+            StatusFilterChip {
+                label: "Todos";
+                active: root.status-filter == "all";
+                clicked => { root.set-status-filter("all"); }
+            }
+            StatusFilterChip {
+                label: "Pendentes";
+                active: root.status-filter == "open";
+                clicked => { root.set-status-filter("open"); }
+            }
+            StatusFilterChip {
+                label: "Vencidos";
+                active: root.status-filter == "overdue";
+                clicked => { root.set-status-filter("overdue"); }
+            }
+            StatusFilterChip {
+                label: "Liquidados";
+                active: root.status-filter == "settled";
+                clicked => { root.set-status-filter("settled"); }
+            }
+        }
+
+        // ── Lista de lançamentos ─────────────────────────
+        // Lista agrupada por status (Vencidos / Pendentes / Liquidados),
+        // com cada lançamento num card próprio — como no mockup.
+        if root.view-mode == "list": ScrollView { vertical-scrollbar-policy: ScrollBarPolicy.always-off; horizontal-scrollbar-policy: ScrollBarPolicy.always-off;
+            vertical-stretch: 1;
+            VerticalLayout {
+                alignment: start;
+                spacing: 8px;
+                // Folga lateral/inferior para o ScrollView não recortar a
+                // sombra dos cards (drop-shadow-blur 12px).
+                padding-left: 12px; padding-right: 12px; padding-bottom: 12px;
+                for e in root.entries: VerticalLayout {
+                    spacing: 8px;
+                    // Cabeçalho do grupo — só na 1ª entry de cada grupo.
+                    if e.group-first: HorizontalLayout {
+                        spacing: 8px;
+                        padding-top: 8px;
+                        VerticalLayout {
+                            alignment: center;
+                            Rectangle { width: 10px; height: 10px; border-radius: 5px; background: e.group-color; }
+                        }
+                        Text {
+                            text: e.group-label;
+                            font-size: 12px; font-weight: 800;
+                            color: e.group-color; letter-spacing: 1px;
+                            vertical-alignment: center;
+                        }
+                        Text {
+                            text: " · " + e.group-meta;
+                            font-size: 12px; color: Theme.text-secondary;
+                            vertical-alignment: center;
+                            horizontal-stretch: 1;
+                        }
+                    }
+                    FinanceListRow {
+                        data: e;
+                        edit-clicked => { root.open-edit(e.id); }
+                        action-clicked => { root.mark-settled(e.id); }
+                        delete-clicked => { root.request-delete(e.id); }
+                    }
+                    // Paginação (10 por grupo) — só na última linha do grupo
+                    // e quando há mais de uma página.
+                    if e.group-last && e.group-pages > 1: HorizontalLayout {
+                        padding-top: 4px;
+                        alignment: center;
+                        spacing: 8px;
+                        PageBtn {
+                            label: "‹";
+                            enabled-look: e.group-page > 1;
+                            clicked => {
+                                if (e.group-page > 1) {
+                                    root.set-group-page(e.group-status, e.group-page - 1);
+                                }
+                            }
+                        }
+                        Text {
+                            text: "Página " + e.group-page + " de " + e.group-pages;
+                            font-size: 12px; color: Theme.text-secondary;
+                            vertical-alignment: center;
+                        }
+                        PageBtn {
+                            label: "›";
+                            enabled-look: e.group-page < e.group-pages;
+                            clicked => {
+                                if (e.group-page < e.group-pages) {
+                                    root.set-group-page(e.group-status, e.group-page + 1);
+                                }
+                            }
+                        }
+                    }
+                }
+                if root.entries.length == 0: Rectangle {
+                    height: 150px;
+                    EmptyState {
+                        source: @image-url("../assets/empty/empty-finance.svg");
+                        title: "Sem lançamentos";
+                        subtitle: "Registre entradas e saídas";
+                    }
+                }
+            }
+        }
+
+        // ── Modo Calendário ──────────────────────────────
+        // Layout: header com mês + nav, grid 7×6 à esquerda,
+        // painel lateral de detalhes do dia à direita.
+        if root.view-mode == "calendar": HorizontalLayout {
+            vertical-stretch: 1;
+            spacing: 16px;
+
+            // ── Coluna esquerda: header + grid ──
+            VerticalLayout {
+                horizontal-stretch: 3;
+                spacing: 12px;
+                min-width: 0;
+
+                // Header do mês
+                HorizontalLayout {
+                    spacing: 8px;
+                    alignment: start;
+                    prev-ta := TouchArea {
+                        width: 34px; height: 34px;
+                        clicked => { root.cal-prev(); }
+                        Rectangle {
+                            border-radius: 6px;
+                            border-width: 1px;
+                            border-color: Theme.card-border;
+                            drop-shadow-blur: 12px;
+                            drop-shadow-offset-y: 0px;
+                            drop-shadow-color: Theme.card-shadow;
+                            background: prev-ta.has-hover ? Theme.row-hover : Theme.surface;
+                            AssetIcon {
+                                width: 100%; height: 100%; icon-size: 16px;
+                                icon-color: Theme.text-primary;
+                                source: @image-url("../assets/icons/1.2/seta-esquerda.svg");
+                            }
+                        }
+                    }
+                    next-ta := TouchArea {
+                        width: 34px; height: 34px;
+                        clicked => { root.cal-next(); }
+                        Rectangle {
+                            border-radius: 6px;
+                            border-width: 1px;
+                            border-color: Theme.card-border;
+                            drop-shadow-blur: 12px;
+                            drop-shadow-offset-y: 0px;
+                            drop-shadow-color: Theme.card-shadow;
+                            background: next-ta.has-hover ? Theme.row-hover : Theme.surface;
+                            AssetIcon {
+                                width: 100%; height: 100%; icon-size: 16px;
+                                icon-color: Theme.text-primary;
+                                source: @image-url("../assets/icons/1.2/seta-direita.svg");
+                            }
+                        }
+                    }
+                    today-ta := TouchArea {
+                        width: 70px; height: 32px;
+                        clicked => { root.cal-today(); }
+                        Rectangle {
+                            border-radius: 6px;
+                            border-width: 1px;
+                            border-color: Theme.card-border;
+                            drop-shadow-blur: 12px;
+                            drop-shadow-offset-y: 0px;
+                            drop-shadow-color: Theme.card-shadow;
+                            background: today-ta.has-hover ? Theme.row-hover : Theme.surface;
+                            Text {
+                                width: parent.width; height: parent.height;
+                                text: "Hoje";
+                                font-size: 12px; font-weight: 700;
+                                color: Theme.text-primary;
+                                horizontal-alignment: center; vertical-alignment: center;
+                            }
+                        }
+                    }
+                    VerticalLayout {
+                        horizontal-stretch: 1;
+                        alignment: center;
+                        spacing: 0px;
+                        Text {
+                            text: root.cal-title;
+                            font-size: 18px; font-weight: 800;
+                            color: Theme.text-primary;
+                            horizontal-alignment: left;
+                        }
+                        Text {
+                            text: "Total do mês: " + root.cal-month-total;
+                            font-size: 11px;
+                            color: Theme.text-secondary;
+                            horizontal-alignment: left;
+                        }
+                    }
+                }
+
+                // Dias da semana
+                HorizontalLayout {
+                    spacing: 6px;
+                    for label in ["DOM", "SEG", "TER", "QUA", "QUI", "SEX", "SÁB"]: Text {
+                        horizontal-stretch: 1;
+                        text: label;
+                        font-size: 10px; font-weight: 700;
+                        color: Theme.text-secondary;
+                        letter-spacing: 1px;
+                        horizontal-alignment: center;
+                    }
+                }
+
+                // Grid 6 semanas × 7 dias = 42 células (sempre).
+                // Layout absoluto pra colunas com larguras IDÊNTICAS
+                // (mesma técnica do KpiRow/ProductGrid).
+                Rectangle {
+                    vertical-stretch: 1;
+                    property <length> cell-w: (self.width - 6 * 6px) / 7;
+                    property <length> cell-h: (self.height - 5 * 6px) / 6;
+                    background: transparent;
+                    for cell[i] in root.cal-cells: CalendarCell {
+                        x: mod(i, 7) * (parent.cell-w + 6px);
+                        y: floor(i / 7) * (parent.cell-h + 6px);
+                        width: parent.cell-w;
+                        height: parent.cell-h;
+                        data: cell;
+                        selected => {
+                            // O ID do dia precisa ser construído no
+                            // Rust pra incluir ano/mês corrente — UI
+                            // envia só o número.
+                            root.cal-select-day(cell.day);
+                        }
+                    }
+                }
+            }
+
+            // ── Painel lateral: detalhes do dia selecionado ──
+            Rectangle {
+                horizontal-stretch: 2;
+                min-width: 220px;
+                border-radius: 12px;
+                border-width: 1px;
+                border-color: Theme.card-border;
+                drop-shadow-blur: 12px;
+                drop-shadow-offset-y: 0px;
+                drop-shadow-color: Theme.card-shadow;
+                background: Theme.surface;
+                VerticalLayout {
+                    padding: 18px;
+                    spacing: 12px;
+                    // alignment default (stretch): permite que a
+                    // ScrollView com `vertical-stretch: 1` ocupe a
+                    // altura restante e mostre TODOS os lançamentos
+                    // do dia. Com `alignment: start` o stretch era
+                    // anulado e a lista mostrava apenas o 1º item.
+
+                    VerticalLayout {
+                        spacing: 0px;
+                        Text {
+                            text: root.cal-detail-header;
+                            font-size: 11px; font-weight: 700;
+                            color: Theme.text-secondary;
+                            letter-spacing: 1px;
+                        }
+                        Text {
+                            text: root.cal-detail-summary;
+                            font-size: 16px; font-weight: 800;
+                            color: Theme.text-primary;
+                            wrap: word-wrap;
+                        }
+                    }
+
+                    ScrollView { vertical-scrollbar-policy: ScrollBarPolicy.always-off; horizontal-scrollbar-policy: ScrollBarPolicy.always-off;
+                        vertical-stretch: 1;
+                        VerticalLayout {
+                            spacing: 8px;
+                            alignment: start;
+                            for r in root.cal-detail-rows: DayDetailRow {
+                                data: r;
+                                settle => { root.mark-settled(r.id); }
+                                delete-clicked => { root.request-delete(r.id); }
+                            }
+                            if root.cal-detail-rows.length == 0: Rectangle {
+                                height: 80px;
+                                Text {
+                                    width: parent.width; height: parent.height;
+                                    text: root.cal-selected == ""
+                                        ? "Clique em um dia para ver os lançamentos."
+                                        : "Nenhum lançamento neste dia.";
+                                    font-size: 12px;
+                                    color: Theme.text-secondary;
+                                    horizontal-alignment: center;
+                                    vertical-alignment: center;
+                                    wrap: word-wrap;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

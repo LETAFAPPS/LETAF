@@ -1,0 +1,101 @@
+import { Theme } from "../theme.slint";
+import { AssetIcon } from "../components/icons.slint";
+import { Card } from "../components/cards.slint";
+import { TimeInput } from "../components/form_fields.slint";
+import { ActionBtn, OutlineBtn } from "../components/buttons.slint";
+
+// ── Modal: editar horário de funcionamento ────────────────────────────────────
+
+export component SettingsModal inherits Rectangle {
+    in-out property <string> bh-editing-day-name;
+    in-out property <string> bh-open-time;
+    in-out property <string> bh-close-time;
+    in-out property <bool>   bh-is-open;
+
+    callback close();
+    callback save-business-hours();
+    callback apply-time-mask(string) -> string;
+
+    background: #00000060;
+
+    TouchArea { clicked => { root.close(); } }
+
+    VerticalLayout {
+        alignment: center;
+        HorizontalLayout {
+            alignment: center;
+            Card {
+                width: 400px;
+                TouchArea { }
+
+                VerticalLayout {
+                    padding: 24px;
+                    spacing: 14px;
+
+                    HorizontalLayout {
+                        Text {
+                            text: root.bh-editing-day-name;
+                            font-size: 18px; font-weight: 700;
+                            color: Theme.text-primary;
+                            horizontal-stretch: 1; vertical-alignment: center;
+                        }
+                        TouchArea {
+                            width: 28px; height: 28px;
+                            clicked => { root.close(); }
+                            property <bool> hov: self.has-hover;
+                            Rectangle {
+                                border-radius: 6px;
+                                background: parent.hov ? #f0f0f0 : transparent;
+                                AssetIcon { width: 16px; height: 16px; icon-size: 16px; icon-color: Theme.text-secondary; source: @image-url("../assets/icons/1.2/fechar.svg"); }
+                            }
+                        }
+                    }
+
+                    Rectangle { height: 1px; background: Theme.border; }
+
+                    HorizontalLayout {
+                        spacing: 12px;
+                        Text { text: "Status"; font-size: 14px; color: Theme.text-primary; vertical-alignment: center; horizontal-stretch: 1; }
+                        toggle-ta := TouchArea {
+                            width: 52px; height: 28px;
+                            clicked => { root.bh-is-open = !root.bh-is-open; }
+                            Rectangle {
+                                border-radius: 14px;
+                                background: root.bh-is-open ? Theme.sidebar-sel-bg : #BDBDBD;
+                                Rectangle {
+                                    width: 22px; height: 22px;
+                                    border-radius: 11px;
+                                    background: white;
+                                    x: root.bh-is-open ? parent.width - self.width - 3px : 3px;
+                                    y: (parent.height - self.height) / 2;
+                                    animate x { duration: 150ms; }
+                                }
+                            }
+                        }
+                    }
+
+                    TimeInput {
+                        label: "Abertura";
+                        value <=> root.bh-open-time;
+                        apply-mask(s) => { root.apply-time-mask(s) }
+                    }
+
+                    TimeInput {
+                        label: "Fechamento";
+                        value <=> root.bh-close-time;
+                        apply-mask(s) => { root.apply-time-mask(s) }
+                    }
+
+                    Rectangle { height: 4px; }
+
+                    HorizontalLayout {
+                        alignment: end;
+                        spacing: 10px;
+                        OutlineBtn { label: "Cancelar"; width: 110px; clicked => { root.close(); } }
+                        ActionBtn { label: "Salvar"; bg-color: Theme.sidebar-sel-bg; width: 130px; clicked => { root.save-business-hours(); } }
+                    }
+                }
+            }
+        }
+    }
+}

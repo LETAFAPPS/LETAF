@@ -1,0 +1,419 @@
+import { ScrollView } from "std-widgets.slint";
+import { AssetIcon } from "../components/icons.slint";
+import { Theme } from "../theme.slint";
+import { OrderData, EditOrderItem, ProductData } from "../types.slint";
+import { Card } from "../components/cards.slint";
+import { ActionBtn, OutlineBtn } from "../components/buttons.slint";
+
+// ── Modal: Editar pedido ──────────────────────────────────────────
+//
+// Permite: alterar qty de cada item, observações e tipo de entrega.
+// Item com qty 0 (após clicar em "−" repetidamente) é removido. A
+// lista mutável fica na propriedade `items` (modelo gerenciado pelo
+// Rust — push/remove acontecem nos callbacks). Subtotal e total são
+// recalculados em runtime para feedback imediato; o cálculo oficial
+// (subtotal − desconto) acontece no save no backend.
+
+component QtyButton inherits TouchArea {
+    in property <string> label;
+    width: 28px; height: 28px;
+    Rectangle {
+        border-radius: 4px;
+        border-width: 1px;
+        border-color: root.has-hover ? Theme.primary : Theme.border;
+        background: root.has-hover ? Theme.row-hover : Theme.surface;
+        Text {
+            text: root.label;
+            font-size: 14px; font-weight: 700;
+            color: Theme.text-primary;
+            horizontal-alignment: center; vertical-alignment: center;
+            width: parent.width; height: parent.height;
+        }
+    }
+}
+
+export component EditOrderModal inherits Rectangle {
+    in property <OrderData> order;
+    in-out property <[EditOrderItem]> items;
+    in-out property <string> edit-notes;
+    in property <string> edit-error;
+    /// Lista de produtos filtrada — gerenciada por Rust em resposta
+    /// a `picker-search`. Slint não tem `string.contains`, então a
+    /// filtragem fica no Rust (mesmo padrão do banner picker).
+    in property <[ProductData]> products;
+    in-out property <bool> picker-open: false;
+    in-out property <string> picker-search: "";
+
+    callback close();
+    callback inc-qty(int);
+    callback dec-qty(int);
+    callback delete-item(int);
+    callback edit-item(int);
+    callback add-product(string);
+    callback filter-picker(string);
+    callback save();
+
+    background: #00000080;
+
+    TouchArea { clicked => { root.close(); } }
+
+    VerticalLayout {
+        alignment: center;
+        HorizontalLayout {
+            alignment: center;
+            Card {
+                width: 520px;
+                // Tamanho máximo fixo — em telas menores, o body
+                // entra em scroll. Sem isso, o footer com "Salvar
+                // Alterações" saía fora da tela quando o pedido
+                // tinha muitos itens / o configurador estava aberto.
+                height: min(root.height - 60px, 720px);
+                // arredondados (border-radius 10px do componente Card),
+                // senão os Rectangles internos de header/footer cobrem
+                // os cantos e o modal aparece quadrado.
+                TouchArea { }
+
+                VerticalLayout {
+                    padding: 0px;
+                    spacing: 0px;
+
+                    // Header — fixo no topo (não rola).
+                    Rectangle {
+                        background: Theme.surface;
+                        VerticalLayout {
+                            padding-left: 22px; padding-right: 22px;
+                            padding-top: 18px; padding-bottom: 14px;
+                            HorizontalLayout {
+                                spacing: 8px;
+                                VerticalLayout {
+                                    horizontal-stretch: 1; spacing: 2px;
+                                    Text { text: "Editar Pedido #" + root.order.number; font-size: 16px; font-weight: 700; color: Theme.text-primary; }
+                                    Text { text: root.order.customer-name; font-size: 11px; color: Theme.text-secondary; }
+                                }
+                                close-ta := TouchArea {
+                                    width: 28px; height: 28px;
+                                    clicked => { root.close(); }
+                                    Rectangle {
+                                        border-radius: 4px;
+                                        background: close-ta.has-hover ? Theme.row-hover : transparent;
+                                        AssetIcon { width: parent.width; height: parent.height; icon-size: 14px; icon-color: Theme.text-secondary; source: @image-url("../assets/icons/1.2/fechar.svg"); }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    // Body — itens + entrega + notes. Envolvido num
+                    // ScrollView com `vertical-stretch: 1` para
+                    // ocupar o espaço entre header (fixo) e footer
+                    // (fixo). Quando o conteúdo excede o card, só o
+                    // body rola — botões nunca somem.
+                    ScrollView { vertical-scrollbar-policy: ScrollBarPolicy.always-off; horizontal-scrollbar-policy: ScrollBarPolicy.always-off;
+                        vertical-stretch: 1;
+                    Rectangle {
+                        background: Theme.bg;
+                        VerticalLayout {
+                            // `alignment: start` mantém os blocos no topo: sem
+                            // isso, o VerticalLayout distribui o espaço sobrando
+                            // do viewport entre os filhos e o textarea de
+                            // Observações termina "flutuando" no fundo do scroll.
+                            alignment: start;
+                            padding: 20px;
+                            spacing: 14px;
+
+                            // ── Itens ──
+                            VerticalLayout {
+                                spacing: 6px;
+                                HorizontalLayout {
+                                    Text { text: "Itens"; font-size: 12px; font-weight: 700; color: Theme.text-secondary; letter-spacing: 1px; horizontal-stretch: 1; vertical-alignment: center; }
+                                    add-prod-ta := TouchArea {
+                                        width: 150px; height: 26px;
+                                        clicked => {
+                                            root.picker-open = !root.picker-open;
+                                            root.picker-search = "";
+                                        }
+                                        Rectangle {
+                                            border-radius: 4px;
+                                            border-width: 1px;
+                                            border-color: root.picker-open ? Theme.primary
+                                                : (add-prod-ta.has-hover ? Theme.primary : Theme.border);
+                                            background: root.picker-open ? Theme.sidebar-sel-bg
+                                                : (add-prod-ta.has-hover ? Theme.row-hover : Theme.surface);
+                                            Text {
+                                                text: root.picker-open ? "× Cancelar" : "+ Adicionar Produto";
+                                                font-size: 11px; font-weight: 600;
+                                                color: root.picker-open ? white : Theme.primary;
+                                                horizontal-alignment: center; vertical-alignment: center;
+                                                width: parent.width; height: parent.height;
+                                            }
+                                        }
+                                    }
+                                }
+                                if root.items.length == 0: Rectangle {
+                                    height: 48px;
+                                    border-radius: 6px;
+                                    border-width: 1px;
+                                    border-color: Theme.card-border;
+                                    drop-shadow-blur: 12px;
+                                    drop-shadow-offset-y: 0px;
+                                    drop-shadow-color: Theme.card-shadow;
+                                    background: Theme.surface;
+                                    Text { text: "O pedido ficou sem itens."; font-size: 12px; color: Theme.danger; horizontal-alignment: center; vertical-alignment: center; }
+                                }
+                                for it[idx] in root.items: Rectangle {
+                                    border-radius: 8px;
+                                    border-width: 1px;
+                                    border-color: Theme.card-border;
+                                    drop-shadow-blur: 12px;
+                                    drop-shadow-offset-y: 0px;
+                                    drop-shadow-color: Theme.card-shadow;
+                                    background: Theme.surface;
+                                    HorizontalLayout {
+                                        padding: 12px;
+                                        spacing: 10px;
+                                        VerticalLayout {
+                                            horizontal-stretch: 1;
+                                            alignment: center;
+                                            spacing: 2px;
+                                            Text { text: it.product-name; font-size: 13px; font-weight: 600; color: Theme.text-primary; overflow: elide; }
+                                            Text { text: "Unitário: R$ " + it.unit-price + "  ·  Subtotal: " + it.line-total-display; font-size: 11px; color: Theme.text-secondary; }
+                                        }
+                                        VerticalLayout {
+                                            alignment: center;
+                                            HorizontalLayout {
+                                                spacing: 6px;
+                                                QtyButton { label: "−"; clicked => { root.dec-qty(idx); } }
+                                                Rectangle {
+                                                    width: 36px; height: 28px;
+                                                    border-radius: 4px;
+                                                    border-width: 1px;
+                                                    border-color: Theme.card-border;
+                                                    background: Theme.surface;
+                                                    Text {
+                                                        text: it.qty;
+                                                        font-size: 13px; font-weight: 600;
+                                                        color: Theme.text-primary;
+                                                        horizontal-alignment: center; vertical-alignment: center;
+                                                        width: parent.width; height: parent.height;
+                                                    }
+                                                }
+                                                QtyButton { label: "+"; clicked => { root.inc-qty(idx); } }
+                                            }
+                                        }
+                                        VerticalLayout {
+                                            alignment: center;
+                                            HorizontalLayout {
+                                                spacing: 4px;
+                                                // ── Editar item ──
+                                                // Reabre o configurador do produto com as
+                                                // seleções já marcadas. Útil para trocar
+                                                // sabor/borda/adicionais sem ter que excluir
+                                                // e adicionar de novo. Cancelar mantém o item.
+                                                edit-ta := TouchArea {
+                                                    width: 28px; height: 28px;
+                                                    clicked => { root.edit-item(idx); }
+                                                    Rectangle {
+                                                        border-radius: 4px;
+                                                        border-width: 1px;
+                                                        border-color: edit-ta.has-hover ? Theme.primary : Theme.border;
+                                                        background: edit-ta.has-hover ? Theme.row-hover : Theme.surface;
+                                                        // HorizontalLayout + VerticalLayout
+                                                        // garantem centralização do glifo
+                                                        // independente da métrica da fonte
+                                                        // (alguns ícones unicode têm
+                                                        // baseline deslocada e ficam
+                                                        // off-center quando usamos só
+                                                        // horizontal/vertical-alignment).
+                                                        HorizontalLayout {
+                                                            alignment: center;
+                                                            VerticalLayout {
+                                                                alignment: center;
+                                                                AssetIcon { width: 13px; height: 13px; icon-size: 13px; icon-color: edit-ta.has-hover ? Theme.primary : Theme.text-secondary; source: @image-url("../assets/icons/1.2/editar.svg"); }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                                // ── Excluir item ──
+                                                del-ta := TouchArea {
+                                                    width: 28px; height: 28px;
+                                                    clicked => { root.delete-item(idx); }
+                                                    Rectangle {
+                                                        border-radius: 4px;
+                                                        border-width: 1px;
+                                                        border-color: del-ta.has-hover ? #EF5350 : Theme.border;
+                                                        background: del-ta.has-hover ? #FFEBEE : Theme.surface;
+                                                        HorizontalLayout {
+                                                            alignment: center;
+                                                            VerticalLayout {
+                                                                alignment: center;
+                                                                AssetIcon { width: 12px; height: 12px; icon-size: 12px; icon-color: del-ta.has-hover ? #C62828 : Theme.text-secondary; source: @image-url("../assets/icons/1.2/fechar.svg"); }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+
+                                // ── Picker de produto (toggle) ──
+                                if root.picker-open: Rectangle {
+                                    border-radius: 8px;
+                                    border-width: 1px;
+                                    border-color: Theme.primary;
+                                    background: Theme.surface;
+                                    // Foco automático no campo de busca após o
+                                    // picker estar plenamente inicializado.
+                                    // `init => focus()` direto no TextInput
+                                    // chegava a crashar em algumas versões do
+                                    // Slint (o elemento ainda não tem
+                                    // backend de input pronto); um Timer com
+                                    // delay curto evita o problema. `running:
+                                    // true` + `self.running = false` no
+                                    // disparo garantem que roda uma vez por
+                                    // abertura do picker (o Timer é
+                                    // recriado pelo `if root.picker-open`).
+                                    focus-timer := Timer {
+                                        interval: 80ms;
+                                        running: true;
+                                        triggered => {
+                                            search-input.focus();
+                                            self.running = false;
+                                        }
+                                    }
+                                    VerticalLayout {
+                                        padding: 12px;
+                                        spacing: 8px;
+                                        Rectangle {
+                                            height: 32px;
+                                            border-radius: 6px;
+                                            border-width: 1px;
+                                            border-color: search-input.has-focus ? Theme.primary : Theme.border;
+                                            background: Theme.bg;
+                                            search-input := TextInput {
+                                                x: 10px; y: 0;
+                                                width: parent.width - 20px;
+                                                height: parent.height;
+                                                text <=> root.picker-search;
+                                                font-size: 12px; color: Theme.text-primary;
+                                                vertical-alignment: center;
+                                                single-line: true;
+                                                edited => { root.filter-picker(self.text); }
+                                            }
+                                            if root.picker-search == "": Text {
+                                                x: 10px; y: 0;
+                                                height: parent.height;
+                                                text: "Buscar produto…";
+                                                font-size: 12px; color: #BDBDBD;
+                                                vertical-alignment: center;
+                                            }
+                                        }
+                                        ScrollView { vertical-scrollbar-policy: ScrollBarPolicy.always-off; horizontal-scrollbar-policy: ScrollBarPolicy.always-off;
+                                            height: 180px;
+                                            VerticalLayout {
+                                                alignment: start;
+                                                spacing: 4px;
+                                                // `products` aqui já vem filtrado em Rust
+                                                // (callback `filter-picker(query)`).
+                                                for p in root.products: Rectangle {
+                                                    height: 36px;
+                                                    border-radius: 4px;
+                                                    background: pick-row-ta.has-hover ? Theme.row-hover : transparent;
+                                                    pick-row-ta := TouchArea {
+                                                        clicked => {
+                                                            root.add-product(p.id);
+                                                            root.picker-open = false;
+                                                            root.picker-search = "";
+                                                        }
+                                                        HorizontalLayout {
+                                                            padding-left: 8px; padding-right: 8px;
+                                                            Text {
+                                                                text: p.name;
+                                                                font-size: 12px; color: Theme.text-primary;
+                                                                vertical-alignment: center;
+                                                                horizontal-stretch: 1;
+                                                                overflow: elide;
+                                                            }
+                                                            Text {
+                                                                text: p.price-display;
+                                                                font-size: 11px; font-weight: 600;
+                                                                color: Theme.primary;
+                                                                vertical-alignment: center;
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            // O bloco "Configurar" (variações + adicionais)
+                            // saiu daqui — agora roda como modal próprio
+                            // (`ProductConfiguratorModal`, sobreposto ao
+                            // EditOrderModal). Mantém o estado controlado
+                            // pelo Rust via `config-product-id != ""`. Em
+                            // telas pequenas, isolar o configurador no
+                            // próprio modal garante que os botões
+                            // Cancelar/Adicionar nunca sejam cortados.
+
+                            // ── Observações ──
+                            VerticalLayout {
+                                spacing: 6px;
+                                Text { text: "Observações"; font-size: 12px; font-weight: 700; color: Theme.text-secondary; letter-spacing: 1px; }
+                                Rectangle {
+                                    height: 90px;
+                                    border-radius: 6px;
+                                    border-width: 1px;
+                                    border-color: notes-input.has-focus ? Theme.primary : Theme.border;
+                                    background: Theme.surface;
+                                    notes-input := TextInput {
+                                        x: 10px; y: 8px;
+                                        width: parent.width - 20px;
+                                        height: parent.height - 16px;
+                                        text <=> root.edit-notes;
+                                        font-size: 13px; color: Theme.text-primary;
+                                        single-line: false;
+                                        wrap: word-wrap;
+                                    }
+                                    if root.edit-notes == "": Text {
+                                        text: "Observações";
+                                        x: 10px; y: 8px;
+                                        font-size: 13px; color: #BDBDBD;
+                                    }
+                                }
+                            }
+
+                        }
+                    }
+                    }  // ScrollView
+
+                    // Footer — só `edit-error` do save (o `config-error`
+                    // do configurador agora vive no próprio
+                    // ProductConfiguratorModal, junto às opções).
+                    Rectangle {
+                        background: Theme.surface;
+                        HorizontalLayout {
+                            padding: 14px;
+                            spacing: 10px;
+                            Text {
+                                text: root.edit-error;
+                                font-size: 11px;
+                                color: Theme.danger;
+                                wrap: word-wrap;
+                                vertical-alignment: center;
+                                horizontal-stretch: 1;
+                            }
+                            ActionBtn {
+                                label: "Salvar Alterações";
+                                bg-color: Theme.sidebar-sel-bg;
+                                width: 170px; height: 32px;
+                                clicked => { root.save(); }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

@@ -1,0 +1,19 @@
+# Configuração de build local — controle de memória.
+#
+# Máquina de desenvolvimento: 14 GiB RAM / 16 núcleos / 2 GiB swap.
+# O build completo com 16 `rustc` em paralelo + VSCode/rust-analyzer +
+# o módulo Rust gigante gerado pelo Slint (main.slint ~3k linhas)
+# estourava a RAM e o OOM killer fechava o VSCode.
+#
+# - jobs = 4: no máximo 4 unidades de compilação simultâneas → deixa
+#   folga de memória para o editor. Build fica um pouco mais lento,
+#   mas não derruba a máquina.
+[build]
+jobs = 4
+
+# debuginfo é uma das maiores fontes de consumo de RAM/tempo no perfil
+# dev. "line-tables-only" mantém backtraces com números de linha
+# (suficiente para depurar panics) gastando muito menos memória que o
+# debuginfo completo (debug = 2, padrão do dev).
+[profile.dev]
+debug = "line-tables-only"

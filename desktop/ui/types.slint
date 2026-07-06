@@ -1,0 +1,1390 @@
+// ── Data structs (exportadas para Rust via slint::include_modules!) ─────────
+
+// Permissões de navegação (RBAC). Calculadas no Rust a partir das `perms`
+// do login (§11): `is-admin` libera tudo; cada flag controla a visibilidade
+// de um item da sidebar. O servidor continua sendo a autoridade — esconder
+// é só UX (o backend revalida cada rota).
+export struct NavPerms {
+    is-admin: bool,
+    // Super admin de plataforma (cross-tenant): troca os menus da loja
+    // pelos menus próprios do painel de administrador (§11).
+    is-super-admin: bool,
+    dashboard: bool,
+    reports: bool,
+    pdv: bool,
+    orders: bool,
+    cash: bool,
+    finance: bool,
+    products: bool,
+    inventory: bool,
+    addons: bool,
+    categories: bool,
+    banners: bool,
+    coupons: bool,
+    customers: bool,
+    collaborators: bool,
+    subscription: bool,
+}
+
+// ── Painel do administrador (plataforma / super admin) ──────────────────────
+// Linhas de listagem cross-tenant vindas das rotas /admin/* (online).
+export struct AdminCompanyRow {
+    id: string,
+    name: string,
+    subdomain: string,
+    created-at: string,
+    plan: string,
+    status: string,
+}
+
+export struct AdminSubscriptionRow {
+    company-name: string,
+    plan: string,
+    status: string,
+    next-charge: string,
+    payment-kind: string,
+}
+
+export struct AdminUserRow {
+    id: string,
+    name: string,
+    email: string,
+}
+
+// Linha do catálogo de planos (painel super admin).
+export struct AdminPlanRow {
+    id: string,
+    name: string,
+    amount-display: string,        // "R$ 200,00"
+    monthly-display: string,       // "R$ 200,00/mês"
+    period-months: int,
+    trial-days: int,
+    description: string,
+    highlight-label: string,
+    active: bool,
+}
+
+// ── Colaboradores (RBAC) ────────────────────────────────────────────────────
+// Linha da matriz de permissões no formulário de Função.
+export struct CollabPermRow {
+    key: string,        // feature do catálogo (ex.: "pdv")
+    label: string,      // rótulo pt-BR (ex.: "PDV")
+    sub-label: string,  // descrição curta (ex.: "Ponto de venda")
+    has-edit: bool,     // se a feature tem ação de edição
+    view-on: bool,
+    edit-on: bool,
+}
+// Item da lista de Funções.
+export struct CollabRoleRow {
+    id: string,
+    name: string,
+    perm-summary: string,   // ex.: "3 permissões ativas"
+    perm-chips: [string],   // rótulos das telas liberadas (até 4) p/ a lista
+}
+// Item da lista de Funcionários.
+export struct CollabEmployeeRow {
+    id: string,
+    name: string,
+    email: string,
+    role-label: string,     // "Admin" / "Funcionário"
+    job-role-name: string,  // nome da Função ou "—"
+    is-admin: bool,         // admin não é editável como funcionário comum
+    initial: string,        // 1ª letra do nome (avatar)
+    avatar-color: color,    // cor determinística do avatar
+}
+// Opção de Função no dropdown do formulário de Funcionário.
+export struct CollabRoleOption {
+    id: string,
+    name: string,
+}
+
+export struct ProductData {
+    id: string,
+    name: string,
+    description: string,
+    price: string,
+    /// Preço de venda formatado em pt-BR ("R$ 2.530,00") — pronto para
+    /// usar no card/cabeçalho. Vazio quando `price` não está cadastrado.
+    price-display: string,
+    /// Preço de custo cru (valor decimal). Vazio quando não cadastrado;
+    /// usado como entrada do TextInput de edição.
+    cost-price: string,
+    /// Preço de custo formatado "R$ x,xx" ou "—" — pronto para listagem.
+    cost-price-display: string,
+    /// Margem unitária (preço − custo) já formatada: "R$ 4,20" ou "—".
+    margin-amount-display: string,
+    /// Margem percentual já formatada: "23,5 %" ou "—".
+    margin-pct-display: string,
+    stock-quantity: string,
+    /// Estoque mínimo desejado, valor cru (para o TextInput de edição).
+    /// Vazio = sem mínimo configurado.
+    min-stock: string,
+    /// Estoque mínimo formatado conforme a unidade ("10 un", "1,5 kg")
+    /// ou "—" quando não configurado.
+    min-stock-display: string,
+    /// Sugestão de compra pronta ("Comprar 8 un") ou vazia quando o
+    /// produto já está dentro/acima do mínimo.
+    purchase-suggestion: string,
+    /// "ok" (azul), "low" (laranja), "out" (vermelho) ou "unlimited"
+    /// (cinza). Derivado em Rust via `Product::stock_status` — a UI
+    /// só decide cor/ícone.
+    stock-status: string,
+    /// Rótulo do status em pt-BR pronto para exibir ("Em estoque",
+    /// "Estoque baixo", "Esgotado", "Ilimitado").
+    stock-status-label: string,
+    /// `true` quando o produto foi sincronizado com o servidor.
+    synced: bool,
+    /// Texto curto do indicador de sync ("Sincronizado" / "Aguardando
+    /// sync").
+    sync-label: string,
+    /// Produto sem controle de estoque (preparado sob demanda).
+    unlimited-stock: bool,
+    barcode: string,
+    unit: string,
+    active: bool,
+    web-visible: bool,
+    /// "weight" ou "price" — usado quando unit == "kg".
+    balance-mode: string,
+    image-data: string,
+    product-image: image,
+    category-id: string,
+    category-name: string,
+    subcategory-id: string,
+    subcategory-name: string,
+    /// Hex `#RRGGBB` detectado nas bordas da imagem — vazio quando
+    /// transparente ou indetectável (heurística retornou None).
+    cover-color: string,
+    /// Cor parseada — em Slint não há `color.from-string`, então o Rust
+    /// constrói com `slint::Color::from_rgb_u8` e expõe aqui já pronto.
+    cover-color-value: color,
+    /// `true` se há cor detectada; o card aplica `cover-color-value`,
+    /// caso contrário cai no fundo padrão do tema.
+    has-cover-color: bool,
+    /// JSON cru com a agenda de disponibilidade (vazio = sempre disponível).
+    /// O Rust serializa/desserializa; a UI passa adiante via `request-edit`.
+    availability-schedule: string,
+    /// Tipo de desconto persistido no produto (vazio = sem desconto).
+    discount-kind: string,
+    /// Valores formatados como string para reaproveitar o FormField numérico.
+    discount-value: string,
+    discount-min-qty: string,
+    /// JSON cru das faixas (tiers) bulk. Quando preenchido, é a fonte
+    /// para a lista mutável da UI; o Rust parseia em `load-discount-tiers`.
+    discount-tiers: string,
+    /// CSV de UUIDs dos grupos de adicionais associados ao produto.
+    /// O Rust parseia em `load-product-addon-groups` no request-edit.
+    addon-group-ids: string,
+    /// JSON cru das variações (Fase 5). O Rust parseia em
+    /// `load-product-variations` no request-edit.
+    variations: string,
+}
+
+export struct CustomerData {
+    id: string,
+    name: string,
+    email: string,
+    phone: string,
+    document: string,
+    profile-picture: image,
+    avatar-initial: string,
+    /// Observação interna (não exibida ao cliente final).
+    notes: string,
+    /// Cadastro formatado "DD/MM/AAAA".
+    created-at: string,
+    // ── Métricas derivadas dos pedidos (calculadas no Rust, §1) ──
+    /// LTV formatado "R$ x" (soma de pedidos não-cancelados).
+    ltv: string,
+    /// Rótulo de percentil, ex.: "top 12% dos clientes" (ou "").
+    ltv-pct: string,
+    /// Nº de pedidos (não-cancelados).
+    order-count: int,
+    /// Ticket médio formatado "R$ x".
+    avg-ticket: string,
+    /// Data do último pedido "DD/MM" (ou "—").
+    last-order: string,
+    /// Recência relativa do último pedido, ex.: "há < 7 dias".
+    last-order-rel: string,
+    /// "ativo" | "atrasado" | "inativo".
+    status: string,
+    status-label: string,
+    /// Cliente VIP (alto LTV).
+    is-vip: bool,
+}
+
+/// Linha de pedido recente exibida no detalhe do cliente.
+export struct CustomerOrderRow {
+    id: string,
+    number: string,
+    summary: string,
+    date: string,
+    status: string,
+    status-label: string,
+    total: string,
+}
+
+/// Endereço de entrega do cliente (compartilhado web ↔ desktop).
+export struct CustomerAddressRow {
+    id: string,
+    label: string,
+    line: string,
+}
+
+export struct CategoryData {
+    id: string,
+    name: string,
+    description: string,
+    sort-order: int,
+    /// Slug do ícone selecionado (vazio = sem ícone). Curated set em
+    /// `letaf-core::category::icons` — o Rust valida ao salvar.
+    icon-name: string,
+}
+
+/// Item da lista de ícones disponíveis para o picker do formulário
+/// de categoria. Vem do endpoint público `/catalog/category-icons`
+/// (no offline, alimentado pela cópia estática que o Rust monta a
+/// partir da própria allowlist do core).
+export struct CategoryIconOption {
+    slug: string,
+    label: string,
+}
+
+/// Linha exibida na lista de banners e usada no request-edit.
+/// `image-data` é a string base64 do arquivo (sem o prefixo
+/// `data:image/...;base64,`). O Rust também já decodifica em
+/// `image` para a UI exibir miniatura na lista sem ter que
+/// re-decodificar a cada render.
+export struct BannerData {
+    id: string,
+    title: string,
+    image-data: string,
+    image: image,
+    /// "product" | "url".
+    item-type: string,
+    /// UUID do produto quando `item-type == "product"`.
+    item-id: string,
+    /// Nome do produto vinculado, só para exibição na lista.
+    item-name: string,
+    /// URL externa quando `item-type == "url"`.
+    item-url: string,
+    active: bool,
+    sort-order: int,
+}
+
+/// Cupom de desconto (Fase 8). `coupon-type-label` e
+/// `discount-summary` já vêm formatados do Rust (pt-BR) só para
+/// exibição na lista — a UI não faz lógica de negócio (§1/§3).
+export struct CouponData {
+    id: string,
+    title: string,
+    code: string,
+    /// "standard" | "first_purchase" | "free_shipping".
+    coupon-type: string,
+    coupon-type-label: string,
+    /// "fixed" | "percent".
+    discount-kind: string,
+    /// Resumo pronto para a lista: "R$ 10,00", "15%", "Frete grátis".
+    discount-summary: string,
+    /// Campos numéricos como string (só para pré-preencher o form de
+    /// edição — a UI não faz cálculo; o Rust converte/valida).
+    discount-value: string,
+    min-order-value: string,
+    max-discount: string,
+    per-user-limit: string,
+    usage-limit: string,
+    /// "AAAA-MM-DD" ou "" (sem limite).
+    valid-from: string,
+    valid-until: string,
+    active: bool,
+}
+
+export struct SubcategoryData {
+    id: string,
+    name: string,
+    category-id: string,
+    category-name: string,
+    sort-order: int,
+}
+
+// ── Tela de Categorias (master-detail) ─────────────────────────────
+// Linha da árvore mestra (categoria ou subcategoria). A cor é
+// determinística por categoria, construída no Rust
+// (slint::Color::from_rgb_u8) — pintura consistente sem armazenar
+// cor no domínio. Sem contagem na lista (pedido do usuário).
+export struct CatTreeRow {
+    id: string,
+    name: string,
+    kind: string,        // "category" | "sub"
+    color: color,
+    expanded: bool,      // só relevante p/ kind == "category"
+    has-children: bool,  // categoria possui subcategorias
+    has-icon: bool,      // categoria tem ícone/imagem cadastrado
+}
+
+// Produto exibido na lista do detalhe da categoria. Campos já
+// formatados pelo Rust (§1/§3 — UI sem lógica).
+export struct CatProduct {
+    id: string,
+    name: string,
+    product-image: image, // miniatura decodificada pelo Rust
+    has-image: bool,
+    sub-name: string,    // nome da subcategoria ou "—"
+    qty: string,         // "5 un" ou "Ilimitado"
+    price: string,       // "R$ 5,00"
+    color: color,        // cover-color (fundo da miniatura sem imagem)
+    has-color: bool,
+}
+
+// Subcategoria no painel lateral do detalhe.
+export struct CatSub {
+    id: string,
+    name: string,
+    category-id: string,
+    category-name: string,
+    count-label: string, // "6 produtos"
+}
+
+// ── Cadastro de impressora (Configurações) ────────────────────────
+// Reflete `core::printer::model::Printer` em formato amigável à UI.
+// `kind-label` e `paper-label` já vêm formatados em pt-BR pelo Rust
+// (§1/§14 — UI só renderiza).
+export struct PrinterData {
+    id: string,
+    name: string,
+    /// `"order"` | `"kitchen"` | `"fiscal"` (chave estável).
+    kind: string,
+    /// Rótulo localizado para exibir na tabela ("Comanda", "Cozinha",
+    /// "Nota Fiscal"). Calculado em Rust.
+    kind-label: string,
+    system-name: string,
+    is-default: bool,
+    paper-width: int,            // 58 ou 80
+    paper-label: string,         // "58mm" / "80mm"
+    /// Lista de UUIDs (string) das categorias que esta impressora
+    /// atende. Vazio = "catch-all" (recebe todos os itens da cozinha).
+    /// Editar a impressora popula `printer-form-categories` com as
+    /// categorias da empresa marcando as desta lista como `selected`.
+    category-ids: [string],
+    /// "3 categorias" ou "Todas as categorias" — calculado em Rust
+    /// para exibir como subtítulo na listagem.
+    categories-label: string,
+}
+
+/// Linha do multi-select de categorias no modal de impressora.
+/// Populado em Rust com a lista de categorias da empresa; o operador
+/// alterna `selected` clicando no checkbox.
+export struct PrinterCategoryRow {
+    id: string,
+    name: string,
+    selected: bool,
+}
+
+// ── PDV (Ponto de Venda) ───────────────────────────────────────────
+// Estado da tela de PDV é dividido em produtos visíveis (grid),
+// carrinho (lista mutável) e filtros (categoria/busca). Toda a
+// lógica de baixa de estoque, validação, criação do Order acontece
+// no `order_service::create_pdv` (AI_RULES §1, §11).
+
+export struct PdvProductRow {
+    id: string,
+    name: string,
+    price-display: string,
+    /// `true` quando o produto tem variações ou adicionais — UI deve
+    /// abrir o configurador em vez de adicionar direto ao carrinho.
+    has-config: bool,
+    /// Código de barras associado (string vazia se não cadastrado).
+    /// Usado pelo lookup do scanner.
+    barcode: string,
+    /// Foto do produto (decodificada pelo Rust no refresh). `image`
+    /// vazia (largura 0) quando o produto não tem imagem cadastrada;
+    /// a UI cai num ícone placeholder nesse caso.
+    product-image: image,
+    has-image: bool,
+}
+
+export struct PdvCartRow {
+    /// Identificador local da linha do carrinho (UUID gerado no Rust
+    /// quando o item é adicionado). Não vai pro `OrderItem` — serve
+    /// só para inc/dec/remove no Slint.
+    line-id: string,
+    product-id: string,
+    name: string,
+    qty: int,
+    unit-price: float,
+    /// Resumo dos adicionais/variações no formato "Sabor: A, B · Borda: C".
+    addons-summary: string,
+    /// JSON cru `[{group,name,price}]` repassado ao `OrderItem`
+    /// quando a venda for finalizada.
+    addons-json: string,
+    /// `unit-price * qty` formatado em pt-BR ("R$ 19.00").
+    line-total-display: string,
+}
+
+/// Chip de categoria no painel esquerdo do PDV.
+export struct PdvCategoryChip {
+    id: string,
+    name: string,
+    /// `true` quando o operador tem essa categoria ativa no filtro.
+    /// Múltiplas categorias podem estar ativas ao mesmo tempo (OR).
+    selected: bool,
+}
+
+/// Linha do modal de seleção de cliente no PDV. Versão enxuta de
+/// `CustomerData` — só os campos necessários para listar/buscar/
+/// selecionar (id, nome, telefone, documento).
+export struct PdvCustomerRow {
+    id: string,
+    name: string,
+    phone: string,
+    document: string,
+}
+
+/// Endereço cadastrado do cliente atual, exibido como opção quando
+/// `sale-type == "delivery"` e o cliente tem endereços. Operador
+/// clica → preenche `delivery-street/number/neighborhood`. Mantém
+/// possibilidade de edição manual depois do auto-fill.
+export struct PdvAddressRow {
+    id: string,
+    label: string,          // "Casa", "Trabalho", etc.
+    summary: string,        // "Rua X, 123 — Bairro Y" formatado pelo Rust
+    street: string,
+    number: string,
+    neighborhood: string,
+}
+
+export struct BusinessHoursData {
+    id: string,
+    day-of-week: int,
+    day-name: string,
+    open-time: string,
+    close-time: string,
+    is-open: bool,
+}
+
+export struct OrderData {
+    id: string,
+    number: string,
+    order-date: string,
+    order-time: string,
+    customer-name: string,
+    /// Telefone do cliente já formatado pelo Rust (`"(11) 91234-5678"`)
+    /// ou string vazia quando o cliente não tem telefone cadastrado.
+    /// Usado na comanda — ajuda a contatar o cliente em caso de
+    /// problema de entrega ou retirada não realizada.
+    customer-phone: string,
+    delivery-label: string,
+    delivery-street: string,
+    delivery-number: string,
+    delivery-neighborhood: string,
+    delivery-apartment: string,
+    total: string,
+    /// Resumo do cupom aplicado: "CODIGO (− R$ x,xx)" ou "" se nenhum.
+    coupon-summary: string,
+    status: string,
+    status-label: string,
+    delivery-type: string,
+    /// Forma de pagamento (preenchido só em pedidos do PDV).
+    /// String vazia em pedidos vindos do cardápio/whatsapp/etc.
+    /// "cash" | "card" | "pix" — usado pela UI pra exibir tag
+    /// "PDV" em verde no lugar de Retirada/Entrega.
+    payment-method: string,
+    items-count: int,
+    items-summary: string,
+    notes: string,
+    /// Detalhamento de valores já formatado em pt-BR pelo Rust
+    /// (AI_RULES §1/§14 — UI sem cálculo). `subtotal-display` é a
+    /// soma dos `OrderItem.subtotal`; `discount-display` é o desconto
+    /// do cupom; `delivery-fee-display` é a taxa de entrega
+    /// (atualmente sempre "Grátis" — campo no modelo planejado p/ Fase
+    /// 10). `coupon-code-display` mostra "—" se sem cupom.
+    subtotal-display: string,
+    discount-display: string,
+    delivery-fee-display: string,
+    coupon-code-display: string,
+    /// Tempo decorrido desde `created_at`. Formato curto pt-BR:
+    /// `"agora"`, `"há 5 min"`, `"há 2 h 13 min"`, `"há 3 dias"`.
+    /// Recomputado em Rust via `refresh-order-elapsed` (Timer 60s).
+    elapsed-display: string,
+    /// `created_at` cru em ISO ("YYYY-MM-DDTHH:MM:SS") — usado pelo
+    /// Rust para recomputar `elapsed-display` sem ir ao banco.
+    created-at-iso: string,
+}
+
+// Estatística de uma coluna do Kanban de pedidos. label/subtitle vêm
+// prontos do Rust (pt-BR); count/total agregados no Rust (§1/§3).
+// Ordem fixa: pending, confirmed, preparing, ready, delivered, cancelled.
+export struct OrderColStat {
+    key: string,
+    label: string,
+    subtitle: string,
+    count: int,
+    total: string,
+}
+
+// Coluna do Kanban já com a lista de pedidos daquele status
+// (filtrada/buscada no Rust). Permite paginar por coluna sem lógica
+// na UI (§1/§3). Ordem fixa: pending..delivered (cancelled fica fora
+// do "Todos" — acessível só pelo chip "Cancelado").
+export struct KanbanCol {
+    key: string,
+    label: string,
+    subtitle: string,
+    count: int,
+    total: string,
+    orders: [OrderData],
+}
+
+// Célula do calendário (filtro por período de Pedidos). A grade
+// (42 células = 6 semanas) é montada no Rust. `label`/`ymd` vazios
+// = célula de preenchimento (dia fora do mês exibido).
+export struct CalDay {
+    label: string,    // "1".."31" ou ""
+    ymd: string,       // "AAAA-MM-DD" ou ""
+    selected: bool,    // é o início ou o fim do intervalo
+    in-range: bool,    // dentro do intervalo (inclui as pontas)
+    today: bool,
+}
+
+export struct OrderItemData {
+    product-id: string,
+    product-name: string,
+    qty-label: string,
+    price: string,
+    product-image: image,
+    /// Lista de adicionais/variações já formatada ("Calabresa, Bacon")
+    /// — pronta para exibir abaixo do nome no detalhe do pedido.
+    /// Vazia quando o item não tem snapshot.
+    addons-summary: string,
+}
+
+/// Linha mutável do modal "Editar pedido". `id` é o `OrderItem.id`
+/// original (necessário para o save mapear de volta). `qty` é o
+/// número atual; a UI faz −/+ direto na string; o Rust parseia.
+/// `unit-price` é mantido para recomputar `line-total` em tempo real
+/// (display); o cálculo "oficial" do total acontece no backend.
+export struct EditOrderItem {
+    item-id: string,
+    /// `product-id` do produto (UUID) — usado para reabrir o
+    /// configurador via "Editar item" e para reconstruir o `OrderItem`
+    /// no save quando o item é novo. Para itens existentes, é apenas
+    /// referência (o save consulta o snapshot original).
+    product-id: string,
+    product-name: string,
+    qty: string,
+    unit-price: float,
+    line-total-display: string,
+    /// JSON `[{"group","name","price"},...]` dos adicionais/variações
+    /// selecionados. Vazio quando não há. O save propaga para
+    /// `OrderItem.addons_json` (também em itens existentes — permite
+    /// reconfiguração via botão "Editar item").
+    addons-json: string,
+}
+
+// ── Configurador de produto (adicionar com adicionais/variações) ──
+//
+// Quando o operador escolhe um produto no picker do EditOrderModal
+// e esse produto tem `addon_group_ids` ou `variations`, abrimos uma
+// seção de configuração inline com estas structs (alimentadas pelo
+// Rust a partir do `product_service` + `addon_group_service`).
+
+export struct ConfigOption {
+    name: string,
+    price: float,
+    /// Display formatado ("+ R$ 2,00" ou "Grátis").
+    price-display: string,
+    selected: bool,
+}
+
+export struct ConfigVariation {
+    title: string,
+    /// "single" | "multi" | "max_value" — semântica de seleção,
+    /// validada no Rust nos toggles.
+    selection: string,
+    /// Texto auxiliar (ex.: "Obrigatório", "Escolha até 2", etc.).
+    hint: string,
+    /// Validação: `required = true` exige pelo menos 1 marcada.
+    /// `min-select > 0` exige no mínimo N marcadas (independente de
+    /// `required`). `max-select > 0` impede marcar além de N.
+    required: bool,
+    min-select: int,
+    max-select: int,
+    options: [ConfigOption],
+}
+
+export struct ConfigAddon {
+    id: string,
+    name: string,
+    price: float,
+    price-display: string,
+    selected: bool,
+}
+
+export struct ConfigAddonGroup {
+    id: string,
+    name: string,
+    selection: string,    // "single" | "multi"
+    hint: string,
+    /// Mesma semântica de `ConfigVariation`: `min-select` exige mín.,
+    /// `max-select` limita máximo (0 = sem limite).
+    min-select: int,
+    max-select: int,
+    addons: [ConfigAddon],
+}
+
+// Entradas do painel de filtros de produtos — sempre populadas pelo Rust
+// com base nas categorias/subcategorias da empresa. `selected` reflete o
+// estado atual do filtro, alternado via callbacks toggle-*-filter.
+export struct CategoryFilterEntry {
+    id: string,
+    name: string,
+    selected: bool,
+}
+
+export struct SubcategoryFilterEntry {
+    id: string,
+    category-id: string,
+    name: string,
+    selected: bool,
+}
+
+// ── Faixa (tier) de desconto bulk ─────────────────────────────────────────
+//
+// Linha do formulário de Desconto quando o kind é `bulk_fixed`/`bulk_percent`.
+// Reaproveita strings (mesmo padrão do FormField numérico) — o Rust converte
+// para f64 / monta JSON `discount_tiers` na hora de salvar.
+export struct DiscountTierData {
+    min-qty: string,
+    value: string,
+}
+
+// ── Adicionais (Fase 4) ───────────────────────────────────────────────────
+//
+// `AddonGroupData` representa o grupo no painel de "Adicionais" e também
+// como chip no formulário de produto. O `selected` é usado nos chips
+// (multi-seleção): true quando o produto em edição usa este grupo.
+// `addons-count` é hint visual ("3 itens") calculado no Rust ao listar.
+export struct AddonGroupData {
+    id: string,
+    name: string,
+    /// `"single"` (rádio, escolhe 1) ou `"multi"` (checkbox).
+    selection: string,
+    min-select: int,
+    max-select: int,
+    sort-order: int,
+    addons-count: int,
+    /// Apenas usado no chip do form de produto.
+    selected: bool,
+}
+
+// `AddonData` representa um item individual de adicional dentro do
+// grupo (linha da coluna direita do painel). `price` é string para
+// reaproveitar o FormField numérico — o Rust faz parse para f64 ao
+// salvar. `active` controla se aparece no cardápio web.
+export struct AddonData {
+    id: string,
+    group-id: string,
+    name: string,
+    price: string,
+    sort-order: int,
+    active: bool,
+}
+
+// ── Variações (Fase 5B) ───────────────────────────────────────────────────
+//
+// Variação é per-produto (não compartilhada como adicionais). UI
+// mantém uma lista mutável dentro do form do produto; o Rust
+// serializa em JSON `variations` ao salvar.
+//
+// `selection` ∈ {"single", "multi", "max_value"}:
+// - "single"   → radio, escolhe 1.
+// - "multi"    → checkbox, soma todos os valores.
+// - "max_value"→ checkbox, cobra apenas o maior valor entre os marcados.
+export struct VariationOptionData {
+    name: string,
+    /// Preço como string para reaproveitar TextInput numérico — o Rust
+    /// faz parse para f64 ao salvar.
+    price: string,
+}
+
+export struct VariationData {
+    title: string,
+    selection: string,
+    required: bool,
+    /// Mín./máx. de opções selecionáveis — só fazem sentido em
+    /// "multi"/"max_value". String p/ reaproveitar TextInput; o Rust
+    /// faz parse p/ inteiro ao salvar. "" = sem limite.
+    min-select: string,
+    max-select: string,
+    options: [VariationOptionData],
+}
+
+// ── Gestão de caixa ──────────────────────────────────────────────
+// Reflete `letaf_core::cash::model` formatado em pt-BR pelo Rust
+// (AI_RULES §1/§14: UI não formata moeda nem datas).
+
+/// Linha de sessão de caixa — usada no histórico e no dashboard
+/// quando aberta. Valores monetários e datas chegam pré-formatados
+/// em strings ("R$ 521,30", "12/05/2026", "08:00").
+export struct CashSessionRow {
+    id: string,
+    operator-name: string,
+    opened-date: string,        // "12/05/2026"
+    opened-time: string,        // "08:00"
+    closed-time: string,        // "23:00" ou "" se aberta
+    duration-display: string,   // "há 4h 32min" ou "4h 32min" no fechamento
+    total-display: string,      // "R$ 521,30"
+    difference-display: string, // "R$ 0,00" | "R$ -2,30" | "+R$ 5,00"
+    /// "open" | "closed" — usado pra colorir badge.
+    status: string,
+    /// "fechado" / "aberto" — texto pt-BR pronto.
+    status-label: string,
+}
+
+/// Movimento individual da sessão atual (timeline).
+export struct CashMovementRow {
+    id: string,
+    time-display: string,       // "14:48"
+    /// "sale" | "sangria" | "suprimento" | "opening"
+    kind: string,
+    /// Label legível pra UI ("Venda #0014", "Sangria · depósito Banco do Brasil").
+    title: string,
+    /// "Dinheiro" | "PIX" | "Cartão Crédito" | "Cartão Débito".
+    method-label: string,
+    /// Valor com sinal formatado: "+R$ 24,00" / "-R$ 200,00".
+    amount-display: string,
+    /// "pos" (verde) | "neg" (vermelho) | "neutral" — UI escolhe cor.
+    sign: string,
+}
+
+/// Total por método de pagamento — fatia da meia-lua (gauge) na coluna
+/// esquerda da Gestão de Caixa.
+export struct CashMethodTotalRow {
+    label: string,              // "Dinheiro" / "PIX" / "Cartão Crédito" / "Cartão Débito"
+    /// "money" / "pix" / "credit" / "debit" — UI escolhe ícone/cor.
+    key: string,
+    count-display: string,      // "×18"
+    amount-display: string,     // "R$ 247,30"
+    /// Comando SVG do arco da fatia na meia-lua (viewbox 0 0 100 56),
+    /// calculado no Rust. Vazio quando a forma não teve recebimento.
+    arc-commands: string,
+    /// true quando a forma teve recebimento (frac > 0) — habilita a área
+    /// de hover sobre a fatia no gráfico.
+    has-value: bool,
+    /// Centro do arco da fatia, relativo (0..1) à área do gauge, para
+    /// posicionar a área de hover que liga gráfico ↔ ícone da legenda.
+    hit-x: float,
+    hit-y: float,
+}
+
+/// Resumo agregado mostrado nos 4 cards e na coluna esquerda.
+/// Valores em string já formatados.
+export struct CashSummaryData {
+    /// True quando há sessão aberta agora.
+    open: bool,
+    /// Banner do header — "Caixa aberto" / "Caixa fechado".
+    status-headline: string,
+    /// Tempo aberto ou desde último fechamento — "há 4h 32min" / "Última sessão encerrada em 11/05 às 23:00".
+    status-subtitle: string,
+    /// "08:00 · 12/05/2026 por admin · Leonardo" — sub-linha do header.
+    opened-summary: string,
+    /// Card 1: total bruto do dia (vendas).
+    total-day-display: string,
+    /// Sub-texto "30 vendas · ticket médio R$ 17,38"
+    total-day-meta: string,
+    /// Card 2: saldo em dinheiro AGORA.
+    cash-now-display: string,
+    /// Sub-texto "18 vendas · saldo na gaveta"
+    cash-now-meta: string,
+    /// Card 3: total das sangrias.
+    sangrias-display: string,
+    sangrias-meta: string,
+    /// Card 4: total dos suprimentos.
+    suprimentos-display: string,
+    suprimentos-meta: string,
+    /// Total esperado no fechamento (saldo dinheiro + cartões + pix).
+    total-expected-display: string,
+    /// Id da sessão ativa (string vazia se fechado).
+    session-id: string,
+    /// Sugestão de troco inicial para o próximo abrir (média das
+    /// últimas 5 sessões fechadas).
+    suggested-change-display: string,
+    /// Histórico de fechamentos resumidos (até 5 últimas Closed),
+    /// usado pela tela "Caixa fechado".
+    last-closed-summary: string,
+}
+
+// ── Controle de Estoque ──────────────────────────────────────────
+// Métricas + lista derivadas no Rust a partir dos produtos da empresa
+// (AI_RULES §1/§14 — UI não calcula nada).
+
+/// Header do dashboard de estoque.
+export struct InventoryHealthData {
+    /// "ok" | "attention" | "critical" — define a cor do rótulo grande.
+    health-status: string,
+    /// "Saudável" / "Atenção" / "Crítica" — texto pt-BR.
+    health-label: string,
+    /// 3 contadores formatados como string ("5"/"6"/"1") pra mostrar
+    /// "saudáveis · baixos · zerados" no rodapé do card.
+    health-counts: string,
+    /// Card "Sem estoque".
+    out-count: int,
+    /// Card "Estoque baixo".
+    low-count: int,
+    /// Card "Erros de sync" (produtos com synced=false).
+    sync-pending-count: int,
+    /// Total de produtos (conjunto completo) — subtítulo do cabeçalho.
+    total-count: int,
+}
+
+/// Linha da lista de produtos no dashboard de estoque.
+export struct InventoryProductRow {
+    id: string,
+    name: string,
+    /// Miniatura do produto (decodificada pelo Rust). `has-image == false`
+    /// quando o produto não tem imagem — UI cai no avatar de iniciais.
+    product-image: image,
+    has-image: bool,
+    /// Avatar de 2 letras (iniciais) — fallback quando sem imagem.
+    initials: string,
+    /// Cor de fundo do avatar — determinística por categoria no Rust.
+    avatar-color: color,
+    /// Categoria + unidade, ex.: "Bebidas · 350ml".
+    category-label: string,
+    /// Quantidade formatada com unidade ("0 un", "5 un", "1,250 kg").
+    qty-display: string,
+    /// "mínimo 10" — pronto pra exibir abaixo da quantidade.
+    min-display: string,
+    /// "out" | "low" | "ok" | "unlimited" — para cor/badge.
+    status: string,
+    /// "Sem Estoque" | "Estoque Baixo" | "Saudável" | "Ilimitado".
+    status-label: string,
+    /// "Aguardando sync" / "" (sincronizado) — exibido como hint.
+    sync-label: string,
+    /// Proporção (0..1) da barra de progresso de estoque (derivada no Rust).
+    fill-ratio: float,
+    /// Agrupamento da lista (1ª linha de cada grupo carrega o cabeçalho).
+    group-first: bool,
+    /// Rótulo do grupo em caixa-alta ("SEM ESTOQUE" / "SAUDÁVEL"...).
+    group-label: string,
+    /// Quantidade de itens no grupo.
+    group-count: int,
+    /// Cor do cabeçalho/ponto do grupo.
+    group-color: color,
+}
+
+/// Mini-célula colorida no "Mapa por categoria" — 1 SKU.
+export struct InventoryCategoryCell {
+    /// "ok" | "low" | "out" | "unlimited" — define a cor.
+    status: string,
+}
+
+/// Linha do "Mapa por categoria" — uma categoria com seus SKUs
+/// renderizados como mini-quadradinhos coloridos por status.
+export struct InventoryCategoryRow {
+    name: string,
+    /// Nº total de SKUs ("8 SKU").
+    sku-label: string,
+    /// "ok" | "attention" | "critical" — cor do rótulo da contagem.
+    cell-status: string,
+    cells: [InventoryCategoryCell],
+}
+
+// ── Dashboard ────────────────────────────────────────────────────
+// Métricas e séries calculadas no Rust. UI só renderiza (AI_RULES §1).
+
+/// KPI grande no topo do dashboard.
+export struct DashboardKpi {
+    /// "RECEITA HOJE", "PEDIDOS", etc.
+    label: string,
+    /// "R$ 521,30", "30", "R$ 17,38".
+    value-display: string,
+    /// Texto auxiliar pronto: "+14,2% vs ontem" / "5 pendentes · 1 em preparo".
+    sub-text: string,
+    /// "pos" (verde), "neg" (vermelho), "neutral" (cinza) — cor do sub-text.
+    sub-tone: string,
+}
+
+/// Barra do gráfico "Vendas — últimos 7 dias".
+export struct DashboardBarPoint {
+    /// "Qua", "Qui"...
+    label: string,
+    /// Valor original formatado em pt-BR pra mostrar acima da barra
+    /// ("521", "894"). Pode ser vazio quando a barra é zero.
+    value-display: string,
+    /// 0.0–1.0 (proporção ao maior do conjunto).
+    progress: float,
+    /// `true` colore a barra no laranja (hoje).
+    highlight: bool,
+}
+
+// ── Relatórios ───────────────────────────────────────────────────
+// Central de análises: 4 tipos (financial/orders/products/customers)
+// + 3 períodos (7d/30d/month). Tudo derivado no Rust (AI_RULES §1/§14).
+
+/// Opção radio na sidebar / barra de períodos.
+export struct ReportOption {
+    key: string,
+    label: string,
+    selected: bool,
+}
+
+/// KPI no topo da visualização (4 por sub-relatório).
+/// `accent-color` colore a borda esquerda do card.
+export struct ReportKpi {
+    label: string,
+    value-display: string,
+    sub-text: string,
+    accent-color: color,
+    /// "pos"/"neg"/"neutral" — cor do `sub-text`.
+    sub-tone: string,
+    /// Stem do ícone (ex.: "atividade") — a UI mapeia para o asset.
+    icon-key: string,
+    /// True → valor em cor neutra (escura); False → usa `accent-color`.
+    /// Contadores (Clientes Ativos, Itens, Total de Pedidos…) ficam
+    /// neutros; só métricas semânticas (receita/custo/LTV…) coloridas.
+    value-muted: bool,
+}
+
+/// Barra do gráfico diário (Receita diária, Pedidos por dia).
+export struct ReportDailyBar {
+    label: string,       // "Qua"
+    progress: float,
+    value-display: string,
+    bar-color: color,
+    /// True destaca a barra do dia atual.
+    highlight: bool,
+}
+
+/// Linha colorida de "Por canal" / "Por método".
+export struct ReportHBar {
+    label: string,
+    value-display: string,
+    progress: float,
+    bar-color: color,
+    /// Stem do ícone à esquerda do label (ex.: "pay-pix"); vazio = sem ícone.
+    icon-key: string,
+    /// Comando SVG do arco da fatia na meia-lua (gauge) de Recebimentos,
+    /// calculado no Rust (viewbox 0 0 100 56). Vazio nos canais (que
+    /// continuam em barras).
+    arc-commands: string,
+}
+
+/// Linha da DRE simplificada.
+export struct ReportDreLine {
+    label: string,
+    value-display: string,
+    /// "pos" (verde) | "neg" (vermelho) | "total" (negrito, neutro).
+    tone: string,
+}
+
+/// Linha do "Top produtos".
+export struct ReportProductRow {
+    rank: int,
+    name: string,
+    category: string,
+    qty-display: string,    // "84"
+    revenue-display: string, // "R$ 630,00"
+    progress: float,         // proporção à maior receita
+    swatch-color: color,     // fallback quando o produto não tem foto
+    product-image: image,    // miniatura decodificada pelo Rust
+    has-image: bool,         // true quando product-image é utilizável
+}
+
+/// Linha do "Top clientes" (LTV).
+export struct ReportCustomerRow {
+    rank: int,                   // 1..8 (posição no ranking)
+    initial: string,             // "M"
+    name: string,
+    orders-display: string,      // "23 pedidos"
+    revenue-display: string,     // "R$ 412,80"
+    progress: float,
+    is-vip: bool,
+    initial-color: color,
+    profile-picture: image,      // decodificada pelo Rust
+    has-photo: bool,             // true quando profile-picture é utilizável
+}
+
+/// Distribuição novos vs recorrentes (gráfico simples).
+export struct ReportNewVsReturning {
+    new-count: int,
+    new-pct: string,             // "38%"
+    new-progress: float,
+    returning-count: int,
+    returning-pct: string,       // "62%"
+    returning-progress: float,
+}
+
+/// Barra fininha do "Pedidos por horário" (08h..22h).
+export struct ReportHourlyBar {
+    label: string,
+    progress: float,
+    /// Quantidade de pedidos na hora (tooltip no hover); vazio = 0.
+    value-display: string,
+}
+
+/// Par (atual, anterior) do comparativo semanal — uma entrada por dia
+/// da semana.
+export struct DashboardComparePoint {
+    label: string,           // "Qua" "Qui"...
+    /// 0.0–1.0 baseado no maior valor entre `current` e `previous`
+    /// de TODOS os pontos (mesma escala vertical).
+    current-progress: float,
+    previous-progress: float,
+    /// Valor "esta semana" formatado pra tooltip ("521" ou vazio).
+    current-display: string,
+    /// Valor "semana anterior" formatado pra tooltip.
+    previous-display: string,
+}
+
+/// Ponto da linha de receita do hero (marcador + hover). x/y em
+/// fração 0..1 da área do gráfico (y=0 topo).
+export struct DashboardLinePoint {
+    x: float,
+    y: float,
+    value-display: string,   // "R$ 38,90"
+    label: string,           // "Ter"
+}
+
+/// Linha do "Top Produtos" do dashboard (semana).
+export struct DashboardTopProduct {
+    rank: int,               // 1..5
+    name: string,
+    revenue-display: string, // "R$ 1.395"
+    sales-display: string,   // "31 vendas"
+    progress: float,         // 0..1 (proporção à maior receita)
+    /// Comando SVG do anel de progresso (donut) calculado no Rust
+    /// (viewbox 0 0 100 100, raio 38). Preenche `progress` do círculo.
+    arc-commands: string,
+}
+
+/// Fatia do donut "Formas de Pagamento".
+export struct DashboardPaymentSlice {
+    label: string,           // "Pix" / "Cartão" / "Dinheiro"
+    value-display: string,   // "R$ 5.650"
+    pct-display: string,     // "48%"
+    color: color,            // cor da fatia/legenda
+    icon-key: string,        // "pay-pix" / "pay-cartao-credito" / ... (ícone da forma)
+    /// Comando SVG do arco da fatia (calculado no Rust), renderizado
+    /// por um `Path` com stroke (espessura = anel do donut). Viewbox 0 0 100 100.
+    arc-commands: string,
+}
+
+// ── Financeiro (contas a pagar/receber) ──────────────────────────
+// Refletem `letaf_core::finance` + `finance_category` com toda
+// formatação pt-BR (moeda/datas) já resolvida em Rust
+// (AI_RULES §1/§14).
+
+/// KPI do header — Saldo Previsto, A Receber, A Pagar, Vencidos.
+/// Mesma forma dos demais KPIs do projeto (Dashboard/Relatórios).
+export struct FinanceKpi {
+    label: string,               // "SALDO PREVISTO"
+    value-display: string,       // "R$ -5.541,50"
+    sub-text: string,            // "A receber − A pagar (em aberto)"
+    accent-color: color,         // cor do valor (verde/vermelho/etc)
+    /// "pos" (verde) | "neg" (vermelho) | "neutral" — UI escolhe a
+    /// cor do sub-text.
+    sub-tone: string,
+    /// `true` → valor em text-primary (neutro, segue o tema) em vez de
+    /// accent-color. Usado em KPIs neutros (Saldo Previsto, Vencidos).
+    value-neutral: bool,
+}
+
+/// Categoria de lançamento para o dropdown do modal.
+export struct FinanceCategoryOption {
+    id: string,                  // UUID; "" = nenhuma
+    name: string,                // "Aluguel"
+    color: string,               // "#E65100" (vazio = sem cor)
+    /// "payable" | "receivable" | "both"
+    scope: string,
+}
+
+/// Linha da lista de lançamentos (A receber ou A pagar).
+/// Todos os valores chegam pré-formatados.
+export struct FinanceEntryRow {
+    id: string,
+    /// "payable" | "receivable" — UI escolhe ícone/cor da seta.
+    kind: string,
+    description: string,          // "Aluguel · maio"
+    party-name: string,           // "Imobiliária XYZ" — segunda linha
+    category-name: string,        // "Aluguel"
+    category-color: color,        // cor da pílula da categoria
+    /// Valor com sinal: "+R$ 217,50" para receivable, "−R$ 2.500,00"
+    /// para payable.
+    amount-display: string,
+    /// Cor do valor: vermelho (vencido), verde (pago), neutro.
+    amount-color: color,
+    due-date-display: string,     // "20/05/2026"
+    days-display: string,         // "em 8 dias" / "vencido há 3 dias" / "hoje"
+    /// "pending" | "scheduled" | "paid" | "received" | "overdue" | "cancelled"
+    status: string,
+    status-label: string,         // "Pendente" / "Pago" / "Vencido"…
+    /// Cor do badge de status — UI usa pra pintar o fundo.
+    status-color: color,
+    payment-method-label: string, // "PIX" / "Boleto" / "" se não definido
+    /// Texto da ação no fim da linha — "Pagar" para payable pendente,
+    /// "Receber" para receivable pendente. Vazio quando já liquidado
+    /// ou cancelado (UI não mostra o botão).
+    action-label: string,
+    /// Marca parcelas: "2/3" / "" para isoladas.
+    installment-label: string,
+    // ── Agrupamento por status (cabeçalho do grupo na lista) ──
+    /// True na PRIMEIRA entry de cada grupo → a UI mostra o cabeçalho.
+    group-first: bool,
+    /// "VENCIDOS" / "PENDENTES" / "LIQUIDADOS" / "CANCELADOS".
+    group-label: string,
+    /// "3 contas · R$ 1.425,00".
+    group-meta: string,
+    /// Cor do ponto do cabeçalho do grupo.
+    group-color: color,
+    // ── Paginação por grupo (10 por página) ──
+    /// True na ÚLTIMA entry visível do grupo → a UI mostra a barra de páginas.
+    group-last: bool,
+    /// Página atual do grupo (1-based) e total de páginas.
+    group-page: int,
+    group-pages: int,
+    /// Chave do grupo p/ rotear a troca de página:
+    /// "overdue" | "pending" | "paid" | "cancelled".
+    group-status: string,
+}
+
+/// Tab "A receber" / "A pagar" com contadores e total.
+export struct FinanceTab {
+    key: string,                  // "receivable" | "payable"
+    label: string,                // "A receber"
+    count-display: string,        // "6"
+    total-display: string,        // "R$ 217,50"
+    selected: bool,
+}
+
+/// Ponto do gráfico "Fluxo de Caixa — 30 dias". Cada barra representa
+/// um dia; o saldo é cumulativo (entradas − saídas até o dia).
+export struct FinanceCashFlowPoint {
+    label: string,              // "" para a maioria, "d8"/"d15"/"d22"/"d29" em marcos
+    /// 0..1 — altura da barra de entradas relativa ao maior fluxo do
+    /// período (entrada OU saída).
+    inflow-progress: float,
+    /// 0..1 — altura da barra de saídas.
+    outflow-progress: float,
+    /// 0..1 — posição vertical do ponto do saldo no gráfico (0 = pior
+    /// saldo do período, 1 = melhor). Reta interpolada cliente-side.
+    balance-progress: float,
+    /// Tooltip pronto: "Entradas R$ 217,50 · Saídas R$ -2.500,00 · Saldo R$ -2.282,50".
+    tooltip: string,
+    /// True para o dia atual (destaque).
+    today: bool,
+}
+
+/// Célula do calendário mensal de Financeiro.
+///
+/// Sempre temos 6 linhas × 7 colunas (42 células) — semanas
+/// começam no DOM. Células fora do mês corrente são exibidas
+/// cinzas (`in-month = false`).
+export struct FinanceCalendarCell {
+    day: int,                     // 1..31; 0 se vazia
+    in-month: bool,               // false = preenchimento (mês anterior/seguinte)
+    /// Quantidade de lançamentos com vencimento neste dia.
+    count: int,
+    /// Total agregado (sinalizado) formatado: "-2.500,00", "+217,50".
+    total-display: string,
+    /// "pos" (verde) | "neg" (vermelho) | "neutral" — UI escolhe.
+    total-tone: string,
+    today: bool,
+    selected: bool,
+}
+
+// ── Carteira do cliente (Fase 2) ──────────────────────────────────
+// Reflete `letaf_core::wallet` formatado em pt-BR pelo Rust.
+
+/// Resumo da carteira de um cliente — exibido no card do detalhe.
+/// Quando `has-account = false`, o card mostra apenas botão
+/// "Abrir carteira".
+export struct WalletSummary {
+    has-account: bool,
+    /// "" quando não há conta. Caso contrário UUID da account.
+    account-id: string,
+    /// "R$ 87,50" ou "-R$ 15,00" (com sinal).
+    balance-display: string,
+    /// "pos" (verde, saldo > 0) | "neg" (vermelho, fiado < 0) |
+    /// "neutral" (zero). UI escolhe a cor.
+    balance-tone: string,
+    /// "R$ 100,00" — limite de fiado configurado.
+    credit-limit-display: string,
+    /// "Em dia" | "Em fiado · usando 15% do limite" | "Sem fiado configurado".
+    status-label: string,
+    /// "Saldo disponível: R$ 187,50" (balance + credit_limit), útil
+    /// para mostrar quanto o cliente pode gastar agora.
+    available-display: string,
+    /// Total geral de movimentos da carteira (count).
+    movements-count: int,
+}
+
+/// Linha da timeline de movimentações.
+export struct WalletMovementRow {
+    id: string,
+    /// "deposit" | "withdraw" | "order_charge" | "order_refund" | "manual_adjust"
+    kind: string,
+    /// Label legível: "Depósito" / "Saque" / "Pedido #0014" / "Estorno #0014" / "Ajuste manual".
+    title: string,
+    /// "+R$ 50,00" ou "-R$ 20,00" com sinal.
+    amount-display: string,
+    /// "pos" | "neg".
+    amount-tone: string,
+    /// Saldo após a operação: "Saldo: R$ 87,50".
+    balance-after-display: string,
+    /// "12/05/2026 · 14:32".
+    time-display: string,
+    notes: string,
+}
+
+/// Linha do painel lateral do calendário — detalha um lançamento
+/// do dia clicado. Forma simplificada (sem busca/badge complexo).
+export struct FinanceDayRow {
+    id: string,
+    title: string,                // "Fatura cartão"
+    subtitle: string,             // "Nubank · Cartão"
+    /// "+R$ 217,50" / "-R$ 890,00".
+    amount-display: string,
+    /// "pos" | "neg".
+    amount-tone: string,
+    /// "Pendente" / "Pago"…
+    status-label: string,
+    /// "pending" | "scheduled" | "paid" | "received" | "overdue" | "cancelled"
+    status: string,
+    /// True quando ainda há ação possível ("Pagar"/"Receber").
+    can-settle: bool,
+    /// "payable" | "receivable" — UI escolhe label da ação.
+    kind: string,
+}
+
+
+// ── Assinatura (Fase 13 — Plano & cobrança) ──────────────────────
+//
+// Regras aplicadas (AI_RULES.md §1, §14):
+// - Campos pré-formatados pelo Rust (UI sem cálculo de moeda/datas).
+// - Catálogo de planos vem como `[PlanCardData]` (3 cards na tela).
+
+/// Card de plano disponível (Mensal/Semestral/Anual).
+export struct PlanCardData {
+    /// "monthly" | "semestral" | "annual".
+    kind: string,
+    /// "Mensal" / "Semestral" / "Anual".
+    label: string,
+    /// "Cobrado todo mês · cancele quando quiser".
+    description: string,
+    /// "R$ 200,00".
+    monthly-display: string,
+    /// "R$ 1.140,00 a cada 6 meses" / "R$ 2.160,00 a cada 12 meses" / "" no mensal.
+    cycle-display: string,
+    /// "ECONOMIZE R$ 10/MÊS" / "" no plano sem economia.
+    savings-label: string,
+    /// "MELHOR VALOR" / "" no plano sem destaque.
+    highlight-label: string,
+    /// Plano marcado como atual da assinatura.
+    is-current: bool,
+    /// Cor de destaque do card. "primary" (laranja) | "success" (verde) | "neutral".
+    tone: string,
+    /// "7 dias grátis" quando o plano tem período gratuito; "" caso não.
+    trial-label: string,
+}
+
+/// Dados do card preto (plano atual + cobrança + forma de pagamento).
+export struct SubscriptionData {
+    /// "active" | "overdue" | "cancelled" — controla badge no card.
+    status-key: string,
+    /// Texto auxiliar quando overdue ("VENCIDA · há 3 dias"); vazio
+    /// quando active.
+    status-detail: string,
+    /// "LETAF · Mensal" (compoxto pelo Rust).
+    plan-headline: string,
+    /// Suplemento à esquerda ("Mensal" / "Semestral" / "Anual").
+    plan-suffix: string,
+    /// "Cobrado todo mês · cancele quando quiser. Sistema completo, sem limites de uso."
+    plan-description: string,
+    /// Mensalidade efetiva — "R$ 200,00".
+    monthly-display: string,
+    /// Valor cobrado por ciclo — "R$ 200,00" / "R$ 1.140,00".
+    cycle-display: string,
+    /// "12/jun" — próxima cobrança formatada.
+    next-charge-display: string,
+    /// Quando vazio, esconde o bloco "Próxima cobrança".
+    has-next-charge: bool,
+    /// "VISA" / "PIX" — usado pelo chip da forma de pagamento.
+    payment-method-kind: string,
+    /// "•••• 4242" / "PIX direto na sua conta".
+    payment-method-label: string,
+    /// "expira 08/28" / "" para PIX.
+    payment-method-detail: string,
+    /// "Mensalidade · mensal" / "Mensalidade · semestral".
+    charge-line-label: string,
+    /// "R$ 200,00" / "R$ 190,00".
+    charge-line-amount: string,
+    /// "R$ 200,00" / "R$ 1.140,00".
+    charge-total-display: string,
+    /// Plano atualmente ativo ("monthly" | "semestral" | "annual") — usado
+    /// pra realçar o card escolhido.
+    current-plan-kind: string,
+    /// `true` quando há cartão recorrente vinculado ao gateway. Controla
+    /// "Adicionar cartão" vs "Cancelar cartão".
+    card-active: bool,
+    /// `true` quando há mandato de Pix Automático autorizado. Controla
+    /// "Ativar PIX Auto" vs "Cancelar PIX Auto".
+    pix-auto-active: bool,
+}
+
+/// Opção exibida no seletor de forma de pagamento.
+///
+/// Regras aplicadas (AI_RULES.md §1, §14):
+/// - O Rust monta a lista (uma por forma cadastrada).
+/// - `kind` é a chave canônica ("card", "pix") usada pelos callbacks.
+export struct PaymentMethodOption {
+    /// "card" | "pix" — chave canônica.
+    kind: string,
+    /// Identificador único para a UI (uuid do cartão / chave PIX).
+    id: string,
+    /// "VISA" | "PIX" — rótulo do chip.
+    chip-label: string,
+    /// "Visa de crédito ••4242" / "PIX Automático".
+    title: string,
+    /// Texto auxiliar embaixo do título ("expira 08/28" / "");
+    subtitle: string,
+    /// Selecionado atualmente.
+    is-active: bool,
+}
+
+/// Estado da cobrança PIX exibida no modal.
+/// `kind`: "loading" enquanto o servidor responde; "ready" com QR
+/// disponível; "paid" após confirmação; "error" para falhas.
+export struct PixChargeView {
+    id: string,
+    kind: string,
+    /// PNG do QR Code em base64 (sem o prefixo "data:image/png;base64,").
+    qr-code-b64: string,
+    /// String copia-cola (BR Code).
+    pix-copia-cola: string,
+    /// "R$ 200,00" — pré-formatado pelo Rust.
+    amount-display: string,
+    /// Mensagem auxiliar (ex.: erro do gateway).
+    message: string,
+}
+
+/// Linha da tabela de faturas (recibos da assinatura).
+export struct SubscriptionInvoiceRow {
+    id: string,
+    /// "12/05/2026".
+    issued-display: string,
+    /// "NFS-0084".
+    number: string,
+    /// "Assinatura · plano mensal".
+    description: string,
+    /// "VISA" / "PIX".
+    method-kind: string,
+    /// "•••• 4242" / "PIX".
+    method-label: string,
+    /// "pago" / "pendente" / "falhou".
+    status-key: string,
+    /// "pago" (rótulo pt-BR).
+    status-label: string,
+    /// "R$ 200,00".
+    amount-display: string,
+}
+
+

@@ -1,0 +1,329 @@
+import { ScrollView } from "std-widgets.slint";
+import { Theme } from "../theme.slint";
+import { AddonGroupData, AddonData } from "../types.slint";
+import { Card } from "../components/cards.slint";
+import { OutlineBtn, EditBtn, DeleteBtn } from "../components/buttons.slint";
+import { EmptyState } from "../components/empty_state.slint";
+
+// ── Tela: Adicionais (Fase 4B) ───────────────────────────────────────────────
+//
+// Layout em duas colunas:
+//   - Esquerda: lista de grupos. Clicar seleciona; o destacado fica
+//     evidenciado e popula a coluna direita.
+//   - Direita: itens do grupo selecionado. Vazia até existir um grupo
+//     focado (incentiva o operador a clicar antes de criar adicional).
+//
+// Regras aplicadas (AI_RULES.md §3, §8):
+// - Sem lógica de negócio: a UI só dispara callbacks (open-modal, delete, etc).
+// - Componentes "card" inline para cada grupo/addon — sem reciclar
+//   cards de outras telas, porque a semântica é específica.
+
+// Cartão de Grupo de Adicionais.
+component AddonGroupRow inherits TouchArea {
+    in property <AddonGroupData> group;
+    in property <bool> selected: false;
+
+    callback edit-group();
+    callback delete-group();
+    callback select-group();
+
+    height: 64px;
+    clicked => { root.select-group(); }
+
+    Rectangle {
+        border-radius: 8px;
+        border-width: 1px;
+        border-color: root.selected ? Theme.primary : Theme.border;
+        background: root.selected
+            ? Theme.row-hover
+            : (root.has-hover ? Theme.row-hover : Theme.surface);
+
+        HorizontalLayout {
+            padding: 12px;
+            spacing: 10px;
+
+            VerticalLayout {
+                horizontal-stretch: 1;
+                alignment: center;
+                Text {
+                    text: root.group.name;
+                    font-size: 14px; font-weight: 700;
+                    color: Theme.text-primary;
+                    overflow: elide;
+                }
+                Text {
+                    text: (root.group.selection == "single" ? "Único" : "Múltiplos")
+                        + " · " + root.group.addons-count + " Adicionais";
+                    font-size: 11px;
+                    color: Theme.text-secondary;
+                    overflow: elide;
+                }
+            }
+
+            // Botões à direita centralizados verticalmente — o card
+            // tem 64px de altura e o EditBtn/DeleteBtn 30px, então um
+            // VerticalLayout com alignment center mantém os ícones na
+            // linha média do nome.
+            VerticalLayout {
+                alignment: center;
+                HorizontalLayout {
+                    spacing: 6px;
+                    EditBtn { clicked => { root.edit-group(); } }
+                    DeleteBtn { clicked => { root.delete-group(); } }
+                }
+            }
+        }
+    }
+}
+
+// Linha de um Addon individual.
+component AddonItemRow inherits Rectangle {
+    in property <AddonData> addon;
+    callback edit-addon();
+    callback delete-addon();
+    callback toggle-active();
+
+    height: 52px;
+    // Só borda (sem sombra) — igual à lista de grupos à esquerda.
+    border-radius: 8px;
+    border-width: 1px;
+    border-color: Theme.border;
+    background: root.addon.active ? Theme.surface : #F5F5F5;
+
+    HorizontalLayout {
+        padding: 10px;
+        spacing: 10px;
+
+        VerticalLayout {
+            horizontal-stretch: 1;
+            alignment: center;
+            Text {
+                text: root.addon.name;
+                font-size: 13px; font-weight: 600;
+                color: root.addon.active ? Theme.text-primary : Theme.text-secondary;
+                overflow: elide;
+            }
+            Text {
+                text: "+ R$ " + root.addon.price;
+                font-size: 11px;
+                color: Theme.text-secondary;
+            }
+        }
+
+        VerticalLayout {
+            alignment: center;
+            toggle-ta := TouchArea {
+                width: 70px;
+                height: 28px;
+                clicked => { root.toggle-active(); }
+                Rectangle {
+                    border-radius: 4px;
+                    border-width: 1px;
+                    border-color: root.addon.active ? #66BB6A : Theme.border;
+                    background: root.addon.active ? #E8F5E9 : Theme.surface;
+                    Text {
+                        text: root.addon.active ? "Ativo" : "Inativo";
+                        font-size: 11px; font-weight: 600;
+                        color: root.addon.active ? #2E7D32 : Theme.text-secondary;
+                        horizontal-alignment: center; vertical-alignment: center;
+                        width: parent.width; height: parent.height;
+                    }
+                }
+            }
+        }
+
+        VerticalLayout {
+            alignment: center;
+            HorizontalLayout {
+                spacing: 6px;
+                EditBtn { clicked => { root.edit-addon(); } }
+                DeleteBtn { clicked => { root.delete-addon(); } }
+            }
+        }
+    }
+}
+
+export component AddonsPage inherits HorizontalLayout {
+    in property <[AddonGroupData]> groups;
+    in property <[AddonData]> addons;
+    in-out property <string> selected-group-id;
+    in property <string> selected-group-name;
+
+    callback request-new-group();
+    callback request-edit-group(AddonGroupData);
+    callback request-delete-group(string, string);
+    callback select-group(string);
+
+    callback request-new-addon();
+    callback request-edit-addon(AddonData);
+    callback request-delete-addon(string, string);
+    callback toggle-addon-active(string);
+
+    spacing: 14px;
+    vertical-stretch: 1;
+
+    // ═══ Coluna 1: Grupos ═══
+    VerticalLayout {
+        horizontal-stretch: 1;
+        spacing: 12px;
+
+        HorizontalLayout {
+            min-width: 0; spacing: 12px;
+            VerticalLayout {
+                horizontal-stretch: 1;
+                min-width: 0;
+                spacing: 2px;
+                Text {
+                    text: "Grupos de Adicionais";
+                    font-size: 18px; font-weight: 700;
+                    color: Theme.text-primary;
+                    overflow: elide;
+                }
+                Text {
+                    text: root.groups.length + " Grupos";
+                    font-size: 12px;
+                    color: Theme.text-secondary;
+                    overflow: elide;
+                }
+            }
+            VerticalLayout {
+                alignment: center;
+                OutlineBtn {
+                    label: "+ Novo Grupo";
+                    accent: true;
+                    btn-color: Theme.sidebar-sel-bg;
+                    width: 150px;
+                    clicked => { root.request-new-group(); }
+                }
+            }
+        }
+
+        Rectangle { height: 1px; background: Theme.border; }
+
+        if root.groups.length == 0: Rectangle {
+            vertical-stretch: 1;
+            border-radius: 8px;
+            border-width: 1px;
+            border-color: Theme.card-border;
+            drop-shadow-blur: 12px;
+            drop-shadow-offset-y: 0px;
+            drop-shadow-color: Theme.card-shadow;
+            background: Theme.surface;
+            EmptyState {
+                source: @image-url("../assets/empty/empty-addon-groups.svg");
+                title: "Nenhum grupo";
+                subtitle: "Crie grupos de adicionais";
+            }
+        }
+
+        if root.groups.length > 0: ScrollView { vertical-scrollbar-policy: ScrollBarPolicy.always-off; horizontal-scrollbar-policy: ScrollBarPolicy.always-off;
+            vertical-stretch: 1;
+            VerticalLayout {
+                spacing: 8px;
+                alignment: start;
+                padding-top: 4px;
+                padding-bottom: 4px;
+                for g in root.groups: AddonGroupRow {
+                    group: g;
+                    selected: root.selected-group-id == g.id;
+                    select-group => { root.select-group(g.id); }
+                    edit-group => { root.request-edit-group(g); }
+                    delete-group => { root.request-delete-group(g.id, g.name); }
+                }
+            }
+        }
+    }
+
+    // ═══ Coluna 2: Itens do grupo selecionado ═══
+    VerticalLayout {
+        horizontal-stretch: 1;
+        spacing: 12px;
+
+        HorizontalLayout {
+            min-width: 0; spacing: 12px;
+            VerticalLayout {
+                horizontal-stretch: 1;
+                min-width: 0;
+                spacing: 2px;
+                Text {
+                    text: root.selected-group-id != ""
+                        ? "Adicionais · " + root.selected-group-name
+                        : "Adicionais";
+                    font-size: 18px; font-weight: 700;
+                    color: Theme.text-primary;
+                    overflow: elide;
+                }
+                Text {
+                    text: root.selected-group-id != ""
+                        ? root.addons.length + " Adicionais"
+                        : "Selecione um grupo";
+                    font-size: 12px;
+                    color: Theme.text-secondary;
+                    overflow: elide;
+                }
+            }
+            VerticalLayout {
+                alignment: center;
+                OutlineBtn {
+                    label: "+ Novo Adicional";
+                    accent: true;
+                    btn-color: root.selected-group-id != "" ? Theme.sidebar-sel-bg : #BDBDBD;
+                    width: 170px;
+                    enabled: root.selected-group-id != "";
+                    clicked => { root.request-new-addon(); }
+                }
+            }
+        }
+
+        Rectangle { height: 1px; background: Theme.border; }
+
+        if root.selected-group-id == "": Rectangle {
+            vertical-stretch: 1;
+            border-radius: 8px;
+            border-width: 1px;
+            border-color: Theme.card-border;
+            drop-shadow-blur: 12px;
+            drop-shadow-offset-y: 0px;
+            drop-shadow-color: Theme.card-shadow;
+            background: Theme.surface;
+            Text {
+                text: "Selecione um grupo à esquerda\npara ver e gerenciar seus adicionais.";
+                font-size: 13px;
+                color: Theme.text-secondary;
+                horizontal-alignment: center; vertical-alignment: center;
+                wrap: word-wrap;
+            }
+        }
+
+        if root.selected-group-id != "" && root.addons.length == 0: Rectangle {
+            vertical-stretch: 1;
+            border-radius: 8px;
+            border-width: 1px;
+            border-color: Theme.card-border;
+            drop-shadow-blur: 12px;
+            drop-shadow-offset-y: 0px;
+            drop-shadow-color: Theme.card-shadow;
+            background: Theme.surface;
+            EmptyState {
+                source: @image-url("../assets/empty/empty-addons.svg");
+                title: "Nenhum adicional";
+            }
+        }
+
+        if root.selected-group-id != "" && root.addons.length > 0: ScrollView { vertical-scrollbar-policy: ScrollBarPolicy.always-off; horizontal-scrollbar-policy: ScrollBarPolicy.always-off;
+            vertical-stretch: 1;
+            VerticalLayout {
+                spacing: 6px;
+                alignment: start;
+                padding-top: 4px;
+                padding-bottom: 4px;
+                for a in root.addons: AddonItemRow {
+                    addon: a;
+                    edit-addon => { root.request-edit-addon(a); }
+                    delete-addon => { root.request-delete-addon(a.id, a.name); }
+                    toggle-active => { root.toggle-addon-active(a.id); }
+                }
+            }
+        }
+    }
+}

@@ -1,0 +1,859 @@
+import { Theme } from "../theme.slint";
+import { AssetIcon } from "../components/icons.slint";
+import { BusinessHoursData, PrinterData } from "../types.slint";
+import { BusinessHoursCard, Card } from "../components/cards.slint";
+import { FormField } from "../components/form_fields.slint";
+import { EmptyState } from "../components/empty_state.slint";
+
+// ── Stepper reutilizável de paginação ────────────────────────────────────
+//
+// Regras aplicadas (AI_RULES.md §3, §8):
+// - Componente isolado, sem lógica de negócio.
+// - `value` é `in-out` para o caller alinhar com `<=>`.
+// - `min-val` / `max-val` evitam valores inúteis (página 0 ou milhares
+//   de cards). O service também faz `clamp(1, 200)` por segurança.
+component PaginationStepper inherits HorizontalLayout {
+    in-out property <int> value;
+    in property <int> min-val: 1;
+    in property <int> max-val: 200;
+    spacing: 4px;
+
+    pp-dec5 := TouchArea {
+        width: 36px; height: 28px;
+        clicked => { root.value = max(root.min-val, root.value - 5); }
+        Rectangle {
+            border-radius: 4px; border-width: 1px;
+            border-color: pp-dec5.has-hover ? Theme.primary : Theme.border;
+            background: Theme.surface;
+            Text { text: "−5"; font-size: 11px; font-weight: 600; color: Theme.text-primary; horizontal-alignment: center; vertical-alignment: center; }
+        }
+    }
+    pp-dec1 := TouchArea {
+        width: 28px; height: 28px;
+        clicked => { root.value = max(root.min-val, root.value - 1); }
+        Rectangle {
+            border-radius: 4px; border-width: 1px;
+            border-color: pp-dec1.has-hover ? Theme.primary : Theme.border;
+            background: Theme.surface;
+            Text { text: "−"; font-size: 14px; font-weight: 700; color: Theme.text-primary; horizontal-alignment: center; vertical-alignment: center; }
+        }
+    }
+    Rectangle {
+        width: 50px; height: 28px;
+        border-radius: 4px; border-width: 1px;
+        border-color: Theme.card-border;
+        drop-shadow-blur: 12px;
+        drop-shadow-offset-y: 0px;
+        drop-shadow-color: Theme.card-shadow;
+        background: Theme.surface;
+        Text {
+            text: root.value;
+            font-size: 13px; font-weight: 700;
+            color: Theme.text-primary;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+    }
+    pp-inc1 := TouchArea {
+        width: 28px; height: 28px;
+        clicked => { root.value = min(root.max-val, root.value + 1); }
+        Rectangle {
+            border-radius: 4px; border-width: 1px;
+            border-color: pp-inc1.has-hover ? Theme.primary : Theme.border;
+            background: Theme.surface;
+            Text { text: "+"; font-size: 14px; font-weight: 700; color: Theme.text-primary; horizontal-alignment: center; vertical-alignment: center; }
+        }
+    }
+    pp-inc5 := TouchArea {
+        width: 36px; height: 28px;
+        clicked => { root.value = min(root.max-val, root.value + 5); }
+        Rectangle {
+            border-radius: 4px; border-width: 1px;
+            border-color: pp-inc5.has-hover ? Theme.primary : Theme.border;
+            background: Theme.surface;
+            Text { text: "+5"; font-size: 11px; font-weight: 600; color: Theme.text-primary; horizontal-alignment: center; vertical-alignment: center; }
+        }
+    }
+}
+
+// ── Badge "editado" / "sincronizado" para os cards de Configurações ──────
+//
+// Regras aplicadas (AI_RULES.md §3, §8):
+// - Componente isolado, sem lógica de negócio.
+// - Reflete diretamente `Company.synced`: `true` = "sincronizado" (verde),
+//   `false` = "editado" (âmbar). Os 3 cards compartilham o mesmo estado
+//   porque o registro Company é único; granularidade por seção exigiria
+//   flags por bloco no modelo, fora do escopo deste mockup.
+component SyncBadge inherits Rectangle {
+    in property <bool> synced: true;
+    width: 92px;
+    height: 22px;
+    border-radius: 11px;
+    background: root.synced ? #E6F4EA : #FFF4E0;
+    Text {
+        text: root.synced ? "Sincronizado" : "Editado";
+        font-size: 10px;
+        font-weight: 600;
+        color: root.synced ? #1B7F3A : #B25A00;
+        width: parent.width;
+        height: parent.height;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+}
+
+// ── Tela: configurações / horário de funcionamento ───────────────────────────
+//
+// Regras aplicadas (AI_RULES.md §3, §8):
+// - Página inspirada em "Modular cards lado a lado": cabeçalho com
+//   bloco "CONFIGURAÇÕES / Informações do estabelecimento" + botão
+//   global "Salvar todas alterações", seguido por 3 cards modulares
+//   (Marca & identidade, Contato, Endereço & documento).
+// - Cada card mostra um badge (editado / sincronizado) derivado de
+//   `Company.synced` — único estado disponível, refletido nos 3.
+// - Subdomínio é readonly: define o tenant, alterar quebra URLs salvas.
+
+export component SettingsPage inherits VerticalLayout {
+    in property <[BusinessHoursData]> business-hours;
+    in-out property <string> store-override;
+    in-out property <string> store-name;
+    in-out property <string> store-address;
+    in-out property <string> store-phone;
+    in-out property <string> store-whatsapp;
+    in-out property <string> store-email;
+    in-out property <string> store-instagram;
+    in-out property <string> store-document;
+    in-out property <string> store-neighborhood;
+    in-out property <string> store-zip-code;
+    in-out property <string> store-city;
+    in-out property <string> store-uf;
+    in-out property <string> store-logo-data;
+    in     property <image>  store-logo-image;
+    in-out property <bool>   store-logo-loading: false;
+    in-out property <string> store-cover-data;
+    in     property <image>  store-cover-image;
+    in-out property <bool>   store-cover-loading: false;
+    in     property <bool>   store-synced: true;
+    /// Quantidade de produtos exibidos por página (configurável por empresa).
+    in-out property <int>    products-per-page: 20;
+    /// Quantidade de pedidos exibidos por página (idem).
+    in-out property <int>    orders-per-page: 20;
+
+    /// Impressoras cadastradas (lista refrescada por Rust via
+    /// `refresh-printers`). Cada linha tem rótulo, tipo, sistema,
+    /// padrão e papel — formatados em pt-BR pelo populador.
+    in property <[PrinterData]> printers;
+    callback refresh-printers();
+    callback request-new-printer();
+    callback request-edit-printer(PrinterData);
+    callback delete-printer(string);
+    callback set-default-printer(string);
+
+    callback request-edit-bh(BusinessHoursData);
+    callback set-store-override(string);
+    callback save-store-info();
+    callback pick-store-logo();
+    callback pick-store-cover();
+    callback format-store-phone(string) -> string;
+    callback format-store-document(string) -> string;
+    callback format-store-zip(string) -> string;
+    callback dark-mode-changed(bool);
+
+    private property <int> logo-tick: 0;
+    private property <int> cover-tick: 0;
+    Timer {
+        interval: 150ms;
+        running: root.store-logo-loading;
+        triggered => { root.logo-tick = root.logo-tick + 1; }
+    }
+    Timer {
+        interval: 150ms;
+        running: root.store-cover-loading;
+        triggered => { root.cover-tick = root.cover-tick + 1; }
+    }
+
+    vertical-stretch: 1;
+    spacing: 12px;
+
+    // ── Cabeçalho: kicker + título + botão "Salvar todas alterações" ──────
+    HorizontalLayout {
+        height: 60px;
+        spacing: 12px;
+
+        VerticalLayout {
+            horizontal-stretch: 1;
+            alignment: center;
+            spacing: 2px;
+            Text {
+                text: "CONFIGURAÇÕES";
+                font-size: 11px;
+                font-weight: 600;
+                letter-spacing: 1.5px;
+                color: Theme.text-secondary;
+            }
+            Text {
+                text: "Informações do estabelecimento";
+                font-size: 22px;
+                font-weight: 700;
+                color: Theme.text-primary;
+                overflow: elide;
+            }
+        }
+
+        // Botão "Salvar todas alterações" — única persistência da tela.
+        VerticalLayout {
+            alignment: center;
+            save-all-ta := TouchArea {
+                // Largura ajustada ao texto curto ("Salvar Alterações");
+                // altura igual ao toggle de tema à direita.
+                width: 140px; height: 28px;
+                clicked => { root.save-store-info(); }
+                Rectangle {
+                    border-radius: 6px;
+                    background: save-all-ta.has-hover ? #E65100 : Theme.sidebar-sel-bg;
+                    Text {
+                        text: "Salvar Alterações";
+                        font-size: 12px; font-weight: 700;
+                        color: white;
+                        horizontal-alignment: center; vertical-alignment: center;
+                        width: parent.width; height: parent.height;
+                    }
+                }
+            }
+        }
+
+        VerticalLayout {
+            alignment: center;
+            theme-btn := TouchArea {
+                width: 28px;
+                height: 28px;
+                clicked => {
+                    Theme.dark-mode = !Theme.dark-mode;
+                    root.dark-mode-changed(Theme.dark-mode);
+                }
+                Rectangle {
+                    width: parent.width;
+                    height: parent.height;
+                    border-radius: 6px;
+                    border-width: 1px;
+                    border-color: theme-btn.has-hover ? Theme.primary : Theme.border;
+                    background: theme-btn.has-hover ? Theme.row-hover : transparent;
+                    Text {
+                        text: Theme.dark-mode ? "\u{263C}" : "\u{263D}";
+                        font-size: 14px;
+                        width: parent.width;
+                        height: parent.height;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                        color: Theme.text-primary;
+                    }
+                }
+            }
+        }
+    }
+
+    // ── Layout em 2 linhas ────────────────────────────────────────────────
+    //
+    // Regras aplicadas (AI_RULES.md §3, §8):
+    // - Linha 1: Card "Marca & Identidade" ocupando toda a largura (o
+    //   banner com capa + logo se beneficia do espaço pleno).
+    // - Linha 2: Cards "Contato" e "Endereço & Documento" lado a lado.
+    // - Decisão tomada para evitar que, em telas estreitas, os 3 cards
+    //   lado a lado fossem cortados pelo `ScrollView` raiz — agora só
+    //   os 2 cards menores dividem a largura entre si.
+
+    // ─── Linha 1: Marca & Identidade (largura total) ─────────────────
+    Card {
+        horizontal-stretch: 1;
+        min-width: 0;
+        vertical-stretch: 0;
+        border-radius: 10px;
+            VerticalLayout {
+                padding: 16px;
+                spacing: 10px;
+
+                // Header do card: título + subtítulo + badge
+                HorizontalLayout {
+                    spacing: 8px;
+                    VerticalLayout {
+                        horizontal-stretch: 1;
+                        spacing: 2px;
+                        Text { text: "Marca & Identidade"; font-size: 14px; font-weight: 700; color: Theme.text-primary; }
+                        Text { text: "Logo, capa e nome público"; font-size: 11px; color: Theme.text-secondary; }
+                    }
+                    SyncBadge {
+                        synced: root.store-synced;
+                    }
+                }
+
+                // Wrapper: contém a capa (com clip) e o logo posicionado
+                // por cima como irmão — assim o logo aparece inteiro,
+                // projetando para baixo da linha da capa sem ser cortado
+                //
+                // Capa em proporção FIXA 5:1 (altura = largura / 5).
+                // Altura do wrapper = capa (largura/5) + parte do logo
+                // que projeta (28px do logo de 56px, 50% para fora).
+                Rectangle {
+                    height: self.width / 5 + 28px;
+                    // Capa (mantém clip para a imagem não vazar)
+                    Rectangle {
+                        x: 0; y: 0;
+                        width: parent.width;
+                        height: parent.width / 5;
+                        border-radius: 8px;
+                        background: Theme.primary;
+                        clip: true;
+                        if root.store-cover-data != "": Image {
+                            x: 0; y: 0;
+                            width: parent.width; height: parent.height;
+                            source: root.store-cover-image;
+                            image-fit: cover;
+                        }
+                        cover-pick-ta := TouchArea {
+                            x: parent.width - 36px;
+                            y: 8px;
+                            width: 28px; height: 28px;
+                            enabled: !root.store-cover-loading;
+                            clicked => { root.pick-store-cover(); }
+                            Rectangle {
+                                border-radius: 14px;
+                                background: #00000080;
+                                Text {
+                                    text: "\u{270E}";
+                                    font-size: 14px;
+                                    color: white;
+                                    width: parent.width; height: parent.height;
+                                    horizontal-alignment: center; vertical-alignment: center;
+                                }
+                            }
+                        }
+                    }
+
+                    // Logo: irmão da capa, posicionado de modo que metade
+                    // sobreponha a capa e metade fique abaixo dela.
+                    // y = (altura da capa − 28) → logo a 50% para fora,
+                    // acompanhando a capa 5:1 (largura/5).
+                    Rectangle {
+                        x: 12px;
+                        y: parent.width / 5 - 28px;
+                        width: 56px; height: 56px;
+                        border-radius: 8px;
+                        border-width: 2px;
+                        border-color: white;
+                        background: root.store-logo-data == "" ? Theme.bg : Theme.surface;
+                        clip: true;
+                        if root.store-logo-data == "": Text {
+                            text: root.store-name == "" ? "L" : root.store-name;
+                            font-size: 22px;
+                            font-weight: 800;
+                            color: Theme.primary;
+                            width: parent.width; height: parent.height;
+                            horizontal-alignment: center; vertical-alignment: center;
+                            overflow: elide;
+                        }
+                        if root.store-logo-data != "": Image {
+                            width: parent.width; height: parent.height;
+                            source: root.store-logo-image;
+                            image-fit: cover;
+                        }
+                        logo-pick-ta := TouchArea {
+                            width: parent.width; height: parent.height;
+                            enabled: !root.store-logo-loading;
+                            clicked => { root.pick-store-logo(); }
+                        }
+                    }
+                }
+
+                FormField {
+                    label: "Nome";
+                    placeholder: "Ex.: Pizzaria do João";
+                    value <=> root.store-name;
+                }
+
+                Text {
+                    text: "Logo e capa: clique no banner para trocar a capa, no quadrado branco para trocar o logo.";
+                    font-size: 10px;
+                    color: Theme.text-secondary;
+                    wrap: word-wrap;
+                }
+
+                // Sem spacer no final: Card 1 agora está sozinho na sua
+                // linha (não compete em altura com Contato/Endereço), então
+                // o `VerticalLayout` assume altura natural sem distorcer o
+                // FormField "Nome".
+            }
+        }
+
+    // ─── Linha 2: Contato + Endereço & Documento (lado a lado) ──────────
+    HorizontalLayout {
+        spacing: 14px;
+        vertical-stretch: 0;
+        min-width: 0;
+
+        // ─── Card 2: Contato ──────────────────────────────────────────
+        Card {
+            horizontal-stretch: 1;
+            min-width: 0;
+            border-radius: 10px;
+            VerticalLayout {
+                padding: 16px;
+                spacing: 10px;
+
+                HorizontalLayout {
+                    spacing: 8px;
+                    VerticalLayout {
+                        horizontal-stretch: 1;
+                        spacing: 2px;
+                        Text { text: "Contato"; font-size: 14px; font-weight: 700; color: Theme.text-primary; }
+                        Text { text: "Aparece nos pedidos e no site público"; font-size: 11px; color: Theme.text-secondary; }
+                    }
+                    SyncBadge {
+                        synced: root.store-synced;
+                    }
+                }
+
+                FormField {
+                    label: "Telefone";
+                    placeholder: "(00) 00000-0000";
+                    force-end-cursor: true;
+                    value <=> root.store-phone;
+                    edited(t) => { root.store-phone = root.format-store-phone(t); }
+                }
+                FormField {
+                    label: "WhatsApp";
+                    placeholder: "(00) 00000-0000";
+                    force-end-cursor: true;
+                    value <=> root.store-whatsapp;
+                    edited(t) => { root.store-whatsapp = root.format-store-phone(t); }
+                }
+                FormField {
+                    label: "Email";
+                    placeholder: "contato@exemplo.com";
+                    value <=> root.store-email;
+                }
+                FormField {
+                    label: "Instagram";
+                    placeholder: "@perfil";
+                    value <=> root.store-instagram;
+                }
+            }
+        }
+
+        // ─── Card 3: Endereço & documento ─────────────────────────────
+        Card {
+            horizontal-stretch: 1;
+            min-width: 0;
+            border-radius: 10px;
+            VerticalLayout {
+                padding: 16px;
+                spacing: 10px;
+
+                HorizontalLayout {
+                    spacing: 8px;
+                    VerticalLayout {
+                        horizontal-stretch: 1;
+                        spacing: 2px;
+                        Text { text: "Endereço & Documento"; font-size: 14px; font-weight: 700; color: Theme.text-primary; }
+                        Text { text: "Identificação fiscal e localização"; font-size: 11px; color: Theme.text-secondary; }
+                    }
+                    SyncBadge {
+                        synced: root.store-synced;
+                    }
+                }
+
+                FormField {
+                    label: "Documento (CPF / CNPJ)";
+                    placeholder: "00.000.000/0000-00";
+                    force-end-cursor: true;
+                    value <=> root.store-document;
+                    edited(t) => { root.store-document = root.format-store-document(t); }
+                }
+                FormField {
+                    label: "Endereço";
+                    placeholder: "Rua e número";
+                    value <=> root.store-address;
+                }
+                HorizontalLayout {
+                    spacing: 8px;
+                    VerticalLayout {
+                        horizontal-stretch: 2;
+                        FormField {
+                            label: "Bairro";
+                            placeholder: "Ex.: Vila Industrial";
+                            value <=> root.store-neighborhood;
+                        }
+                    }
+                    VerticalLayout {
+                        horizontal-stretch: 1;
+                        min-width: 80px;
+                        FormField {
+                            label: "CEP";
+                            placeholder: "00000-000";
+                            force-end-cursor: true;
+                            value <=> root.store-zip-code;
+                            edited(t) => { root.store-zip-code = root.format-store-zip(t); }
+                        }
+                    }
+                }
+                HorizontalLayout {
+                    spacing: 8px;
+                    VerticalLayout {
+                        horizontal-stretch: 3;
+                        FormField {
+                            label: "Cidade";
+                            placeholder: "Ex.: Londrina";
+                            value <=> root.store-city;
+                        }
+                    }
+                    VerticalLayout {
+                        horizontal-stretch: 1;
+                        min-width: 50px;
+                        FormField {
+                            label: "UF";
+                            placeholder: "PR";
+                            value <=> root.store-uf;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    Card {
+        vertical-stretch: 0;
+        border-radius: 8px;
+        VerticalLayout {
+            padding: 12px;
+            spacing: 8px;
+
+            HorizontalLayout {
+                height: 28px;
+                Text {
+                    text: "Horário de Funcionamento";
+                    font-size: 14px; font-weight: 700;
+                    color: Theme.text-primary;
+                    vertical-alignment: center;
+                    horizontal-stretch: 1;
+                }
+                Rectangle { width: 6px; }
+                Rectangle {
+                    width: 72px; height: 28px;
+                    border-radius: 6px;
+                    border-width: 1px;
+                    border-color: root.store-override == "open" ? Theme.primary : Theme.border;
+                    background: root.store-override == "open" ? Theme.sidebar-sel-bg : Theme.surface;
+                    open-touch := TouchArea {
+                        clicked => { root.set-store-override(root.store-override == "open" ? "none" : "open"); }
+                    }
+                    Text {
+                        text: "Abrir";
+                        font-size: 12px; font-weight: 700;
+                        color: root.store-override == "open" ? white : Theme.text-secondary;
+                        horizontal-alignment: center; vertical-alignment: center;
+                    }
+                }
+                Rectangle { width: 6px; }
+                Rectangle {
+                    width: 72px; height: 28px;
+                    border-radius: 6px;
+                    border-width: 1px;
+                    border-color: root.store-override == "closed" ? #EF5350 : Theme.border;
+                    background: root.store-override == "closed" ? #EF5350 : Theme.surface;
+                    close-touch := TouchArea {
+                        clicked => { root.set-store-override(root.store-override == "closed" ? "none" : "closed"); }
+                    }
+                    Text {
+                        text: "Fechar";
+                        font-size: 12px; font-weight: 700;
+                        color: root.store-override == "closed" ? white : Theme.text-secondary;
+                        horizontal-alignment: center; vertical-alignment: center;
+                    }
+                }
+            }
+
+            HorizontalLayout {
+                spacing: 8px;
+                height: 170px;
+                for bh in root.business-hours: Rectangle {
+                    horizontal-stretch: 1;
+                    min-width: 0;
+                    preferred-width: 0;
+                    BusinessHoursCard {
+                        width: parent.width;
+                        height: parent.height;
+                        bh: bh;
+                        edit-bh => { root.request-edit-bh(bh); }
+                    }
+                }
+            }
+        }
+    }
+
+    // ── Paginação: 2 cards lado a lado (Produtos / Pedidos) ──────────────
+    //
+    // Regras aplicadas (AI_RULES.md §3, §8):
+    // - 2 valores distintos (`products-per-page` e `orders-per-page`)
+    //   porque os cards têm tamanhos diferentes nas respectivas telas.
+    // - Ambos persistem no mesmo `save-store-info` (único botão de salvar
+    //   global, no header).
+    HorizontalLayout {
+        vertical-stretch: 0;
+        spacing: 14px;
+        min-width: 0;
+
+        Card {
+            horizontal-stretch: 1;
+            min-width: 0;
+            border-radius: 10px;
+            VerticalLayout {
+                padding: 14px;
+                spacing: 10px;
+                Text {
+                    text: "Paginação · Produtos";
+                    font-size: 14px; font-weight: 700;
+                    color: Theme.text-primary;
+                }
+                HorizontalLayout {
+                    spacing: 10px;
+                    VerticalLayout {
+                        spacing: 2px;
+                        horizontal-stretch: 1;
+                        Text {
+                            text: "Produtos por página";
+                            font-size: 11px; font-weight: 500;
+                            color: Theme.text-secondary;
+                        }
+                        Text {
+                            text: "Define quantos cards aparecem por página na tela de Produtos.";
+                            font-size: 10px;
+                            color: Theme.text-secondary;
+                            wrap: word-wrap;
+                        }
+                    }
+                    PaginationStepper {
+                        value <=> root.products-per-page;
+                    }
+                }
+            }
+        }
+
+        Card {
+            horizontal-stretch: 1;
+            min-width: 0;
+            border-radius: 10px;
+            VerticalLayout {
+                padding: 14px;
+                spacing: 10px;
+                Text {
+                    text: "Paginação · Pedidos";
+                    font-size: 14px; font-weight: 700;
+                    color: Theme.text-primary;
+                }
+                HorizontalLayout {
+                    spacing: 10px;
+                    VerticalLayout {
+                        spacing: 2px;
+                        horizontal-stretch: 1;
+                        Text {
+                            text: "Pedidos por página";
+                            font-size: 11px; font-weight: 500;
+                            color: Theme.text-secondary;
+                        }
+                        Text {
+                            text: "Define quantos cards aparecem por página na tela de Pedidos.";
+                            font-size: 10px;
+                            color: Theme.text-secondary;
+                            wrap: word-wrap;
+                        }
+                    }
+                    PaginationStepper {
+                        value <=> root.orders-per-page;
+                    }
+                }
+            }
+        }
+    }
+
+    // ── Impressoras ─────────────────────────────────────────────
+    // Cadastro local (per-device, sem sync). Tabela com as
+    // impressoras existentes + botão "+ Adicionar" que abre o
+    // PrinterModal. Cada linha tem ações: marcar como padrão,
+    // editar, excluir.
+    Card {
+        VerticalLayout {
+            padding: 20px;
+            spacing: 14px;
+
+            HorizontalLayout {
+                VerticalLayout {
+                    horizontal-stretch: 1; spacing: 2px;
+                    Text { text: "Impressoras"; font-size: 14px; font-weight: 700; color: Theme.text-primary; }
+                    Text {
+                        text: "Cadastre Impressoras (Comanda, Cozinha, NFC-e).";
+                        font-size: 11px; color: Theme.text-secondary;
+                    }
+                }
+                add-printer-ta := TouchArea {
+                    width: 160px; height: 32px;
+                    clicked => { root.request-new-printer(); }
+                    Rectangle {
+                        border-radius: 6px;
+                        border-width: 1px;
+                        border-color: add-printer-ta.has-hover ? Theme.primary : Theme.border;
+                        background: add-printer-ta.has-hover ? Theme.primary : Theme.surface;
+                        HorizontalLayout {
+                            alignment: center;
+                            VerticalLayout {
+                                alignment: center;
+                                Text {
+                                    text: "+ Adicionar";
+                                    font-size: 12px; font-weight: 700;
+                                    color: add-printer-ta.has-hover ? white : Theme.primary;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            if root.printers.length == 0: Rectangle {
+                height: 172px;
+                border-radius: 8px;
+                border-width: 1px;
+                border-color: Theme.card-border;
+                drop-shadow-blur: 12px;
+                drop-shadow-offset-y: 0px;
+                drop-shadow-color: Theme.card-shadow;
+                background: Theme.bg;
+                VerticalLayout {
+                    alignment: center;
+                    spacing: 4px;
+                    padding: 12px;
+                    EmptyState {
+                        source: @image-url("../assets/empty/empty-printers.svg");
+                        title: "Nenhuma impressora";
+                        subtitle: "Configure uma para imprimir";
+                        art-size: 112px;
+                    }
+                    Text {
+                        text: "As comandas usarão a impressora padrão do sistema.";
+                        font-size: 12px; color: Theme.text-secondary;
+                        horizontal-alignment: center;
+                        wrap: word-wrap;
+                    }
+                }
+            }
+
+            for p[idx] in root.printers: Rectangle {
+                border-radius: 8px;
+                border-width: 1px;
+                border-color: Theme.card-border;
+                drop-shadow-blur: 12px;
+                drop-shadow-offset-y: 0px;
+                drop-shadow-color: Theme.card-shadow;
+                background: Theme.surface;
+                HorizontalLayout {
+                    padding: 12px;
+                    spacing: 10px;
+
+                    // Coluna: nome + kind/papel (sem o badge — ele
+                    // virou coluna própria pra ficar centralizado
+                    // verticalmente no card todo, não só ao lado do nome).
+                    VerticalLayout {
+                        horizontal-stretch: 1; spacing: 2px;
+                        alignment: center;
+                        Text {
+                            text: p.name;
+                            font-size: 13px; font-weight: 700;
+                            color: Theme.text-primary;
+                            overflow: elide;
+                        }
+                        Text {
+                            text: p.kind-label + "  ·  " + p.system-name + "  ·  " + p.paper-label;
+                            font-size: 11px; color: Theme.text-secondary;
+                        }
+                    }
+
+                    // "Padrão" — coluna própria, centralizada
+                    // verticalmente no card. Sem background:
+                    // apenas texto laranja (Theme.primary) — visual
+                    // mais limpo e consistente com o resto do form.
+                    if p.is-default: VerticalLayout {
+                        alignment: center;
+                        Text {
+                            text: "Padrão";
+                            font-size: 11px; font-weight: 700;
+                            color: Theme.primary;
+                            letter-spacing: 1px;
+                        }
+                    }
+
+                    // Ações: padrão / editar / excluir
+                    VerticalLayout {
+                        alignment: center;
+                        HorizontalLayout {
+                            spacing: 6px;
+                            if !p.is-default: set-def-ta := TouchArea {
+                                width: 32px; height: 32px;
+                                clicked => { root.set-default-printer(p.id); }
+                                Rectangle {
+                                    border-radius: 4px;
+                                    border-width: 1px;
+                                    border-color: set-def-ta.has-hover ? Theme.primary : Theme.border;
+                                    background: set-def-ta.has-hover ? Theme.row-hover : Theme.surface;
+                                    HorizontalLayout {
+                                        alignment: center;
+                                        VerticalLayout {
+                                            alignment: center;
+                                            Text {
+                                                text: "★";
+                                                font-size: 14px; font-weight: 700;
+                                                color: set-def-ta.has-hover ? Theme.primary : Theme.text-secondary;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            edit-printer-ta := TouchArea {
+                                width: 32px; height: 32px;
+                                clicked => { root.request-edit-printer(p); }
+                                Rectangle {
+                                    border-radius: 4px;
+                                    border-width: 1px;
+                                    border-color: edit-printer-ta.has-hover ? Theme.primary : Theme.border;
+                                    background: edit-printer-ta.has-hover ? Theme.row-hover : Theme.surface;
+                                    HorizontalLayout {
+                                        alignment: center;
+                                        VerticalLayout {
+                                            alignment: center;
+                                            AssetIcon { width: 13px; height: 13px; icon-size: 13px; icon-color: edit-printer-ta.has-hover ? Theme.primary : Theme.text-secondary; source: @image-url("../assets/icons/1.2/editar.svg"); }
+                                        }
+                                    }
+                                }
+                            }
+                            del-printer-ta := TouchArea {
+                                width: 32px; height: 32px;
+                                clicked => { root.delete-printer(p.id); }
+                                Rectangle {
+                                    border-radius: 4px;
+                                    border-width: 1px;
+                                    border-color: del-printer-ta.has-hover ? #EF5350 : Theme.border;
+                                    background: del-printer-ta.has-hover ? #FFEBEE : Theme.surface;
+                                    HorizontalLayout {
+                                        alignment: center;
+                                        VerticalLayout {
+                                            alignment: center;
+                                            AssetIcon { width: 12px; height: 12px; icon-size: 12px; icon-color: del-printer-ta.has-hover ? #C62828 : Theme.text-secondary; source: @image-url("../assets/icons/1.2/fechar.svg"); }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    Rectangle { vertical-stretch: 1; }
+}

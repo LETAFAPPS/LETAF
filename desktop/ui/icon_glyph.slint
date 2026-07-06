@@ -1,0 +1,29 @@
+// Global `IconGlyph`: mapeia o slug de `Category.icon_name` para o
+// arquivo SVG correspondente em `desktop/ui/icons/`.
+//
+// As SVGs aqui ESPELHAM exatamente as paths em
+// `web/src/components/category_icon.rs`, garantindo que desktop e web
+// renderizem o mesmo desenho para o mesmo slug.
+//
+// Slug desconhecido cai em `placeholder.svg` (círculo neutro).
+// O elemento `Image` consumidor pode aplicar `colorize` para tingir o
+// SVG (todos os ícones usam a mesma cor base `#1f2937`, então a
+// substituição por cor única é uniforme).
+export global IconGlyph {
+    pure public function image-for(slug: string) -> image {
+        return slug == "ice-cream"   ? @image-url("icons/ice-cream.svg")
+             : slug == "drink"       ? @image-url("icons/drink.svg")
+             : slug == "pizza"       ? @image-url("icons/pizza.svg")
+             : slug == "burger"      ? @image-url("icons/burger.svg")
+             : slug == "combo"       ? @image-url("icons/combo.svg")
+             : slug == "snack"       ? @image-url("icons/snack.svg")
+             : slug == "dessert"     ? @image-url("icons/dessert.svg")
+             : slug == "candy"       ? @image-url("icons/candy.svg")
+             : slug == "coffee"      ? @image-url("icons/coffee.svg")
+             : slug == "bread"       ? @image-url("icons/bread.svg")
+             : slug == "salad"       ? @image-url("icons/salad.svg")
+             : slug == "meat"        ? @image-url("icons/meat.svg")
+             : slug == "convenience" ? @image-url("icons/convenience.svg")
+             : @image-url("icons/placeholder.svg");
+    }
+}

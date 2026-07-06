@@ -1,0 +1,177 @@
+import { Theme } from "../theme.slint";
+import { AssetIcon } from "../components/icons.slint";
+import { Card } from "../components/cards.slint";
+import { ActionBtn, OutlineBtn } from "../components/buttons.slint";
+
+// ── Modal: ajuste de estoque ────────────────────────────────────────
+//
+// Dois modos controlados por `mode`:
+// - "add":  soma `qty` ao estoque atual (entrada/saída).
+//           qty pode ser negativo (saída manual).
+// - "set":  override absoluto — UI mostra o valor atual e o novo;
+//           Rust calcula delta = novo - atual antes de chamar
+//           `ProductService::adjust_stock`.
+//
+// AI_RULES §1/§14: UI só dispara `confirm`; o Rust valida e persiste.
+
+export component StockAdjustModal inherits Rectangle {
+    in property <string> mode;              // "add" | "set"
+    in property <string> product-name;
+    in property <string> current-display;   // "5 un" / "1,250 kg"
+    in-out property <string> qty-input;
+    in-out property <string> reason-input;
+    in property <string> error-message;
+
+    callback close();
+    callback confirm();
+
+    background: #00000080;
+    TouchArea { clicked => { root.close(); } }
+
+    VerticalLayout {
+        alignment: center;
+        HorizontalLayout {
+            alignment: center;
+            Card {
+                width: 440px;
+                TouchArea { }
+
+                VerticalLayout {
+                    padding: 22px;
+                    spacing: 16px;
+
+                    // Título
+                    HorizontalLayout {
+                        VerticalLayout {
+                            horizontal-stretch: 1; spacing: 2px;
+                            Text {
+                                text: root.mode == "set" ? "Editar Estoque" : "Adicionar Estoque";
+                                font-size: 16px; font-weight: 700;
+                                color: Theme.text-primary;
+                            }
+                            Text {
+                                text: root.product-name;
+                                font-size: 12px; color: Theme.text-secondary;
+                                overflow: elide;
+                            }
+                        }
+                        close-ta := TouchArea {
+                            width: 28px; height: 28px;
+                            clicked => { root.close(); }
+                            Rectangle {
+                                border-radius: 4px;
+                                background: close-ta.has-hover ? Theme.row-hover : transparent;
+                                AssetIcon { width: parent.width; height: parent.height; icon-size: 14px; icon-color: Theme.text-secondary; source: @image-url("../assets/icons/1.2/fechar.svg"); }
+                            }
+                        }
+                    }
+
+                    Rectangle { height: 1px; background: Theme.border; }
+
+                    // Atual
+                    HorizontalLayout {
+                        spacing: 8px;
+                        Text { text: "Estoque Atual:"; font-size: 12px; color: Theme.text-secondary; horizontal-stretch: 1; vertical-alignment: center; }
+                        Text { text: root.current-display; font-size: 14px; font-weight: 700; color: Theme.text-primary; vertical-alignment: center; }
+                    }
+
+                    // Campo quantidade
+                    VerticalLayout {
+                        spacing: 6px;
+                        Text {
+                            text: root.mode == "set" ? "NOVO VALOR" : "QUANTIDADE A ADICIONAR (− para retirada)";
+                            font-size: 10px; font-weight: 700; color: Theme.text-secondary; letter-spacing: 1px;
+                        }
+                        Rectangle {
+                            height: 40px;
+                            border-radius: 6px;
+                            border-width: 1px;
+                            border-color: qty-input.has-focus ? Theme.primary : Theme.border;
+                            background: Theme.surface;
+                            qty-input := TextInput {
+                                x: 10px; y: 0;
+                                width: parent.width - 20px; height: parent.height;
+                                text <=> root.qty-input;
+                                font-size: 14px; font-weight: 600; color: Theme.text-primary;
+                                vertical-alignment: center;
+                                single-line: true;
+                                input-type: decimal;
+                            }
+                            if root.qty-input == "": Text {
+                                x: 10px; y: 0;
+                                width: parent.width - 20px; height: parent.height;
+                                text: root.mode == "set" ? "0" : "Ex.: 12";
+                                font-size: 14px; color: #BDBDBD;
+                                vertical-alignment: center;
+                            }
+                            init-timer := Timer {
+                                interval: 80ms; running: true;
+                                triggered => { qty-input.focus(); self.running = false; }
+                            }
+                        }
+                    }
+
+                    // Motivo (opcional)
+                    VerticalLayout {
+                        spacing: 6px;
+                        Text { text: "MOTIVO (OPCIONAL)"; font-size: 10px; font-weight: 700; color: Theme.text-secondary; letter-spacing: 1px; }
+                        Rectangle {
+                            height: 36px;
+                            border-radius: 6px;
+                            border-width: 1px;
+                            border-color: reason-input.has-focus ? Theme.primary : Theme.border;
+                            background: Theme.surface;
+                            reason-input := TextInput {
+                                x: 10px; y: 0;
+                                width: parent.width - 20px; height: parent.height;
+                                text <=> root.reason-input;
+                                font-size: 12px; color: Theme.text-primary;
+                                vertical-alignment: center;
+                                single-line: true;
+                            }
+                            if root.reason-input == "": Text {
+                                x: 10px; y: 0;
+                                width: parent.width - 20px; height: parent.height;
+                                text: "Ex.: ajuste de inventário, recebimento de fornecedor...";
+                                font-size: 12px; color: #BDBDBD;
+                                vertical-alignment: center;
+                            }
+                        }
+                    }
+
+                    // Erro (se houver)
+                    if root.error-message != "": Rectangle {
+                        background: #FFEBEE;
+                        border-radius: 6px;
+                        VerticalLayout {
+                            padding: 10px;
+                            Text {
+                                text: "⚠ " + root.error-message;
+                                font-size: 12px; font-weight: 600; color: #C62828;
+                                wrap: word-wrap;
+                            }
+                        }
+                    }
+
+                    // Botões
+                    HorizontalLayout {
+                        alignment: end;
+                        spacing: 8px;
+                        OutlineBtn {
+                            label: "Cancelar";
+                            btn-color: Theme.text-secondary;
+                            width: 100px; height: 32px;
+                            clicked => { root.close(); }
+                        }
+                        ActionBtn {
+                            label: "Confirmar";
+                            bg-color: Theme.sidebar-sel-bg;
+                            width: 130px; height: 32px;
+                            clicked => { root.confirm(); }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

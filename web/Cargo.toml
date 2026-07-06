@@ -1,0 +1,55 @@
+[package]
+name = "letaf-web"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+leptos = { version = "0.8.0" }
+leptos_router = { version = "0.8.0" }
+leptos_meta = { version = "0.8.0" }
+axum = { version = "0.8.0", optional = true }
+console_error_panic_hook = { version = "0.1", optional = true }
+leptos_axum = { version = "0.8.0", optional = true }
+tokio = { version = "1", features = ["rt-multi-thread"], optional = true }
+wasm-bindgen = { version = "0.2.106", optional = true }
+# Só no cliente (hydrate): localStorage para favoritos (preferência do
+# usuário). É Rust chamando a API do navegador — não é JS solto (§3).
+web-sys = { version = "0.3", optional = true, features = ["Window", "Storage"] }
+# Relógio do navegador (js_sys::Date) para horário de funcionamento — só hydrate.
+js-sys = { version = "0.3", optional = true }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+# `reqwest` só no servidor: o SSR busca o catálogo público na API REST
+# (letaf-server) — o web nunca toca o banco (AI_RULES §1, frontend burro).
+reqwest = { version = "0.12", features = ["json"], optional = true }
+
+[features]
+hydrate = ["leptos/hydrate", "dep:console_error_panic_hook", "dep:wasm-bindgen", "dep:web-sys", "dep:js-sys"]
+ssr = [
+    "dep:axum",
+    "dep:tokio",
+    "dep:leptos_axum",
+    "dep:reqwest",
+    "leptos/ssr",
+    "leptos_meta/ssr",
+    "leptos_router/ssr",
+]
+
+[package.metadata.leptos]
+output-name = "letaf-web"
+site-root = "target/site"
+site-pkg-dir = "pkg"
+style-file = "style/main.scss"
+assets-dir = "public"
+# Portas próprias para não colidir com DRINKUP (3000) nem com a API (3001).
+site-addr = "127.0.0.1:3002"
+reload-port = 3003
+env = "DEV"
+bin-features = ["ssr"]
+bin-default-features = false
+lib-features = ["hydrate"]
+lib-default-features = false
+lib-profile-release = "wasm-release"

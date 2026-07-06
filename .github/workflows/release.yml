@@ -1,0 +1,108 @@
+name: release-desktop
+
+# Builda os binários do desktop por SO ao criar uma tag `vX.Y.Z`, gera o
+# sha256 de cada um e publica tudo + um `manifest.json` pronto num GitHub
+# Release. Fluxo de publicação (distribuição = próprio backend): baixe os
+# binários e o manifest.json do Release e coloque no `APP_UPDATES_DIR` do
+# servidor (ver DEPLOY.md §6). São binários BRUTOS (não instaladores) —
+# é o que o auto-update (self-replace) substitui.
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch: {}   # permite disparo manual para testar o build
+
+permissions:
+  contents: write   # necessário para criar o Release
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            key: linux
+            bin: letaf-linux
+            ext: ""
+          - os: windows-latest
+            key: windows
+            bin: letaf-windows.exe
+            ext: ".exe"
+          - os: macos-latest
+            key: macos
+            bin: letaf-macos
+            ext: ""
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      # Dependências de sistema do Linux: Slint (winit/fontconfig/xcb/
+      # xkbcommon) + rodio (ALSA, alarme de pedidos).
+      - name: Deps de sistema (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libfontconfig-dev libasound2-dev libxcb1-dev libxcb-render0-dev \
+            libxcb-shape0-dev libxcb-xfixes0-dev libxkbcommon-dev
+
+      - name: Build (release)
+        run: cargo build -p letaf-desktop --release --locked
+
+      - name: Empacota binário + sha256
+        shell: bash
+        run: |
+          mkdir -p dist
+          cp "target/release/letaf-desktop${{ matrix.ext }}" "dist/${{ matrix.bin }}"
+          sha256sum "dist/${{ matrix.bin }}" | cut -d' ' -f1 > "dist/${{ matrix.bin }}.sha256"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist-${{ matrix.key }}
+          path: dist/
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Gera manifest.json
+        shell: bash
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          LINUX_SHA=$(cat artifacts/dist-linux/letaf-linux.sha256)
+          WIN_SHA=$(cat artifacts/dist-windows/letaf-windows.exe.sha256)
+          MAC_SHA=$(cat artifacts/dist-macos/letaf-macos.sha256)
+          cat > manifest.json <<EOF
+          {
+            "latest": "$VERSION",
+            "min_supported": null,
+            "notes": "Versão $VERSION",
+            "files":  { "linux": "letaf-linux", "windows": "letaf-windows.exe", "macos": "letaf-macos" },
+            "sha256": { "linux": "$LINUX_SHA", "windows": "$WIN_SHA", "macos": "$MAC_SHA" }
+          }
+          EOF
+          echo "Manifesto gerado:"; cat manifest.json
+
+      - name: Publica Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            artifacts/dist-linux/letaf-linux
+            artifacts/dist-windows/letaf-windows.exe
+            artifacts/dist-macos/letaf-macos
+            manifest.json
+          body: |
+            Binários do desktop LETAF (brutos, para auto-update).
+
+            **Publicar:** baixe os binários + `manifest.json` e copie para o
+            `APP_UPDATES_DIR` do servidor. Ajuste `min_supported`/`notes` no
+            manifesto conforme a política de atualização (ver DEPLOY.md §6).

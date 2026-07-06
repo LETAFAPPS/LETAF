@@ -1,0 +1,243 @@
+import { Theme } from "../theme.slint";
+import { AssetIcon } from "../components/icons.slint";
+import { Card } from "../components/cards.slint";
+import { ActionBtn, OutlineBtn } from "../components/buttons.slint";
+
+// ── Modal: sangria (retirada de dinheiro) ─────────────────────────
+
+export component CashSangriaModal inherits Rectangle {
+    in property <string> cash-now-display;
+    in-out property <string> amount-input;
+    in-out property <string> reason-selected;   // chip ativo
+    in-out property <string> detail-input;
+
+    callback close();
+    callback confirm();
+
+    background: #00000080;
+    TouchArea { clicked => { root.close(); } }
+
+    VerticalLayout {
+        alignment: center;
+        HorizontalLayout {
+            alignment: center;
+            Card {
+                width: 460px;
+                TouchArea { }
+
+                VerticalLayout {
+                    padding: 0px;
+                    spacing: 0px;
+
+                    Rectangle {
+                        background: Theme.surface;
+                        VerticalLayout {
+                            padding-left: 22px; padding-right: 22px;
+                            padding-top: 18px; padding-bottom: 14px;
+                            spacing: 2px;
+                            HorizontalLayout {
+                                VerticalLayout {
+                                    horizontal-stretch: 1; spacing: 2px;
+                                    Text {
+                                        text: "Sangria de caixa";
+                                        font-size: 16px; font-weight: 700;
+                                        color: Theme.text-primary;
+                                    }
+                                    Text {
+                                        text: "Retirada de dinheiro do caixa · ex: pagamento de despesa";
+                                        font-size: 11px; color: Theme.text-secondary;
+                                        wrap: word-wrap;
+                                    }
+                                }
+                                close-ta := TouchArea {
+                                    width: 28px; height: 28px;
+                                    clicked => { root.close(); }
+                                    Rectangle {
+                                        border-radius: 4px;
+                                        background: close-ta.has-hover ? Theme.row-hover : transparent;
+                                        AssetIcon { width: parent.width; height: parent.height; icon-size: 14px; icon-color: Theme.text-secondary; source: @image-url("../assets/icons/1.2/fechar.svg"); }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    Rectangle {
+                        background: Theme.bg;
+                        VerticalLayout {
+                            padding: 18px;
+                            spacing: 14px;
+
+                            // Saldo atual (banner laranja claro)
+                            Rectangle {
+                                background: #FFF3E0;
+                                border-radius: 8px;
+                                height: 56px;
+                                HorizontalLayout {
+                                    padding: 12px;
+                                    spacing: 10px;
+                                    Rectangle {
+                                        width: 32px; height: 32px;
+                                        border-radius: 6px;
+                                        background: #E65100;
+                                        Text {
+                                            width: parent.width; height: parent.height;
+                                            text: "↓"; font-size: 16px; font-weight: 700;
+                                            color: white;
+                                            horizontal-alignment: center; vertical-alignment: center;
+                                        }
+                                    }
+                                    VerticalLayout {
+                                        horizontal-stretch: 1; alignment: center; spacing: 2px;
+                                        Text { text: "SAÍDA"; font-size: 10px; font-weight: 800; color: #E65100; letter-spacing: 1px; }
+                                        Text {
+                                            text: "Saldo Agora: " + root.cash-now-display;
+                                            font-size: 12px; color: Theme.text-primary;
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Valor
+                            VerticalLayout {
+                                spacing: 6px;
+                                Text { text: "Valor"; font-size: 10px; font-weight: 700; color: Theme.text-secondary; letter-spacing: 1px; }
+                                Rectangle {
+                                    height: 40px;
+                                    border-radius: 6px;
+                                    border-width: 1px;
+                                    border-color: amount-input.has-focus ? Theme.primary : Theme.border;
+                                    background: Theme.surface;
+                                    HorizontalLayout {
+                                        padding-left: 12px; padding-right: 12px;
+                                        Text {
+                                            text: "−R$";
+                                            font-size: 13px; font-weight: 600;
+                                            color: #E65100;
+                                            vertical-alignment: center;
+                                        }
+                                        Rectangle {
+                                            horizontal-stretch: 1;
+                                            amount-input := TextInput {
+                                                x: 10px; y: 0;
+                                                width: parent.width - 20px; height: parent.height;
+                                                text <=> root.amount-input;
+                                                font-size: 14px; font-weight: 600;
+                                                color: #E65100;
+                                                vertical-alignment: center;
+                                                single-line: true;
+                                                input-type: decimal;
+                                            }
+                                            if root.amount-input == "": Text {
+                                                x: 10px; y: 0;
+                                                width: parent.width - 20px; height: parent.height;
+                                                text: "0,00"; font-size: 14px; color: #BDBDBD;
+                                                vertical-alignment: center;
+                                            }
+                                        }
+                                    }
+                                    init-timer := Timer {
+                                        interval: 80ms; running: true;
+                                        triggered => { amount-input.focus(); self.running = false; }
+                                    }
+                                }
+                            }
+
+                            // Motivo (chips)
+                            VerticalLayout {
+                                spacing: 6px;
+                                Text { text: "Motivo"; font-size: 10px; font-weight: 700; color: Theme.text-secondary; letter-spacing: 1px; }
+                                HorizontalLayout {
+                                    spacing: 8px;
+                                    for opt[oi] in ["Depósito Bancário", "Despesa"]: ch-ta := TouchArea {
+                                        horizontal-stretch: 1; height: 32px;
+                                        clicked => { root.reason-selected = opt; }
+                                        Rectangle {
+                                            border-radius: 6px;
+                                            border-width: 1px;
+                                            border-color: root.reason-selected == opt ? #E65100 : Theme.border;
+                                            background: root.reason-selected == opt ? #FFF3E0 : (ch-ta.has-hover ? Theme.row-hover : Theme.surface);
+                                            Text {
+                                                width: parent.width; height: parent.height;
+                                                text: opt;
+                                                font-size: 12px; font-weight: 600;
+                                                color: root.reason-selected == opt ? #E65100 : Theme.text-primary;
+                                                horizontal-alignment: center; vertical-alignment: center;
+                                                overflow: elide;
+                                            }
+                                        }
+                                    }
+                                }
+                                HorizontalLayout {
+                                    spacing: 8px;
+                                    for opt[oi] in ["Fornecedor", "Outro"]: ch2-ta := TouchArea {
+                                        horizontal-stretch: 1; height: 32px;
+                                        clicked => { root.reason-selected = opt; }
+                                        Rectangle {
+                                            border-radius: 6px;
+                                            border-width: 1px;
+                                            border-color: root.reason-selected == opt ? #E65100 : Theme.border;
+                                            background: root.reason-selected == opt ? #FFF3E0 : (ch2-ta.has-hover ? Theme.row-hover : Theme.surface);
+                                            Text {
+                                                width: parent.width; height: parent.height;
+                                                text: opt;
+                                                font-size: 12px; font-weight: 600;
+                                                color: root.reason-selected == opt ? #E65100 : Theme.text-primary;
+                                                horizontal-alignment: center; vertical-alignment: center;
+                                                overflow: elide;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Detalhe opcional
+                            VerticalLayout {
+                                spacing: 6px;
+                                Text { text: "Detalhes"; font-size: 10px; font-weight: 700; color: Theme.text-secondary; letter-spacing: 1px; }
+                                Rectangle {
+                                    height: 36px;
+                                    border-radius: 6px;
+                                    border-width: 1px;
+                                    border-color: detail-input.has-focus ? Theme.primary : Theme.border;
+                                    background: Theme.surface;
+                                    detail-input := TextInput {
+                                        x: 10px; y: 0;
+                                        width: parent.width - 20px; height: parent.height;
+                                        text <=> root.detail-input;
+                                        font-size: 12px; color: Theme.text-primary;
+                                        vertical-alignment: center;
+                                        single-line: true;
+                                    }
+                                    if root.detail-input == "": Text {
+                                        x: 10px; y: 0;
+                                        width: parent.width - 20px; height: parent.height;
+                                        text: "Ex: Banco do Brasil ag. 0001 · envelope #2204";
+                                        font-size: 12px; color: #BDBDBD;
+                                        vertical-alignment: center;
+                                    }
+                                }
+                            }
+
+                            HorizontalLayout {
+                                spacing: 10px;
+                                alignment: end;
+                                OutlineBtn {
+                                    label: "Cancelar";
+                                    min-width: 110px; height: 40px;
+                                    clicked => { root.close(); }
+                                }
+                                ActionBtn {
+                                    label: "Registrar Sangria";
+                                    bg-color: Theme.sidebar-sel-bg;
+                                    min-width: 160px; height: 40px;
+                                    clicked => { root.confirm(); }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

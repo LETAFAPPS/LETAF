@@ -1,0 +1,110 @@
+import { Theme } from "../theme.slint";
+import { Card } from "../components/cards.slint";
+import { ActionBtn, OutlineBtn } from "../components/buttons.slint";
+
+// ── Modal: atualização disponível ────────────────────────────────
+//
+// Regras aplicadas (AI_RULES.md §1, §3, §11):
+// - UI só exibe os dados (vindos do manifesto, montados no Rust) e
+//   dispara `update-now` (abre o download) / `later` (adia).
+// - Quando `mandatory`, não há "Depois" e clicar fora não fecha — o
+//   uso fica travado até atualizar (decisão do backend via min_supported).
+
+export component UpdateModal inherits Rectangle {
+    in property <string> version;
+    in property <string> notes;
+    in property <bool> mandatory: false;
+    in property <string> status;   // "Baixando…", "Instalando…" — em progresso
+    in property <string> error;    // mensagem de falha do auto-update
+
+    callback update-now();
+    callback download-manual();
+    callback later();
+
+    // Em progresso quando há status e ainda não houve erro.
+    property <bool> busy: root.status != "" && root.error == "";
+
+    background: #00000060;
+
+    // Backdrop: clicar fora adia (só se não for obrigatória nem ocupada).
+    TouchArea { clicked => { if !root.mandatory && !root.busy { root.later(); } } }
+
+    VerticalLayout {
+        alignment: center;
+        HorizontalLayout {
+            alignment: center;
+            Card {
+                width: 460px;
+                TouchArea { }
+
+                VerticalLayout {
+                    padding: 24px;
+                    spacing: 12px;
+
+                    Text {
+                        text: "Atualização disponível";
+                        font-size: 18px; font-weight: 700;
+                        color: Theme.text-primary;
+                        horizontal-alignment: center;
+                    }
+                    Text {
+                        text: "Versão " + root.version;
+                        font-size: 13px; font-weight: 600;
+                        color: Theme.primary;
+                        horizontal-alignment: center;
+                    }
+
+                    Rectangle { height: 1px; background: Theme.border; }
+
+                    if root.notes != "": Text {
+                        text: root.notes;
+                        font-size: 13px; color: Theme.text-secondary;
+                        wrap: word-wrap; horizontal-alignment: center;
+                    }
+                    if root.mandatory: Text {
+                        text: "Atualização obrigatória para continuar usando o sistema.";
+                        font-size: 12px; color: #EF5350;
+                        wrap: word-wrap; horizontal-alignment: center;
+                    }
+
+                    // Progresso do auto-update.
+                    if root.busy: Text {
+                        text: root.status;
+                        font-size: 13px; color: Theme.primary;
+                        horizontal-alignment: center;
+                    }
+                    // Erro: oferece o download manual como fallback.
+                    if root.error != "": Text {
+                        text: root.error;
+                        font-size: 12px; color: #EF5350;
+                        wrap: word-wrap; horizontal-alignment: center;
+                    }
+
+                    Rectangle { height: 4px; }
+
+                    HorizontalLayout {
+                        alignment: center;
+                        spacing: 10px;
+                        if !root.mandatory && !root.busy: OutlineBtn {
+                            label: "Depois";
+                            width: 100px;
+                            clicked => { root.later(); }
+                        }
+                        // Após um erro, mostra "Baixar manualmente".
+                        if root.error != "": OutlineBtn {
+                            label: "Baixar manual";
+                            width: 130px;
+                            clicked => { root.download-manual(); }
+                        }
+                        ActionBtn {
+                            label: root.busy ? root.status : "Atualizar agora";
+                            bg-color: Theme.sidebar-sel-bg;
+                            width: 180px;
+                            clicked => { if !root.busy { root.update-now(); } }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

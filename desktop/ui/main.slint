@@ -1,0 +1,3134 @@
+import { Button, VerticalBox, HorizontalBox, ScrollView } from "std-widgets.slint";
+import { Theme } from "theme.slint";
+export { Theme } from "theme.slint";
+import { ProductData, CustomerData, CategoryData, CategoryIconOption, SubcategoryData, BusinessHoursData, OrderData, OrderItemData, EditOrderItem, ConfigVariation, ConfigOption, ConfigAddonGroup, ConfigAddon, CategoryFilterEntry, SubcategoryFilterEntry, DiscountTierData, AddonGroupData, AddonData, VariationData, VariationOptionData, BannerData, CouponData, CustomerOrderRow, CustomerAddressRow, CatTreeRow, CatProduct, CatSub, OrderColStat, KanbanCol, CalDay, PrinterData, PrinterCategoryRow, PdvProductRow, PdvCartRow, PdvCategoryChip, PdvCustomerRow, PdvAddressRow } from "types.slint";
+export { ProductData, CustomerData, CategoryData, CategoryIconOption, SubcategoryData, BusinessHoursData, OrderData, OrderItemData, CategoryFilterEntry, SubcategoryFilterEntry, DiscountTierData, AddonGroupData, AddonData, VariationData, VariationOptionData, BannerData, CouponData, CustomerOrderRow, CustomerAddressRow, CatTreeRow, CatProduct, CatSub, OrderColStat, KanbanCol, CalDay, PrinterData, PrinterCategoryRow, PdvProductRow, PdvCartRow, PdvCategoryChip, PdvCustomerRow, PdvAddressRow } from "types.slint";
+import { Toast } from "components/cards.slint";
+import { LoginPage } from "pages/login_page.slint";
+import { Sidebar } from "layouts/sidebar.slint";
+import { ProductsPage } from "pages/products_page.slint";
+import { CategoriesPage } from "pages/categories_page.slint";
+import { CollaboratorsPage } from "pages/collaborators_page.slint";
+import { CollabPermRow, CollabRoleRow, CollabEmployeeRow } from "types.slint";
+import { AdminCompanyRow, AdminSubscriptionRow, AdminUserRow, AdminPlanRow } from "types.slint";
+import { CustomersPage } from "pages/customers_page.slint";
+import { OrdersPage, CalendarPopup } from "pages/orders_page.slint";
+import { SettingsPage } from "pages/settings_page.slint";
+// `ProductFormPage` deixou de ser instanciada aqui — a `ProductsPage`
+// embute o form no painel direito da master-detail (Fase 9). O arquivo
+// continua existindo porque o `ProductsPage` o importa com `embedded:
+// true` para reaproveitar todos os cards.
+import { AddonsPage } from "pages/addons_page.slint";
+import { BannersPage } from "pages/banners_page.slint";
+import { BannerModal } from "modals/banner_modal.slint";
+import { CouponsPage } from "pages/coupons_page.slint";
+import { CouponModal } from "modals/coupon_modal.slint";
+import { CategoryModal, SubcategoryModal } from "modals/category_modal.slint";
+import { AddonGroupModal, AddonItemModal } from "modals/addon_modal.slint";
+import { CustomerModal } from "modals/customer_modal.slint";
+import { SettingsModal } from "modals/settings_modal.slint";
+import { CancelOrderModal } from "modals/cancel_order_modal.slint";
+import { ReceiptModal } from "modals/receipt_modal.slint";
+import { EditOrderModal } from "modals/edit_order_modal.slint";
+import { ProductConfiguratorModal } from "modals/product_configurator_modal.slint";
+import { UpdateModal } from "modals/update_modal.slint";
+import { LogoutConfirmModal } from "modals/logout_confirm_modal.slint";
+import { DeleteConfirmModal } from "modals/delete_confirm_modal.slint";
+import { NewOrderAlarmModal } from "modals/new_order_alarm_modal.slint";
+import { PrinterModal } from "modals/printer_modal.slint";
+import { PdvPage } from "pages/pdv_page.slint";
+import { AdminOverviewPage } from "pages/admin_overview_page.slint";
+import { AdminCompaniesPage } from "pages/admin_companies_page.slint";
+import { AdminSubscriptionsPage } from "pages/admin_subscriptions_page.slint";
+import { AdminAdminsPage } from "pages/admin_admins_page.slint";
+import { AdminPlansPage } from "pages/admin_plans_page.slint";
+import { PdvSoldModal } from "modals/pdv_sold_modal.slint";
+import { PdvCustomerPickerModal } from "modals/pdv_customer_picker_modal.slint";
+import { PdvCartModal } from "modals/pdv_cart_modal.slint";
+import { CashPage } from "pages/cash_page.slint";
+import { InventoryPage } from "pages/inventory_page.slint";
+import { StockAdjustModal } from "modals/stock_adjust_modal.slint";
+import { CashOpenModal } from "modals/cash_open_modal.slint";
+import { CashSangriaModal } from "modals/cash_sangria_modal.slint";
+import { CashSuprimentoModal } from "modals/cash_suprimento_modal.slint";
+import { CashCloseModal } from "modals/cash_close_modal.slint";
+import { PdvBlockedView } from "pages/pdv_blocked_view.slint";
+import { CashSessionRow, CashMovementRow, CashMethodTotalRow, CashSummaryData } from "types.slint";
+import { InventoryHealthData, InventoryProductRow } from "types.slint";
+import { NavPerms } from "types.slint";
+import { DashboardKpi, DashboardBarPoint, DashboardComparePoint, DashboardTopProduct, DashboardPaymentSlice, DashboardLinePoint } from "types.slint";
+import { DashboardPage } from "pages/dashboard_page.slint";
+import {
+    ReportOption, ReportKpi,
+    ReportDailyBar, ReportHBar, ReportDreLine,
+    ReportProductRow, ReportCustomerRow,
+    ReportNewVsReturning, ReportHourlyBar,
+} from "types.slint";
+import { ReportsPage } from "pages/reports_page.slint";
+import { FinanceKpi, FinanceTab, FinanceEntryRow, FinanceCategoryOption, FinanceCashFlowPoint, FinanceCalendarCell, FinanceDayRow } from "types.slint";
+import { WalletSummary, WalletMovementRow } from "types.slint";
+import { WalletDepositModal, WalletWithdrawModal, WalletAdjustModal, WalletLimitModal } from "modals/wallet_modals.slint";
+import { FinancePage } from "pages/finance_page.slint";
+import { FinanceEntryModal } from "modals/finance_entry_modal.slint";
+import { PlanCardData, SubscriptionData, SubscriptionInvoiceRow, PixChargeView, PaymentMethodOption } from "types.slint";
+import { SubscriptionPage } from "pages/subscription_page.slint";
+import { PixChargeModal } from "modals/pix_charge_modal.slint";
+import { CardModal } from "modals/card_modal.slint";
+import { PixAutoModal } from "modals/pix_auto_modal.slint";
+import { PlanChangeConfirmModal } from "modals/plan_change_confirm_modal.slint";
+import { ProfileModal } from "modals/profile_modal.slint";
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  JANELA PRINCIPAL
+// ══════════════════════════════════════════════════════════════════════════════
+//
+// Regras aplicadas (AI_RULES.md §1, §3, §8, §11):
+// - Desktop usa Slint (§3)
+// - UI nao contem logica de negocio (§1, §14)
+// - Callbacks delegam ao Rust (§1)
+// - Login obrigatorio para sincronizar (§11)
+// - Componentes reutilizaveis, responsivo (§3, §8)
+// - Telas separadas para lista e cadastro (responsabilidade unica, §8)
+
+export component MainWindow inherits Window {
+    title: "LETAF";
+    preferred-width: 1100px;
+    preferred-height: 700px;
+    min-width: 640px;
+    min-height: 480px;
+    background: Theme.bg;
+
+    /// Altura útil da janela em pixels lógicos. Atualizada pelo Rust
+    /// no setup e em cada resize via `Window::on_resize_event` (ou
+    /// equivalente). Necessária porque `root.height` em layouts
+    /// aninhados não propaga corretamente via property — usar valor
+    /// setado em Rust evita toda a cadeia de layout buggy do Slint.
+    in-out property <length> live-window-height: 800px;
+    // Tipografia base do sistema: Geist + corpo 14/400 (spec).
+    // Todo `Text` herda a família; se a Geist não estiver
+    // instalada/embarcada, o Slint usa o fallback padrão.
+    default-font-family: Theme.font-sans;
+    default-font-size: Theme.fs-body;
+    default-font-weight: Theme.fw-regular;
+
+    // ── Sidebar (Fase 14F: colapsada por padrão) ────
+    /// `true` mostra rótulos + 248px; `false` esconde rótulos + 76px.
+    /// Toggle ao clicar no logo do topo.
+    in-out property <bool> sidebar-expanded: false;
+
+    // ── Login state ─────────────────────────────────
+    in-out property <bool> logged-in: false;
+    in-out property <string> login-email: "";
+    in-out property <string> login-password: "";
+    in-out property <string> login-status: "";
+    in-out property <bool> login-remember-me: false;
+    /// Subdomínio do último login (vazio = nunca logou). Exibido no
+    /// rodapé da tela de login para identificar o estabelecimento.
+    in-out property <string> login-subdomain: "";
+    /// Versão do app (ex.: "v0.1.0") — exibida na tela de login.
+    in-out property <string> app-version: "";
+
+    // ── Atualização do desktop (RBAC-independente) ──
+    // Preenchidas pelo UpdateChecker (Rust) quando há versão nova.
+    in-out property <bool> update-available: false;
+    in-out property <string> update-version;
+    in-out property <string> update-notes;
+    in-out property <bool> update-mandatory: false;
+    in-out property <string> update-url;
+    in-out property <string> update-sha256;
+    /// Status do auto-update ("Baixando…", "Instalando…") e erro, se houver.
+    in-out property <string> update-status;
+    in-out property <string> update-error;
+    /// Auto-update: baixa, valida sha256, substitui o binário e reinicia.
+    callback apply-update();
+    /// Fallback manual: abre a URL de download no navegador/SO.
+    callback open-update-url();
+    callback do-login();
+    callback login-with-pin();
+    // Recuperação de senha ("esqueci a senha") — estado + ações no Rust.
+    in-out property <int> recovery-step: 0;
+    in-out property <string> recovery-email: "";
+    in-out property <string> recovery-code: "";
+    in-out property <string> recovery-new-password: "";
+    in-out property <string> recovery-status: "";
+    in-out property <bool> recovery-busy: false;
+    callback recovery-forgot();
+    callback recovery-verify();
+    callback recovery-reset();
+    // Perfil do usuário logado (clique na conta do menu lateral). O Rust
+    // busca /auth/me ao abrir e salva via PUT /auth/profile.
+    in-out property <bool> profile-open: false;
+    in-out property <string> profile-name: "";
+    in-out property <string> profile-email: "";
+    in-out property <string> profile-new-password: "";
+    in-out property <string> profile-status: "";
+    in-out property <bool> profile-busy: false;
+    callback open-profile();
+    callback profile-save();
+    callback do-logout();
+    callback dark-mode-changed(bool);
+
+    // ── Navegacao ───────────────────────────────────
+    // Pedidos é a tela principal do operador (fluxo do dia). "dashboard",
+    // Landing inicial: Dashboard (visão consolidada de KPIs + vendas
+    // da semana). Atalhos da sidebar redirecionam para Pedidos/PDV.
+    in-out property <string> active-tab: "dashboard";
+    // Aba inicial a aplicar APÓS o primeiro frame. Setar `active-tab`
+    // direto no restore (antes da janela montar) faz o Slint montar a
+    // página durante o layout inicial → recursão de binding em telas que
+    // dependem de `root.height` (ex.: PDV). Adiar via Timer monta a tela
+    // com o layout já estabelecido, como numa navegação normal.
+    in-out property <string> pending-initial-tab: "";
+    Timer {
+        interval: 1ms;
+        // `running` segue só o binding: ao zerar pending-initial-tab no
+        // triggered, vira false sozinho (sem atribuição imperativa).
+        running: root.pending-initial-tab != "";
+        triggered => {
+            root.active-tab = root.pending-initial-tab;
+            root.pending-initial-tab = "";
+            // Sessão restaurada de super admin: carrega o painel ao abrir
+            // (qualquer aba de plataforma).
+            if root.active-tab == "admin-overview" || root.active-tab == "admin-companies"
+               || root.active-tab == "admin-subscriptions" || root.active-tab == "admin-admins"
+               || root.active-tab == "admin-plans" {
+                root.admin-refresh();
+            }
+        }
+    }
+    in-out property <bool> show-modal: false;
+    in-out property <string> modal-type: "";
+    in-out property <bool> show-delete-confirm: false;
+    in-out property <string> delete-target-id: "";
+    in-out property <string> delete-target-name: "";
+    in-out property <string> delete-target-type: "";
+    callback confirm-delete();
+
+    // ── Produtos ────────────────────────────────────
+    property <int> products-cols:
+        root.width > 1800px ? 7
+        : (root.width > 1500px ? 6
+            : (root.width > 1250px ? 5 : 4));
+    in-out property <[ProductData]> products: [];
+    in-out property <int> products-active-count: 0;
+    in-out property <int> products-inactive-count: 0;
+    /// ID do produto selecionado na master-detail. Vazio = nenhum
+    /// (detalhe mostra placeholder). Alterado via callback
+    /// `select-product`; o Rust valida e popula `detail-product`.
+    in-out property <string> selected-product-id: "";
+    /// Snapshot do produto mostrado no painel direito da tela
+    /// Produtos. O Rust monta o ProductData a partir do cache em
+    /// `select-product`.
+    in-out property <ProductData> detail-product;
+    /// Total de pedidos ativos (status != Entregue/Cancelado).
+    /// Alimentado em Rust e usado no badge da sidebar.
+    in-out property <int> orders-active-count: 0;
+    /// Badges da sidebar: contas vencidas (Financeiro) e produtos fora
+    /// de estoque (Estoque). Alimentados em Rust.
+    in-out property <int> finance-overdue-count: 0;
+    in-out property <int> stock-out-count: 0;
+    in-out property <string> product-name: "";
+    in-out property <string> product-description: "";
+    in-out property <string> product-price: "";
+    /// Preço de custo (Fase 9 — tela Produtos). Vazio = sem custo
+    /// cadastrado; a UI mostra "—" na margem e o relatório de
+    /// rentabilidade ignora o item.
+    in-out property <string> product-cost-price: "";
+    in-out property <string> product-stock-quantity: "";
+    /// Estoque mínimo desejado (Fase 9). Vazio/0 desliga o alerta
+    /// "baixo" e a sugestão de compra. Segue a mesma regra de
+    /// arredondamento do estoque atual conforme a unidade.
+    in-out property <string> product-min-stock: "";
+    /// Resumo de margem em pt-BR (Fase 9). "—" quando faltam dados
+    /// (sem preço ou sem custo). Recalculado pelo Rust no
+    /// request-edit/request-new.
+    in-out property <string> product-margin-display: "—";
+    in-out property <string> product-barcode: "";
+    in-out property <string> product-unit: "un";
+    /// "weight" | "price" — só relevante quando unit == "kg".
+    /// Padrão "price": a maioria das balanças no varejo brasileiro emite
+    /// etiqueta com o valor já calculado (não com o peso). [[product_modal_balance_mode]]
+    in-out property <string> product-balance-mode: "price";
+    in-out property <string> product-image-data: "";
+    /// Cor de fundo detectada nas bordas da imagem do produto (#RRGGBB).
+    /// Vazio = não detectado / imagem transparente → card cai no tema.
+    in-out property <string> product-cover-color: "";
+    in-out property <bool>   product-image-loading: false;
+    /// Quando `true`, o produto é tratado como "estoque infinito": filtros
+    /// do catálogo nunca o escondem por falta de estoque, carrinho não
+    /// impõe teto e baixa de estoque é pulada no `OrderService::create`.
+    in-out property <bool>   product-unlimited-stock: false;
+    /// Disponibilidade do produto no cardápio web: quando `false`, o
+    /// produto está sempre disponível; quando `true`, segue a agenda em
+    /// `product-availability` (7 entradas, uma por dia).
+    in-out property <bool>   product-availability-enabled: false;
+    in-out property <[BusinessHoursData]> product-availability: [];
+    /// Tipo de desconto: "none" (UI sentinel) ou um dos 4 kinds do core.
+    in-out property <string> product-discount-kind: "none";
+    in-out property <string> product-discount-value: "";
+    in-out property <string> product-discount-min-qty: "";
+    /// Faixas (tiers) para `bulk_*`. O Rust serializa/desserializa o JSON
+    /// e popula esta lista — push/remove via `add-discount-tier` /
+    /// `remove-discount-tier` (callbacks também no Rust).
+    in-out property <[DiscountTierData]> product-discount-tiers: [];
+    in-out property <string> product-category-id: "";
+    in-out property <string> product-category-name: "";
+    in-out property <bool>   product-category-open: false;
+    in-out property <string> product-subcategory-id: "";
+    in-out property <string> product-subcategory-name: "";
+    in-out property <bool>   product-subcategory-open: false;
+    in-out property <string> status-message: "Pronto";
+    in-out property <string> product-error-name: "";
+    in-out property <string> product-error-price: "";
+    in-out property <string> product-error-stock: "";
+    in-out property <string> product-save-error: "";
+    in-out property <string> editing-id: "";
+    callback add-product();
+    callback update-product();
+    callback toggle-product-active(string);
+    callback toggle-product-web-visible(string);
+    callback delete-product(string);
+    /// Duplica um produto: o Rust lê o original, cria uma cópia com
+    /// novo ID + nome "(cópia)" e devolve o ProductData no modelo.
+    callback duplicate-product(string);
+    /// Seleciona o produto pelo ID na master-detail. O Rust resolve
+    /// `detail-product` a partir do cache e atualiza `selected-product-id`.
+    callback select-product(string);
+    /// Limpa o snapshot `detail-product` para o estado default (sem
+    /// imagem, sem cor, etc.). Slint não permite atribuir campos
+    /// individuais de struct, então o reset acontece no Rust.
+    /// Disparado pelo `request-new` antes de zerar o form.
+    callback clear-detail-product();
+    callback refresh-products();
+    /// Aplica o filtro de produtos com a busca textual atual; os demais
+    /// filtros (categorias, subcategorias, status, estoque) ficam no
+    /// Rust e são alterados via os toggle-/set-* callbacks abaixo.
+    callback filter-products(string);
+    callback pick-product-image();
+    /// Pede ao Rust para deserializar o JSON da agenda e popular
+    /// `product-availability` (7 entradas). String vazia → carrega
+    /// o default (todos os dias ativos 08:00-22:00).
+    callback load-product-availability(string);
+    /// Recarrega `product-addon-groups` (chips) marcando `selected` para
+    /// cada ID presente no CSV. String vazia = sem nenhum marcado.
+    callback load-product-addon-groups(string);
+    /// Adiciona uma faixa em branco em `product-discount-tiers`.
+    /// O Rust faz push no VecModel — o Slint não tem helper de array.
+    callback add-discount-tier();
+    /// Remove a faixa no índice indicado.
+    callback remove-discount-tier(int);
+    /// Pede ao Rust para parsear o JSON `discount_tiers` e popular a
+    /// lista exposta na UI. String vazia limpa a lista.
+    callback load-discount-tiers(string);
+
+    // ── Estado de filtros de produtos (multi-select, mantido no Rust) ──
+    //
+    // Regras aplicadas (AI_RULES.md §1, §11):
+    // - O estado da seleção fica no Rust; o Slint apenas reflete o que
+    //   o Rust devolve via `filter-cats` / `filter-subs` (com `selected:
+    //   bool` em cada entrada). Isso evita lógica de set/manipulação de
+    //   coleções dentro do Slint.
+    // - `filter-status` / `filter-stock` são strings simples com 3
+    //   valores: "active" | "inactive" | "both" (e o equivalente para
+    //   estoque). Padrão: "active" + "with" (só vendáveis).
+    in-out property <[CategoryFilterEntry]>    filter-cats: [];
+    in-out property <[SubcategoryFilterEntry]> filter-subs: [];
+    in-out property <string> filter-status: "both";
+    in-out property <string> filter-stock:  "both";
+    in-out property <int>    filter-active-count: 0;
+    callback toggle-category-filter(string);
+    callback toggle-subcategory-filter(string);
+    callback set-status-filter(string);
+    callback set-stock-filter(string);
+    callback reset-product-filters();
+
+    // ── Clientes ────────────────────────────────────
+    in-out property <[CustomerData]> customers: [];
+    in-out property <string> customer-name: "";
+    in-out property <string> customer-email: "";
+    in-out property <string> customer-phone: "";
+    in-out property <string> customer-document: "";
+    in-out property <image> customer-profile-picture;
+    in-out property <string> customer-avatar-initial: "?";
+    in-out property <string> customer-error-name: "";
+    in-out property <string> customer-error-email: "";
+    in-out property <string> customer-error-phone: "";
+    in-out property <string> customer-error-document: "";
+    /// Observação interna editável no modal de cliente.
+    in-out property <string> customer-notes: "";
+    /// Cliente selecionado no master-detail (vazio = nenhum).
+    in-out property <string> selected-customer-id: "";
+    /// Dados do cliente em foco no painel de detalhe.
+    in-out property <CustomerData> detail-customer;
+    /// Pedidos recentes do cliente em foco.
+    in-out property <[CustomerOrderRow]> detail-recent-orders: [];
+    in-out property <[CustomerAddressRow]> detail-addresses: [];
+    /// Campos do form de novo endereço no modal de cliente.
+    in-out property <string> customer-addr-label: "Casa";
+    in-out property <string> customer-addr-custom-label: "";
+    in-out property <string> customer-addr-street: "";
+    in-out property <string> customer-addr-number: "";
+    in-out property <string> customer-addr-neighborhood: "";
+    in-out property <string> customer-addr-apartment: "";
+    callback add-customer();
+    callback update-customer();
+    callback add-customer-address();
+    callback delete-customer-address(string);
+    callback delete-customer(string);
+    callback refresh-customers();
+    callback filter-customers(string);
+    callback select-customer(string);
+    callback new-customer-order(string);
+    callback format-customer-phone(string) -> string;
+    callback format-customer-document(string) -> string;
+
+    // ── Categorias ──────────────────────────────────
+    in-out property <[CategoryData]> categories: [];
+    in-out property <string> category-name: "";
+    in-out property <string> category-description: "";
+    in-out property <string> category-error-name: "";
+    /// Slug do ícone selecionado no formulário ("" = sem ícone).
+    /// Persistido em `Category.icon_name` ao salvar.
+    in-out property <string> category-icon-name: "";
+    /// Allowlist de ícones disponíveis (populada pelo Rust a partir
+    /// de `letaf_core::category::icons::ICONS`). Estática, sem rede.
+    in-out property <[CategoryIconOption]> category-icon-options: [];
+    callback add-category();
+    callback update-category();
+    callback delete-category(string);
+    callback reorder-category(string, bool);
+
+    // ── Subcategorias ───────────────────────────────
+    in-out property <[SubcategoryData]> subcategories: [];
+    in-out property <string> subcategory-name: "";
+    in-out property <string> subcategory-category-id: "";
+    in-out property <string> subcategory-category-name: "";
+    in-out property <string> subcategory-error-name: "";
+    in-out property <string> subcategory-error-category: "";
+    in-out property <bool> subcategory-category-open: false;
+    in-out property <string> subcategory-filter-category-id: "all";
+    callback refresh-subcategories();
+    callback add-subcategory();
+    callback update-subcategory();
+    callback delete-subcategory(string);
+    callback reorder-subcategory(string, bool);
+    callback refresh-categories();
+
+    // ── Categorias: master-detail (árvore + detalhe) ────────────────
+    // Tree e detalhe vêm prontos do Rust (cache + agregação). Sem
+    // contagem na lista mestra (pedido do usuário); detalhe sim.
+    in-out property <[CatTreeRow]> category-tree: [];
+    in-out property <int> category-count: 0;
+    in-out property <string> selected-category-id: "";
+    in-out property <CategoryData> detail-category;
+    in-out property <color> detail-color;
+    in-out property <int> detail-prod-count: 0;
+    in-out property <int> detail-sub-count: 0;
+    in-out property <string> detail-stock-value: "";
+    in-out property <string> detail-catalog-pct: "";
+    in-out property <string> detail-catalog-hint: "";
+    in-out property <[CatProduct]> detail-cat-products: [];
+    in-out property <[CatSub]> detail-cat-subs: [];
+    callback select-category(string);
+    callback toggle-category(string);
+
+    // ── Adicionais (Fase 4B) ────────────────────────
+    in-out property <[AddonGroupData]> addon-groups: [];
+    in-out property <[AddonData]> current-group-addons: [];
+    in-out property <string> selected-addon-group-id: "";
+    in-out property <string> selected-addon-group-name: "";
+    // Form do modal de grupo.
+    in-out property <string> addon-group-form-id: "";
+    in-out property <string> addon-group-form-name: "";
+    in-out property <string> addon-group-form-selection: "single";
+    in-out property <string> addon-group-form-min: "0";
+    in-out property <string> addon-group-form-max: "0";
+    in-out property <string> addon-group-form-error: "";
+    // Form do modal de addon individual.
+    in-out property <string> addon-form-id: "";
+    in-out property <string> addon-form-name: "";
+    in-out property <string> addon-form-price: "";
+    in-out property <string> addon-form-error: "";
+    callback refresh-addon-groups();
+    callback select-addon-group(string);
+    callback save-addon-group();
+    callback delete-addon-group(string);
+    callback save-addon();
+    callback delete-addon(string);
+    callback toggle-addon-active(string);
+
+    // ── Banners (Fase 7) ────────────────────────────
+    in-out property <[BannerData]> banners: [];
+    in-out property <int> banners-active-count: 0;
+    in-out property <int> banners-inactive-count: 0;
+    in-out property <string> banner-title: "";
+    in-out property <string> banner-item-type: "product";
+    in-out property <string> banner-product-id: "";
+    in-out property <string> banner-product-name: "";
+    /// Texto da barra de busca do produto. Sugestões só aparecem
+    /// quando há algo digitado; clicar em uma sugestão preenche
+    /// `banner-product-id`/`banner-product-name` e limpa a busca.
+    in-out property <string> banner-product-search: "";
+    /// Lista de produtos filtrada pela pesquisa. Rust mantém em sync
+    /// com `banner-product-search` (Slint não tem `string.contains`).
+    in-out property <[ProductData]> banner-product-filtered: [];
+    /// Pedido para o Rust refiltrar a lista (depois que o operador
+    /// digita na barra de busca).
+    callback filter-banner-products();
+    in-out property <string> banner-url: "";
+    in-out property <string> banner-image-data: "";
+    in-out property <image>  banner-image;
+    in-out property <bool>   banner-image-loading: false;
+    in-out property <string> banner-error-title: "";
+    in-out property <string> banner-error-image: "";
+    in-out property <string> banner-error-target: "";
+    callback refresh-banners();
+    callback pick-banner-image();
+    callback add-banner();
+    callback update-banner();
+    callback delete-banner(string);
+    callback toggle-banner-active(string);
+
+    // ── Cupons (Fase 8) ────────────────────────────
+    in-out property <[CouponData]> coupons: [];
+    in-out property <int> coupons-active-count: 0;
+    in-out property <int> coupons-inactive-count: 0;
+    in-out property <string> coupon-title: "";
+    in-out property <string> coupon-code: "";
+    in-out property <string> coupon-type: "standard";
+    in-out property <string> coupon-discount-kind: "fixed";
+    in-out property <string> coupon-discount-value: "";
+    in-out property <string> coupon-min-order: "";
+    in-out property <string> coupon-max-discount: "";
+    in-out property <string> coupon-per-user-limit: "";
+    in-out property <string> coupon-usage-limit: "";
+    in-out property <string> coupon-valid-from: "";
+    in-out property <string> coupon-valid-until: "";
+    in-out property <string> coupon-error-title: "";
+    in-out property <string> coupon-error-code: "";
+    in-out property <string> coupon-error-discount: "";
+    in-out property <string> coupon-error-min: "";
+    in-out property <string> coupon-error-per-user: "";
+    in-out property <string> coupon-error-usage: "";
+    in-out property <string> coupon-error-validity: "";
+    callback refresh-coupons();
+    callback add-coupon();
+    callback update-coupon();
+    callback delete-coupon(string);
+    callback toggle-coupon-active(string);
+    callback format-coupon-date(string) -> string;
+
+    // Lista de grupos exibida como chips no form do produto. A diferença
+    // é o flag `selected` por linha (= produto em edição usa esse grupo).
+    in-out property <[AddonGroupData]> product-addon-groups: [];
+    callback toggle-product-addon-group(string);
+
+    // ── Variações (Fase 5B) ─────────────────────────────────
+    // Lista mutável de variações do produto em edição. Rust gere
+    // push/remove (VecModel) via callbacks; campos de texto são
+    // editados diretamente via bindings inline na Slint.
+    in-out property <[VariationData]> product-variations: [];
+    callback add-variation();
+    callback remove-variation(int);
+    callback add-variation-option(int);
+    callback remove-variation-option(int, int);
+    /// Recarrega `product-variations` a partir do JSON persistido no
+    /// produto. String vazia limpa a lista.
+    callback load-product-variations(string);
+
+    // ── Configurações / Horário de Funcionamento ────
+    in-out property <[BusinessHoursData]> business-hours: [];
+    in-out property <int> bh-editing-day: -1;
+    in-out property <string> bh-editing-day-name: "";
+    in-out property <string> bh-open-time: "";
+    in-out property <string> bh-close-time: "";
+    in-out property <bool> bh-is-open: false;
+    in-out property <string> store-override: "none";
+    in-out property <string> store-name: "";
+    in-out property <string> store-address: "";
+    in-out property <string> store-phone: "";
+    // ── Contato adicional ─────────────────────────────────
+    in-out property <string> store-whatsapp: "";
+    in-out property <string> store-email: "";
+    in-out property <string> store-instagram: "";
+    // ── Endereço & documento ──────────────────────────────
+    in-out property <string> store-document: "";
+    in-out property <string> store-neighborhood: "";
+    in-out property <string> store-zip-code: "";
+    in-out property <string> store-city: "";
+    in-out property <string> store-uf: "";
+    // ── Imagens ───────────────────────────────────────────
+    in-out property <string> store-logo-data;
+    in     property <image>  store-logo-image;
+    in-out property <bool>   store-logo-loading: false;
+    in-out property <string> store-cover-data;
+    in     property <image>  store-cover-image;
+    in-out property <bool>   store-cover-loading: false;
+    /// `Company.synced` exposto para o cabeçalho mostrar badge
+    /// "editado" (pendente) / "sincronizado" nos 3 cards.
+    in-out property <bool>   store-synced: true;
+    /// Quantidade de produtos exibidos por página na grade.
+    /// Configurada em SettingsPage e persistida em Company.
+    in-out property <int>    products-per-page: 20;
+    in-out property <int>    orders-per-page: 20;
+
+    // ── Sidebar (status de sync + identidade do usuário) ───
+    // Regras aplicadas (AI_RULES.md §7, §11):
+    // Estado do SyncWorker exposto à UI; preenchido pelo Rust.
+    // `user-role` é placeholder até roles serem implementados no User.
+    in-out property <bool>   sync-online: true;
+    in-out property <string> sync-status-label: "Sincronizado";
+    in-out property <string> sync-last-label: "Agora";
+    in-out property <int>    sync-pending-count: 0;
+    in-out property <string> user-role: "Admin";
+    in-out property <string> user-name: "Minha conta";
+    // Permissões de navegação (RBAC §11). Default libera tudo até o login
+    // calcular as permissões reais do operador. `collaborators-perms` é
+    // o catálogo + estado para a tela de Colaboradores (Slice 4b/4c).
+    in-out property <NavPerms> nav-perms: { is-admin: true };
+
+    // ── Colaboradores (RBAC) ──
+    in-out property <[CollabRoleRow]> collab-roles;
+    in-out property <[CollabEmployeeRow]> collab-employees;
+    in-out property <[CollabPermRow]> collab-perm-rows;
+    in-out property <[string]> collab-role-combo;
+    in-out property <string> collab-editing-role-id;
+    in-out property <string> collab-role-name;
+    in-out property <string> collab-emp-id;
+    in-out property <string> collab-emp-name;
+    in-out property <string> collab-emp-email;
+    in-out property <string> collab-emp-password;
+    in-out property <int> collab-emp-role-index;
+    in-out property <int> collab-perm-active;
+    in-out property <int> collab-perm-total;
+    callback refresh-collaborators();
+    callback collab-mark-all-perms();
+    callback collab-new-role();
+    callback collab-edit-role(string);
+    callback collab-save-role(string, string);
+    callback collab-toggle-perm(string, bool, bool);
+    callback collab-new-employee();
+    callback collab-edit-employee(string);
+    callback collab-save-employee(string, string, string, string, int);
+
+    callback refresh-business-hours();
+    callback save-business-hours();
+    callback set-store-override(string);
+    callback save-store-info();
+    callback pick-store-logo();
+    callback pick-store-cover();
+    callback format-store-phone(string) -> string;
+    /// Máscara para CPF/CNPJ — reaproveita `format_document` do desktop.
+    callback format-store-document(string) -> string;
+    /// Máscara para CEP: `00000-000`.
+    callback format-store-zip(string) -> string;
+    callback apply-time-mask(string) -> string;
+
+    // ── Pedidos ─────────────────────────────────────
+    in-out property <[OrderData]> orders: [];
+    in-out property <string> order-filter-status: "all";
+    in-out property <string> order-detail-id: "";
+    in-out property <OrderData> detail-order: { id: "", number: "", order-date: "", order-time: "", customer-name: "", customer-phone: "", delivery-label: "", delivery-street: "", delivery-number: "", delivery-neighborhood: "", delivery-apartment: "", total: "", coupon-summary: "", status: "", status-label: "", delivery-type: "", items-count: 0, items-summary: "", notes: "", subtotal-display: "", discount-display: "", delivery-fee-display: "", coupon-code-display: "", elapsed-display: "", created-at-iso: "" };
+    in-out property <[OrderItemData]> detail-order-items: [];
+    // Kanban (filtro "all"): estatísticas por coluna de status,
+    // agregadas no Rust. Busca textual de pedidos.
+    in-out property <[KanbanCol]> kanban-cols: [];
+    in-out property <string> order-search-query: "";
+    // Filtro por período (calendário). Datas em "AAAA-MM-DD".
+    in-out property <string> order-date-start: "";
+    in-out property <string> order-date-end: "";
+    in-out property <string> order-date-label: "Período";
+    in-out property <bool>   cal-open: false;
+    in-out property <string> cal-title: "";
+    in-out property <[CalDay]> cal-days: [];
+    // Mês visível no calendário (controlado pelo Rust).
+    in-out property <int> cal-year: 0;
+    in-out property <int> cal-month: 0;
+    callback cal-toggle();
+    callback cal-prev();
+    callback cal-next();
+    callback cal-pick(string);
+    callback cal-clear();
+    callback refresh-orders();
+    callback open-order(string);
+    callback advance-order-status(string);
+    callback cancel-order(string, string);
+    /// Recalcula `detail-order.elapsed-display` a partir de
+    /// `detail-order.created-at-iso`. Disparado a cada 60s pelo Timer
+    /// do painel direito enquanto o pedido está ativo.
+    callback refresh-order-elapsed();
+    /// "Editar pedido" — popula `edit-order-*` (Rust) e abre o modal.
+    callback edit-order(string);
+    /// +/− qty no item `idx` da lista de edição (Rust mexe no model).
+    callback edit-order-inc(int);
+    callback edit-order-dec(int);
+    /// Remove o item `idx` da lista de edição (linha desaparece).
+    callback edit-order-delete(int);
+    /// Reabre o configurador com as seleções já marcadas para o
+    /// item `idx`. Ao confirmar, SUBSTITUI `items[idx]`; ao cancelar,
+    /// o item original é preservado.
+    callback edit-order-edit-item(int);
+    /// Adiciona um produto novo à lista (push de EditOrderItem novo
+    /// com `item_id == ""` — sentinel "novo"; o save gera UUID).
+    callback edit-order-add-product(string);
+    /// Refiltra `edit-order-picker-products` no Rust (Slint não tem
+    /// `string.contains`). Disparado pelo `edited` da busca do picker.
+    callback edit-order-filter-picker(string);
+    /// Configurador de produto:
+    /// - `start-product-config(pid)`: carrega adicionais + variações
+    ///   do produto. Se nenhum dos dois existir, adiciona direto.
+    /// - `config-toggle-variation(v, o)` / `config-toggle-addon(g, a)`:
+    ///   alterna seleção respeitando single/multi/max_value.
+    /// - `config-inc-qty` / `config-dec-qty`.
+    /// - `config-confirm-add`: empurra o `EditOrderItem` configurado.
+    /// - `config-cancel`: limpa o estado.
+    callback start-product-config(string);
+    callback config-toggle-variation(int, int);
+    callback config-toggle-addon(int, int);
+    callback config-inc-qty();
+    callback config-dec-qty();
+    callback config-confirm-add();
+    callback config-cancel();
+    /// "Salvar alterações" no modal — Rust lê itens/notes/delivery
+    /// e chama `OrderService::update_basics`.
+    callback save-edit-order();
+    /// "Imprimir agora" — gera o HTML da comanda (completa ou cozinha,
+    /// conforme `receipt-modal-mode`) e abre no navegador padrão com
+    /// `window.print()` autoinjetado para o diálogo de impressão
+    /// aparecer sem interação extra. Disparado pelo `ReceiptModal`.
+    /// Argumentos: (order-id, mode).
+    callback print-receipt-now(string, string);
+
+    in-out property <bool> show-cancel-modal: false;
+    /// Modal de preview/impressão de comanda. Vazio = oculto.
+    /// "complete" = comanda do cliente (com valores).
+    /// "kitchen"  = comanda da cozinha (compacta, sem valores).
+    in-out property <string> receipt-modal-mode: "";
+    /// Modal de edição do pedido. `false` oculto.
+    in-out property <bool> show-edit-order-modal: false;
+    /// Lista mutável de itens em edição (qty editável; remoção por
+    /// −/+ até 0). Rust gerencia push/remove via callbacks.
+    in-out property <[EditOrderItem]> edit-order-items: [];
+    in-out property <string> edit-order-notes: "";
+    in-out property <string> edit-order-delivery-type: "delivery";
+    in-out property <string> edit-order-error: "";
+    /// Lista de produtos exibida no picker do EditOrderModal —
+    /// filtrada em Rust via callback `edit-order-filter-picker`.
+    in-out property <[ProductData]> edit-order-picker-products: [];
+    /// Lista mestra (sem filtro) usada pelo Rust para refiltrar quando
+    /// o operador digita na busca. Carregada do `product_service` na
+    /// abertura do modal — não depende do `products` lazy da UI.
+    in-out property <[ProductData]> edit-order-picker-master: [];
+    /// Estado do configurador de produto (adicionais/variações).
+    /// `config-product-id` vazio = sem configuração em andamento;
+    /// caso contrário, a seção de configuração aparece no EditOrderModal.
+    in-out property <string> config-product-id: "";
+    in-out property <string> config-product-name: "";
+    in-out property <float>  config-base-price: 0;
+    in-out property <int>    config-qty: 1;
+    in-out property <[ConfigVariation]> config-variations: [];
+    in-out property <[ConfigAddonGroup]> config-addon-groups: [];
+    /// Total final formatado (`"R$ x,xx"`), recomputado em Rust a
+    /// cada toggle / mudança de qty.
+    in-out property <string> config-final-display: "R$ 0,00";
+    in-out property <string> config-error: "";
+    /// Índice do item em edição via "Editar item" (-1 = adicionando
+    /// produto novo). O Rust seta no `edit-order-edit-item(idx)` e
+    /// volta a -1 no confirm/cancel do configurador.
+    in-out property <int>    config-edit-idx: -1;
+    in-out property <string> cancel-target-id: "";
+    in-out property <string> cancel-target-label: "";
+    in-out property <string> cancel-reason: "";
+    in-out property <string> cancel-error: "";
+
+    in-out property <bool> show-logout-confirm: false;
+
+    // ── Impressoras (Configurações) ─────────────────────────────
+    // Lista refrescada por Rust após cada save/delete/set-default.
+    // Estado do modal de cadastro: `show-printer-modal` aciona o
+    // overlay; campos pré-preenchidos em modo edição via
+    // `request-edit-printer`.
+    // ── PDV (Ponto de Venda) ──────────────────────────────────
+    // Estado é totalmente compartilhado com Rust (`ui::pdv`):
+    // produtos visíveis (filtrados por categoria + busca), carrinho,
+    // chips de categoria, totais. Slint só renderiza; Rust gerencia
+    // o estado em memória (AI_RULES §1).
+    in-out property <[PdvProductRow]>  pdv-products: [];
+    in-out property <[PdvCartRow]>     pdv-cart: [];
+    /// Linha 1 de chips. A decisão de quebra (tudo na row1 vs
+    /// dividir entre row1 e row2) é feita em Rust ao receber a
+    /// largura disponível do painel via `pdv-cats-width-changed`.
+    /// Quando cabe tudo, row2 fica vazia.
+    in-out property <[PdvCategoryChip]> pdv-categories: [];
+    /// Linha 2. Vazia quando cabe tudo na row1.
+    in-out property <[PdvCategoryChip]> pdv-categories-row2: [];
+    in-out property <string>           pdv-search-text: "";
+    in-out property <string>           pdv-subtotal-display: "R$ 0,00";
+    in-out property <string>           pdv-discount-display: "R$ 0,00";
+    in-out property <string>           pdv-additional-display: "R$ 0,00";
+    in-out property <string>           pdv-total-display: "R$ 0,00";
+    in-out property <string>           pdv-discount-input: "";
+    in-out property <string>           pdv-additional-input: "";
+    in-out property <int>              pdv-cart-count: 0;
+    // Estado integrado ao carrinho (não há mais modal de finalização)
+    in-out property <string>           pdv-sale-type: "counter";
+    /// Forma de pagamento PRINCIPAL: `"cash" | "card" | "pix"`.
+    /// Quando "card", o tipo (crédito/débito) é definido em
+    /// `pdv-payment-card-type`. Quando "cash" com valor pago abaixo
+    /// do total, `pdv-secondary-payment` registra a forma do restante.
+    in-out property <string>           pdv-payment-method: "";
+    in-out property <string>           pdv-payment-card-type: "credit";
+    in-out property <string>           pdv-secondary-payment: "";
+    in-out property <string>           pdv-amount-paid-input: "";
+    in-out property <string>           pdv-change-display: "";
+    in-out property <string>           pdv-remaining-display: "";
+    in-out property <string>           pdv-customer-id: "";
+    in-out property <string>           pdv-customer-name: "";
+    in-out property <string>           pdv-delivery-street: "";
+    in-out property <string>           pdv-delivery-number: "";
+    in-out property <string>           pdv-delivery-neighborhood: "";
+    in-out property <string>           pdv-finalize-error: "";
+    // Modal pós-venda
+    in-out property <bool>             pdv-show-sold: false;
+    in-out property <string>           pdv-sold-order-id: "";
+    in-out property <string>           pdv-sold-order-number: "";
+    in-out property <string>           pdv-sold-total: "";
+    // Modal de seleção de cliente
+    in-out property <bool>             pdv-show-customer-picker: false;
+    in-out property <[PdvCustomerRow]> pdv-customer-rows: [];
+    in-out property <string>           pdv-customer-search: "";
+    /// Endereços cadastrados do cliente atualmente selecionado.
+    /// Populado pelo Rust após `pdv-pick-customer`. Vazio = sem
+    /// endereços OU cliente não selecionado.
+    in-out property <[PdvAddressRow]>  pdv-customer-addresses: [];
+
+    // ── Carteira do cliente vinculado (Fase 3) ────────────────
+    /// True quando o cliente tem carteira aberta — habilita o chip
+    /// "Carteira" como forma de pagamento.
+    in-out property <bool>   pdv-wallet-has-account: false;
+    /// UUID da account, ou "" se vazio.
+    in-out property <string> pdv-wallet-account-id: "";
+    /// "R$ 87,50" (saldo atual, com sinal).
+    in-out property <string> pdv-wallet-balance-display: "R$ 0,00";
+    /// "pos" | "neg" | "neutral" — UI escolhe cor.
+    in-out property <string> pdv-wallet-balance-tone: "neutral";
+    /// "R$ 100,00" (limite de fiado configurado).
+    in-out property <string> pdv-wallet-credit-limit-display: "R$ 0,00";
+    /// "R$ 187,50" — saldo + limite (quanto o cliente ainda pode
+    /// gastar nesta venda sem ser rejeitado).
+    in-out property <string> pdv-wallet-available-display: "R$ 0,00";
+    /// Disponível como número (cru) — UI usa pra comparar com total
+    /// e mostrar aviso de fiado.
+    in-out property <float>  pdv-wallet-available-amount: 0;
+    /// Total cru do carrinho (para comparações em ponto flutuante).
+    /// `pdv-total-display` continua sendo a string pt-BR formatada.
+    in-out property <float>  pdv-total-amount: 0;
+
+    // Callbacks
+    callback pdv-refresh();
+    callback pdv-search-changed(string);
+    callback pdv-submit-search();
+    callback pdv-toggle-category(string);
+    callback pdv-clear-categories();
+    /// Disparado pelo Slint quando a largura do painel de categorias
+    /// muda. Rust decide se quebra os chips em duas linhas (e como
+    /// distribuí-los) com base na largura recebida.
+    callback pdv-cats-width-changed(length);
+    callback pdv-add-product(string);
+    callback pdv-inc-line(string);
+    callback pdv-dec-line(string);
+    callback pdv-remove-line(string);
+    // Modal do carrinho (aberto pelo pill "N itens" ao lado da busca).
+    in-out property <bool> pdv-show-cart-modal: false;
+    callback pdv-clear-cart();
+    callback pdv-finalize();
+    callback pdv-config-confirm();
+    callback pdv-discount-changed(string);
+    callback pdv-additional-changed(string);
+    callback pdv-amount-paid-changed(string);
+    callback pdv-use-address(string);
+    /// Recálculo solicitado pelo Slint quando uma propriedade
+    /// reativa muda (ex.: payment-method). Faz o Rust reescrever
+    /// `change-display` / `remaining-display`.
+    callback pdv-recalc();
+
+    changed pdv-payment-method => { root.pdv-recalc(); }
+    // Customer picker
+    callback pdv-open-customer-picker();
+    callback pdv-customer-search-changed(string);
+    callback pdv-pick-customer(string);
+    callback pdv-clear-customer();
+
+    /// Contexto do ProductConfiguratorModal — quem disparou o
+    /// configurador. `"edit_order"` (default) = pelo EditOrderModal;
+    /// `"pdv"` = pelo PDV. O wireup do botão "Adicionar" no PCM
+    /// despacha o callback certo conforme essa propriedade.
+    in-out property <string>           config-context: "edit_order";
+
+    // ── Gestão de Caixa ─────────────────────────────────────────
+    in-out property <CashSummaryData>  cash-summary;
+    // Property bool dedicada para o `if` do PdvNoCashModal. Slint
+    // pode disparar "Recursion detected" quando uma condição lê um
+    // campo de struct (cash-summary.open) e o struct inteiro é
+    // re-escrito a cada cash-refresh. Property bool isolada quebra
+    // a dependência da struct.
+    in-out property <bool>             cash-blocked: true;
+    in-out property <[CashSessionRow]> cash-sessions: [];
+    in-out property <[CashMovementRow]> cash-movements: [];
+    in-out property <[CashMethodTotalRow]> cash-method-totals: [];
+    // Modais
+    in-out property <bool>             cash-show-open: false;
+    in-out property <bool>             cash-show-sangria: false;
+    in-out property <bool>             cash-show-suprimento: false;
+    in-out property <bool>             cash-show-close: false;
+    // Inputs do modal abrir
+    in-out property <string>           cash-open-operator: "";
+    in-out property <string>           cash-open-suggested: "";
+    in-out property <string>           cash-open-amount: "";
+    in-out property <string>           cash-open-notes: "";
+    // Inputs do modal sangria
+    in-out property <string>           cash-sangria-amount: "";
+    in-out property <string>           cash-sangria-reason: "Depósito Bancário";
+    in-out property <string>           cash-sangria-detail: "";
+    // Inputs do modal suprimento
+    in-out property <string>           cash-suprimento-amount: "";
+    in-out property <string>           cash-suprimento-origin: "Cofre Troco";
+    in-out property <string>           cash-suprimento-detail: "";
+    // Modal fechar — sistema (Rust calcula), informado (operador), diferenças (Rust recalc)
+    in-out property <string>           cash-close-opened-at: "";
+    in-out property <string>           cash-close-duration: "";
+    in-out property <string>           cash-close-operator: "";
+    in-out property <string>           cash-close-sys-cash: "R$ 0,00";
+    in-out property <string>           cash-close-sys-pix: "R$ 0,00";
+    in-out property <string>           cash-close-sys-credit: "R$ 0,00";
+    in-out property <string>           cash-close-sys-debit: "R$ 0,00";
+    in-out property <string>           cash-close-sys-total: "R$ 0,00";
+    in-out property <int>              cash-close-cash-count: 0;
+    in-out property <int>              cash-close-pix-count: 0;
+    in-out property <int>              cash-close-credit-count: 0;
+    in-out property <int>              cash-close-debit-count: 0;
+    in-out property <string>           cash-close-in-cash: "";
+    in-out property <string>           cash-close-in-pix: "";
+    in-out property <string>           cash-close-in-credit: "";
+    in-out property <string>           cash-close-in-debit: "";
+    in-out property <string>           cash-close-in-total: "R$ 0,00";
+    in-out property <string>           cash-close-diff-cash: "R$ 0,00";
+    in-out property <string>           cash-close-diff-pix: "R$ 0,00";
+    in-out property <string>           cash-close-diff-credit: "R$ 0,00";
+    in-out property <string>           cash-close-diff-debit: "R$ 0,00";
+    in-out property <string>           cash-close-diff-total: "R$ 0,00";
+    in-out property <bool>             cash-close-has-diff: false;
+    in-out property <string>           cash-close-notes: "";
+
+    callback cash-refresh();
+    callback cash-open-confirm();
+    callback cash-sangria-confirm();
+    callback cash-suprimento-confirm();
+    callback cash-close-recalc();
+    callback cash-close-confirm();
+
+    // ── Controle de Estoque ─────────────────────────────────────
+    in-out property <InventoryHealthData> inventory-health;
+    in-out property <[InventoryProductRow]> inventory-products: [];
+    in-out property <string> inventory-search: "";
+    // Filtro de status da lista: "all" | "ok" | "low" | "out".
+    in-out property <string> inventory-filter: "all";
+    // Sincronização manual em andamento (gira o ícone do botão).
+    in-out property <bool> inventory-syncing: false;
+    // Modal de ajuste
+    in-out property <bool>   stock-adjust-show: false;
+    in-out property <string> stock-adjust-mode: "add";          // "add" | "set"
+    in-out property <string> stock-adjust-product-id: "";
+    in-out property <string> stock-adjust-product-name: "";
+    in-out property <string> stock-adjust-current: "";
+    in-out property <string> stock-adjust-qty: "";
+    in-out property <string> stock-adjust-reason: "";
+    in-out property <string> stock-adjust-error: "";
+
+    callback inventory-refresh();
+    callback inventory-sync();
+    callback inventory-search-changed(string);
+    callback inventory-filter-changed(string);
+    callback inventory-request-add(string);
+    callback inventory-request-edit(string);
+    callback inventory-confirm-adjust();
+
+    // ── Dashboard ───────────────────────────────────────────────
+    in-out property <[DashboardKpi]> dashboard-kpis: [];
+    in-out property <[DashboardBarPoint]> dashboard-sales-bars: [];
+    in-out property <[DashboardComparePoint]> dashboard-compare-points: [];
+    in-out property <string> dashboard-compare-label: "Esta semana vs anterior";
+    // Hero "Receita da Semana"
+    in-out property <string> dashboard-week-revenue: "R$ 0";
+    in-out property <string> dashboard-week-revenue-label: "RECEITA DA SEMANA";
+    in-out property <string> dashboard-week-delta: "";
+    in-out property <string> dashboard-week-delta-tone: "neutral";   // "pos"/"neg"/"neutral"
+    in-out property <bool> dashboard-week-has-chart: true;
+    in-out property <string> dashboard-week-orders: "0";
+    in-out property <string> dashboard-week-ticket: "R$ 0,00";
+    in-out property <string> dashboard-week-best-day: "—";
+    /// Comandos SVG da linha de receita (viewbox 0 0 100 100).
+    in-out property <string> dashboard-week-line-path: "";
+    /// Mesma linha fechada até a base — preenchimento (área) do hero.
+    in-out property <string> dashboard-week-area-path: "";
+    in-out property <[DashboardLinePoint]> dashboard-line-points: [];
+    /// Período do dashboard: "today" | "week" | "month".
+    in-out property <string> dashboard-period: "week";
+    // Top Produtos + Formas de Pagamento
+    in-out property <[DashboardTopProduct]> dashboard-top-products: [];
+    in-out property <[DashboardPaymentSlice]> dashboard-payment-slices: [];
+    in-out property <string> dashboard-payment-total: "R$ 0";
+    in-out property <string> dashboard-subtitle: "";
+    callback dashboard-refresh();
+
+    // ── Relatórios (Central de análises) ────────────────────────
+    in-out property <[ReportOption]> report-types: [];
+    in-out property <[ReportOption]> report-periods: [];
+    in-out property <[ReportKpi]> report-kpis: [];
+    in-out property <string> report-active-type: "financial";
+    in-out property <string> report-header-title: "Relatório";
+    in-out property <string> report-header-subtitle: "";
+    // Título/subtítulo do gráfico principal — variam por período
+    // (Semanal/Mensal/Anual) e por sub-relatório (Financeiro/Pedidos).
+    in-out property <string> report-chart-title: "";
+    in-out property <string> report-chart-subtitle: "";
+    // Financeiro
+    in-out property <[ReportDailyBar]> report-daily-bars: [];
+    in-out property <[ReportDreLine]> report-dre-lines: [];
+    in-out property <[ReportHBar]> report-method-bars: [];
+    in-out property <string> report-method-total: "R$ 0,00";
+    // Pedidos
+    in-out property <[ReportDailyBar]> report-orders-bars: [];
+    in-out property <[ReportHBar]> report-channel-bars: [];
+    in-out property <[ReportHourlyBar]> report-hourly-bars: [];
+    // Produtos
+    in-out property <[ReportProductRow]> report-top-products: [];
+    // Clientes
+    in-out property <[ReportCustomerRow]> report-top-customers: [];
+    in-out property <ReportNewVsReturning> report-new-vs-ret;
+
+    callback report-refresh();
+    callback report-set-type(string);
+    callback report-set-period(string);
+    callback report-export();
+
+    // ── Painel do administrador (plataforma / super admin) ────────
+    // Dados cross-tenant vindos online das rotas /admin/*. Preenchidos
+    // pelo Rust (ui/admin). O acesso é gateado no backend (§11).
+    in-out property <int> admin-companies-count: 0;
+    in-out property <int> admin-active-subs: 0;
+    in-out property <int> admin-admins-count: 0;
+    in-out property <[AdminCompanyRow]> admin-companies: [];
+    in-out property <[AdminSubscriptionRow]> admin-subscriptions: [];
+    in-out property <[AdminUserRow]> admin-users: [];
+    // Formulário de administrador (criar/editar credenciais).
+    in-out property <string> admin-form-id: "";
+    in-out property <string> admin-form-name: "";
+    in-out property <string> admin-form-email: "";
+    in-out property <string> admin-form-password: "";
+    callback admin-refresh();
+    callback admin-new-user();
+    callback admin-edit-user(string);
+    callback admin-save-user(string, string, string, string);
+    callback admin-delete-user(string);
+    // Cadastro de estabelecimento (empresa + admin inicial + infos).
+    in-out property <string> company-form-name: "";
+    in-out property <string> company-form-subdomain: "";
+    in-out property <string> company-form-admin-name: "";
+    in-out property <string> company-form-admin-email: "";
+    in-out property <string> company-form-admin-password: "";
+    // Contatos / documento
+    in-out property <string> company-form-phone: "";
+    in-out property <string> company-form-whatsapp: "";
+    in-out property <string> company-form-email: "";
+    in-out property <string> company-form-document: "";
+    // Desconto comercial na mensalidade (R$/mês).
+    in-out property <string> company-form-discount: "";
+    // Endereço / localização
+    in-out property <string> company-form-address: "";
+    in-out property <string> company-form-neighborhood: "";
+    in-out property <string> company-form-zip: "";
+    in-out property <string> company-form-city: "";
+    in-out property <string> company-form-uf: "";
+    // Imagens (base64 preenchido pelos seletores) + preview + loading
+    in-out property <string> company-form-logo-data: "";
+    in-out property <string> company-form-cover-data: "";
+    in-out property <image> company-form-logo-image;
+    in-out property <image> company-form-cover-image;
+    in-out property <bool> company-form-logo-loading: false;
+    in-out property <bool> company-form-cover-loading: false;
+    // Lê as propriedades acima no Rust (form grande → sem args).
+    callback admin-save-company();
+    callback admin-pick-company-logo();
+    callback admin-pick-company-cover();
+    // Catálogo de planos (super admin).
+    in-out property <[AdminPlanRow]> admin-plans: [];
+    in-out property <string> admin-plan-id: "";
+    in-out property <string> admin-plan-name: "";
+    in-out property <string> admin-plan-amount: "";
+    in-out property <string> admin-plan-period: "";
+    in-out property <string> admin-plan-trial: "";
+    in-out property <string> admin-plan-description: "";
+    in-out property <string> admin-plan-highlight: "";
+    in-out property <bool> admin-plan-active: true;
+    callback admin-plan-new();
+    callback admin-plan-edit(string);
+    callback admin-plan-save();
+    callback admin-plan-delete(string);
+
+    // ── Financeiro (contas a pagar/receber) ───────────────────────
+    /// "receivable" (A receber) | "payable" (A pagar)
+    in-out property <string> finance-active-tab: "receivable";
+    /// Termo de busca livre na lista.
+    in-out property <string> finance-search-query: "";
+    /// Filtro de status. "all" | "open" | "overdue" | "settled".
+    in-out property <string> finance-status-filter: "all";
+    // Página atual de cada grupo (paginação de 10 por status). O Rust lê
+    // estas props em apply_snapshot e grava de volta o valor clampeado.
+    in-out property <int> finance-page-overdue: 1;
+    in-out property <int> finance-page-pending: 1;
+    in-out property <int> finance-page-settled: 1;
+    in-out property <int> finance-page-cancelled: 1;
+    in-out property <[FinanceKpi]> finance-kpis: [];
+    in-out property <[FinanceTab]> finance-tabs: [];
+    in-out property <[FinanceEntryRow]> finance-entries: [];
+    /// Categorias disponíveis no modal (filtradas por escopo no Rust).
+    in-out property <[FinanceCategoryOption]> finance-categories: [];
+    /// Gráfico "Fluxo de caixa — 30 dias" no topo da tela.
+    in-out property <[FinanceCashFlowPoint]> finance-cash-flow: [];
+    /// Sub-rótulo do gráfico: "saldo previsto: R$ -5.541,50".
+    in-out property <string> finance-cash-flow-summary: "";
+
+    /// Modo de visualização: "list" (default) | "calendar".
+    in-out property <string> finance-view-mode: "list";
+    /// Cabeçalho do calendário ("Maio · 2026") + total do mês.
+    in-out property <string> finance-cal-title: "";
+    in-out property <string> finance-cal-month-total: "";
+    /// Sempre 42 células (6 semanas × 7 dias).
+    in-out property <[FinanceCalendarCell]> finance-cal-cells: [];
+    /// Dia atualmente selecionado: "" = nenhum; senão "AAAA-MM-DD".
+    in-out property <string> finance-cal-selected: "";
+    /// Texto exibido no header do painel lateral ("HOJE · DIA 12/05").
+    in-out property <string> finance-cal-detail-header: "";
+    in-out property <string> finance-cal-detail-summary: "";
+    /// Lançamentos do dia selecionado.
+    in-out property <[FinanceDayRow]> finance-cal-detail-rows: [];
+
+    callback finance-set-view(string);          // "list" | "calendar"
+    callback finance-cal-prev();                // mês anterior
+    callback finance-cal-next();                // próximo mês
+    callback finance-cal-select-day(int);       // dia 1..31; Rust resolve ano/mês
+
+    // ── Modal: picker de cliente/fornecedor ──────────────────────
+    // Reusa PdvCustomerRow (id, name, phone, document) já existente.
+    in-out property <[PdvCustomerRow]> finance-party-options: [];
+    in-out property <bool>   finance-show-party-picker: false;
+    in-out property <string> finance-party-search: "";
+
+    callback finance-open-party-picker();
+    callback finance-close-party-picker();
+    callback finance-party-search-changed(string);
+    callback finance-pick-party(string);        // id ("" = limpar)
+
+    // ── Modal: calendário pop-up do campo Vencimento ─────────────
+    in-out property <bool>     finance-due-cal-open: false;
+    in-out property <string>   finance-due-cal-title: "";
+    in-out property <[CalDay]> finance-due-cal-days: [];
+
+    callback finance-due-cal-toggle();
+    callback finance-due-cal-prev();
+    callback finance-due-cal-next();
+    callback finance-due-cal-pick(string);      // "YYYY-MM-DD"
+
+    // ── Modal: calendário pop-up dos campos de validade do Cupom ──
+    // Um único CalendarPopup é reutilizado para os dois campos
+    // (`coupon-valid-from` e `coupon-valid-until`). `target` define
+    // qual campo recebe a data escolhida.
+    in-out property <string>   coupon-cal-target: "";    // "" | "from" | "until"
+    in-out property <string>   coupon-cal-title: "";
+    in-out property <[CalDay]> coupon-cal-days: [];
+
+    callback coupon-cal-open(string);            // "from" | "until"
+    callback coupon-cal-close();
+    callback coupon-cal-prev();
+    callback coupon-cal-next();
+    callback coupon-cal-pick(string);            // "YYYY-MM-DD" ("" = limpar)
+
+    // ── Assinatura (Fase 13) ─────────────────────────────────────
+    in-out property <SubscriptionData> subscription-data;
+    in-out property <[PlanCardData]>   subscription-plans: [];
+    in-out property <[SubscriptionInvoiceRow]> subscription-invoices: [];
+
+    callback subscription-refresh();
+    callback subscription-choose-plan(string);
+    callback subscription-open-payment-change();
+    callback subscription-download-invoice(string);
+    callback subscription-download-all();
+    /// Toggle do painel inline "trocar forma de pagamento".
+    callback subscription-toggle-payment-picker();
+    /// Escolhe uma forma cadastrada como ativa (id da option).
+    callback subscription-pick-payment-method(string);
+
+    /// Lista de formas de pagamento cadastradas.
+    in-out property <[PaymentMethodOption]> payment-methods: [];
+    in-out property <bool> payment-picker-open: false;
+
+    // ── Cartão recorrente (cobrança automática via gateway) ─────────
+    in-out property <bool>   card-modal-open: false;
+    in-out property <bool>   card-modal-loading: false;
+    in-out property <string> card-form-number;
+    in-out property <string> card-form-holder;
+    in-out property <string> card-form-expiry;
+    in-out property <string> card-form-cvv;
+    in-out property <string> card-form-cpf;
+    in-out property <string> card-form-email;
+    in-out property <string> card-form-phone;
+    in-out property <string> card-form-birth;
+    in-out property <string> card-form-error;
+    // Erros por campo (validação no Rust).
+    in-out property <string> card-error-number;
+    in-out property <string> card-error-holder;
+    in-out property <string> card-error-expiry;
+    in-out property <string> card-error-cvv;
+    in-out property <string> card-error-cpf;
+    in-out property <string> card-error-birth;
+    in-out property <string> card-error-email;
+    in-out property <string> card-error-phone;
+
+    /// Abre o modal de cadastro de cartão recorrente.
+    callback subscription-open-card-modal();
+    /// Cancela o cartão recorrente atual (volta para PIX).
+    callback subscription-cancel-card();
+    callback card-modal-close();
+    callback card-modal-submit();
+    // Máscaras de input (implementadas no Rust).
+    callback card-fmt-number(string) -> string;
+    callback card-fmt-expiry(string) -> string;
+    callback card-fmt-cvv(string) -> string;
+    callback card-fmt-cpf-cnpj(string) -> string;
+    callback card-fmt-birth(string) -> string;
+    callback card-fmt-phone(string) -> string;
+
+    // ── Pix Automático (mandato de débito recorrente) ───────────────
+    in-out property <bool>   pix-auto-modal-open: false;
+    in-out property <bool>   pix-auto-loading: false;
+    in-out property <string> pix-auto-name;
+    in-out property <string> pix-auto-cpf;
+    in-out property <string> pix-auto-error;
+
+    /// Abre o modal de ativação do Pix Automático.
+    callback subscription-open-pix-auto();
+    /// Cancela o mandato de Pix Automático atual.
+    callback subscription-cancel-pix-auto();
+    callback pix-auto-close();
+    callback pix-auto-submit();
+    callback pix-auto-fmt-cpf-cnpj(string) -> string;
+
+    // ── Troca de plano com recorrência ativa (confirmação) ──────────
+    in-out property <bool>   plan-change-confirm-open: false;
+    in-out property <bool>   plan-change-confirm-loading: false;
+    in-out property <string> plan-change-confirm-message;
+    in-out property <string> plan-change-confirm-target;   // "monthly"|"semestral"|"annual"
+    callback plan-change-confirm-yes();
+    callback plan-change-confirm-close();
+
+    /// Abre o modal PIX para pagar a fatura agora.
+    callback subscription-pay-invoice(string);
+    /// Copia o copia-cola para a área de transferência.
+    callback subscription-copy-pix-code();
+    callback subscription-close-pix-modal();
+
+    // Estado do modal PIX (controlado pelo Rust).
+    in-out property <bool> pix-modal-open: false;
+    in-out property <PixChargeView> pix-charge-view;
+    /// Imagem do QR Code (decodificada do base64 no Rust). Vazia
+    /// enquanto a cobrança está em loading/error.
+    in-out property <image> pix-qr-image;
+
+    /// Número de ações pendentes (faturas + status overdue) — alimenta
+    /// o badge ao lado de PLANO & COBRANÇA na sidebar. 0 = sem badge.
+    in-out property <int> subscription-pending-count: 0;
+
+    // ── Carteira do cliente (Fase 12) ─────────────────────────────
+    in-out property <WalletSummary> wallet-summary;
+    in-out property <[WalletMovementRow]> wallet-movements: [];
+
+    // Modais — um boolean por modal e um conjunto compartilhado de
+    // campos. Rust limpa/popula antes de abrir cada modal.
+    in-out property <bool>   wallet-show-deposit: false;
+    in-out property <bool>   wallet-show-withdraw: false;
+    in-out property <bool>   wallet-show-adjust: false;
+    in-out property <bool>   wallet-show-limit: false;
+    in-out property <bool>   wallet-show-open: false;   // "abrir carteira"
+
+    in-out property <string> wallet-form-amount: "";
+    in-out property <string> wallet-form-notes: "";
+    in-out property <string> wallet-form-limit: "";
+    in-out property <string> wallet-form-error: "";
+
+    callback wallet-open-deposit();
+    callback wallet-open-withdraw();
+    callback wallet-open-adjust();
+    callback wallet-open-limit();
+    callback wallet-close-modals();
+    callback wallet-confirm-deposit();
+    callback wallet-confirm-withdraw();
+    callback wallet-confirm-adjust();
+    callback wallet-confirm-limit();
+    /// Abre a carteira (open_account) — usado quando o cliente ainda
+    /// não tem carteira ativa.
+    callback wallet-confirm-open();
+    callback finance-cal-today();               // volta para o mês de hoje
+
+    /// Modal "Nova conta a pagar/receber" — campos do formulário.
+    in-out property <bool>   finance-show-modal: false;
+    in-out property <string> finance-form-kind: "payable"; // "payable" | "receivable"
+    in-out property <string> finance-form-editing-id: ""; // "" = criação
+    in-out property <string> finance-form-description: "";
+    in-out property <string> finance-form-party: "";
+    /// UUID do cliente/fornecedor selecionado via picker. Vazio = "Outros"
+    /// (party_type = Other no service).
+    in-out property <string> finance-form-party-id: "";
+    in-out property <string> finance-form-category-id: "";
+    in-out property <string> finance-form-amount: "";
+    in-out property <string> finance-form-due-date: "";
+    in-out property <int>    finance-form-installments: 1;
+    in-out property <string> finance-form-recurrence: "once"; // once|weekly|monthly|custom
+    in-out property <string> finance-form-notes: "";
+    /// Mensagens de erro de validação por campo (vazias = ok).
+    in-out property <string> finance-form-error-description: "";
+    in-out property <string> finance-form-error-amount: "";
+    in-out property <string> finance-form-error-due-date: "";
+    in-out property <string> finance-form-error-general: "";
+
+    callback finance-refresh();
+    callback finance-set-tab(string);
+    callback finance-search-changed(string);
+    callback finance-set-status-filter(string);
+    // Troca a página de um grupo de status: (status-key, page).
+    callback finance-set-group-page(string, int);
+    callback finance-open-new(string);        // "payable" | "receivable"
+    callback finance-open-edit(string);       // id
+    callback finance-close-modal();
+    callback finance-save-modal();
+    // Confirmação de baixa: a row chama `finance-request-settle(id)`
+    // que popula os campos abaixo e mostra o modal. "Confirmar" no
+    // modal invoca `finance-confirm-settle` (que aciona o Rust real).
+    in-out property <bool>   finance-show-settle-confirm: false;
+    in-out property <string> finance-settle-target-id: "";
+    in-out property <string> finance-settle-target-kind: "";       // "payable" | "receivable"
+    in-out property <string> finance-settle-target-desc: "";
+    in-out property <string> finance-settle-target-party: "";
+    in-out property <string> finance-settle-target-amount: "";
+    callback finance-request-settle(string);
+    callback finance-confirm-settle();
+    callback finance-close-settle-confirm();
+    callback finance-mark-settled(string);    // id → marca pago/recebido
+
+    // Confirmação de exclusão — fluxo análogo ao da baixa.
+    in-out property <bool>   finance-show-delete-confirm: false;
+    in-out property <string> finance-delete-target-id: "";
+    in-out property <string> finance-delete-target-desc: "";
+    in-out property <string> finance-delete-target-amount: "";
+    in-out property <string> finance-delete-target-kind: "";
+    callback finance-request-delete(string);
+    callback finance-confirm-delete();
+    callback finance-close-delete-confirm();
+    callback finance-cancel-entry(string);    // id → cancela
+    callback finance-delete-entry(string);    // id → soft delete
+    callback finance-set-recurrence(string);
+    callback finance-set-installments(int);
+    callback finance-set-category(string);
+
+    in-out property <[PrinterData]> printers: [];
+    in-out property <bool>          show-printer-modal: false;
+    in-out property <string>        printer-editing-id: "";
+    in-out property <string>        printer-form-name: "";
+    in-out property <string>        printer-form-kind: "order";
+    in-out property <string>        printer-form-system-name: "";
+    in-out property <bool>          printer-form-is-default: false;
+    in-out property <int>           printer-form-paper-width: 80;
+    in-out property <string>        printer-form-error: "";
+    /// Categorias da empresa, populadas a cada abertura do modal.
+    /// Cada linha tem `selected: bool` (alternada pelo checkbox da
+    /// UI). Rust popula com `selected = true` para os IDs que estão
+    /// em `Printer.category_ids` no modo edição.
+    in-out property <[PrinterCategoryRow]> printer-form-categories: [];
+    /// Lista de impressoras detectadas no SO (lpstat / Get-Printer).
+    /// Atualizada pelo Rust quando o modal abre — operador escolhe num
+    /// dropdown em vez de digitar o nome.
+    in-out property <[string]>      printer-available-list: [];
+
+    callback refresh-printers();
+    callback refresh-available-printers();
+    /// Popula `printer-form-categories` com as categorias da empresa,
+    /// marcando como `selected = true` os IDs em `selected-ids`.
+    /// Chamado no `request-new-printer` (lista vazia) e
+    /// `request-edit-printer` (com os IDs da impressora).
+    callback load-printer-categories([string]);
+    callback printer-save();
+    callback printer-test-print();
+    callback printer-delete(string);
+    callback printer-set-default(string);
+
+    // ── Alarme de novos pedidos ──────────────────────────────────
+    // `alarm-active`: estado lógico do alarme; enquanto true, o som
+    //   continua e o modal volta sozinho se o operador apenas
+    //   fechar. Setado pelo SyncWorker via observer task em Rust.
+    // `alarm-visible`: controla a renderização do modal. Pode ser
+    //   false enquanto `alarm-active` for true (intervalo de 5s
+    //   entre reabertura — regra do projeto).
+    // `alarm-pending-count`: quantidade total de Pendings no banco
+    //   neste instante; usado pelo corpo do modal.
+    in-out property <bool> alarm-active: false;
+    in-out property <bool> alarm-visible: false;
+    in-out property <int>  alarm-pending-count: 0;
+    callback alarm-acknowledge();
+    callback alarm-dismiss();
+    // Reabre o modal 5 s após o operador fechar (regra: "enquanto não
+    // clicar no botão, não vai parar de avisar"). `running` só é true
+    // quando o alarme está ATIVO mas o modal está ESCONDIDO — quando
+    // visível, o Timer pausa; quando o operador aciona, fica false.
+    alarm-reopen-timer := Timer {
+        interval: 5s;
+        running: root.alarm-active && !root.alarm-visible;
+        triggered => { root.alarm-visible = true; }
+    }
+
+    in-out property <bool> toast-visible: false;
+    in-out property <string> toast-message: "";
+    in-out property <string> toast-type: "success";
+
+    toast-timer := Timer {
+        interval: 3000ms;
+        running: root.toast-visible;
+        triggered => { root.toast-visible = false; }
+    }
+
+    // ════════════════════════════════════════════════
+    //  TELA DE LOGIN
+    // ════════════════════════════════════════════════
+    if !root.logged-in: LoginPage {
+        email <=> root.login-email;
+        password <=> root.login-password;
+        status <=> root.login-status;
+        remember-me <=> root.login-remember-me;
+        subdomain: root.login-subdomain;
+        app-version: root.app-version;
+        server-online: root.sync-online;
+        server-last: root.sync-last-label;
+        do-login => { root.do-login(); }
+        login-with-pin => { root.login-with-pin(); }
+        recovery-step <=> root.recovery-step;
+        recovery-email <=> root.recovery-email;
+        recovery-code <=> root.recovery-code;
+        recovery-new-password <=> root.recovery-new-password;
+        recovery-status <=> root.recovery-status;
+        recovery-busy: root.recovery-busy;
+        forgot-request => { root.recovery-forgot(); }
+        verify-submit => { root.recovery-verify(); }
+        reset-submit => { root.recovery-reset(); }
+    }
+
+    // ════════════════════════════════════════════════
+    //  AREA PRINCIPAL (pos-login)
+    // ════════════════════════════════════════════════
+    if root.logged-in: HorizontalLayout {
+
+        Sidebar {
+            active-tab <=> root.active-tab;
+            expanded <=> root.sidebar-expanded;
+            nav: root.nav-perms;
+            store-name: root.store-name;
+            user-role: root.user-role;
+            user-name: root.user-name;
+            store-logo-image: root.store-logo-image;
+            orders-count: root.orders-active-count;
+            subscription-pending-count: root.subscription-pending-count;
+            finance-overdue-count: root.finance-overdue-count;
+            stock-out-count: root.stock-out-count;
+            sync-online: root.sync-online;
+            sync-status-label: root.sync-status-label;
+            sync-last-label: root.sync-last-label;
+            sync-pending-count: root.sync-pending-count;
+            navigate(tab) => {
+                root.active-tab = tab;
+                root.show-modal = false;
+                if tab == "products" {
+                    root.refresh-products();
+                    root.refresh-categories();
+                    root.refresh-subcategories();
+                } else if tab == "categories" {
+                    root.subcategory-filter-category-id = "all";
+                    root.refresh-categories();
+                    root.refresh-subcategories();
+                } else if tab == "addons" {
+                    root.selected-addon-group-id = "";
+                    root.selected-addon-group-name = "";
+                    root.current-group-addons = [];
+                    root.refresh-addon-groups();
+                } else if tab == "customers" {
+                    root.refresh-customers();
+                } else if tab == "collaborators" {
+                    root.refresh-collaborators();
+                } else if tab == "orders" {
+                    root.order-detail-id = "";
+                    root.refresh-orders();
+                } else if tab == "settings" {
+                    root.refresh-business-hours();
+                } else if tab == "banners" {
+                    // Garante que a lista de produtos esteja carregada
+                    // para resolver `item-name` no banner de produto.
+                    root.refresh-products();
+                    root.refresh-banners();
+                } else if tab == "coupons" {
+                    root.refresh-coupons();
+                } else if tab == "cash" {
+                    root.cash-refresh();
+                } else if tab == "inventory" {
+                    root.inventory-refresh();
+                } else if tab == "dashboard" {
+                    root.dashboard-refresh();
+                } else if tab == "reports" {
+                    root.report-refresh();
+                } else if tab == "admin-overview" || tab == "admin-companies"
+                       || tab == "admin-subscriptions" || tab == "admin-admins"
+                       || tab == "admin-plans" {
+                    root.admin-refresh();
+                }
+                // Importante: NÃO disparar cash-refresh ao entrar no
+                // PDV. O estado já é pré-carregado no boot e após
+                // login; disparar aqui causava re-entrância de
+                // renderização (modal aparece no mesmo frame em que
+                // a aba muda + callback async modifica cash-summary),
+                // o que travava a UI ao entrar na aba PDV.
+            }
+            request-logout => { root.show-logout-confirm = true; }
+            open-profile => { root.open-profile(); }
+            toggle-expanded => { root.sidebar-expanded = !root.sidebar-expanded; }
+        }
+
+        // PDV mora FORA do ScrollView raiz pra receber a altura
+        // total do HorizontalLayout pai (Sidebar + conteúdo). Sem
+        // isso, o cart Rectangle não estica e o footer fica solto
+        // no meio do card. PDV não precisa de scroll de página
+        // (cabe no viewport; tem ScrollView interno só pro carrinho).
+        //
+        // Envolvido num Rectangle wrapper com `vertical-stretch: 1`
+        // pra GARANTIR altura definida. PdvPage interno usa
+        // `width/height: parent.*` pra preencher — referência sem
+        // loop porque o Rectangle não depende do PdvPage pra seu
+        // tamanho.
+        if root.active-tab == "pdv" && root.cash-blocked: Rectangle {
+            horizontal-stretch: 1;
+            height: root.height;
+            PdvBlockedView {
+                x: 0; y: 0;
+                width: parent.width;
+                height: parent.height;
+                go-to-cash => { root.active-tab = "cash"; }
+            }
+        }
+
+        if root.active-tab == "pdv" && !root.cash-blocked: Rectangle {
+            horizontal-stretch: 1;
+            // Em vez de vertical-stretch (que o Slint às vezes
+            // ignora aqui), seto height literal = altura da Window
+            // (root). Sem ambiguidade.
+            height: root.height;
+            pdv-page := PdvPage {
+                x: 0; y: 0;
+                width: parent.width;
+                height: parent.height;
+                window-height: root.live-window-height;
+                customer-picker-open: root.pdv-show-customer-picker;
+                sold-modal-open: root.pdv-show-sold;
+                products: root.pdv-products;
+            cart: root.pdv-cart;
+            categories: root.pdv-categories;
+            categories-row2: root.pdv-categories-row2;
+            cats-width-changed(w) => { root.pdv-cats-width-changed(w); }
+            search-text <=> root.pdv-search-text;
+            subtotal-display: root.pdv-subtotal-display;
+            discount-display: root.pdv-discount-display;
+            additional-display: root.pdv-additional-display;
+            total-display: root.pdv-total-display;
+            discount-input <=> root.pdv-discount-input;
+            additional-input <=> root.pdv-additional-input;
+            cart-count: root.pdv-cart-count;
+            sale-type <=> root.pdv-sale-type;
+            payment-method <=> root.pdv-payment-method;
+            payment-card-type <=> root.pdv-payment-card-type;
+            secondary-payment <=> root.pdv-secondary-payment;
+            amount-paid-input <=> root.pdv-amount-paid-input;
+            change-display: root.pdv-change-display;
+            remaining-display: root.pdv-remaining-display;
+            customer-name: root.pdv-customer-name;
+            wallet-has-account: root.pdv-wallet-has-account;
+            wallet-balance-display: root.pdv-wallet-balance-display;
+            wallet-balance-tone: root.pdv-wallet-balance-tone;
+            wallet-credit-limit-display: root.pdv-wallet-credit-limit-display;
+            wallet-available-display: root.pdv-wallet-available-display;
+            wallet-available-amount: root.pdv-wallet-available-amount;
+            total-amount: root.pdv-total-amount;
+            delivery-street <=> root.pdv-delivery-street;
+            delivery-number <=> root.pdv-delivery-number;
+            delivery-neighborhood <=> root.pdv-delivery-neighborhood;
+            finalize-error: root.pdv-finalize-error;
+            search-changed(q) => { root.pdv-search-changed(q); }
+            submit-search => { root.pdv-submit-search(); }
+            toggle-category(id) => { root.pdv-toggle-category(id); }
+            clear-categories => { root.pdv-clear-categories(); }
+            add-product(id) => { root.pdv-add-product(id); }
+            inc-line(id) => { root.pdv-inc-line(id); }
+            dec-line(id) => { root.pdv-dec-line(id); }
+            remove-line(id) => { root.pdv-remove-line(id); }
+            open-cart => { root.pdv-show-cart-modal = true; }
+            clear-cart => { root.pdv-clear-cart(); }
+            finalize => { root.pdv-finalize(); }
+            open-customer-picker => { root.pdv-open-customer-picker(); }
+            clear-customer => { root.pdv-clear-customer(); }
+            discount-changed(v) => { root.pdv-discount-changed(v); }
+            additional-changed(v) => { root.pdv-additional-changed(v); }
+            amount-paid-changed(v) => { root.pdv-amount-paid-changed(v); }
+            customer-addresses: root.pdv-customer-addresses;
+            use-address(id) => { root.pdv-use-address(id); }
+            }
+        }
+
+        // ScrollView raiz da área de conteúdo: garante que, em janelas
+        // estreitas (largura abaixo do preferred-width das páginas), o
+        // conteúdo seja rolável vertical/horizontalmente em vez de ser
+        // cortado. min-width: 0 no layout interno permite encolhimento.
+        // Não renderiza no PDV — ele vive fora.
+        if root.active-tab != "pdv": ScrollView { vertical-scrollbar-policy: ScrollBarPolicy.always-off; horizontal-scrollbar-policy: ScrollBarPolicy.always-off;
+            horizontal-stretch: 1;
+            VerticalLayout {
+                min-width: 0;
+                // Reports = 0px aqui: a página gerencia o próprio padding
+                // internamente (header/abas com 24px; o ScrollView ocupa a
+                // largura toda e insere os 24px por dentro, dando folga p/ a
+                // sombra dos cards roláveis). Master-detail = 16px (mostra a
+                // borda lateral do painel secundário). Demais = 24px.
+                padding: root.active-tab == "reports" ? 0px
+                    : ((root.active-tab == "categories"
+                        || root.active-tab == "collaborators") ? 16px
+                    // Produtos e Clientes usam 24px — mesma distância das
+                    // paredes que a tela Caixa (e as demais telas padrão).
+                    : 24px);
+                spacing: 16px;
+
+                // ── Painel do administrador (super admin) ──
+                if root.active-tab == "admin-overview": AdminOverviewPage {
+                    companies: root.admin-companies-count;
+                    active-subs: root.admin-active-subs;
+                    admins: root.admin-admins-count;
+                }
+                if root.active-tab == "admin-companies": AdminCompaniesPage {
+                    companies: root.admin-companies;
+                    form-name <=> root.company-form-name;
+                    form-subdomain <=> root.company-form-subdomain;
+                    form-admin-name <=> root.company-form-admin-name;
+                    form-admin-email <=> root.company-form-admin-email;
+                    form-admin-password <=> root.company-form-admin-password;
+                    form-phone <=> root.company-form-phone;
+                    form-whatsapp <=> root.company-form-whatsapp;
+                    form-email <=> root.company-form-email;
+                    form-document <=> root.company-form-document;
+                    form-discount <=> root.company-form-discount;
+                    form-address <=> root.company-form-address;
+                    form-neighborhood <=> root.company-form-neighborhood;
+                    form-zip <=> root.company-form-zip;
+                    form-city <=> root.company-form-city;
+                    form-uf <=> root.company-form-uf;
+                    logo-image: root.company-form-logo-image;
+                    cover-image: root.company-form-cover-image;
+                    logo-loading: root.company-form-logo-loading;
+                    cover-loading: root.company-form-cover-loading;
+                    has-logo: root.company-form-logo-data != "";
+                    has-cover: root.company-form-cover-data != "";
+                    save-company => { root.admin-save-company(); }
+                    pick-logo => { root.admin-pick-company-logo(); }
+                    pick-cover => { root.admin-pick-company-cover(); }
+                }
+                if root.active-tab == "admin-subscriptions": AdminSubscriptionsPage {
+                    subscriptions: root.admin-subscriptions;
+                }
+                if root.active-tab == "admin-admins": AdminAdminsPage {
+                    users: root.admin-users;
+                    form-id <=> root.admin-form-id;
+                    form-name <=> root.admin-form-name;
+                    form-email <=> root.admin-form-email;
+                    form-password <=> root.admin-form-password;
+                    new-user => { root.admin-new-user(); }
+                    edit-user(id) => { root.admin-edit-user(id); }
+                    save-user(id, n, e, p) => { root.admin-save-user(id, n, e, p); }
+                    delete-user(id) => { root.admin-delete-user(id); }
+                }
+                if root.active-tab == "admin-plans": AdminPlansPage {
+                    plans: root.admin-plans;
+                    form-id <=> root.admin-plan-id;
+                    form-name <=> root.admin-plan-name;
+                    form-amount <=> root.admin-plan-amount;
+                    form-period <=> root.admin-plan-period;
+                    form-trial <=> root.admin-plan-trial;
+                    form-description <=> root.admin-plan-description;
+                    form-highlight <=> root.admin-plan-highlight;
+                    form-active <=> root.admin-plan-active;
+                    new-plan => { root.admin-plan-new(); }
+                    edit-plan(id) => { root.admin-plan-edit(id); }
+                    save-plan => { root.admin-plan-save(); }
+                    delete-plan(id) => { root.admin-plan-delete(id); }
+                }
+
+                // Produtos — master-detail com editor inline (não há mais
+                // aba `product-form` separada; o form vive no painel direito).
+                if root.active-tab == "products": ProductsPage {
+                    products: root.products;
+                    products-active-count: root.products-active-count;
+                    products-inactive-count: root.products-inactive-count;
+                    products-per-page: root.products-per-page;
+                    filter-cats: root.filter-cats;
+                    filter-subs: root.filter-subs;
+                    filter-status: root.filter-status;
+                    filter-stock: root.filter-stock;
+                    filter-active-count: root.filter-active-count;
+                    selected-product-id: root.selected-product-id;
+                    detail-product: root.detail-product;
+                    // Pass-through do estado do form (in-out → o Rust escreve
+                    // direto via setters; aqui só pontuamos a ligação).
+                    editing-id <=> root.editing-id;
+                    product-name <=> root.product-name;
+                    product-description <=> root.product-description;
+                    product-price <=> root.product-price;
+                    product-cost-price <=> root.product-cost-price;
+                    product-stock-quantity <=> root.product-stock-quantity;
+                    product-min-stock <=> root.product-min-stock;
+                    product-margin-display: root.product-margin-display;
+                    product-unlimited-stock <=> root.product-unlimited-stock;
+                    product-availability-enabled <=> root.product-availability-enabled;
+                    product-availability <=> root.product-availability;
+                    product-discount-kind <=> root.product-discount-kind;
+                    product-discount-value <=> root.product-discount-value;
+                    product-discount-min-qty <=> root.product-discount-min-qty;
+                    product-discount-tiers <=> root.product-discount-tiers;
+                    product-barcode <=> root.product-barcode;
+                    product-unit <=> root.product-unit;
+                    product-balance-mode <=> root.product-balance-mode;
+                    product-image-data <=> root.product-image-data;
+                    product-image-loading <=> root.product-image-loading;
+                    product-category-id <=> root.product-category-id;
+                    product-category-name <=> root.product-category-name;
+                    product-category-open <=> root.product-category-open;
+                    product-subcategory-id <=> root.product-subcategory-id;
+                    product-subcategory-name <=> root.product-subcategory-name;
+                    product-subcategory-open <=> root.product-subcategory-open;
+                    product-error-name <=> root.product-error-name;
+                    product-error-price <=> root.product-error-price;
+                    product-error-stock <=> root.product-error-stock;
+                    product-save-error <=> root.product-save-error;
+                    categories: root.categories;
+                    subcategories: root.subcategories;
+                    addon-groups: root.product-addon-groups;
+                    variations <=> root.product-variations;
+                    // Filtros / sidebar
+                    search-changed(q) => { root.filter-products(q); }
+                    toggle-category-filter(id) => { root.toggle-category-filter(id); }
+                    toggle-subcategory-filter(id) => { root.toggle-subcategory-filter(id); }
+                    set-status-filter(v) => { root.set-status-filter(v); }
+                    set-stock-filter(v)  => { root.set-stock-filter(v); }
+                    reset-product-filters => { root.reset-product-filters(); }
+                    // Toggles (Ativo / Web visível) usam os mesmos
+                    // callbacks já existentes — o Rust faz o flip.
+                    toggle-product-active(id) => { root.toggle-product-active(id); }
+                    toggle-product-web-visible(id) => { root.toggle-product-web-visible(id); }
+                    select-product(id) => { root.select-product(id); }
+                    request-duplicate(p) => { root.duplicate-product(p.id); }
+                    // "+ Novo produto" — limpa o form e marca a seleção
+                    // com o sentinel "new" para o painel direito virar
+                    // o cadastro (sem trocar de aba).
+                    request-new => {
+                        // Zera o snapshot do detalhe primeiro — sem isso,
+                        // o card de imagem mostraria a foto do último
+                        // produto selecionado até o operador escolher
+                        // outra imagem.
+                        root.clear-detail-product();
+                        root.editing-id = "";
+                        root.product-name = ""; root.product-description = "";
+                        root.product-price = ""; root.product-stock-quantity = "";
+                        root.product-cost-price = ""; root.product-min-stock = "";
+                        root.product-margin-display = "—";
+                        root.product-unlimited-stock = false;
+                        root.product-availability-enabled = false;
+                        root.product-discount-kind = "none";
+                        root.product-discount-value = "";
+                        root.product-discount-min-qty = "";
+                        root.load-discount-tiers("");
+                        root.load-product-addon-groups("");
+                        root.load-product-variations("");
+                        root.product-barcode = ""; root.product-unit = "un";
+                        root.product-balance-mode = "price";
+                        root.product-image-data = "";
+                        root.product-cover-color = "";
+                        root.product-category-id = ""; root.product-category-name = "";
+                        root.product-subcategory-id = ""; root.product-subcategory-name = "";
+                        root.product-category-open = false; root.product-subcategory-open = false;
+                        root.product-error-name = ""; root.product-error-price = ""; root.product-error-stock = "";
+                        root.selected-product-id = "new";
+                    }
+                    request-delete(id, name, type) => {
+                        root.delete-target-id = id; root.delete-target-name = name;
+                        root.delete-target-type = type; root.show-delete-confirm = true;
+                    }
+                    // Callbacks do form (encaminham aos do MainWindow).
+                    add-product => { root.add-product(); }
+                    update-product => { root.update-product(); }
+                    pick-product-image => { root.pick-product-image(); }
+                    add-discount-tier => { root.add-discount-tier(); }
+                    remove-discount-tier(idx) => { root.remove-discount-tier(idx); }
+                    toggle-addon-group(id) => { root.toggle-product-addon-group(id); }
+                    add-variation => { root.add-variation(); }
+                    remove-variation(idx) => { root.remove-variation(idx); }
+                    add-variation-option(idx) => { root.add-variation-option(idx); }
+                    remove-variation-option(vidx, oidx) => { root.remove-variation-option(vidx, oidx); }
+                    apply-time-mask(t) => { root.apply-time-mask(t) }
+                }
+
+            // Categorias
+            if root.active-tab == "categories": CategoriesPage {
+                category-tree: root.category-tree;
+                category-count: root.category-count;
+                selected-category-id: root.selected-category-id;
+                detail-category: root.detail-category;
+                detail-color: root.detail-color;
+                detail-prod-count: root.detail-prod-count;
+                detail-sub-count: root.detail-sub-count;
+                detail-stock-value: root.detail-stock-value;
+                detail-catalog-pct: root.detail-catalog-pct;
+                detail-catalog-hint: root.detail-catalog-hint;
+                detail-cat-products: root.detail-cat-products;
+                detail-cat-subs: root.detail-cat-subs;
+                select-category(id) => { root.select-category(id); }
+                toggle-category(id) => { root.toggle-category(id); }
+                request-new-category => {
+                    root.editing-id = ""; root.category-name = "";
+                    root.category-description = ""; root.category-error-name = "";
+                    root.category-icon-name = "";
+                    root.modal-type = "category"; root.show-modal = true;
+                }
+                request-edit-category(c) => {
+                    root.editing-id = c.id; root.category-name = c.name;
+                    root.category-description = c.description; root.category-error-name = "";
+                    root.category-icon-name = c.icon-name;
+                    root.modal-type = "category"; root.show-modal = true;
+                }
+                request-new-sub-in(cat-id, cat-name) => {
+                    root.editing-id = ""; root.subcategory-name = "";
+                    root.subcategory-category-id = cat-id;
+                    root.subcategory-category-name = cat-name;
+                    root.subcategory-error-name = ""; root.subcategory-error-category = "";
+                    root.subcategory-category-open = false;
+                    root.modal-type = "subcategory"; root.show-modal = true;
+                }
+                request-edit-subcategory(s) => {
+                    root.editing-id = s.id; root.subcategory-name = s.name;
+                    root.subcategory-category-id = s.category-id; root.subcategory-category-name = s.category-name;
+                    root.subcategory-error-name = ""; root.subcategory-error-category = "";
+                    root.subcategory-category-open = false;
+                    root.modal-type = "subcategory"; root.show-modal = true;
+                }
+                request-new-product-in(cat-id, cat-name) => {
+                    // Mesmo motivo do `request-new` em ProductsPage: zera
+                    // o snapshot do detalhe antes do form.
+                    root.clear-detail-product();
+                    root.editing-id = "";
+                    root.product-name = ""; root.product-description = "";
+                    root.product-price = ""; root.product-stock-quantity = "";
+                    root.product-cost-price = ""; root.product-min-stock = "";
+                    root.product-margin-display = "—";
+                    root.product-unlimited-stock = false;
+                    root.product-availability-enabled = false;
+                    root.product-discount-kind = "none";
+                    root.product-discount-value = "";
+                    root.product-discount-min-qty = "";
+                    root.load-discount-tiers("");
+                    root.load-product-addon-groups("");
+                    root.load-product-variations("");
+                    root.product-barcode = ""; root.product-unit = "un";
+                    root.product-balance-mode = "price";
+                    root.product-image-data = "";
+                    root.product-cover-color = "";
+                    root.product-category-id = cat-id; root.product-category-name = cat-name;
+                    root.product-subcategory-id = ""; root.product-subcategory-name = "";
+                    root.product-category-open = false; root.product-subcategory-open = false;
+                    root.product-error-name = ""; root.product-error-price = ""; root.product-error-stock = "";
+                    // Navega para Produtos (master-detail) com a aba do
+                    // formulário já preparada como "Novo Produto" e a
+                    // categoria pré-selecionada.
+                    root.selected-product-id = "new";
+                    root.active-tab = "products";
+                }
+                request-delete(id, name, type) => {
+                    root.delete-target-id = id; root.delete-target-name = name;
+                    root.delete-target-type = type; root.show-delete-confirm = true;
+                }
+            }
+
+            // Colaboradores (RBAC — Funções + Funcionários)
+            if root.active-tab == "collaborators": CollaboratorsPage {
+                roles: root.collab-roles;
+                employees: root.collab-employees;
+                perm-rows: root.collab-perm-rows;
+                role-combo: root.collab-role-combo;
+                editing-role-id <=> root.collab-editing-role-id;
+                role-name <=> root.collab-role-name;
+                emp-id <=> root.collab-emp-id;
+                emp-name <=> root.collab-emp-name;
+                emp-email <=> root.collab-emp-email;
+                emp-password <=> root.collab-emp-password;
+                emp-role-index <=> root.collab-emp-role-index;
+                perm-active: root.collab-perm-active;
+                perm-total: root.collab-perm-total;
+                mark-all-perms => { root.collab-mark-all-perms(); }
+                refresh => { root.refresh-collaborators(); }
+                new-role => { root.collab-new-role(); }
+                edit-role(id) => { root.collab-edit-role(id); }
+                save-role(id, name) => { root.collab-save-role(id, name); }
+                toggle-perm(k, e, on) => { root.collab-toggle-perm(k, e, on); }
+                new-employee => { root.collab-new-employee(); }
+                edit-employee(id) => { root.collab-edit-employee(id); }
+                save-employee(id, n, em, pw, idx) => { root.collab-save-employee(id, n, em, pw, idx); }
+                // Exclusão de função/funcionário passa pelo modal de
+                // confirmação global (type "job-role" / "employee").
+                request-delete(id, name, type) => {
+                    root.delete-target-id = id; root.delete-target-name = name;
+                    root.delete-target-type = type; root.show-delete-confirm = true;
+                }
+            }
+
+            // Adicionais (Fase 4B)
+            if root.active-tab == "addons": AddonsPage {
+                groups: root.addon-groups;
+                addons: root.current-group-addons;
+                selected-group-id <=> root.selected-addon-group-id;
+                selected-group-name: root.selected-addon-group-name;
+                request-new-group => {
+                    root.addon-group-form-id = "";
+                    root.addon-group-form-name = "";
+                    root.addon-group-form-selection = "single";
+                    // Single sempre começa com limites fixos 0/1.
+                    root.addon-group-form-min = "0";
+                    root.addon-group-form-max = "1";
+                    root.addon-group-form-error = "";
+                    root.modal-type = "addon-group";
+                    root.show-modal = true;
+                }
+                request-edit-group(g) => {
+                    root.addon-group-form-id = g.id;
+                    root.addon-group-form-name = g.name;
+                    root.addon-group-form-selection = g.selection;
+                    root.addon-group-form-min = g.min-select;
+                    root.addon-group-form-max = g.max-select;
+                    root.addon-group-form-error = "";
+                    root.modal-type = "addon-group";
+                    root.show-modal = true;
+                }
+                request-delete-group(id, name) => {
+                    root.delete-target-id = id; root.delete-target-name = name;
+                    root.delete-target-type = "addon-group"; root.show-delete-confirm = true;
+                }
+                select-group(id) => { root.select-addon-group(id); }
+                request-new-addon => {
+                    root.addon-form-id = "";
+                    root.addon-form-name = "";
+                    root.addon-form-price = "";
+                    root.addon-form-error = "";
+                    root.modal-type = "addon"; root.show-modal = true;
+                }
+                request-edit-addon(a) => {
+                    root.addon-form-id = a.id;
+                    root.addon-form-name = a.name;
+                    root.addon-form-price = a.price;
+                    root.addon-form-error = "";
+                    root.modal-type = "addon"; root.show-modal = true;
+                }
+                request-delete-addon(id, name) => {
+                    root.delete-target-id = id; root.delete-target-name = name;
+                    root.delete-target-type = "addon"; root.show-delete-confirm = true;
+                }
+                toggle-addon-active(id) => { root.toggle-addon-active(id); }
+            }
+
+            // Banners (Fase 7) — apenas lista + botão de novo banner.
+            // Cadastro/edição abrem o `BannerModal` (instanciado abaixo
+            // junto com os demais modais globais).
+            if root.active-tab == "banners": BannersPage {
+                banners: root.banners;
+                banners-active-count: root.banners-active-count;
+                banners-inactive-count: root.banners-inactive-count;
+                request-new => {
+                    root.editing-id = "";
+                    root.banner-title = "";
+                    root.banner-item-type = "product";
+                    root.banner-product-id = ""; root.banner-product-name = "";
+                    root.banner-product-search = "";
+                    root.banner-url = "";
+                    root.banner-image-data = "";
+                    root.banner-error-title = ""; root.banner-error-image = ""; root.banner-error-target = "";
+                    root.modal-type = "banner"; root.show-modal = true;
+                }
+                request-edit(b) => {
+                    root.editing-id = b.id;
+                    root.banner-title = b.title;
+                    root.banner-item-type = b.item-type;
+                    root.banner-product-id = b.item-id; root.banner-product-name = b.item-name;
+                    root.banner-product-search = "";
+                    root.banner-url = b.item-url;
+                    root.banner-image-data = b.image-data;
+                    root.banner-error-title = ""; root.banner-error-image = ""; root.banner-error-target = "";
+                    root.modal-type = "banner"; root.show-modal = true;
+                }
+                toggle-banner-active(id) => { root.toggle-banner-active(id); }
+                delete-banner(id) => {
+                    root.delete-target-id = id; root.delete-target-name = "este banner";
+                    root.delete-target-type = "banner"; root.show-delete-confirm = true;
+                }
+            }
+
+            // Cupons (Fase 8) — lista + botão de novo cupom.
+            // Cadastro/edição abrem o `CouponModal` (instanciado abaixo).
+            if root.active-tab == "coupons": CouponsPage {
+                coupons: root.coupons;
+                coupons-active-count: root.coupons-active-count;
+                coupons-inactive-count: root.coupons-inactive-count;
+                request-new => {
+                    root.editing-id = "";
+                    root.coupon-title = "";
+                    root.coupon-code = "";
+                    root.coupon-type = "standard";
+                    root.coupon-discount-kind = "fixed";
+                    root.coupon-discount-value = "";
+                    root.coupon-min-order = "";
+                    root.coupon-max-discount = "";
+                    root.coupon-per-user-limit = "";
+                    root.coupon-usage-limit = "";
+                    root.coupon-valid-from = "";
+                    root.coupon-valid-until = "";
+                    root.coupon-error-title = ""; root.coupon-error-code = "";
+                    root.coupon-error-discount = ""; root.coupon-error-validity = "";
+                    root.coupon-error-min = ""; root.coupon-error-per-user = ""; root.coupon-error-usage = "";
+                    root.modal-type = "coupon"; root.show-modal = true;
+                }
+                request-edit(c) => {
+                    root.editing-id = c.id;
+                    root.coupon-title = c.title;
+                    root.coupon-code = c.code;
+                    root.coupon-type = c.coupon-type;
+                    root.coupon-discount-kind = c.discount-kind;
+                    root.coupon-discount-value = c.discount-value;
+                    root.coupon-min-order = c.min-order-value;
+                    root.coupon-max-discount = c.max-discount;
+                    root.coupon-per-user-limit = c.per-user-limit;
+                    root.coupon-usage-limit = c.usage-limit;
+                    root.coupon-valid-from = c.valid-from;
+                    root.coupon-valid-until = c.valid-until;
+                    root.coupon-error-title = ""; root.coupon-error-code = "";
+                    root.coupon-error-discount = ""; root.coupon-error-validity = "";
+                    root.coupon-error-min = ""; root.coupon-error-per-user = ""; root.coupon-error-usage = "";
+                    root.modal-type = "coupon"; root.show-modal = true;
+                }
+                toggle-coupon-active(id) => { root.toggle-coupon-active(id); }
+                delete-coupon(id) => {
+                    root.delete-target-id = id; root.delete-target-name = "este cupom";
+                    root.delete-target-type = "coupon"; root.show-delete-confirm = true;
+                }
+            }
+
+            // Clientes
+            if root.active-tab == "customers": CustomersPage {
+                customers: root.customers;
+                selected-customer-id: root.selected-customer-id;
+                detail-customer: root.detail-customer;
+                detail-recent-orders: root.detail-recent-orders;
+                detail-addresses: root.detail-addresses;
+                search-changed(q) => { root.filter-customers(q); }
+                select-customer(id) => { root.select-customer(id); }
+                open-order(id) => { root.active-tab = "orders"; root.open-order(id); }
+                request-new => {
+                    root.editing-id = ""; root.customer-name = "";
+                    root.customer-email = ""; root.customer-phone = "";
+                    root.customer-document = ""; root.customer-notes = "";
+                    root.customer-avatar-initial = "?";
+                    root.customer-error-name = ""; root.customer-error-email = "";
+                    root.customer-error-phone = ""; root.customer-error-document = ""; root.show-modal = true;
+                }
+                request-edit(c) => {
+                    root.editing-id = c.id; root.customer-name = c.name;
+                    root.customer-email = c.email; root.customer-phone = c.phone;
+                    root.customer-document = c.document; root.customer-profile-picture = c.profile-picture;
+                    root.customer-avatar-initial = c.avatar-initial;
+                    root.customer-notes = c.notes;
+                    root.customer-error-name = ""; root.customer-error-email = ""; root.customer-error-phone = ""; root.customer-error-document = "";
+                    root.show-modal = true;
+                }
+                request-delete(id, name, type) => {
+                    root.delete-target-id = id; root.delete-target-name = name;
+                    root.delete-target-type = type; root.show-delete-confirm = true;
+                }
+                // Novo pedido: abre o PDV já com o cliente selecionado.
+                new-order(id) => { root.active-tab = "pdv"; root.pdv-pick-customer(id); }
+                // ── Carteira ──
+                wallet-summary: root.wallet-summary;
+                wallet-movements: root.wallet-movements;
+                wallet-open-deposit => { root.wallet-open-deposit(); }
+                wallet-open-withdraw => { root.wallet-open-withdraw(); }
+                wallet-open-adjust => { root.wallet-open-adjust(); }
+                wallet-open-limit => { root.wallet-open-limit(); }
+                wallet-open-wallet => { root.wallet-confirm-open(); }
+            }
+
+            // PDV vive FORA deste ScrollView (irmão direto do
+            // HorizontalLayout com Sidebar). Motivo arquitetural: o
+            // ScrollView mede o conteúdo pela altura natural — não
+            // estica filhos verticalmente. Resultado: o cart Rectangle
+            // dentro do PdvPage ficava no tamanho dos próprios filhos
+            // e o footer "Subtotal..Limpar" não colava na borda
+            // inferior. Renderizado lá fora, PdvPage recebe a altura
+            // total da janela direto do HorizontalLayout pai.
+
+            // Caixa
+            if root.active-tab == "cash": CashPage {
+                summary: root.cash-summary;
+                sessions: root.cash-sessions;
+                movements: root.cash-movements;
+                method-totals: root.cash-method-totals;
+                request-open => { root.cash-show-open = true; }
+                request-sangria => { root.cash-show-sangria = true; }
+                request-suprimento => { root.cash-show-suprimento = true; }
+                request-close => {
+                    root.cash-show-close = true;
+                    root.cash-close-recalc();
+                }
+            }
+
+            // Dashboard
+            if root.active-tab == "dashboard": DashboardPage {
+                kpis: root.dashboard-kpis;
+                sales-bars: root.dashboard-sales-bars;
+                compare-points: root.dashboard-compare-points;
+                compare-label: root.dashboard-compare-label;
+                top-products: root.dashboard-top-products;
+                payment-slices: root.dashboard-payment-slices;
+                subtitle: root.dashboard-subtitle;
+                week-revenue: root.dashboard-week-revenue;
+                week-revenue-label: root.dashboard-week-revenue-label;
+                week-delta: root.dashboard-week-delta;
+                week-delta-tone: root.dashboard-week-delta-tone;
+                week-has-chart: root.dashboard-week-has-chart;
+                week-orders: root.dashboard-week-orders;
+                week-ticket: root.dashboard-week-ticket;
+                week-best-day: root.dashboard-week-best-day;
+                week-line-path: root.dashboard-week-line-path;
+                week-area-path: root.dashboard-week-area-path;
+                line-points: root.dashboard-line-points;
+                payment-total: root.dashboard-payment-total;
+                period: root.dashboard-period;
+                period-changed(p) => {
+                    root.dashboard-period = p;
+                    root.dashboard-refresh();
+                }
+            }
+
+            // Relatórios
+            if root.active-tab == "reports": ReportsPage {
+                types: root.report-types;
+                periods: root.report-periods;
+                kpis: root.report-kpis;
+                active-type: root.report-active-type;
+                header-title: root.report-header-title;
+                header-subtitle: root.report-header-subtitle;
+                chart-title: root.report-chart-title;
+                chart-subtitle: root.report-chart-subtitle;
+                daily-bars: root.report-daily-bars;
+                dre-lines: root.report-dre-lines;
+                method-bars: root.report-method-bars;
+                method-total: root.report-method-total;
+                orders-bars: root.report-orders-bars;
+                channel-bars: root.report-channel-bars;
+                hourly-bars: root.report-hourly-bars;
+                top-products: root.report-top-products;
+                top-customers: root.report-top-customers;
+                new-vs-ret: root.report-new-vs-ret;
+                set-type(k) => { root.report-set-type(k); }
+                set-period(k) => { root.report-set-period(k); }
+                export-report => { root.report-export(); }
+            }
+
+            // Assinatura (Fase 13 — Plano & cobrança).
+            if root.active-tab == "subscription": SubscriptionPage {
+                data: root.subscription-data;
+                plans: root.subscription-plans;
+                invoices: root.subscription-invoices;
+                payment-methods: root.payment-methods;
+                payment-picker-open: root.payment-picker-open;
+                choose-plan(k) => { root.subscription-choose-plan(k); }
+                open-payment-change => { root.subscription-toggle-payment-picker(); }
+                pick-payment-method(id) => { root.subscription-pick-payment-method(id); }
+                download-invoice(id) => { root.subscription-download-invoice(id); }
+                download-all => { root.subscription-download-all(); }
+                pay-invoice(id) => { root.subscription-pay-invoice(id); }
+                open-card-modal => { root.subscription-open-card-modal(); }
+                cancel-card => { root.subscription-cancel-card(); }
+                open-pix-auto => { root.subscription-open-pix-auto(); }
+                cancel-pix-auto => { root.subscription-cancel-pix-auto(); }
+            }
+
+            // Financeiro — contas a pagar/receber.
+            if root.active-tab == "finance": FinancePage {
+                kpis: root.finance-kpis;
+                tabs: root.finance-tabs;
+                entries: root.finance-entries;
+                cash-flow: root.finance-cash-flow;
+                cash-flow-summary: root.finance-cash-flow-summary;
+                active-tab: root.finance-active-tab;
+                search-query <=> root.finance-search-query;
+                view-mode: root.finance-view-mode;
+                cal-title: root.finance-cal-title;
+                cal-month-total: root.finance-cal-month-total;
+                cal-cells: root.finance-cal-cells;
+                cal-selected: root.finance-cal-selected;
+                cal-detail-header: root.finance-cal-detail-header;
+                cal-detail-summary: root.finance-cal-detail-summary;
+                cal-detail-rows: root.finance-cal-detail-rows;
+                status-filter: root.finance-status-filter;
+                set-tab(k) => { root.finance-set-tab(k); }
+                search-changed(q) => { root.finance-search-changed(q); }
+                set-status-filter(k) => { root.finance-set-status-filter(k); }
+                set-group-page(s, p) => { root.finance-set-group-page(s, p); }
+                open-new(k) => { root.finance-open-new(k); }
+                open-edit(id) => { root.finance-open-edit(id); }
+                mark-settled(id) => { root.finance-request-settle(id); }
+                request-delete(id) => { root.finance-request-delete(id); }
+                set-view(m) => { root.finance-set-view(m); }
+                cal-prev => { root.finance-cal-prev(); }
+                cal-next => { root.finance-cal-next(); }
+                cal-today => { root.finance-cal-today(); }
+                cal-select-day(day) => { root.finance-cal-select-day(day); }
+            }
+
+            // Controle de Estoque (Kanban por status de saúde)
+            if root.active-tab == "inventory": InventoryPage {
+                health: root.inventory-health;
+                products: root.inventory-products;
+                search <=> root.inventory-search;
+                filter <=> root.inventory-filter;
+                syncing <=> root.inventory-syncing;
+                search-changed(q) => { root.inventory-search-changed(q); }
+                filter-changed(k) => { root.inventory-filter-changed(k); }
+                refresh => { root.inventory-refresh(); }
+                sync => { root.inventory-sync(); }
+                request-add-stock(id) => { root.inventory-request-add(id); }
+                request-edit-stock(id) => { root.inventory-request-edit(id); }
+            }
+
+            // Pedidos
+            if root.active-tab == "orders": OrdersPage {
+                orders: root.orders;
+                kanban-cols: root.kanban-cols;
+                order-search-query <=> root.order-search-query;
+                order-date-start <=> root.order-date-start;
+                order-date-label <=> root.order-date-label;
+                cal-open <=> root.cal-open;
+                cal-toggle => { root.cal-toggle(); }
+                cal-clear => { root.cal-clear(); }
+                order-filter-status <=> root.order-filter-status;
+                order-detail-id <=> root.order-detail-id;
+                detail-order: root.detail-order;
+                detail-order-items: root.detail-order-items;
+                orders-per-page: root.orders-per-page;
+                open-order(id) => { root.open-order(id); }
+                advance-order-status(id) => { root.advance-order-status(id); }
+                refresh-orders => { root.refresh-orders(); }
+                refresh-order-elapsed => { root.refresh-order-elapsed(); }
+                edit-order(id) => { root.edit-order(id); }
+                // Cliques "Comanda" / "Cozinha" no detalhe abrem o
+                // modal de preview interno (não navegador). O HTML +
+                // impressão real só acontece via botão "Imprimir" do
+                // próprio modal.
+                print-order-receipt(_) => { root.receipt-modal-mode = "complete"; }
+                print-order-kitchen(_) => { root.receipt-modal-mode = "kitchen"; }
+                request-cancel(id, label) => {
+                    root.cancel-target-id = id; root.cancel-target-label = label;
+                    root.cancel-reason = ""; root.cancel-error = "";
+                    root.show-cancel-modal = true;
+                }
+            }
+
+            // Configuracoes
+            if root.active-tab == "settings": SettingsPage {
+                business-hours: root.business-hours;
+                store-override <=> root.store-override;
+                store-name <=> root.store-name;
+                store-address <=> root.store-address;
+                store-phone <=> root.store-phone;
+                store-whatsapp <=> root.store-whatsapp;
+                store-email <=> root.store-email;
+                store-instagram <=> root.store-instagram;
+                store-document <=> root.store-document;
+                store-neighborhood <=> root.store-neighborhood;
+                store-zip-code <=> root.store-zip-code;
+                store-city <=> root.store-city;
+                store-uf <=> root.store-uf;
+                store-logo-data <=> root.store-logo-data;
+                store-logo-image: root.store-logo-image;
+                store-logo-loading <=> root.store-logo-loading;
+                store-cover-data <=> root.store-cover-data;
+                store-cover-image: root.store-cover-image;
+                store-cover-loading <=> root.store-cover-loading;
+                store-synced: root.store-synced;
+                products-per-page <=> root.products-per-page;
+                orders-per-page <=> root.orders-per-page;
+                set-store-override(v) => { root.set-store-override(v); }
+                save-store-info => { root.save-store-info(); }
+                pick-store-logo => { root.pick-store-logo(); }
+                pick-store-cover => { root.pick-store-cover(); }
+                format-store-phone(t) => { root.format-store-phone(t) }
+                format-store-document(t) => { root.format-store-document(t) }
+                format-store-zip(t) => { root.format-store-zip(t) }
+                dark-mode-changed(d) => { root.dark-mode-changed(d); }
+                request-edit-bh(bh) => {
+                    root.bh-editing-day = bh.day-of-week;
+                    root.bh-editing-day-name = bh.day-name;
+                    root.bh-open-time = bh.open-time;
+                    root.bh-close-time = bh.close-time;
+                    root.bh-is-open = bh.is-open;
+                    root.modal-type = "business-hours";
+                    root.show-modal = true;
+                }
+                // Impressoras
+                printers: root.printers;
+                refresh-printers => { root.refresh-printers(); }
+                request-new-printer => {
+                    root.printer-editing-id = "";
+                    root.printer-form-name = "";
+                    root.printer-form-kind = "order";
+                    root.printer-form-system-name = "";
+                    root.printer-form-is-default = false;
+                    root.printer-form-paper-width = 80;
+                    root.printer-form-error = "";
+                    // Lista vazia → todas as categorias começam desmarcadas
+                    // (UI fica em modo "catch-all" até o operador selecionar).
+                    root.load-printer-categories([]);
+                    root.refresh-available-printers();
+                    root.show-printer-modal = true;
+                }
+                request-edit-printer(p) => {
+                    root.printer-editing-id = p.id;
+                    root.printer-form-name = p.name;
+                    root.printer-form-kind = p.kind;
+                    root.printer-form-system-name = p.system-name;
+                    root.printer-form-is-default = p.is-default;
+                    root.printer-form-paper-width = p.paper-width;
+                    root.printer-form-error = "";
+                    root.load-printer-categories(p.category-ids);
+                    root.refresh-available-printers();
+                    root.show-printer-modal = true;
+                }
+                delete-printer(id) => { root.printer-delete(id); }
+                set-default-printer(id) => { root.printer-set-default(id); }
+                }
+            }
+        }
+    }
+
+    // ════════════════════════════════════════════════
+    //  MODAIS (overlays sobre tudo)
+    // ════════════════════════════════════════════════
+
+    if root.show-modal && root.active-tab == "categories" && root.modal-type == "category": CategoryModal {
+        editing-id <=> root.editing-id;
+        category-name <=> root.category-name;
+        category-description <=> root.category-description;
+        category-error-name <=> root.category-error-name;
+        category-icon-name <=> root.category-icon-name;
+        icon-options: root.category-icon-options;
+        close => { root.show-modal = false; }
+        add-category => { root.add-category(); }
+        update-category => { root.update-category(); }
+    }
+
+    if root.show-modal && root.active-tab == "categories" && root.modal-type == "subcategory": SubcategoryModal {
+        editing-id <=> root.editing-id;
+        subcategory-name <=> root.subcategory-name;
+        subcategory-category-id <=> root.subcategory-category-id;
+        subcategory-category-name <=> root.subcategory-category-name;
+        subcategory-category-open <=> root.subcategory-category-open;
+        subcategory-error-name <=> root.subcategory-error-name;
+        subcategory-error-category <=> root.subcategory-error-category;
+        categories: root.categories;
+        close => { root.show-modal = false; root.subcategory-category-open = false; }
+        add-subcategory => { root.add-subcategory(); }
+        update-subcategory => { root.update-subcategory(); }
+    }
+
+    // Modal de Banner (Fase 7). Form com upload de imagem + busca de
+    // produto filtrante. `forward-focus` no Slint dá foco automático
+    // na barra de busca assim que o dropdown abre.
+    if root.show-modal && root.active-tab == "banners" && root.modal-type == "banner": BannerModal {
+        products: root.products;
+        products-filtered: root.banner-product-filtered;
+        filter-products => { root.filter-banner-products(); }
+        editing-id <=> root.editing-id;
+        banner-title <=> root.banner-title;
+        banner-item-type <=> root.banner-item-type;
+        banner-product-id <=> root.banner-product-id;
+        banner-product-name <=> root.banner-product-name;
+        banner-product-search <=> root.banner-product-search;
+        banner-url <=> root.banner-url;
+        banner-image-data <=> root.banner-image-data;
+        banner-image <=> root.banner-image;
+        banner-image-loading <=> root.banner-image-loading;
+        banner-error-title <=> root.banner-error-title;
+        banner-error-image <=> root.banner-error-image;
+        banner-error-target <=> root.banner-error-target;
+        close => { root.show-modal = false; }
+        request-pick-image => { root.pick-banner-image(); }
+        request-clear-image => { root.banner-image-data = ""; }
+        // Não fecha o modal aqui: o Rust valida primeiro e só fecha
+        // (set_show_modal(false)) em caso de sucesso. Assim mensagens
+        // de erro abaixo dos campos ficam visíveis para o operador.
+        add-banner => { root.add-banner(); }
+        update-banner => { root.update-banner(); }
+    }
+
+    // Modal de Cupom (Fase 8). Não fecha aqui: o Rust valida e só
+    // fecha (set_show_modal(false)) em caso de sucesso, mantendo as
+    // mensagens de erro visíveis abaixo dos campos.
+    if root.show-modal && root.active-tab == "coupons" && root.modal-type == "coupon": CouponModal {
+        editing-id <=> root.editing-id;
+        coupon-title <=> root.coupon-title;
+        coupon-code <=> root.coupon-code;
+        coupon-type <=> root.coupon-type;
+        coupon-discount-kind <=> root.coupon-discount-kind;
+        coupon-discount-value <=> root.coupon-discount-value;
+        coupon-min-order <=> root.coupon-min-order;
+        coupon-max-discount <=> root.coupon-max-discount;
+        coupon-per-user-limit <=> root.coupon-per-user-limit;
+        coupon-usage-limit <=> root.coupon-usage-limit;
+        coupon-valid-from <=> root.coupon-valid-from;
+        coupon-valid-until <=> root.coupon-valid-until;
+        coupon-error-title <=> root.coupon-error-title;
+        coupon-error-code <=> root.coupon-error-code;
+        coupon-error-discount <=> root.coupon-error-discount;
+        coupon-error-min <=> root.coupon-error-min;
+        coupon-error-per-user <=> root.coupon-error-per-user;
+        coupon-error-usage <=> root.coupon-error-usage;
+        coupon-error-validity <=> root.coupon-error-validity;
+        format-date(t) => { root.format-coupon-date(t) }
+        close => { root.show-modal = false; }
+        add-coupon => { root.add-coupon(); }
+        update-coupon => { root.update-coupon(); }
+        open-from-cal => { root.coupon-cal-open("from"); }
+        open-until-cal => { root.coupon-cal-open("until"); }
+    }
+
+    // Pop-up do calendário de validade do Cupom (sobreposto ao modal).
+    // `coupon-cal-target` controla qual campo será preenchido pelo pick.
+    if root.show-modal && root.active-tab == "coupons" && root.modal-type == "coupon" && root.coupon-cal-target != "": CalendarPopup {
+        x: 0; y: 0;
+        width: parent.width;
+        height: parent.height;
+        title: root.coupon-cal-title;
+        days: root.coupon-cal-days;
+        prev => { root.coupon-cal-prev(); }
+        next => { root.coupon-cal-next(); }
+        pick(d) => { root.coupon-cal-pick(d); }
+        clear => { root.coupon-cal-pick(""); }
+        close => { root.coupon-cal-close(); }
+    }
+
+    if root.show-modal && root.active-tab == "customers": CustomerModal {
+        editing-id <=> root.editing-id;
+        customer-name <=> root.customer-name;
+        customer-email <=> root.customer-email;
+        customer-phone <=> root.customer-phone;
+        customer-document <=> root.customer-document;
+        customer-notes <=> root.customer-notes;
+        customer-profile-picture <=> root.customer-profile-picture;
+        customer-avatar-initial <=> root.customer-avatar-initial;
+        customer-error-name <=> root.customer-error-name;
+        customer-error-email <=> root.customer-error-email;
+        customer-error-phone <=> root.customer-error-phone;
+        customer-error-document <=> root.customer-error-document;
+        customer-addresses: root.detail-addresses;
+        addr-label <=> root.customer-addr-label;
+        addr-custom-label <=> root.customer-addr-custom-label;
+        addr-street <=> root.customer-addr-street;
+        addr-number <=> root.customer-addr-number;
+        addr-neighborhood <=> root.customer-addr-neighborhood;
+        addr-apartment <=> root.customer-addr-apartment;
+        close => { root.show-modal = false; }
+        add-customer => { root.add-customer(); }
+        update-customer => { root.update-customer(); }
+        add-customer-address => { root.add-customer-address(); }
+        delete-customer-address(id) => { root.delete-customer-address(id); }
+        format-customer-phone(t) => { root.format-customer-phone(t) }
+        format-customer-document(t) => { root.format-customer-document(t) }
+    }
+
+    if root.show-modal && root.active-tab == "addons" && root.modal-type == "addon-group": AddonGroupModal {
+        editing-id <=> root.addon-group-form-id;
+        group-name <=> root.addon-group-form-name;
+        group-selection <=> root.addon-group-form-selection;
+        group-min <=> root.addon-group-form-min;
+        group-max <=> root.addon-group-form-max;
+        error-name <=> root.addon-group-form-error;
+        close => { root.show-modal = false; }
+        add-group => { root.save-addon-group(); }
+        update-group => { root.save-addon-group(); }
+    }
+
+    if root.show-modal && root.active-tab == "addons" && root.modal-type == "addon": AddonItemModal {
+        editing-id <=> root.addon-form-id;
+        group-name: root.selected-addon-group-name;
+        addon-name <=> root.addon-form-name;
+        addon-price <=> root.addon-form-price;
+        error-name <=> root.addon-form-error;
+        close => { root.show-modal = false; }
+        add-addon => { root.save-addon(); }
+        update-addon => { root.save-addon(); }
+    }
+
+    if root.show-modal && root.active-tab == "settings" && root.modal-type == "business-hours": SettingsModal {
+        bh-editing-day-name <=> root.bh-editing-day-name;
+        bh-open-time <=> root.bh-open-time;
+        bh-close-time <=> root.bh-close-time;
+        bh-is-open <=> root.bh-is-open;
+        close => { root.show-modal = false; }
+        save-business-hours => { root.save-business-hours(); }
+        apply-time-mask(s) => { root.apply-time-mask(s) }
+    }
+
+    if root.show-cancel-modal: CancelOrderModal {
+        cancel-target-id <=> root.cancel-target-id;
+        cancel-target-label <=> root.cancel-target-label;
+        cancel-reason <=> root.cancel-reason;
+        cancel-error <=> root.cancel-error;
+        close => { root.show-cancel-modal = false; }
+        cancel-order(id, reason) => { root.cancel-order(id, reason); }
+    }
+
+    if root.show-edit-order-modal: EditOrderModal {
+        order: root.detail-order;
+        items <=> root.edit-order-items;
+        edit-notes <=> root.edit-order-notes;
+        edit-error: root.edit-order-error;
+        products: root.edit-order-picker-products;
+        close => { root.show-edit-order-modal = false; }
+        inc-qty(idx) => { root.edit-order-inc(idx); }
+        dec-qty(idx) => { root.edit-order-dec(idx); }
+        delete-item(idx) => { root.edit-order-delete(idx); }
+        edit-item(idx) => { root.edit-order-edit-item(idx); }
+        // O clique no produto agora dispara `start-product-config`: o
+        // Rust decide se adiciona direto (sem addons/variações) ou
+        // abre o ProductConfiguratorModal (renderizado abaixo, em
+        // cima do EditOrderModal via z-order natural).
+        add-product(pid) => { root.start-product-config(pid); }
+        filter-picker(q) => { root.edit-order-filter-picker(q); }
+        save => { root.save-edit-order(); }
+    }
+
+    // Configurador de produto — modal próprio, empilhado sobre o
+    // EditOrderModal quando o operador escolhe um produto com
+    // variações/adicionais OU clica em "Editar item". Removido do
+    // body do EditOrderModal para garantir botões Cancelar/Adicionar
+    // sempre visíveis em telas pequenas.
+    if root.config-product-id != "": ProductConfiguratorModal {
+        config-product-id: root.config-product-id;
+        config-product-name: root.config-product-name;
+        config-qty: root.config-qty;
+        config-variations: root.config-variations;
+        config-addon-groups: root.config-addon-groups;
+        config-final-display: root.config-final-display;
+        config-error: root.config-error;
+        config-edit-idx: root.config-edit-idx;
+        config-toggle-variation(v, o) => { root.config-toggle-variation(v, o); }
+        config-toggle-addon(g, a) => { root.config-toggle-addon(g, a); }
+        config-inc-qty => { root.config-inc-qty(); }
+        config-dec-qty => { root.config-dec-qty(); }
+        // Dispatch baseado no contexto: PDV (push no carrinho) vs
+        // EditOrderModal (push em edit_order_items). Cada contexto
+        // tem seu próprio callback wirado para a lógica certa em Rust.
+        config-confirm => {
+            if (root.config-context == "pdv") {
+                root.pdv-config-confirm();
+            } else {
+                root.config-confirm-add();
+            }
+        }
+        config-cancel => { root.config-cancel(); }
+    }
+
+    if root.receipt-modal-mode != "": ReceiptModal {
+        mode: root.receipt-modal-mode;
+        order: root.detail-order;
+        items: root.detail-order-items;
+        close => { root.receipt-modal-mode = ""; }
+        print => {
+            root.print-receipt-now(root.detail-order.id, root.receipt-modal-mode);
+            // O modal fecha após disparar a impressão — o navegador
+            // assume daqui e mostra o diálogo de impressão.
+            root.receipt-modal-mode = "";
+        }
+    }
+
+    // Calendário de período (filtro de Pedidos) — overlay full-window.
+    if root.active-tab == "orders" && root.cal-open: CalendarPopup {
+        x: 0; y: 0;
+        width: root.width;
+        height: root.height;
+        title: root.cal-title;
+        days: root.cal-days;
+        prev => { root.cal-prev(); }
+        next => { root.cal-next(); }
+        pick(ymd) => { root.cal-pick(ymd); }
+        clear => { root.cal-clear(); }
+        close => { root.cal-open = false; }
+    }
+
+    if root.show-logout-confirm: LogoutConfirmModal {
+        close => { root.show-logout-confirm = false; }
+        do-logout => { root.do-logout(); }
+    }
+
+    if root.profile-open: ProfileModal {
+        role-label: root.user-role;
+        name <=> root.profile-name;
+        email <=> root.profile-email;
+        new-password <=> root.profile-new-password;
+        status: root.profile-status;
+        busy: root.profile-busy;
+        save => { root.profile-save(); }
+        close => { root.profile-open = false; }
+    }
+
+    if root.show-delete-confirm: DeleteConfirmModal {
+        delete-target-name <=> root.delete-target-name;
+        close => { root.show-delete-confirm = false; }
+        confirm-delete => { root.confirm-delete(); }
+    }
+
+    if root.pdv-show-customer-picker: PdvCustomerPickerModal {
+        rows: root.pdv-customer-rows;
+        search <=> root.pdv-customer-search;
+        close => { root.pdv-show-customer-picker = false; }
+        search-changed(q) => { root.pdv-customer-search-changed(q); }
+        pick(id) => { root.pdv-pick-customer(id); }
+    }
+
+    if root.pdv-show-cart-modal: PdvCartModal {
+        cart: root.pdv-cart;
+        total-display: root.pdv-total-display;
+        inc(id) => { root.pdv-inc-line(id); }
+        dec(id) => { root.pdv-dec-line(id); }
+        remove(id) => { root.pdv-remove-line(id); }
+        close => { root.pdv-show-cart-modal = false; }
+    }
+
+    if root.pdv-show-sold: PdvSoldModal {
+        order-number: root.pdv-sold-order-number;
+        total-display: root.pdv-sold-total;
+        close => { root.pdv-show-sold = false; }
+        print-receipt => {
+            root.print-receipt-now(root.pdv-sold-order-id, "complete");
+        }
+        print-kitchen => {
+            root.print-receipt-now(root.pdv-sold-order-id, "kitchen");
+        }
+    }
+
+    // ── Assinatura: modal de cobrança PIX (Fase 14 — Efi).
+    if root.pix-modal-open: PixChargeModal {
+        data: root.pix-charge-view;
+        qr-code-image: root.pix-qr-image;
+        close => { root.subscription-close-pix-modal(); }
+        copy-code => { root.subscription-copy-pix-code(); }
+    }
+
+    // ── Assinatura: modal de cadastro de cartão recorrente (Efi).
+    if root.card-modal-open: CardModal {
+        number <=> root.card-form-number;
+        holder <=> root.card-form-holder;
+        expiry <=> root.card-form-expiry;
+        cvv <=> root.card-form-cvv;
+        cpf <=> root.card-form-cpf;
+        email <=> root.card-form-email;
+        phone <=> root.card-form-phone;
+        birth <=> root.card-form-birth;
+        error <=> root.card-form-error;
+        error-number <=> root.card-error-number;
+        error-holder <=> root.card-error-holder;
+        error-expiry <=> root.card-error-expiry;
+        error-cvv <=> root.card-error-cvv;
+        error-cpf <=> root.card-error-cpf;
+        error-birth <=> root.card-error-birth;
+        error-email <=> root.card-error-email;
+        error-phone <=> root.card-error-phone;
+        loading: root.card-modal-loading;
+        fmt-card-number(t) => { root.card-fmt-number(t) }
+        fmt-card-expiry(t) => { root.card-fmt-expiry(t) }
+        fmt-cvv(t) => { root.card-fmt-cvv(t) }
+        fmt-cpf-cnpj(t) => { root.card-fmt-cpf-cnpj(t) }
+        fmt-birth(t) => { root.card-fmt-birth(t) }
+        fmt-phone(t) => { root.card-fmt-phone(t) }
+        close => { root.card-modal-close(); }
+        submit => { root.card-modal-submit(); }
+    }
+
+    // ── Assinatura: modal de ativação do Pix Automático.
+    if root.pix-auto-modal-open: PixAutoModal {
+        name <=> root.pix-auto-name;
+        cpf <=> root.pix-auto-cpf;
+        error <=> root.pix-auto-error;
+        loading: root.pix-auto-loading;
+        fmt-cpf-cnpj(t) => { root.pix-auto-fmt-cpf-cnpj(t) }
+        close => { root.pix-auto-close(); }
+        submit => { root.pix-auto-submit(); }
+    }
+
+    // ── Assinatura: confirmação de troca de plano com recorrência ativa.
+    if root.plan-change-confirm-open: PlanChangeConfirmModal {
+        message: root.plan-change-confirm-message;
+        loading: root.plan-change-confirm-loading;
+        close => { root.plan-change-confirm-close(); }
+        confirm => { root.plan-change-confirm-yes(); }
+    }
+
+    // ── Caixa: 4 modais ───────────────────────────────────────
+    // Modal: nova/editar conta a pagar ou receber (Financeiro).
+    if root.finance-show-modal: FinanceEntryModal {
+        kind: root.finance-form-kind;
+        editing: root.finance-form-editing-id != "";
+        description <=> root.finance-form-description;
+        party: root.finance-form-party;
+        amount <=> root.finance-form-amount;
+        due-date: root.finance-form-due-date;
+        installments: root.finance-form-installments;
+        recurrence: root.finance-form-recurrence;
+        notes <=> root.finance-form-notes;
+        error-description: root.finance-form-error-description;
+        error-amount: root.finance-form-error-amount;
+        error-due-date: root.finance-form-error-due-date;
+        error-general: root.finance-form-error-general;
+        close => { root.finance-close-modal(); }
+        save => { root.finance-save-modal(); }
+        set-recurrence(k) => { root.finance-set-recurrence(k); }
+        set-installments(n) => { root.finance-set-installments(n); }
+        open-party-picker => { root.finance-open-party-picker(); }
+        clear-party => { root.finance-pick-party(""); }
+        toggle-due-cal => { root.finance-due-cal-toggle(); }
+    }
+
+    // Pop-up do calendário de vencimento (sobreposto ao modal).
+    if root.finance-show-modal && root.finance-due-cal-open: CalendarPopup {
+        x: 0; y: 0;
+        width: parent.width;
+        height: parent.height;
+        title: root.finance-due-cal-title;
+        days: root.finance-due-cal-days;
+        prev => { root.finance-due-cal-prev(); }
+        next => { root.finance-due-cal-next(); }
+        pick(d) => { root.finance-due-cal-pick(d); }
+        clear => { root.finance-due-cal-pick(""); }
+        close => { root.finance-due-cal-toggle(); }
+    }
+
+    // Pop-up do picker de cliente/fornecedor (sobreposto ao modal).
+    if root.finance-show-modal && root.finance-show-party-picker: PdvCustomerPickerModal {
+        rows: root.finance-party-options;
+        search <=> root.finance-party-search;
+        search-changed(q) => { root.finance-party-search-changed(q); }
+        pick(id) => { root.finance-pick-party(id); }
+        close => { root.finance-close-party-picker(); }
+    }
+
+    // ── Modal de confirmação: dar baixa (Receber/Pagar) ──────
+    if root.finance-show-settle-confirm: Rectangle {
+        background: #00000080;
+        TouchArea { clicked => { root.finance-close-settle-confirm(); } }
+        VerticalLayout {
+            alignment: center;
+            HorizontalLayout {
+                alignment: center;
+                Rectangle {
+                    width: 420px;
+                    height: 240px;
+                    border-radius: 12px;
+                    background: Theme.surface;
+                    border-width: 1px;
+                    border-color: Theme.card-border;
+                    drop-shadow-blur: 12px;
+                    drop-shadow-offset-y: 0px;
+                    drop-shadow-color: Theme.card-shadow;
+                    // Absorve cliques dentro do card.
+                    TouchArea { }
+                    VerticalLayout {
+                        padding: 22px;
+                        spacing: 14px;
+                        // Conteúdo centralizado verticalmente dentro do
+                        // card de altura fixa (240px).
+                        alignment: center;
+                        VerticalLayout {
+                            spacing: 4px;
+                            Text {
+                                text: root.finance-settle-target-kind == "receivable"
+                                    ? "Confirmar Recebimento"
+                                    : "Confirmar Pagamento";
+                                font-size: 16px; font-weight: 700;
+                                color: Theme.text-primary;
+                                horizontal-alignment: center;
+                            }
+                            Text {
+                                text: root.finance-settle-target-kind == "receivable"
+                                    ? "O lançamento será marcado como Recebido."
+                                    : "O lançamento será marcado como Pago.";
+                                font-size: 12px;
+                                color: Theme.text-secondary;
+                                horizontal-alignment: center;
+                            }
+                        }
+                        Rectangle {
+                            background: Theme.bg;
+                            border-radius: 8px;
+                            border-width: 1px;
+                            border-color: Theme.card-border;
+                            VerticalLayout {
+                                padding: 14px;
+                                spacing: 4px;
+                                HorizontalLayout {
+                                    Text {
+                                        horizontal-stretch: 1;
+                                        text: root.finance-settle-target-desc;
+                                        font-size: 13px; font-weight: 700;
+                                        color: Theme.text-primary;
+                                        overflow: elide;
+                                    }
+                                    Text {
+                                        text: root.finance-settle-target-amount;
+                                        font-size: 14px; font-weight: 800;
+                                        color: root.finance-settle-target-kind == "receivable"
+                                            ? #2E7D32 : #E53935;
+                                    }
+                                }
+                                if root.finance-settle-target-party != "": Text {
+                                    text: root.finance-settle-target-party;
+                                    font-size: 11px;
+                                    color: Theme.text-secondary;
+                                    overflow: elide;
+                                }
+                            }
+                        }
+                        HorizontalLayout {
+                            spacing: 10px;
+                            alignment: end;
+                            cancel-ta := TouchArea {
+                                width: 100px; height: 32px;
+                                clicked => { root.finance-close-settle-confirm(); }
+                                Rectangle {
+                                    border-radius: 8px;
+                                    border-width: 1px;
+                                    border-color: Theme.card-border;
+                                    background: cancel-ta.has-hover ? Theme.row-hover : Theme.surface;
+                                    Text {
+                                        width: parent.width; height: parent.height;
+                                        text: "Cancelar";
+                                        font-size: 13px; font-weight: 700;
+                                        color: Theme.text-primary;
+                                        horizontal-alignment: center; vertical-alignment: center;
+                                    }
+                                }
+                            }
+                            confirm-ta := TouchArea {
+                                width: 140px; height: 32px;
+                                clicked => { root.finance-confirm-settle(); }
+                                Rectangle {
+                                    border-radius: 8px;
+                                    background: confirm-ta.has-hover ? Theme.primary-dark : Theme.primary;
+                                    Text {
+                                        width: parent.width; height: parent.height;
+                                        text: root.finance-settle-target-kind == "receivable"
+                                            ? "Confirmar"
+                                            : "Confirmar";
+                                        font-size: 12px; font-weight: 700;
+                                        color: white;
+                                        horizontal-alignment: center; vertical-alignment: center;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // ── Modal de confirmação: excluir lançamento ─────────────
+    if root.finance-show-delete-confirm: Rectangle {
+        background: #00000080;
+        TouchArea { clicked => { root.finance-close-delete-confirm(); } }
+        VerticalLayout {
+            alignment: center;
+            HorizontalLayout {
+                alignment: center;
+                Rectangle {
+                    width: 420px;
+                    height: 240px;
+                    border-radius: 12px;
+                    background: Theme.surface;
+                    border-width: 1px;
+                    border-color: Theme.card-border;
+                    drop-shadow-blur: 12px;
+                    drop-shadow-offset-y: 0px;
+                    drop-shadow-color: Theme.card-shadow;
+                    TouchArea { }
+                    VerticalLayout {
+                        padding: 22px;
+                        spacing: 14px;
+                        alignment: center;
+                        VerticalLayout {
+                            spacing: 4px;
+                            Text {
+                                text: "Excluir Lançamento";
+                                font-size: 16px; font-weight: 700;
+                                color: Theme.text-primary;
+                                horizontal-alignment: center;
+                            }
+                            Text {
+                                text: "Este lançamento será removido. Esta ação não pode ser desfeita.";
+                                font-size: 12px;
+                                color: Theme.text-secondary;
+                                horizontal-alignment: center;
+                                wrap: word-wrap;
+                            }
+                        }
+                        Rectangle {
+                            background: Theme.bg;
+                            border-radius: 8px;
+                            border-width: 1px;
+                            border-color: Theme.card-border;
+                            VerticalLayout {
+                                padding: 14px;
+                                spacing: 4px;
+                                HorizontalLayout {
+                                    Text {
+                                        horizontal-stretch: 1;
+                                        text: root.finance-delete-target-desc;
+                                        font-size: 13px; font-weight: 700;
+                                        color: Theme.text-primary;
+                                        overflow: elide;
+                                    }
+                                    Text {
+                                        text: root.finance-delete-target-amount;
+                                        font-size: 14px; font-weight: 800;
+                                        color: root.finance-delete-target-kind == "receivable"
+                                            ? #2E7D32 : #E53935;
+                                    }
+                                }
+                            }
+                        }
+                        HorizontalLayout {
+                            spacing: 10px;
+                            alignment: end;
+                            del-cancel-ta := TouchArea {
+                                width: 100px; height: 32px;
+                                clicked => { root.finance-close-delete-confirm(); }
+                                Rectangle {
+                                    border-radius: 8px;
+                                    border-width: 1px;
+                                    border-color: Theme.card-border;
+                                    background: del-cancel-ta.has-hover ? Theme.row-hover : Theme.surface;
+                                    Text {
+                                        width: parent.width; height: parent.height;
+                                        text: "Cancelar";
+                                        font-size: 13px; font-weight: 700;
+                                        color: Theme.text-primary;
+                                        horizontal-alignment: center; vertical-alignment: center;
+                                    }
+                                }
+                            }
+                            del-confirm-ta := TouchArea {
+                                width: 140px; height: 32px;
+                                clicked => { root.finance-confirm-delete(); }
+                                Rectangle {
+                                    border-radius: 8px;
+                                    background: del-confirm-ta.has-hover ? #B71C1C : #E53935;
+                                    Text {
+                                        width: parent.width; height: parent.height;
+                                        text: "Excluir";
+                                        font-size: 13px; font-weight: 700;
+                                        color: white;
+                                        horizontal-alignment: center; vertical-alignment: center;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // ── Modais da carteira do cliente ────────────────────────
+    if root.wallet-show-deposit: WalletDepositModal {
+        amount <=> root.wallet-form-amount;
+        notes <=> root.wallet-form-notes;
+        error: root.wallet-form-error;
+        close => { root.wallet-close-modals(); }
+        confirm => { root.wallet-confirm-deposit(); }
+    }
+    if root.wallet-show-withdraw: WalletWithdrawModal {
+        amount <=> root.wallet-form-amount;
+        notes <=> root.wallet-form-notes;
+        error: root.wallet-form-error;
+        close => { root.wallet-close-modals(); }
+        confirm => { root.wallet-confirm-withdraw(); }
+    }
+    if root.wallet-show-adjust: WalletAdjustModal {
+        amount <=> root.wallet-form-amount;
+        notes <=> root.wallet-form-notes;
+        error: root.wallet-form-error;
+        close => { root.wallet-close-modals(); }
+        confirm => { root.wallet-confirm-adjust(); }
+    }
+    if root.wallet-show-limit: WalletLimitModal {
+        amount <=> root.wallet-form-limit;
+        notes <=> root.wallet-form-notes;
+        error: root.wallet-form-error;
+        close => { root.wallet-close-modals(); }
+        confirm => { root.wallet-confirm-limit(); }
+    }
+
+    if root.cash-show-open: CashOpenModal {
+        operator-label: root.cash-open-operator;
+        suggested-display: root.cash-open-suggested;
+        amount-input <=> root.cash-open-amount;
+        notes-input <=> root.cash-open-notes;
+        close => { root.cash-show-open = false; }
+        confirm => { root.cash-open-confirm(); }
+    }
+    if root.cash-show-sangria: CashSangriaModal {
+        cash-now-display: root.cash-summary.cash-now-display;
+        amount-input <=> root.cash-sangria-amount;
+        reason-selected <=> root.cash-sangria-reason;
+        detail-input <=> root.cash-sangria-detail;
+        close => { root.cash-show-sangria = false; }
+        confirm => { root.cash-sangria-confirm(); }
+    }
+    if root.cash-show-suprimento: CashSuprimentoModal {
+        cash-now-display: root.cash-summary.cash-now-display;
+        amount-input <=> root.cash-suprimento-amount;
+        origin-selected <=> root.cash-suprimento-origin;
+        detail-input <=> root.cash-suprimento-detail;
+        close => { root.cash-show-suprimento = false; }
+        confirm => { root.cash-suprimento-confirm(); }
+    }
+    if root.cash-show-close: CashCloseModal {
+        opened-at-display: root.cash-close-opened-at;
+        duration-display: root.cash-close-duration;
+        operator-label: root.cash-close-operator;
+        sys-cash-display: root.cash-close-sys-cash;
+        sys-pix-display: root.cash-close-sys-pix;
+        sys-credit-display: root.cash-close-sys-credit;
+        sys-debit-display: root.cash-close-sys-debit;
+        sys-total-display: root.cash-close-sys-total;
+        sales-cash-count: root.cash-close-cash-count;
+        sales-pix-count: root.cash-close-pix-count;
+        sales-credit-count: root.cash-close-credit-count;
+        sales-debit-count: root.cash-close-debit-count;
+        in-cash <=> root.cash-close-in-cash;
+        in-pix <=> root.cash-close-in-pix;
+        in-credit <=> root.cash-close-in-credit;
+        in-debit <=> root.cash-close-in-debit;
+        notes <=> root.cash-close-notes;
+        diff-cash-display: root.cash-close-diff-cash;
+        diff-pix-display: root.cash-close-diff-pix;
+        diff-credit-display: root.cash-close-diff-credit;
+        diff-debit-display: root.cash-close-diff-debit;
+        diff-total-display: root.cash-close-diff-total;
+        has-diff: root.cash-close-has-diff;
+        in-total-display: root.cash-close-in-total;
+        close => { root.cash-show-close = false; }
+        recalc => { root.cash-close-recalc(); }
+        confirm => { root.cash-close-confirm(); }
+    }
+
+    // Modal de ajuste de estoque (Controle de Estoque)
+    if root.stock-adjust-show: StockAdjustModal {
+        mode: root.stock-adjust-mode;
+        product-name: root.stock-adjust-product-name;
+        current-display: root.stock-adjust-current;
+        qty-input <=> root.stock-adjust-qty;
+        reason-input <=> root.stock-adjust-reason;
+        error-message: root.stock-adjust-error;
+        close => { root.stock-adjust-show = false; root.stock-adjust-error = ""; }
+        confirm => { root.inventory-confirm-adjust(); }
+    }
+
+    // PDV bloqueado por caixa fechado: implementado como PÁGINA
+    // (PdvBlockedView) que substitui o PdvPage acima, não como modal
+    // overlay. Overlay top-level mountado em conjunto com mudança de
+    // aba causava panic "Recursion detected" no layout do Slint.
+
+    if root.show-printer-modal: PrinterModal {
+        editing-id <=> root.printer-editing-id;
+        printer-name <=> root.printer-form-name;
+        printer-kind <=> root.printer-form-kind;
+        printer-system-name <=> root.printer-form-system-name;
+        printer-is-default <=> root.printer-form-is-default;
+        printer-paper-width <=> root.printer-form-paper-width;
+        printer-error: root.printer-form-error;
+        available-list: root.printer-available-list;
+        categories <=> root.printer-form-categories;
+        close => { root.show-printer-modal = false; }
+        save => { root.printer-save(); }
+        test-print => { root.printer-test-print(); }
+        refresh-available => { root.refresh-available-printers(); }
+    }
+
+    // Alarme de novos pedidos — instanciado por ÚLTIMO entre os
+    // modais globais para garantir z-order acima de qualquer outro
+    // overlay (sobrepõe edit-order/configurador/comanda etc.).
+    if root.alarm-visible: NewOrderAlarmModal {
+        pending-count: root.alarm-pending-count;
+        acknowledge => { root.alarm-acknowledge(); }
+        dismiss => { root.alarm-dismiss(); }
+    }
+
+    // ════════════════════════════════════════════════
+    //  MODAL DE ATUALIZAÇÃO (overlay global)
+    // ════════════════════════════════════════════════
+    if root.update-available: UpdateModal {
+        version: root.update-version;
+        notes: root.update-notes;
+        mandatory: root.update-mandatory;
+        status: root.update-status;
+        error: root.update-error;
+        update-now => { root.apply-update(); }
+        download-manual => { root.open-update-url(); }
+        later => { root.update-available = false; }
+    }
+
+    // ════════════════════════════════════════════════
+    //  TOAST NOTIFICATION
+    // ════════════════════════════════════════════════
+    toast-el := Toast {
+        x: root.width - toast-el.hint-width - 16px;
+        y: root.height - self.height - 16px;
+        width: toast-el.hint-width;
+        height: 44px;
+        opacity: root.toast-visible ? 1.0 : 0.0;
+        animate opacity { duration: 250ms; easing: ease; }
+        message: root.toast-message;
+        toast-type: root.toast-type;
+    }
+}

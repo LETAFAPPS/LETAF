@@ -1,0 +1,304 @@
+import { Theme } from "../theme.slint";
+import { ActionBtn, OutlineBtn } from "../components/buttons.slint";
+import { EmptyState } from "../components/empty_state.slint";
+import { WalletSummary, WalletMovementRow } from "../types.slint";
+
+// Card "Carteira do Cliente" — exibido no detalhe do cliente.
+//
+// Quando `summary.has-account = false`, mostra apenas o CTA
+// "Abrir carteira"; senão exibe saldo + botões + timeline.
+
+component WalletActionBtn inherits TouchArea {
+    in property <string> label;
+    in property <bool> primary;
+    height: 32px;
+    width: 120px;
+    Rectangle {
+        border-radius: 8px;
+        // Primário = só CONTORNO na cor de destaque (estilo Relatórios).
+        border-width: root.primary ? 1.5px : 1px;
+        border-color: root.primary ? Theme.sidebar-sel-bg : Theme.border;
+        background: root.has-hover ? Theme.row-hover
+            : (root.primary ? transparent : Theme.surface);
+        Text {
+            width: parent.width; height: parent.height;
+            text: root.label;
+            font-size: 12px; font-weight: 700;
+            color: root.primary ? Theme.sidebar-sel-bg : Theme.text-primary;
+            horizontal-alignment: center; vertical-alignment: center;
+        }
+    }
+}
+
+component MovementRow inherits Rectangle {
+    in property <WalletMovementRow> data;
+    height: 56px;
+    background: ta.has-hover ? Theme.row-hover : transparent;
+    ta := TouchArea { }
+    Rectangle {
+        x: 0; y: parent.height - 1px;
+        width: parent.width; height: 1px;
+        background: Theme.border;
+    }
+    HorizontalLayout {
+        padding-left: 12px; padding-right: 12px;
+        spacing: 10px;
+        // Ícone
+        Rectangle {
+            width: 30px; height: 30px;
+            y: (parent.height - 30px) / 2;
+            border-radius: 6px;
+            background: root.data.amount-tone == "pos" ? #E8F5E9 : #FFEBEE;
+            Text {
+                width: parent.width; height: parent.height;
+                text: root.data.amount-tone == "pos" ? "↓" : "↑";
+                font-size: 14px; font-weight: 800;
+                color: root.data.amount-tone == "pos" ? #2E7D32 : #E53935;
+                horizontal-alignment: center; vertical-alignment: center;
+            }
+        }
+        VerticalLayout {
+            horizontal-stretch: 1;
+            min-width: 0;
+            alignment: center;
+            spacing: 2px;
+            Text {
+                text: root.data.title;
+                font-size: 12px; font-weight: 700;
+                color: Theme.text-primary;
+                overflow: elide;
+            }
+            Text {
+                text: root.data.time-display;
+                font-size: 10px;
+                color: Theme.text-secondary;
+                overflow: elide;
+            }
+        }
+        VerticalLayout {
+            alignment: center;
+            spacing: 2px;
+            Text {
+                text: root.data.amount-display;
+                font-size: 12px; font-weight: 800;
+                color: root.data.amount-tone == "pos" ? #2E7D32 : #E53935;
+                horizontal-alignment: right;
+            }
+            Text {
+                text: root.data.balance-after-display;
+                font-size: 10px;
+                color: Theme.text-secondary;
+                horizontal-alignment: right;
+            }
+        }
+    }
+}
+
+export component WalletCard inherits Rectangle {
+    in property <WalletSummary> summary;
+    in property <[WalletMovementRow]> movements;
+
+    callback open-deposit();
+    callback open-withdraw();
+    callback open-adjust();
+    callback open-limit();
+    callback open-wallet();   // primeira abertura quando has-account = false
+
+    border-radius: 12px;
+    border-width: 1px;
+    border-color: Theme.card-border;
+    drop-shadow-blur: 12px;
+    drop-shadow-offset-y: 0px;
+    drop-shadow-color: Theme.card-shadow;
+    background: Theme.surface;
+
+    VerticalLayout {
+        padding: 18px;
+        spacing: 14px;
+
+        // Header
+        HorizontalLayout {
+            spacing: 8px;
+            VerticalLayout {
+                horizontal-stretch: 1;
+                spacing: 0px;
+                Text {
+                    text: "Carteira do Cliente";
+                    font-size: 14px; font-weight: 700;
+                    color: Theme.text-primary;
+                }
+                Text {
+                    text: root.summary.has-account
+                        ? root.summary.status-label
+                        : "Nenhuma carteira ativa";
+                    font-size: 11px;
+                    color: Theme.text-secondary;
+                }
+            }
+            if root.summary.has-account: HorizontalLayout {
+                alignment: center;
+                WalletActionBtn {
+                    label: "Limite";
+                    primary: false;
+                    width: 80px;
+                    clicked => { root.open-limit(); }
+                }
+            }
+        }
+
+        // Sem carteira: CTA
+        if !root.summary.has-account: VerticalLayout {
+            spacing: 12px;
+            alignment: center;
+            Rectangle {
+                background: #FFF3E0;
+                border-radius: 10px;
+                height: 92px;
+                VerticalLayout {
+                    padding: 16px;
+                    spacing: 6px;
+                    alignment: center;
+                    Text {
+                        text: "Este cliente ainda não tem carteira ativa.";
+                        font-size: 13px; font-weight: 700;
+                        color: #E65100;
+                    }
+                    Text {
+                        text: "Abra uma carteira para registrar depósitos, saques e vendas no fiado.";
+                        font-size: 11px;
+                        color: Theme.text-secondary;
+                        wrap: word-wrap;
+                    }
+                }
+            }
+            HorizontalLayout {
+                alignment: end;
+                WalletActionBtn {
+                    label: "Abrir Carteira";
+                    primary: true;
+                    width: 140px;
+                    clicked => { root.open-wallet(); }
+                }
+            }
+        }
+
+        // Com carteira: saldo + ações + timeline
+        if root.summary.has-account: VerticalLayout {
+            spacing: 14px;
+
+            // Banner do saldo
+            Rectangle {
+                background: root.summary.balance-tone == "neg"
+                    ? #FFEBEE
+                    : (root.summary.balance-tone == "pos" ? #E8F5E9 : #f5f5f4);
+                border-radius: 10px;
+                height: 96px;
+                HorizontalLayout {
+                    padding: 16px;
+                    spacing: 14px;
+                    VerticalLayout {
+                        horizontal-stretch: 1;
+                        alignment: center;
+                        spacing: 4px;
+                        Text {
+                            text: "SALDO ATUAL";
+                            font-size: 9px; font-weight: 800;
+                            color: Theme.text-secondary;
+                            letter-spacing: 1px;
+                        }
+                        Text {
+                            text: root.summary.balance-display;
+                            font-size: 26px; font-weight: 800;
+                            color: root.summary.balance-tone == "neg"
+                                ? #C62828
+                                : (root.summary.balance-tone == "pos" ? #2E7D32 : Theme.text-primary);
+                        }
+                        Text {
+                            text: root.summary.available-display;
+                            font-size: 11px;
+                            color: Theme.text-secondary;
+                        }
+                    }
+                    VerticalLayout {
+                        alignment: center;
+                        spacing: 4px;
+                        Text {
+                            text: "LIMITE DE FIADO";
+                            font-size: 9px; font-weight: 800;
+                            color: Theme.text-secondary;
+                            letter-spacing: 1px;
+                            horizontal-alignment: right;
+                        }
+                        Text {
+                            text: root.summary.credit-limit-display;
+                            font-size: 14px; font-weight: 700;
+                            color: Theme.text-primary;
+                            horizontal-alignment: right;
+                        }
+                    }
+                }
+            }
+
+            // Botões de ação
+            HorizontalLayout {
+                spacing: 8px;
+                WalletActionBtn {
+                    label: "+ Depositar";
+                    primary: true;
+                    horizontal-stretch: 1;
+                    clicked => { root.open-deposit(); }
+                }
+                WalletActionBtn {
+                    label: "− Sacar";
+                    primary: false;
+                    horizontal-stretch: 1;
+                    clicked => { root.open-withdraw(); }
+                }
+                WalletActionBtn {
+                    label: "Ajuste Manual";
+                    primary: false;
+                    horizontal-stretch: 1;
+                    clicked => { root.open-adjust(); }
+                }
+            }
+
+            // Timeline
+            VerticalLayout {
+                spacing: 6px;
+                HorizontalLayout {
+                    Text {
+                        text: "HISTÓRICO";
+                        font-size: 10px; font-weight: 800;
+                        color: Theme.text-secondary;
+                        letter-spacing: 1px;
+                        horizontal-stretch: 1;
+                        vertical-alignment: center;
+                    }
+                    Text {
+                        text: root.summary.movements-count + " movimentos";
+                        font-size: 11px;
+                        color: Theme.text-secondary;
+                    }
+                }
+                Rectangle {
+                    border-radius: 8px;
+                    border-width: 1px;
+                    border-color: Theme.card-border;
+                    background: Theme.bg;
+                    VerticalLayout {
+                        spacing: 0px;
+                        for m in root.movements: MovementRow { data: m; }
+                        if root.movements.length == 0: Rectangle {
+                            height: 128px;
+                            EmptyState {
+                                source: @image-url("../assets/empty/empty-movements.svg");
+                                title: "Sem movimentações";
+                                art-size: 106px;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

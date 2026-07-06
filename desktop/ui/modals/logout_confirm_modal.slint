@@ -1,0 +1,61 @@
+import { Theme } from "../theme.slint";
+import { Card } from "../components/cards.slint";
+import { ActionBtn, OutlineBtn } from "../components/buttons.slint";
+
+// ── Modal: confirmação de logout ──────────────────────────────────────────────
+
+export component LogoutConfirmModal inherits Rectangle {
+    callback close();
+    callback do-logout();
+
+    background: #00000060;
+
+    TouchArea { clicked => { root.close(); } }
+
+    VerticalLayout {
+        alignment: center;
+        HorizontalLayout {
+            alignment: center;
+            Card {
+                width: 340px;
+                TouchArea { }
+
+                VerticalLayout {
+                    padding: 24px;
+                    spacing: 16px;
+
+                    Text {
+                        text: "Sair da conta?";
+                        font-size: 18px; font-weight: 700;
+                        color: Theme.text-primary;
+                        horizontal-alignment: center;
+                    }
+
+                    Rectangle { height: 1px; background: Theme.border; }
+
+                    Text {
+                        text: "Você será desconectado e precisará\nfazer login novamente.";
+                        font-size: 14px;
+                        color: Theme.text-secondary;
+                        wrap: word-wrap;
+                        horizontal-alignment: center;
+                    }
+
+                    Rectangle { height: 4px; }
+
+                    HorizontalLayout {
+                        alignment: center;
+                        spacing: 10px;
+                        OutlineBtn { label: "Cancelar"; width: 110px; clicked => { root.close(); } }
+                        ActionBtn {
+                            label: "Sair";
+                            bg-color: Theme.sidebar-sel-bg;
+                            width: 110px;
+                            clicked => { root.close(); root.do-logout(); }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

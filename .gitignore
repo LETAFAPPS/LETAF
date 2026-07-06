@@ -1,0 +1,40 @@
+# Rust
+/target/
+**/*.rs.bk
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# SQLite databases (inclui backups: letaf.db.bak.*, *.db.bak-resync)
+*.db
+*.db-shm
+*.db-wal
+*.db.bak*
+*.bak
+*.bak-*
+
+# Backups / arquivos compactados do projeto
+*.tar.gz
+*.zip
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Certificados de gateways de pagamento (Efi, etc.) — segredos.
+*.p12
+*.pem
+*.key
+CHAVES*.txt
+CHAVES*.md
+
+# Binários de atualização do desktop (servidos por /app/download)
+/updates/

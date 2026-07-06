@@ -1,0 +1,125 @@
+import { Theme } from "../theme.slint";
+import { Card } from "../components/cards.slint";
+import { ActionBtn, OutlineBtn } from "../components/buttons.slint";
+
+// ── Modal: alarme de novos pedidos ────────────────────────────────────────────
+//
+// Aberto SOBRE qualquer aba ou outro modal (z-order natural — é o
+// último filho do MainWindow). O som contínuo é tocado pelo
+// `AlarmPlayer` em thread Rust dedicada; este componente é só a
+// camada visual.
+//
+// Regras de UX implementadas pelo MainWindow:
+// - Modal abre sozinho quando chega pedido novo (SyncWorker
+//   sinaliza `alarm-signal`).
+// - "Ver pedidos" → para o som E navega para a aba Pedidos.
+// - "Fechar" / clique fora → só esconde; Timer 5 s no MainWindow
+//   reabre automaticamente enquanto `alarm-active == true`.
+// - Operador NÃO consegue silenciar o alarme sem ir para Pedidos
+//   (requisito do projeto).
+
+export component NewOrderAlarmModal inherits Rectangle {
+    /// Quantidade de pedidos com status Pending no banco neste
+    /// instante. Mostrada no corpo do modal — ajuda o operador a
+    /// entender o tamanho da fila.
+    in property <int> pending-count: 1;
+
+    callback acknowledge();
+    callback dismiss();
+
+    // Background mais escuro que outros modais para reforçar a
+    // urgência — convencional em alarmes de POS.
+    background: #000000A0;
+
+    // Clique fora apenas DISMISSA (regra do projeto: ele volta em 5s).
+    TouchArea { clicked => { root.dismiss(); } }
+
+    VerticalLayout {
+        alignment: center;
+        HorizontalLayout {
+            alignment: center;
+            Card {
+                width: 380px;
+                // Absorve cliques internos para o overlay não fechar.
+                TouchArea { }
+
+                VerticalLayout {
+                    padding: 0px;
+                    spacing: 0px;
+
+                    // ── Header laranja (Theme.primary) ──
+                    Rectangle {
+                        background: Theme.primary;
+                        height: 60px;
+                        HorizontalLayout {
+                            alignment: center;
+                            VerticalLayout {
+                                alignment: center;
+                                Text {
+                                    text: "🔔  NOVO PEDIDO";
+                                    font-size: 18px; font-weight: 800;
+                                    color: Theme.on-primary;
+                                    letter-spacing: 1px;
+                                    horizontal-alignment: center;
+                                }
+                            }
+                        }
+                    }
+
+                    // ── Corpo ──
+                    Rectangle {
+                        background: Theme.surface;
+                        VerticalLayout {
+                            padding-left: 24px; padding-right: 24px;
+                            padding-top: 22px; padding-bottom: 18px;
+                            spacing: 12px;
+
+                            Text {
+                                text: root.pending-count > 1
+                                    ? "Você tem " + root.pending-count + " pedidos pendentes"
+                                    : "Você tem 1 pedido pendente";
+                                font-size: 15px; font-weight: 700;
+                                color: Theme.text-primary;
+                                horizontal-alignment: center;
+                                wrap: word-wrap;
+                            }
+                            Text {
+                                text: "Toque em \"Ver Pedidos\" para abrir a lista e silenciar o alarme.";
+                                font-size: 12px;
+                                color: Theme.text-secondary;
+                                horizontal-alignment: center;
+                                wrap: word-wrap;
+                            }
+                        }
+                    }
+
+                    // ── Footer com botão principal full-width ──
+                    Rectangle {
+                        background: Theme.surface;
+                        VerticalLayout {
+                            padding-left: 18px; padding-right: 18px;
+                            padding-top: 4px; padding-bottom: 18px;
+                            spacing: 8px;
+                            ActionBtn {
+                                label: "Ver Pedidos";
+                                bg-color: Theme.sidebar-sel-bg;
+                                horizontal-stretch: 1;
+                                height: 44px;
+                                clicked => { root.acknowledge(); }
+                            }
+                            // Texto pequeno reforça que fechar não silencia
+                            // — evita expectativa frustrada.
+                            Text {
+                                text: "Fechar não silencia o alarme — ele voltará em 5 segundos.";
+                                font-size: 10px;
+                                color: Theme.text-secondary;
+                                horizontal-alignment: center;
+                                wrap: word-wrap;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

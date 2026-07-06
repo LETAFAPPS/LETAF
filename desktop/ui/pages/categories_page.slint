@@ -1,0 +1,455 @@
+import { ScrollView } from "std-widgets.slint";
+import { Theme } from "../theme.slint";
+import { CategoryData, SubcategoryData, CatTreeRow, CatProduct, CatSub } from "../types.slint";
+import { AssetIcon } from "../components/icons.slint";
+import { PaginationBar } from "../components/pagination.slint";
+import { EmptyState } from "../components/empty_state.slint";
+
+// ── Tela de Categorias ────────────────────────────────────────────────────
+// Layout em abas horizontais (chips) no topo — sem sidebar — seguindo o
+// mockup: cabeçalho (título + Editar/Excluir/Nova Categoria), linha de
+// chips de categoria, 4 métricas e os painéis Produtos + Subcategorias.
+// UI sem lógica (§1/§3): métricas/listas vêm prontas do Rust.
+
+// ── Botão com ícone + rótulo (contorno ou sólido marrom) ──────────────
+component IconBtn inherits TouchArea {
+    in property <string> label;
+    in property <image> icon;
+    in property <bool> filled: false;
+    in property <color> accent: Theme.text-primary;
+    height: 32px;
+    // Abraça o conteúdo (não estica): largura = rótulo + ícone.
+    width: inner.preferred-width;
+    // `filled` = botão de destaque no estilo dos Relatórios: contorno
+    // 1.5px na cor de destaque, fundo transparente, ícone/texto de destaque.
+    property <color> hl: Theme.sidebar-sel-bg;
+    Rectangle {
+        border-radius: 8px;
+        border-width: root.filled ? 1.5px : 1px;
+        border-color: root.filled
+            ? root.hl
+            : (root.has-hover ? root.accent : Theme.border);
+        background: root.filled
+            ? (root.has-hover ? Theme.row-hover : transparent)
+            : (root.has-hover ? #00000008 : Theme.surface);
+        inner := HorizontalLayout {
+            padding-left: 16px; padding-right: 16px; spacing: 8px;
+            alignment: center;
+            VerticalLayout {
+                alignment: center;
+                AssetIcon {
+                    width: 16px; height: 16px; icon-size: 16px;
+                    icon-color: root.filled ? root.hl : root.accent;
+                    source: root.icon;
+                }
+            }
+            Text {
+                text: root.label;
+                font-size: 13px; font-weight: root.filled ? 700 : 600;
+                color: root.filled ? root.hl : root.accent;
+                vertical-alignment: center;
+            }
+        }
+    }
+}
+
+// ── Chip de categoria (apenas o nome, sem ícone) ──────────────────────
+component CategoryChip inherits TouchArea {
+    in property <string> label;
+    in property <bool> active: false;
+    height: 32px;
+    width: chip-row.preferred-width;
+    Rectangle {
+        border-radius: 8px;
+        // Selecionado = só CONTORNO na cor de destaque (estilo Relatórios).
+        border-width: root.active ? 1.5px : 1px;
+        border-color: root.active ? Theme.sidebar-sel-bg : Theme.border;
+        background: root.active ? transparent
+            : (root.has-hover ? Theme.row-hover : Theme.surface);
+        chip-row := HorizontalLayout {
+            padding-left: 16px; padding-right: 16px;
+            alignment: center;
+            Text {
+                text: root.label;
+                font-size: 14px; font-weight: root.active ? 700 : 600;
+                color: root.active ? Theme.sidebar-sel-bg : Theme.text-secondary;
+                vertical-alignment: center;
+            }
+        }
+    }
+}
+
+// Cartão de métrica.
+component StatCard inherits Rectangle {
+    in property <string> label;
+    in property <string> value;
+    in property <string> hint;
+    horizontal-stretch: 1;
+    border-radius: 12px;
+    border-width: 1px;
+    border-color: Theme.card-border;
+    drop-shadow-blur: 12px;
+    drop-shadow-offset-y: 0px;
+    drop-shadow-color: Theme.card-shadow;
+    background: Theme.surface;
+    VerticalLayout {
+        padding: 16px;
+        spacing: 6px;
+        Text { text: root.label; font-size: Theme.fs-eyebrow; font-weight: Theme.fw-strong; letter-spacing: 1px; color: Theme.text-secondary; overflow: elide; }
+        Text { text: root.value; font-size: 24px; font-weight: 800; color: Theme.text-primary; overflow: elide; }
+        Text { text: root.hint; font-size: Theme.fs-meta; color: Theme.text-secondary; overflow: elide; }
+    }
+}
+
+// ── Painel Produtos (paginação interna 8/página) ──────────────────────
+component ProductsCard inherits Rectangle {
+    in property <[CatProduct]> products;
+    in property <string> reset-key;
+    in property <string> scope-name;
+    callback add-product();
+
+    property <int> page: 1;
+    property <int> total-pages:
+        root.products.length == 0 ? 0 : (root.products.length + 7) / 8;
+    property <int> eff-page:
+        root.total-pages == 0 ? 1
+        : (root.page > root.total-pages ? root.total-pages
+            : (root.page < 1 ? 1 : root.page));
+    property <int> win-start: (root.eff-page - 1) * 8;
+    property <string> rk: root.reset-key;
+    changed rk => { root.page = 1; }
+
+    border-radius: 12px; border-width: 1px; border-color: Theme.card-border;
+    drop-shadow-blur: 12px;
+    drop-shadow-offset-y: 0px;
+    drop-shadow-color: Theme.card-shadow;
+    background: Theme.surface;
+    VerticalLayout {
+        padding: 18px;
+        spacing: 8px;
+        alignment: start;
+        HorizontalLayout {
+            spacing: 8px;
+            VerticalLayout {
+                horizontal-stretch: 1;
+                spacing: 2px;
+                Text { text: "Produtos"; font-size: Theme.fs-section; font-weight: Theme.fw-strong; color: Theme.text-primary; }
+                Text { text: "Filtrados por " + root.scope-name; font-size: Theme.fs-meta; color: Theme.text-secondary; overflow: elide; }
+            }
+            VerticalLayout {
+                alignment: center;
+                IconBtn {
+                    label: "Produto"; filled: true; height: 32px;
+                    icon: @image-url("../assets/icons/1.2/adicionar.svg");
+                    clicked => { root.add-product(); }
+                }
+            }
+        }
+        // Estado vazio: ilustração + dica de ação.
+        if root.products.length == 0: VerticalLayout {
+            alignment: center;
+            spacing: 6px;
+            padding-top: 24px;
+            EmptyState {
+                source: @image-url("../assets/empty/empty-products.svg");
+                title: "Nenhuma categoria";
+                subtitle: "Crie categorias para o cardápio";
+            }
+            Text {
+                text: "Adicione produtos usando o botão acima.";
+                font-size: 12px; color: Theme.text-secondary;
+                horizontal-alignment: center;
+            }
+        }
+        for p[i] in root.products: Rectangle {
+            height: (i >= root.win-start && i < root.win-start + 8) ? 50px : 0px;
+            visible: i >= root.win-start && i < root.win-start + 8;
+            Rectangle { x: 0; y: parent.height - 1px; width: parent.width; height: 1px; background: Theme.border; }
+            HorizontalLayout {
+                spacing: 12px;
+                VerticalLayout {
+                    alignment: center;
+                    Rectangle {
+                        width: 36px; height: 36px; border-radius: 8px;
+                        background: p.has-color ? p.color : Theme.row-alt;
+                        clip: true;
+                        if p.has-image: Image {
+                            source: p.product-image; image-fit: cover;
+                            width: parent.width; height: parent.height;
+                        }
+                    }
+                }
+                VerticalLayout {
+                    horizontal-stretch: 1;
+                    alignment: center;
+                    Text { text: p.name; font-size: 13px; font-weight: 600; color: Theme.text-primary; overflow: elide; }
+                }
+                Text { text: p.sub-name; font-size: 12px; color: Theme.text-secondary; vertical-alignment: center; width: 110px; overflow: elide; }
+                Text { text: p.qty; font-size: 12px; color: Theme.text-secondary; vertical-alignment: center; width: 78px; horizontal-alignment: right; }
+                Text { text: p.price; font-size: 13px; font-weight: 700; color: Theme.primary; vertical-alignment: center; width: 80px; horizontal-alignment: right; }
+            }
+        }
+        if root.total-pages > 1: PaginationBar {
+            total-pages: root.total-pages;
+            effective-page: root.eff-page;
+            change-page(pg) => { root.page = pg; }
+        }
+    }
+}
+
+// ── Painel Subcategorias ──────────────────────────────────────────────
+component SubsPanel inherits Rectangle {
+    in property <[CatSub]> subs;
+    in property <string> scope-name;
+    callback edit-sub(CatSub);
+    callback add-sub();
+
+    border-radius: 12px; border-width: 1px; border-color: Theme.card-border;
+    drop-shadow-blur: 12px;
+    drop-shadow-offset-y: 0px;
+    drop-shadow-color: Theme.card-shadow;
+    background: Theme.surface;
+    VerticalLayout {
+        padding: 18px;
+        spacing: 10px;
+        alignment: start;
+        HorizontalLayout {
+            spacing: 8px;
+            VerticalLayout {
+                horizontal-stretch: 1;
+                spacing: 2px;
+                Text { text: "Subcategorias"; font-size: Theme.fs-section; font-weight: Theme.fw-strong; color: Theme.text-primary; }
+                Text { text: root.scope-name + " · " + root.subs.length + " grupos"; font-size: Theme.fs-meta; color: Theme.text-secondary; overflow: elide; }
+            }
+            VerticalLayout {
+                alignment: center;
+                IconBtn {
+                    label: "Adicionar"; filled: true; height: 32px;
+                    icon: @image-url("../assets/icons/1.2/adicionar.svg");
+                    clicked => { root.add-sub(); }
+                }
+            }
+        }
+        if root.subs.length == 0: EmptyState {
+            source: @image-url("../assets/empty/empty-subcategories.svg");
+            title: "Nenhuma subcategoria";
+            art-size: 120px;
+        }
+        for s in root.subs: Rectangle {
+            height: 60px;
+            border-radius: 10px;
+            border-width: 1px;
+            border-color: Theme.card-border;
+            background: Theme.surface;
+            HorizontalLayout {
+                padding-left: 12px; padding-right: 12px;
+                spacing: 12px;
+                VerticalLayout {
+                    alignment: center;
+                    Rectangle {
+                        width: 38px; height: 38px; border-radius: 10px;
+                        background: Theme.row-alt;
+                        AssetIcon {
+                            width: 100%; height: 100%; icon-size: 18px;
+                            icon-color: Theme.text-secondary;
+                            source: @image-url("../assets/icons/1.2/categories.svg");
+                        }
+                    }
+                }
+                VerticalLayout {
+                    horizontal-stretch: 1;
+                    alignment: center;
+                    spacing: 2px;
+                    Text { text: s.name; font-size: 13px; font-weight: 700; color: Theme.text-primary; overflow: elide; }
+                    Text { text: s.count-label; font-size: 11px; color: Theme.text-secondary; }
+                }
+                VerticalLayout {
+                    alignment: center;
+                    IconBtn {
+                        label: "Editar"; height: 30px;
+                        icon: @image-url("../assets/icons/1.2/editar.svg");
+                        clicked => { root.edit-sub(s); }
+                    }
+                }
+            }
+        }
+    }
+}
+
+export component CategoriesPage inherits Rectangle {
+    in property <[CatTreeRow]> category-tree;
+    in property <int> category-count;
+    in property <string> selected-category-id;
+    in property <CategoryData> detail-category;
+    in property <color> detail-color;
+    in property <int> detail-prod-count;
+    in property <int> detail-sub-count;
+    in property <string> detail-stock-value;
+    in property <string> detail-catalog-pct;
+    in property <string> detail-catalog-hint;
+    in property <[CatProduct]> detail-cat-products;
+    in property <[CatSub]> detail-cat-subs;
+
+    callback request-new-category();
+    callback request-edit-category(CategoryData);
+    callback request-delete(string, string, string);
+    callback request-new-sub-in(string, string);
+    callback request-edit-subcategory(SubcategoryData);
+    callback request-new-product-in(string, string);
+    callback select-category(string);
+    callback toggle-category(string);
+
+    background: Theme.bg;
+    property <bool> narrow: self.width < 1000px;
+
+    VerticalLayout {
+        padding: 24px;
+        spacing: 18px;
+        // Sem `alignment: start`: senão o `vertical-stretch` do bloco de
+        // detalhe é ignorado e, no modo estreito (Flickable, altura
+        // preferida ~0), o Rectangle colapsa e o conteúdo some. Header e
+        // chips ficam no topo pelo próprio tamanho; o detalhe estica.
+
+        // ── Cabeçalho ──
+        HorizontalLayout {
+            spacing: 12px;
+            VerticalLayout {
+                horizontal-stretch: 1;
+                alignment: center;
+                spacing: 2px;
+                Text { text: "Categorias"; font-size: 24px; font-weight: 800; color: Theme.text-primary; }
+                Text { text: root.category-count + " categorias cadastradas"; font-size: 12px; color: Theme.text-secondary; }
+            }
+            if root.selected-category-id != "": VerticalLayout {
+                alignment: center;
+                IconBtn {
+                    label: "Editar";
+                    icon: @image-url("../assets/icons/1.2/editar.svg");
+                    clicked => { root.request-edit-category(root.detail-category); }
+                }
+            }
+            if root.selected-category-id != "": VerticalLayout {
+                alignment: center;
+                IconBtn {
+                    label: "Excluir"; accent: #C62828;
+                    icon: @image-url("../assets/icons/1.2/lixeira.svg");
+                    clicked => { root.request-delete(root.detail-category.id, root.detail-category.name, "category"); }
+                }
+            }
+            VerticalLayout {
+                alignment: center;
+                IconBtn {
+                    label: "Nova Categoria"; filled: true;
+                    icon: @image-url("../assets/icons/1.2/adicionar.svg");
+                    clicked => { root.request-new-category(); }
+                }
+            }
+        }
+
+        // ── Chips de categoria ──
+        HorizontalLayout {
+            spacing: 10px;
+            alignment: start;
+            for n in root.category-tree: CategoryChip {
+                label: n.name;
+                active: n.id == root.selected-category-id;
+                clicked => { root.select-category(n.id); }
+            }
+        }
+
+        // ── Vazio: nenhuma categoria selecionada ──
+        if root.selected-category-id == "": Rectangle {
+            vertical-stretch: 1;
+            Text {
+                text: "Selecione uma categoria acima para ver os detalhes.";
+                font-size: 14px; color: Theme.text-secondary;
+                horizontal-alignment: center; vertical-alignment: center;
+                width: parent.width; height: parent.height;
+            }
+        }
+
+        // ── Conteúdo (categoria selecionada) ──
+        if root.selected-category-id != "": Rectangle {
+            vertical-stretch: 1;
+            // LARGO: KPIs em linha + Produtos/Subcategorias lado a lado.
+            if !root.narrow: VerticalLayout {
+                spacing: 18px;
+                HorizontalLayout {
+                    spacing: 14px;
+                    StatCard { label: "PRODUTOS"; value: "\{root.detail-prod-count}"; hint: "Ativos"; }
+                    StatCard { label: "SUBCATEGORIAS"; value: "\{root.detail-sub-count}"; hint: "Agrupamentos"; }
+                    StatCard { label: "VALOR ESTOQUE"; value: root.detail-stock-value; hint: "Preço × Qtd"; }
+                    StatCard { label: "% CATÁLOGO"; value: root.detail-catalog-pct; hint: root.detail-catalog-hint; }
+                }
+                // Produtos e Subcategorias INDEPENDENTES na altura: cada
+                // card é envolto num VBox alinhado ao topo, então cresce
+                // conforme o próprio conteúdo (não acompanha o vizinho).
+                HorizontalLayout {
+                    spacing: 14px;
+                    vertical-stretch: 1;
+                    VerticalLayout {
+                        horizontal-stretch: 2;
+                        alignment: start;
+                        ProductsCard {
+                            products: root.detail-cat-products;
+                            reset-key: root.selected-category-id;
+                            scope-name: root.detail-category.name;
+                            add-product() => { root.request-new-product-in(root.detail-category.id, root.detail-category.name); }
+                        }
+                    }
+                    VerticalLayout {
+                        horizontal-stretch: 1;
+                        alignment: start;
+                        SubsPanel {
+                            subs: root.detail-cat-subs;
+                            scope-name: root.detail-category.name;
+                            edit-sub(s) => { root.request-edit-subcategory({ id: s.id, name: s.name, category-id: s.category-id, category-name: s.category-name, sort-order: 0 }); }
+                            add-sub() => { root.request-new-sub-in(root.detail-category.id, root.detail-category.name); }
+                        }
+                    }
+                }
+            }
+            // ESTREITO: tudo empilhado e rolável.
+            // Flickable NÃO é layout: como filho direto de um Rectangle ele
+            // não estica sozinho — precisa de largura/altura explícitas,
+            // senão fica 0×0 e o conteúdo some.
+            if root.narrow: Flickable {
+                width: parent.width;
+                height: parent.height;
+                viewport-width: self.width;
+                viewport-height: stack.preferred-height;
+                stack := VerticalLayout {
+                    width: parent.width;
+                    spacing: 14px;
+                    alignment: start;
+                    // Folga p/ o Flickable não recortar a sombra dos cards
+                    // (topo, base e laterais) e mantê-los alinhados.
+                    padding-left: 12px; padding-right: 12px;
+                    padding-top: 12px; padding-bottom: 12px;
+                    HorizontalLayout {
+                        spacing: 14px;
+                        StatCard { label: "PRODUTOS"; value: "\{root.detail-prod-count}"; hint: "Ativos"; }
+                        StatCard { label: "SUBCATEGORIAS"; value: "\{root.detail-sub-count}"; hint: "Agrupamentos"; }
+                    }
+                    HorizontalLayout {
+                        spacing: 14px;
+                        StatCard { label: "VALOR ESTOQUE"; value: root.detail-stock-value; hint: "Preço × Qtd"; }
+                        StatCard { label: "% CATÁLOGO"; value: root.detail-catalog-pct; hint: root.detail-catalog-hint; }
+                    }
+                    ProductsCard {
+                        products: root.detail-cat-products;
+                        reset-key: root.selected-category-id;
+                        scope-name: root.detail-category.name;
+                        add-product() => { root.request-new-product-in(root.detail-category.id, root.detail-category.name); }
+                    }
+                    SubsPanel {
+                        subs: root.detail-cat-subs;
+                        scope-name: root.detail-category.name;
+                        edit-sub(s) => { root.request-edit-subcategory({ id: s.id, name: s.name, category-id: s.category-id, category-name: s.category-name, sort-order: 0 }); }
+                        add-sub() => { root.request-new-sub-in(root.detail-category.id, root.detail-category.name); }
+                    }
+                }
+            }
+        }
+    }
+}

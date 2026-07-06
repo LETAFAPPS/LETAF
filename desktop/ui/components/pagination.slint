@@ -1,0 +1,61 @@
+// ── PaginationBar reutilizável ───────────────────────────────────────────
+//
+// Regras aplicadas (AI_RULES.md §3, §8):
+// - Componente isolado, sem lógica de negócio.
+// - Reutilizado em ProductsPage e OrdersPage (mesma estrutura de grade
+//   paginada). `effective-page` é o número da página atual já clampado
+//   pelo chamador — esta barra só decide o que pintar.
+// - `change-page(int)` é o único callback; o caller atualiza `current-page`
+//   no estado dele (Slint não dá pra mutar uma in-out property externa
+//   diretamente de dentro de um componente).
+
+import { Theme } from "../theme.slint";
+import { PageBtn } from "buttons.slint";
+
+export component PaginationBar inherits HorizontalLayout {
+    in property <int> total-pages;
+    in property <int> effective-page;
+    callback change-page(int);
+
+    alignment: end;
+    spacing: 4px;
+    height: 32px;
+
+    // Janela compacta: mostra só 2 botões de página por vez (a atual
+    // e a próxima quando há próxima; ou a anterior + atual quando
+    // está no final). Setas ‹/› para navegar. Cabe em telas pequenas
+    // sem cortar mesmo com muitas páginas.
+    property <int> page-a:
+        root.total-pages <= 1 ? 1
+        : (root.effective-page >= root.total-pages ? root.effective-page - 1 : root.effective-page);
+    property <int> page-b:
+        root.total-pages <= 1 ? 0
+        : (root.effective-page >= root.total-pages ? root.effective-page : root.effective-page + 1);
+
+    PageBtn {
+        label: "‹";
+        enabled-look: root.effective-page > 1;
+        clicked => {
+            if root.effective-page > 1 { root.change-page(root.effective-page - 1); }
+        }
+    }
+    if root.page-a >= 1 && root.page-a <= root.total-pages: PageBtn {
+        label: root.page-a;
+        active: root.effective-page == root.page-a;
+        clicked => { root.change-page(root.page-a); }
+    }
+    if root.page-b >= 1 && root.page-b <= root.total-pages: PageBtn {
+        label: root.page-b;
+        active: root.effective-page == root.page-b;
+        clicked => { root.change-page(root.page-b); }
+    }
+    PageBtn {
+        label: "›";
+        enabled-look: root.effective-page < root.total-pages;
+        clicked => {
+            if root.effective-page < root.total-pages {
+                root.change-page(root.effective-page + 1);
+            }
+        }
+    }
+}

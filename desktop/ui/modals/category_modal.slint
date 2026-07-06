@@ -1,0 +1,285 @@
+import { ScrollView } from "std-widgets.slint";
+import { AssetIcon } from "../components/icons.slint";
+import { Theme } from "../theme.slint";
+import { CategoryData, CategoryIconOption } from "../types.slint";
+import { Card } from "../components/cards.slint";
+import { FormField } from "../components/form_fields.slint";
+import { ActionBtn, OutlineBtn } from "../components/buttons.slint";
+import { IconGlyph } from "../icon_glyph.slint";
+
+// ── Modal: formulário de categoria ───────────────────────────────────────────
+
+export component CategoryModal inherits Rectangle {
+    in-out property <string> editing-id;
+    in-out property <string> category-name;
+    in-out property <string> category-description;
+    in-out property <string> category-error-name;
+    in-out property <string> category-icon-name;
+    in property <[CategoryIconOption]> icon-options;
+
+    callback close();
+    callback add-category();
+    callback update-category();
+
+    background: #00000060;
+
+    TouchArea { clicked => { root.close(); } }
+
+    VerticalLayout {
+        alignment: center;
+        HorizontalLayout {
+            alignment: center;
+            Card {
+                width: 480px;
+                TouchArea { }
+
+                VerticalLayout {
+                    padding: 24px;
+                    spacing: 12px;
+
+                    HorizontalLayout {
+                        Text {
+                            text: root.editing-id != "" ? "Editar Categoria" : "Nova Categoria";
+                            font-size: 18px; font-weight: 700;
+                            color: Theme.text-primary;
+                            horizontal-stretch: 1; vertical-alignment: center;
+                        }
+                        TouchArea {
+                            width: 28px; height: 28px;
+                            clicked => { root.close(); }
+                            property <bool> hov: self.has-hover;
+                            Rectangle {
+                                border-radius: 6px;
+                                background: parent.hov ? #f0f0f0 : transparent;
+                                AssetIcon { width: 16px; height: 16px; icon-size: 16px; icon-color: Theme.text-secondary; source: @image-url("../assets/icons/1.2/fechar.svg"); }
+                            }
+                        }
+                    }
+
+                    Rectangle { height: 1px; background: Theme.border; }
+
+                    VerticalLayout {
+                        FormField { label: "Nome"; value <=> root.category-name; placeholder: "Nome da categoria"; }
+                        if root.category-error-name != "": Text { text: root.category-error-name; font-size: 11px; color: Theme.danger; }
+                    }
+                    FormField { label: "Descrição"; value <=> root.category-description; placeholder: "Descrição (opcional)"; }
+
+                    // ── Picker de ícone ──
+                    // Grade clicável: cada slug vira um quadrado com o
+                    // glifo + rótulo. Selecionado fica destacado em
+                    // laranja. Botão "Sem ícone" zera a seleção.
+                    VerticalLayout {
+                        spacing: 6px;
+                        HorizontalLayout {
+                            Text { text: "Ícone"; font-size: 12px; font-weight: 500; color: Theme.text-secondary; horizontal-stretch: 1; vertical-alignment: center; }
+                            TouchArea {
+                                width: 90px; height: 24px;
+                                clicked => { root.category-icon-name = ""; }
+                                property <bool> hov: self.has-hover;
+                                Rectangle {
+                                    border-radius: 6px;
+                                    border-width: 1px;
+                                    border-color: parent.hov ? Theme.primary : Theme.border;
+                                    background: parent.hov ? Theme.row-hover : transparent;
+                                    Text { text: "Sem ícone"; font-size: 11px; color: Theme.text-secondary; horizontal-alignment: center; vertical-alignment: center; }
+                                }
+                            }
+                        }
+                        // Grade 4×N — usamos `Rectangle` como contêiner
+                        // (que aceita posicionamento absoluto via x/y),
+                        // ao contrário de `VerticalLayout`/`HorizontalLayout`
+                        // que controlam as posições dos filhos.
+                        Rectangle {
+                            // Altura comporta 4 linhas de cells de 86px + folga
+                            // (12 ícones / 4 colunas = 3 linhas; deixa 1 a mais
+                            // de margem caso a allowlist cresça).
+                            height: 260px;
+                            for opt[i] in root.icon-options: ta := TouchArea {
+                                x: mod(i, 4) * 105px;
+                                y: floor(i / 4) * 86px;
+                                width: 100px; height: 80px;
+                                property <bool> selected: root.category-icon-name == opt.slug;
+                                property <bool> hov: self.has-hover;
+                                clicked => { root.category-icon-name = opt.slug; }
+                                Rectangle {
+                                    border-radius: 8px;
+                                    border-width: ta.selected ? 2px : 1px;
+                                    border-color: ta.selected ? Theme.primary : (ta.hov ? Theme.primary : Theme.border);
+                                    background: ta.selected ? #FFF7ED : (ta.hov ? Theme.row-hover : Theme.surface);
+                                    VerticalLayout {
+                                        padding: 6px;
+                                        spacing: 4px;
+                                        // Ícones monocromáticos (alpha): `colorize`
+                                        // substitui pelos pixels pretos da fonte
+                                        // pela cor do tema, preservando o alpha.
+                                        // Selecionado = laranja primário.
+                                        Image {
+                                            source: IconGlyph.image-for(opt.slug);
+                                            width: 44px; height: 44px;
+                                            horizontal-alignment: center;
+                                            colorize: ta.selected ? Theme.primary : Theme.text-primary;
+                                        }
+                                        Text { text: opt.label; font-size: 10px; color: Theme.text-secondary; horizontal-alignment: center; }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    Rectangle { height: 4px; }
+
+                    HorizontalLayout {
+                        alignment: end;
+                        spacing: 10px;
+                        OutlineBtn { label: "Cancelar"; width: 110px; clicked => { root.close(); } }
+                        ActionBtn {
+                            label: "Salvar"; bg-color: Theme.sidebar-sel-bg; width: 130px;
+                            clicked => { if root.editing-id != "" { root.update-category(); } else { root.add-category(); } }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ── Modal: formulário de subcategoria ────────────────────────────────────────
+
+export component SubcategoryModal inherits Rectangle {
+    in-out property <string> editing-id;
+    in-out property <string> subcategory-name;
+    in-out property <string> subcategory-category-id;
+    in-out property <string> subcategory-category-name;
+    in-out property <bool>   subcategory-category-open;
+    in-out property <string> subcategory-error-name;
+    in-out property <string> subcategory-error-category;
+    in property <[CategoryData]> categories;
+
+    callback close();
+    callback add-subcategory();
+    callback update-subcategory();
+
+    background: #00000060;
+
+    TouchArea {
+        clicked => {
+            root.subcategory-category-open = false;
+            root.close();
+        }
+    }
+
+    VerticalLayout {
+        alignment: center;
+        HorizontalLayout {
+            alignment: center;
+            Card {
+                width: 460px;
+                TouchArea { }
+
+                VerticalLayout {
+                    padding: 24px;
+                    spacing: 12px;
+
+                    HorizontalLayout {
+                        Text {
+                            text: root.editing-id != "" ? "Editar Subcategoria" : "Nova Subcategoria";
+                            font-size: 18px; font-weight: 700;
+                            color: Theme.text-primary;
+                            horizontal-stretch: 1; vertical-alignment: center;
+                        }
+                        TouchArea {
+                            width: 28px; height: 28px;
+                            clicked => { root.subcategory-category-open = false; root.close(); }
+                            property <bool> hov: self.has-hover;
+                            Rectangle {
+                                border-radius: 6px;
+                                background: parent.hov ? #f0f0f0 : transparent;
+                                AssetIcon { width: 16px; height: 16px; icon-size: 16px; icon-color: Theme.text-secondary; source: @image-url("../assets/icons/1.2/fechar.svg"); }
+                            }
+                        }
+                    }
+
+                    Rectangle { height: 1px; background: Theme.border; }
+
+                    VerticalLayout {
+                        spacing: 4px;
+                        Text { text: "Categoria"; font-size: 12px; font-weight: 500; color: Theme.text-secondary; }
+                        cat-ta := TouchArea {
+                            height: 32px;
+                            property <bool> hov: self.has-hover;
+                            clicked => { root.subcategory-category-open = !root.subcategory-category-open; }
+                            Rectangle {
+                                border-radius: 6px; border-width: 1px;
+                                border-color: parent.hov || root.subcategory-category-open ? Theme.primary : Theme.border;
+                                background: Theme.surface;
+                                HorizontalLayout {
+                                    padding-left: 10px; padding-right: 10px;
+                                    Text {
+                                        text: root.subcategory-category-id != "" ? root.subcategory-category-name : "Selecione uma categoria";
+                                        font-size: 13px;
+                                        color: root.subcategory-category-id != "" ? Theme.text-primary : #BDBDBD;
+                                        vertical-alignment: center; horizontal-stretch: 1;
+                                    }
+                                    Text { text: root.subcategory-category-open ? "▴" : "▾"; font-size: 13px; color: Theme.text-secondary; vertical-alignment: center; }
+                                }
+                            }
+                        }
+                        if root.subcategory-category-open: Rectangle {
+                            height: min(180px, root.categories.length * 32px + 4px);
+                            border-radius: 6px; border-width: 1px;
+                            border-color: Theme.card-border; background: Theme.surface;
+                            drop-shadow-blur: 12px;
+                            drop-shadow-offset-y: 0px;
+                            drop-shadow-color: Theme.card-shadow;
+                            ScrollView { vertical-scrollbar-policy: ScrollBarPolicy.always-off; horizontal-scrollbar-policy: ScrollBarPolicy.always-off;
+                                VerticalLayout {
+                                    spacing: 0;
+                                    for cat in root.categories: TouchArea {
+                                        height: 32px;
+                                        property <bool> hov: self.has-hover;
+                                        clicked => { root.subcategory-category-id = cat.id; root.subcategory-category-name = cat.name; root.subcategory-category-open = false; root.subcategory-error-category = ""; }
+                                        Rectangle {
+                                            background: parent.hov ? Theme.row-hover : transparent;
+                                            HorizontalLayout {
+                                                padding-left: 10px; padding-right: 10px;
+                                                Text { text: cat.name; font-size: 13px; color: Theme.text-primary; vertical-alignment: center; horizontal-stretch: 1; }
+                                            }
+                                        }
+                                    }
+                                    if root.categories.length == 0: Rectangle {
+                                        height: 32px;
+                                        HorizontalLayout { padding-left: 10px; Text { text: "Cadastre uma categoria primeiro"; font-size: 12px; color: Theme.text-secondary; vertical-alignment: center; } }
+                                    }
+                                }
+                            }
+                        }
+                        if root.subcategory-error-category != "": Text { text: root.subcategory-error-category; font-size: 11px; color: Theme.danger; }
+                    }
+
+                    VerticalLayout {
+                        FormField { label: "Nome"; value <=> root.subcategory-name; placeholder: "Nome da subcategoria"; }
+                        if root.subcategory-error-name != "": Text { text: root.subcategory-error-name; font-size: 11px; color: Theme.danger; }
+                    }
+
+                    Rectangle { height: 4px; }
+
+                    HorizontalLayout {
+                        alignment: end;
+                        spacing: 10px;
+                        OutlineBtn {
+                            label: "Cancelar"; width: 110px;
+                            clicked => { root.subcategory-category-open = false; root.close(); }
+                        }
+                        ActionBtn {
+                            label: "Salvar"; bg-color: Theme.sidebar-sel-bg; width: 130px;
+                            clicked => {
+                                root.subcategory-category-open = false;
+                                if root.editing-id != "" { root.update-subcategory(); } else { root.add-subcategory(); }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

@@ -1,0 +1,1822 @@
+import { ScrollView } from "std-widgets.slint";
+import { Theme } from "../theme.slint";
+import { CategoryData, SubcategoryData, BusinessHoursData, DiscountTierData, AddonGroupData, VariationData, VariationOptionData } from "../types.slint";
+import { Card } from "../components/cards.slint";
+import { FormField } from "../components/form_fields.slint";
+import { ActionBtn, OutlineBtn, DeleteBtn } from "../components/buttons.slint";
+import { EmptyState } from "../components/empty_state.slint";
+
+// ── Chip de grupo de adicional (Fase 4B) ─────────────────────────────
+//
+// Regras aplicadas (AI_RULES.md §3, §8):
+// - Componente isolado: facilita a iteração no card "Adicionais".
+// - Mostra "+" ou "✓" conforme `selected`.
+component AddonGroupChip inherits TouchArea {
+    in property <string> label;
+    in property <bool> selected: false;
+
+    // Largura fixa: chips com tamanhos diferentes geram grade
+    // desigual. 160px cobre nomes típicos ("Borda", "Adicionais",
+    // "Acompanhamentos") sem cortar texto.
+    width: 160px;
+    height: 32px;
+    Rectangle {
+        border-radius: 6px;
+        // Selecionado = só CONTORNO na cor de destaque (estilo Relatórios).
+        border-width: root.selected ? 1.5px : 1px;
+        border-color: root.selected
+            ? Theme.sidebar-sel-bg
+            : (root.has-hover ? Theme.primary : Theme.border);
+        background: root.selected ? transparent : (root.has-hover ? Theme.row-hover : Theme.surface);
+        HorizontalLayout {
+            padding-left: 10px; padding-right: 10px;
+            spacing: 6px;
+            alignment: center;
+            Text {
+                text: root.selected ? "✓" : "+";
+                font-size: 12px; font-weight: 700;
+                color: root.selected ? Theme.sidebar-sel-bg : Theme.text-secondary;
+                vertical-alignment: center;
+            }
+            Text {
+                text: root.label;
+                font-size: 12px;
+                font-weight: root.selected ? 700 : 500;
+                color: root.selected ? Theme.sidebar-sel-bg : Theme.text-primary;
+                vertical-alignment: center;
+                overflow: elide;
+            }
+        }
+    }
+}
+
+// ── Pill compacta (Variações: Única / Múltipla / Valor Maior) ────────
+//
+// Regras aplicadas (AI_RULES.md §3, §8):
+// - Mesmo padrão visual do `DiscountPill` mas dimensionado para
+//   caber 3 pills em uma linha do card de variação (sem ficar
+//   esticado).
+component SelectionPill inherits TouchArea {
+    in property <string> label;
+    in property <bool> active: false;
+    height: 28px;
+    horizontal-stretch: 1;
+    Rectangle {
+        border-radius: 4px;
+        // Selecionado = só CONTORNO na cor de destaque (estilo Relatórios).
+        border-width: root.active ? 1.5px : 1px;
+        border-color: root.active ? Theme.sidebar-sel-bg : Theme.border;
+        background: root.active ? transparent : (root.has-hover ? Theme.row-hover : Theme.surface);
+        Text {
+            text: root.label;
+            font-size: 11px;
+            font-weight: root.active ? 700 : 500;
+            color: root.active ? Theme.sidebar-sel-bg : Theme.text-secondary;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+            width: parent.width;
+            height: parent.height;
+        }
+    }
+}
+
+// ── Pill exclusiva de tipo de desconto ────────────────────────────────
+//
+// Regras aplicadas (AI_RULES.md §3, §8):
+// - Componente isolado, reaproveitável pelos 5 botões do card Desconto.
+// - `clicked` é repassado ao caller (que decide qual kind aplicar).
+component DiscountPill inherits TouchArea {
+    in property <string> label;
+    in property <bool> active: false;
+    height: 28px;
+    horizontal-stretch: 1;
+    Rectangle {
+        border-radius: 4px;
+        // Selecionado = só CONTORNO na cor de destaque (estilo Relatórios).
+        border-width: root.active ? 1.5px : 1px;
+        border-color: root.active ? Theme.sidebar-sel-bg : Theme.border;
+        background: root.active ? transparent : (root.has-hover ? Theme.row-hover : Theme.surface);
+        Text {
+            text: root.label;
+            font-size: 11px;
+            font-weight: root.active ? 700 : 500;
+            color: root.active ? Theme.sidebar-sel-bg : Theme.text-secondary;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+            width: parent.width;
+            height: parent.height;
+        }
+    }
+}
+
+// ── Tela cheia: formulário de produto ────────────────────────────────────────
+//
+// Regras aplicadas (AI_RULES.md §3, §8):
+// - Página em tela cheia (não modal) — comporta as próximas seções
+//   (Disponibilidade, Desconto, Adicionais) que não caberiam no modal.
+// - Cabeçalho com botão Voltar (←), título e Salvar (mesmo padrão do
+//   detalhe de Pedido). Cancelar volta para a grade sem persistir.
+// - Conteúdo dividido em cards modulares: Identificação, Estoque & Preço,
+//   Categoria, Imagem. Próximas fases adicionam Disponibilidade, Desconto
+//   e Adicionais como cards adicionais.
+
+export component ProductFormPage inherits VerticalLayout {
+    in-out property <string> editing-id;
+    in-out property <string> product-name;
+    in-out property <string> product-description;
+    in-out property <string> product-price;
+    /// Preço de custo (Fase 9). Vazio = sem custo cadastrado.
+    in-out property <string> product-cost-price;
+    in-out property <string> product-stock-quantity;
+    /// Estoque mínimo desejado (Fase 9). Vazio/0 desliga o alerta de
+    /// "estoque baixo" e a sugestão de compra.
+    in-out property <string> product-min-stock;
+    /// Resumo da margem ("23,5 %" / "—") pronto pelo Rust — exibido
+    /// abaixo do custo para feedback imediato ao operador.
+    in property <string> product-margin-display;
+    in-out property <bool>   product-unlimited-stock;
+    in-out property <bool>   product-availability-enabled;
+    in-out property <[BusinessHoursData]> product-availability;
+    /// Sentinel "none" quando sem desconto; senão um dos kinds do core.
+    in-out property <string> product-discount-kind: "none";
+    in-out property <string> product-discount-value;
+    in-out property <string> product-discount-min-qty;
+    /// Faixas de desconto bulk (Acima de N1 → V1, Acima de N2 → V2, ...).
+    /// O Rust serializa para JSON `discount_tiers` no salvar e parseia na
+    /// edição. Quando `bulk_*` e a lista está vazia, o cadastro é
+    /// considerado incompleto pelo backend (validação no service).
+    in-out property <[DiscountTierData]> product-discount-tiers;
+    in-out property <string> product-barcode;
+    in-out property <string> product-unit;
+    in-out property <string> product-balance-mode: "price";
+    in-out property <string> product-image-data;
+    in-out property <bool>   product-image-loading: false;
+    in-out property <string> product-category-id;
+    in-out property <string> product-category-name;
+    in-out property <bool>   product-category-open;
+    in-out property <string> product-subcategory-id;
+    in-out property <string> product-subcategory-name;
+    in-out property <bool>   product-subcategory-open;
+    in-out property <string> product-error-name;
+    in-out property <string> product-error-price;
+    in-out property <string> product-error-stock;
+    in-out property <string> product-save-error;
+    in property <[CategoryData]> categories;
+    in property <[SubcategoryData]> subcategories;
+    /// Grupos de adicionais disponíveis para o produto (chips multi-select).
+    /// Cada entrada já vem com `selected: true/false` populado pelo Rust
+    /// — o `toggle-product-addon-group` no Rust alterna no VecModel.
+    in property <[AddonGroupData]> addon-groups;
+    /// Variações per-produto (Fase 5B). Lista mutável: Rust manda
+    /// push/remove via callbacks abaixo; campos texto editam direto
+    /// via bindings inline `lista[idx].field = self.text`.
+    in-out property <[VariationData]> variations;
+
+    callback request-back();
+    callback add-product();
+    callback update-product();
+    callback pick-product-image();
+    /// Insere uma faixa em branco no final da lista `product-discount-tiers`.
+    /// Implementado em Rust porque o Slint não tem helper para push em
+    /// `VecModel` a partir da UI.
+    callback add-discount-tier();
+    /// Remove a faixa no índice informado. Quando resta uma só, o Rust
+    /// limpa a lista (o caller pode optar por kind != bulk_* depois).
+    callback remove-discount-tier(int);
+    /// Alterna o flag `selected` do grupo de adicionais no VecModel.
+    /// O Rust persiste a lista atual ao salvar o produto.
+    callback toggle-addon-group(string);
+    /// Adiciona uma variação em branco no fim da lista (Rust faz push).
+    callback add-variation();
+    /// Remove a variação no índice indicado.
+    callback remove-variation(int);
+    /// Adiciona opção em branco na variação `vidx`.
+    callback add-variation-option(int);
+    /// Remove a opção `oidx` da variação `vidx`.
+    callback remove-variation-option(int, int);
+    /// Aplica máscara `HH:MM` ao input — fluxo igual ao de horário em
+    /// `business_hours_modal`. O Slint não tem helpers de string ricos,
+    /// então delegamos a normalização ao Rust.
+    callback apply-time-mask(string) -> string;
+
+    /// Quando `true`, o cabeçalho próprio do formulário (Voltar / Cancelar /
+    /// Salvar) é ocultado e o componente vira apenas o corpo de cards —
+    /// caso de uso: master-detail embute o form no painel direito e
+    /// fornece sua própria barra de ações no topo (Fase 9).
+    in property <bool> embedded: false;
+
+    property <int> load-tick: 0;
+    Timer {
+        interval: 150ms;
+        running: root.product-image-loading;
+        triggered => { root.load-tick = root.load-tick + 1; }
+    }
+
+    vertical-stretch: 1;
+    spacing: 12px;
+
+    // ── Header: ← Voltar | Título | Cancelar/Salvar ──────────────────────
+    // Ocultado quando `embedded: true` (caller fornece sua própria barra
+    // de ações — vide ProductsPage master-detail).
+    if !root.embedded: HorizontalLayout {
+        height: 42px;
+        spacing: 12px;
+
+        VerticalLayout {
+            alignment: center;
+            back-ta := TouchArea {
+                width: 36px; height: 36px;
+                clicked => {
+                    root.product-category-open = false;
+                    root.product-subcategory-open = false;
+                    root.request-back();
+                }
+                Rectangle {
+                    border-radius: 6px;
+                    border-width: 1px;
+                    border-color: back-ta.has-hover ? Theme.border : transparent;
+                    background: back-ta.has-hover ? Theme.row-hover : transparent;
+                    Text {
+                        text: "\u{2190}";
+                        font-size: 22px; font-weight: 400;
+                        color: Theme.text-primary;
+                        horizontal-alignment: center; vertical-alignment: center;
+                        width: parent.width; height: parent.height;
+                    }
+                }
+            }
+        }
+
+        Text {
+            text: root.editing-id != "" ? "Editar Produto" : "Novo Produto";
+            font-size: 22px; font-weight: 700;
+            color: Theme.text-primary;
+            vertical-alignment: center;
+            horizontal-stretch: 1;
+        }
+
+        OutlineBtn {
+            label: "Cancelar"; width: 110px;
+            clicked => {
+                root.product-category-open = false;
+                root.product-subcategory-open = false;
+                root.request-back();
+            }
+        }
+        ActionBtn {
+            label: "Salvar Produto";
+            bg-color: root.product-image-loading ? #BDBDBD : Theme.sidebar-sel-bg;
+            width: 150px;
+            enabled: !root.product-image-loading;
+            clicked => {
+                root.product-save-error = "";
+                root.product-category-open = false;
+                root.product-subcategory-open = false;
+                if root.editing-id != "" { root.update-product(); } else { root.add-product(); }
+            }
+        }
+    }
+
+    // ── Cards modulares ───────────────────────────────
+    // Sem `ScrollView` interno: o componente é usado embedado dentro do
+    // `Flickable` da `ProductsPage` (master-detail). Um ScrollView
+    // aninhado teria altura 0 dentro do Flickable e os cards
+    // colapsariam — bug observado na Fase 9 (apenas o título
+    // "Identificação" aparecia). Se algum dia precisar do form em
+    // tela cheia standalone, o caller wraps externamente.
+    VerticalLayout {
+        alignment: start;
+        spacing: 14px;
+        padding-top: 4px;
+        padding-bottom: 4px;
+
+            // ───── Card: Identificação ─────
+            Card {
+                vertical-stretch: 0;
+                border-radius: 10px;
+                VerticalLayout {
+                    padding: 16px;
+                    spacing: 10px;
+
+                    Text { text: "Identificação"; font-size: 14px; font-weight: 700; color: Theme.text-primary; }
+
+                    HorizontalLayout {
+                        spacing: 12px;
+                        VerticalLayout {
+                            horizontal-stretch: 2;
+                            spacing: 4px;
+                            // Header com altura fixa de 22px (idêntico ao
+                            // header do Estoque em "Preço & Estoque") para
+                            // que os blocos tenham mesma altura visual.
+                            Rectangle {
+                                height: 22px;
+                                Text {
+                                    x: 0;
+                                    text: "Nome";
+                                    font-size: 12px; font-weight: 500;
+                                    color: Theme.text-secondary;
+                                    vertical-alignment: center;
+                                    height: parent.height;
+                                }
+                            }
+                            Rectangle {
+                                height: 36px;
+                                border-radius: 6px; border-width: 1px;
+                                border-color: name-input.has-focus ? Theme.primary : Theme.border;
+                                background: Theme.surface;
+                                name-input := TextInput {
+                                    x: 10px; y: 0;
+                                    width: parent.width - 20px;
+                                    height: parent.height;
+                                    text <=> root.product-name;
+                                    font-size: 13px;
+                                    color: Theme.text-primary;
+                                    vertical-alignment: center;
+                                    single-line: true;
+                                }
+                                if root.product-name == "": Text {
+                                    x: 10px; y: 0;
+                                    height: parent.height;
+                                    text: "Nome do produto";
+                                    font-size: 13px;
+                                    color: #BDBDBD;
+                                    vertical-alignment: center;
+                                }
+                            }
+                            if root.product-error-name != "": Text { text: root.product-error-name; font-size: 11px; color: Theme.danger; }
+                        }
+                        VerticalLayout {
+                            horizontal-stretch: 1;
+                            spacing: 4px;
+                            // Header 22px (consistente com Nome/Preço/Estoque).
+                            Rectangle {
+                                height: 22px;
+                                Text {
+                                    x: 0;
+                                    text: "Unidade";
+                                    font-size: 12px; font-weight: 500;
+                                    color: Theme.text-secondary;
+                                    vertical-alignment: center;
+                                    height: parent.height;
+                                }
+                            }
+                            unit-ta := TouchArea {
+                                height: 36px;
+                                property <bool> hov: self.has-hover;
+                                clicked => {
+                                    if root.product-unit == "un" { root.product-unit = "kg"; }
+                                    else if root.product-unit == "kg" { root.product-unit = "cx"; }
+                                    else { root.product-unit = "un"; }
+                                }
+                                Rectangle {
+                                    border-radius: 6px;
+                                    border-width: 1px;
+                                    border-color: parent.hov ? Theme.primary : Theme.border;
+                                    background: Theme.surface;
+                                    HorizontalLayout {
+                                        padding-left: 10px; padding-right: 10px;
+                                        Text { text: root.product-unit; font-size: 13px; color: Theme.text-primary; vertical-alignment: center; horizontal-stretch: 1; }
+                                        Text { text: "▾"; font-size: 13px; color: Theme.text-secondary; vertical-alignment: center; }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    VerticalLayout {
+                        spacing: 4px;
+                        Text { text: "Descrição"; font-size: 12px; font-weight: 500; color: Theme.text-secondary; }
+                        // Textarea ampliada: ~7 linhas confortáveis. O TextInput
+                        // sem `single-line: true` aceita Enter, então o
+                        // operador pode quebrar parágrafos manualmente — as
+                        // quebras são preservadas no banco e no cliente web
+                        // (CSS `white-space: pre-wrap`).
+                        Rectangle {
+                            height: 140px;
+                            border-radius: 6px;
+                            border-width: 1px;
+                            border-color: desc-input.has-focus ? Theme.primary : Theme.border;
+                            background: Theme.surface;
+                            desc-input := TextInput {
+                                text <=> root.product-description;
+                                font-size: 13px;
+                                color: Theme.text-primary;
+                                wrap: word-wrap;
+                                // Explicit `single-line: false` libera o Enter
+                                // para quebrar parágrafos dentro da descrição;
+                                // sem isso, alguns ambientes Slint tratavam o
+                                // input como linha única.
+                                single-line: false;
+                                x: 10px; y: 8px;
+                                width: parent.width - 20px;
+                                height: parent.height - 16px;
+                            }
+                            if root.product-description == "": Text {
+                                text: "Descrição do produto (opcional). Use Enter para quebrar linhas.";
+                                font-size: 13px; color: #BDBDBD;
+                                x: 10px; y: 8px;
+                            }
+                        }
+                    }
+
+                    // Código de Barras: movido para `Identificação` para
+                    // ficar agrupado com nome/descrição, conforme padrão de
+                    // ficha de produto (campos descritivos juntos).
+                    FormField {
+                        label: "Código de Barras";
+                        value <=> root.product-barcode;
+                        placeholder: root.product-unit == "kg"
+                            ? "Código base p/ balança (6 dígitos)"
+                            : "Leitor ou Manual";
+                    }
+                }
+            }
+
+            // ───── Card: Preço & Estoque ─────
+            Card {
+                vertical-stretch: 0;
+                border-radius: 10px;
+                VerticalLayout {
+                    padding: 16px;
+                    spacing: 10px;
+
+                    // Header do card: título à esquerda + toggle "Ilimitado"
+                    // colado na direita (igual ao mockup).
+                    HorizontalLayout {
+                        spacing: 8px;
+                        Text {
+                            text: "Preço & Estoque"; font-size: 14px; font-weight: 700;
+                            color: Theme.text-primary; horizontal-stretch: 1;
+                            vertical-alignment: center;
+                        }
+                        unlim-ta := TouchArea {
+                            width: 80px; height: 24px;
+                            clicked => { root.product-unlimited-stock = !root.product-unlimited-stock; }
+                            Rectangle {
+                                border-radius: 4px; border-width: 1px;
+                                border-color: root.product-unlimited-stock ? Theme.primary : Theme.border;
+                                background: root.product-unlimited-stock
+                                    ? Theme.primary
+                                    : (unlim-ta.has-hover ? Theme.row-hover : Theme.surface);
+                                Text {
+                                    text: "Ilimitado"; font-size: 11px; font-weight: 600;
+                                    color: root.product-unlimited-stock ? white : Theme.text-primary;
+                                    horizontal-alignment: center; vertical-alignment: center;
+                                    width: parent.width; height: parent.height;
+                                }
+                            }
+                        }
+                    }
+
+                    HorizontalLayout {
+                        spacing: 12px;
+                        VerticalLayout {
+                            horizontal-stretch: 1;
+                            spacing: 4px;
+                            // Header com label "Preço" alinhado verticalmente
+                            // ao header do Estoque ao lado — ambos 22px.
+                            Rectangle {
+                                height: 22px;
+                                Text {
+                                    x: 0;
+                                    text: "Preço";
+                                    font-size: 12px; font-weight: 500;
+                                    color: Theme.text-secondary;
+                                    vertical-alignment: center;
+                                    height: parent.height;
+                                }
+                            }
+                            // Input (mesma estrutura do FormField, sem o label).
+                            Rectangle {
+                                height: 36px;
+                                border-radius: 6px; border-width: 1px;
+                                border-color: price-input.has-focus ? Theme.primary : Theme.border;
+                                background: Theme.surface;
+                                price-input := TextInput {
+                                    x: 10px; y: 0;
+                                    width: parent.width - 20px;
+                                    height: parent.height;
+                                    text <=> root.product-price;
+                                    font-size: 13px;
+                                    color: Theme.text-primary;
+                                    vertical-alignment: center;
+                                    single-line: true;
+                                }
+                                if root.product-price == "": Text {
+                                    x: 10px; y: 0;
+                                    height: parent.height;
+                                    text: "0.00";
+                                    font-size: 13px;
+                                    color: #BDBDBD;
+                                    vertical-alignment: center;
+                                }
+                            }
+                            if root.product-error-price != "": Text { text: root.product-error-price; font-size: 11px; color: Theme.danger; }
+                        }
+                        // Estoque + toggle "Ilimitado".
+                        //
+                        // Quando `unlimited-stock = true`, o input vira disabled
+                        // e o card mostra "Ilimitado" no lugar da quantidade.
+                        VerticalLayout {
+                            horizontal-stretch: 1;
+                            spacing: 4px;
+                            Rectangle {
+                                height: 22px;
+                                Text {
+                                    x: 0;
+                                    text: "Estoque";
+                                    font-size: 12px; font-weight: 500;
+                                    color: Theme.text-secondary;
+                                    vertical-alignment: center;
+                                    height: parent.height;
+                                }
+                            }
+                            // Input ou estado "Ilimitado"
+                            if !root.product-unlimited-stock: Rectangle {
+                                height: 36px;
+                                border-radius: 6px; border-width: 1px;
+                                border-color: stock-input.has-focus ? Theme.primary : Theme.border;
+                                background: Theme.surface;
+                                stock-input := TextInput {
+                                    x: 10px; y: 0;
+                                    width: parent.width - 20px;
+                                    height: parent.height;
+                                    text <=> root.product-stock-quantity;
+                                    font-size: 13px;
+                                    color: Theme.text-primary;
+                                    vertical-alignment: center;
+                                    single-line: true;
+                                }
+                                if root.product-stock-quantity == "": Text {
+                                    x: 10px; y: 0;
+                                    height: parent.height;
+                                    text: "0";
+                                    font-size: 13px;
+                                    color: #BDBDBD;
+                                    vertical-alignment: center;
+                                }
+                            }
+                            if root.product-unlimited-stock: Rectangle {
+                                height: 36px;
+                                border-radius: 6px; border-width: 1px;
+                                border-color: Theme.card-border;
+                                drop-shadow-blur: 12px;
+                                drop-shadow-offset-y: 0px;
+                                drop-shadow-color: Theme.card-shadow;
+                                background: Theme.bg;
+                                HorizontalLayout {
+                                    padding-left: 10px;
+                                    Text {
+                                        text: "∞  Sem controle de estoque";
+                                        font-size: 13px;
+                                        font-weight: 600;
+                                        color: Theme.text-secondary;
+                                        vertical-alignment: center;
+                                    }
+                                }
+                            }
+                            if root.product-error-stock != "": Text {
+                                text: root.product-error-stock;
+                                font-size: 11px;
+                                color: Theme.danger;
+                            }
+                        }
+                    }
+
+                    // ── Custo + Mínimo (Fase 9) ─────────────────────
+                    //
+                    // Mesma proporção 1:1 do par Preço/Estoque acima.
+                    // O resumo da margem (calculado em Rust) aparece logo
+                    // abaixo do custo para feedback imediato — sem lógica
+                    // de cálculo no Slint (AI_RULES.md §1).
+                    HorizontalLayout {
+                        spacing: 12px;
+                        VerticalLayout {
+                            horizontal-stretch: 1;
+                            spacing: 4px;
+                            Rectangle {
+                                height: 22px;
+                                Text {
+                                    x: 0;
+                                    text: "Preço de custo";
+                                    font-size: 12px; font-weight: 500;
+                                    color: Theme.text-secondary;
+                                    vertical-alignment: center;
+                                    height: parent.height;
+                                }
+                            }
+                            Rectangle {
+                                height: 36px;
+                                border-radius: 6px; border-width: 1px;
+                                border-color: cost-input.has-focus ? Theme.primary : Theme.border;
+                                background: Theme.surface;
+                                cost-input := TextInput {
+                                    x: 10px; y: 0;
+                                    width: parent.width - 20px;
+                                    height: parent.height;
+                                    text <=> root.product-cost-price;
+                                    font-size: 13px;
+                                    color: Theme.text-primary;
+                                    vertical-alignment: center;
+                                    single-line: true;
+                                }
+                                if root.product-cost-price == "": Text {
+                                    x: 10px; y: 0;
+                                    height: parent.height;
+                                    text: "0.00";
+                                    font-size: 13px;
+                                    color: #BDBDBD;
+                                    vertical-alignment: center;
+                                }
+                            }
+                            // Resumo da margem (pre-formatado em Rust). Sem
+                            // dado → não mostra nada (padrão do sistema).
+                            if root.product-margin-display != "": Text {
+                                text: "Margem: " + root.product-margin-display;
+                                font-size: 11px;
+                                color: Theme.text-secondary;
+                            }
+                        }
+                        // Mínimo só faz sentido quando há controle de estoque.
+                        if !root.product-unlimited-stock: VerticalLayout {
+                            horizontal-stretch: 1;
+                            spacing: 4px;
+                            Rectangle {
+                                height: 22px;
+                                Text {
+                                    x: 0;
+                                    text: "Estoque mínimo";
+                                    font-size: 12px; font-weight: 500;
+                                    color: Theme.text-secondary;
+                                    vertical-alignment: center;
+                                    height: parent.height;
+                                }
+                            }
+                            Rectangle {
+                                height: 36px;
+                                border-radius: 6px; border-width: 1px;
+                                border-color: min-stock-input.has-focus ? Theme.primary : Theme.border;
+                                background: Theme.surface;
+                                min-stock-input := TextInput {
+                                    x: 10px; y: 0;
+                                    width: parent.width - 20px;
+                                    height: parent.height;
+                                    text <=> root.product-min-stock;
+                                    font-size: 13px;
+                                    color: Theme.text-primary;
+                                    vertical-alignment: center;
+                                    single-line: true;
+                                }
+                                if root.product-min-stock == "": Text {
+                                    x: 10px; y: 0;
+                                    height: parent.height;
+                                    text: "0";
+                                    font-size: 13px;
+                                    color: #BDBDBD;
+                                    vertical-alignment: center;
+                                }
+                            }
+                            Text {
+                                text: "Alerta quando o estoque chegar a este valor.";
+                                font-size: 11px;
+                                color: Theme.text-secondary;
+                            }
+                        }
+                        // Espaçador para manter a coluna direita alinhada
+                        // quando o produto é ilimitado (sem mínimo).
+                        if root.product-unlimited-stock: Rectangle {
+                            horizontal-stretch: 1;
+                        }
+                    }
+
+                    // Modo da balança (apenas para unit=kg)
+                    if root.product-unit == "kg": VerticalLayout {
+                        spacing: 4px;
+                        Text { text: "Modo da Balança"; font-size: 12px; font-weight: 500; color: Theme.text-secondary; }
+                        HorizontalLayout {
+                            spacing: 8px;
+                            balance-price-ta := TouchArea {
+                                height: 32px;
+                                horizontal-stretch: 1;
+                                clicked => { root.product-balance-mode = "price"; }
+                                Rectangle {
+                                    border-radius: 6px;
+                                    // Selecionado = só CONTORNO na cor de destaque (estilo Relatórios).
+                                    border-width: root.product-balance-mode == "price" ? 1.5px : 1px;
+                                    border-color: root.product-balance-mode == "price" ? Theme.sidebar-sel-bg : Theme.border;
+                                    background: root.product-balance-mode == "price"
+                                        ? transparent
+                                        : (balance-price-ta.has-hover ? Theme.row-hover : Theme.surface);
+                                    Text {
+                                        text: "Valor";
+                                        font-size: 13px;
+                                        font-weight: root.product-balance-mode == "price" ? 700 : 500;
+                                        color: root.product-balance-mode == "price" ? Theme.sidebar-sel-bg : Theme.text-secondary;
+                                        horizontal-alignment: center;
+                                        vertical-alignment: center;
+                                    }
+                                }
+                            }
+                            balance-weight-ta := TouchArea {
+                                height: 32px;
+                                horizontal-stretch: 1;
+                                clicked => { root.product-balance-mode = "weight"; }
+                                Rectangle {
+                                    border-radius: 6px;
+                                    // Selecionado = só CONTORNO na cor de destaque (estilo Relatórios).
+                                    border-width: root.product-balance-mode == "weight" ? 1.5px : 1px;
+                                    border-color: root.product-balance-mode == "weight" ? Theme.sidebar-sel-bg : Theme.border;
+                                    background: root.product-balance-mode == "weight"
+                                        ? transparent
+                                        : (balance-weight-ta.has-hover ? Theme.row-hover : Theme.surface);
+                                    Text {
+                                        text: "Peso";
+                                        font-size: 13px;
+                                        font-weight: root.product-balance-mode == "weight" ? 700 : 500;
+                                        color: root.product-balance-mode == "weight" ? Theme.sidebar-sel-bg : Theme.text-secondary;
+                                        horizontal-alignment: center;
+                                        vertical-alignment: center;
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                }
+            }
+
+            // ───── Card: Categoria ─────
+            Card {
+                vertical-stretch: 0;
+                border-radius: 10px;
+                VerticalLayout {
+                    padding: 16px;
+                    spacing: 10px;
+
+                    Text { text: "Categoria"; font-size: 14px; font-weight: 700; color: Theme.text-primary; }
+
+                    HorizontalLayout {
+                        spacing: 12px;
+                        VerticalLayout {
+                            alignment: start;
+                            horizontal-stretch: 1;
+                            spacing: 4px;
+                            Text { text: "Categoria"; font-size: 12px; font-weight: 500; color: Theme.text-secondary; }
+                            cat-ta := TouchArea {
+                                height: 36px;
+                                property <bool> hov: self.has-hover;
+                                clicked => { root.product-category-open = !root.product-category-open; root.product-subcategory-open = false; }
+                                Rectangle {
+                                    border-radius: 6px; border-width: 1px;
+                                    border-color: parent.hov || root.product-category-open ? Theme.primary : Theme.border;
+                                    background: Theme.surface;
+                                    HorizontalLayout {
+                                        padding-left: 10px; padding-right: 10px;
+                                        Text {
+                                            text: root.product-category-id != "" ? root.product-category-name : "Nenhuma";
+                                            font-size: 13px;
+                                            color: root.product-category-id != "" ? Theme.text-primary : #BDBDBD;
+                                            vertical-alignment: center; horizontal-stretch: 1;
+                                        }
+                                        Text { text: root.product-category-open ? "▴" : "▾"; font-size: 13px; color: Theme.text-secondary; vertical-alignment: center; }
+                                    }
+                                }
+                            }
+                            if root.product-category-open: Rectangle {
+                                height: min(180px, root.categories.length * 32px + 36px);
+                                border-radius: 6px; border-width: 1px;
+                                border-color: Theme.card-border; background: Theme.surface;
+                                drop-shadow-blur: 12px;
+                                drop-shadow-offset-y: 0px;
+                                drop-shadow-color: Theme.card-shadow;
+                                ScrollView { vertical-scrollbar-policy: ScrollBarPolicy.always-off; horizontal-scrollbar-policy: ScrollBarPolicy.always-off;
+                                    VerticalLayout {
+                                        spacing: 0;
+                                        TouchArea {
+                                            height: 32px;
+                                            property <bool> hov: self.has-hover;
+                                            clicked => { root.product-category-id = ""; root.product-category-name = ""; root.product-subcategory-id = ""; root.product-subcategory-name = ""; root.product-category-open = false; }
+                                            Rectangle {
+                                                background: parent.hov ? Theme.row-hover : transparent;
+                                                HorizontalLayout { padding-left: 10px; Text { text: "Nenhuma"; font-size: 13px; color: Theme.text-secondary; vertical-alignment: center; } }
+                                            }
+                                        }
+                                        for cat in root.categories: TouchArea {
+                                            height: 32px;
+                                            property <bool> hov: self.has-hover;
+                                            clicked => { root.product-category-id = cat.id; root.product-category-name = cat.name; root.product-subcategory-id = ""; root.product-subcategory-name = ""; root.product-category-open = false; }
+                                            Rectangle {
+                                                background: parent.hov ? Theme.row-hover : transparent;
+                                                HorizontalLayout { padding-left: 10px; Text { text: cat.name; font-size: 13px; color: Theme.text-primary; vertical-alignment: center; horizontal-stretch: 1; } }
+                                            }
+                                        }
+                                        if root.categories.length == 0: Rectangle {
+                                            height: 32px;
+                                            HorizontalLayout { padding-left: 10px; Text { text: "Cadastre uma categoria primeiro"; font-size: 12px; color: Theme.text-secondary; vertical-alignment: center; } }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        VerticalLayout {
+                            alignment: start;
+                            horizontal-stretch: 1;
+                            spacing: 4px;
+                            Text { text: "Subcategoria"; font-size: 12px; font-weight: 500; color: Theme.text-secondary; }
+                            sub-ta := TouchArea {
+                                height: 36px;
+                                property <bool> hov: self.has-hover;
+                                clicked => {
+                                    if root.product-category-id != "" { root.product-subcategory-open = !root.product-subcategory-open; root.product-category-open = false; }
+                                }
+                                Rectangle {
+                                    border-radius: 6px; border-width: 1px;
+                                    border-color: root.product-category-id == "" ? #E0E0E0 : (parent.hov || root.product-subcategory-open ? Theme.primary : Theme.border);
+                                    background: root.product-category-id == "" ? #F5F5F5 : Theme.surface;
+                                    HorizontalLayout {
+                                        padding-left: 10px; padding-right: 10px;
+                                        Text {
+                                            text: root.product-category-id == "" ? "Selecione a categoria" : (root.product-subcategory-id != "" ? root.product-subcategory-name : "Nenhuma");
+                                            font-size: 13px;
+                                            color: root.product-subcategory-id != "" ? Theme.text-primary : #BDBDBD;
+                                            vertical-alignment: center; horizontal-stretch: 1;
+                                        }
+                                        Text { text: root.product-subcategory-open ? "▴" : "▾"; font-size: 13px; color: Theme.text-secondary; vertical-alignment: center; }
+                                    }
+                                }
+                            }
+                            if root.product-subcategory-open: Rectangle {
+                                height: 180px;
+                                border-radius: 6px; border-width: 1px;
+                                border-color: Theme.card-border; background: Theme.surface;
+                                drop-shadow-blur: 12px;
+                                drop-shadow-offset-y: 0px;
+                                drop-shadow-color: Theme.card-shadow;
+                                ScrollView { vertical-scrollbar-policy: ScrollBarPolicy.always-off; horizontal-scrollbar-policy: ScrollBarPolicy.always-off;
+                                    VerticalLayout {
+                                        spacing: 0;
+                                        TouchArea {
+                                            height: 32px;
+                                            property <bool> hov: self.has-hover;
+                                            clicked => { root.product-subcategory-id = ""; root.product-subcategory-name = ""; root.product-subcategory-open = false; }
+                                            Rectangle {
+                                                background: parent.hov ? Theme.row-hover : transparent;
+                                                HorizontalLayout { padding-left: 10px; Text { text: "Nenhuma"; font-size: 13px; color: Theme.text-secondary; vertical-alignment: center; } }
+                                            }
+                                        }
+                                        for sub in root.subcategories: TouchArea {
+                                            visible: sub.category-id == root.product-category-id;
+                                            height: sub.category-id == root.product-category-id ? 32px : 0px;
+                                            property <bool> hov: self.has-hover;
+                                            clicked => { root.product-subcategory-id = sub.id; root.product-subcategory-name = sub.name; root.product-subcategory-open = false; }
+                                            Rectangle {
+                                                background: parent.hov ? Theme.row-hover : transparent;
+                                                HorizontalLayout { padding-left: 10px; Text { text: sub.name; font-size: 13px; color: Theme.text-primary; vertical-alignment: center; horizontal-stretch: 1; } }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // ───── Card: Disponibilidade ─────
+            //
+            // Regras aplicadas (AI_RULES.md §3, §8):
+            // - Toggle "Definir horário" controla se `availability_schedule`
+            //   é persistido (string vazia = sempre disponível).
+            // - Lista de 7 entradas (Domingo..Sábado) com toggle "Aberto",
+            //   abertura e fechamento. Usa `BusinessHoursData` reaproveitado.
+            // - Mutação: para alterar uma entrada precisamos reconstruir o
+            //   item via `set_row_data` (estado fica em `[BusinessHoursData]`).
+            Card {
+                vertical-stretch: 0;
+                border-radius: 10px;
+                VerticalLayout {
+                    padding: 16px;
+                    spacing: 10px;
+
+                    // Cabeçalho: título à esquerda + toggle à direita,
+                    // mesmo padrão visual usado em "Estoque" (label + Ilimitado).
+                    HorizontalLayout {
+                        spacing: 12px;
+                        Text {
+                            text: "Disponibilidade";
+                            font-size: 14px; font-weight: 700;
+                            color: Theme.text-primary;
+                            vertical-alignment: center;
+                            horizontal-stretch: 1;
+                        }
+                        avail-toggle := TouchArea {
+                            width: 140px;
+                            height: 26px;
+                            clicked => {
+                                root.product-availability-enabled = !root.product-availability-enabled;
+                            }
+                            Rectangle {
+                                border-radius: 4px;
+                                border-width: 1px;
+                                border-color: root.product-availability-enabled ? Theme.primary : Theme.border;
+                                background: root.product-availability-enabled
+                                    ? Theme.primary
+                                    : (avail-toggle.has-hover ? Theme.row-hover : Theme.surface);
+                                Text {
+                                    text: root.product-availability-enabled ? "Horário Definido" : "Sempre Disponível";
+                                    font-size: 11px;
+                                    font-weight: 600;
+                                    color: root.product-availability-enabled ? white : Theme.text-primary;
+                                    horizontal-alignment: center;
+                                    vertical-alignment: center;
+                                    width: parent.width;
+                                    height: parent.height;
+                                }
+                            }
+                        }
+                    }
+                    Text {
+                        text: root.product-availability-enabled
+                            ? "O produto só será vendido nos horários abaixo."
+                            : "Sempre Disponível - O produto pode ser pedido a qualquer hora.";
+                        font-size: 11px;
+                        color: Theme.text-secondary;
+                    }
+
+                    if root.product-availability-enabled: VerticalLayout {
+                        spacing: 6px;
+                        for entry[idx] in root.product-availability: HorizontalLayout {
+                            height: 32px;
+                            spacing: 8px;
+
+                            // Dia da semana (largura fixa)
+                            Text {
+                                text: entry.day-name;
+                                font-size: 12px; font-weight: 600;
+                                color: Theme.text-primary;
+                                vertical-alignment: center;
+                                width: 90px;
+                            }
+
+                            // Toggle Ativo/Inativo (mais estreito)
+                            open-toggle := TouchArea {
+                                width: 64px;
+                                clicked => {
+                                    root.product-availability[idx].is-open = !entry.is-open;
+                                }
+                                Rectangle {
+                                    border-radius: 4px;
+                                    border-width: 1px;
+                                    border-color: entry.is-open ? Theme.primary : Theme.border;
+                                    background: entry.is-open
+                                        ? Theme.primary
+                                        : (open-toggle.has-hover ? Theme.row-hover : Theme.surface);
+                                    Text {
+                                        text: entry.is-open ? "Ativo" : "Inativo";
+                                        font-size: 11px;
+                                        font-weight: 600;
+                                        color: entry.is-open ? white : Theme.text-secondary;
+                                        horizontal-alignment: center;
+                                        vertical-alignment: center;
+                                        width: parent.width;
+                                        height: parent.height;
+                                    }
+                                }
+                            }
+
+                            // Abertura (HH:MM) — máscara progressiva via callback.
+                            Rectangle {
+                                width: 90px;
+                                border-radius: 6px;
+                                border-width: 1px;
+                                border-color: open-input.has-focus ? Theme.primary : Theme.border;
+                                background: entry.is-open ? Theme.surface : Theme.bg;
+                                open-input := TextInput {
+                                    x: 8px; y: 0;
+                                    width: parent.width - 16px;
+                                    height: parent.height;
+                                    text: entry.open-time;
+                                    enabled: entry.is-open;
+                                    font-size: 12px;
+                                    color: Theme.text-primary;
+                                    vertical-alignment: center;
+                                    single-line: true;
+                                    edited => {
+                                        root.product-availability[idx].open-time = root.apply-time-mask(self.text);
+                                    }
+                                }
+                            }
+
+                            Text {
+                                text: "às";
+                                font-size: 11px;
+                                color: Theme.text-secondary;
+                                vertical-alignment: center;
+                                width: 18px;
+                                horizontal-alignment: center;
+                            }
+
+                            // Fechamento (HH:MM) — máscara progressiva via callback.
+                            Rectangle {
+                                width: 90px;
+                                border-radius: 6px;
+                                border-width: 1px;
+                                border-color: close-input.has-focus ? Theme.primary : Theme.border;
+                                background: entry.is-open ? Theme.surface : Theme.bg;
+                                close-input := TextInput {
+                                    x: 8px; y: 0;
+                                    width: parent.width - 16px;
+                                    height: parent.height;
+                                    text: entry.close-time;
+                                    enabled: entry.is-open;
+                                    font-size: 12px;
+                                    color: Theme.text-primary;
+                                    vertical-alignment: center;
+                                    single-line: true;
+                                    edited => {
+                                        root.product-availability[idx].close-time = root.apply-time-mask(self.text);
+                                    }
+                                }
+                            }
+
+                            Rectangle { horizontal-stretch: 1; }
+                        }
+                    }
+                }
+            }
+
+            // ───── Card: Desconto ─────
+            //
+            // Regras aplicadas (AI_RULES.md §3, §8):
+            // - 5 pills exclusivas: Sem desconto / Valor / Porcentagem /
+            //   Acima de N (valor) / Acima de N (%).
+            // - Quando há kind, mostra input de valor; para `bulk_*`,
+            //   também o input de quantidade mínima.
+            // - Validação fica no service (`validate_discount`).
+            Card {
+                vertical-stretch: 0;
+                border-radius: 10px;
+                VerticalLayout {
+                    padding: 16px;
+                    spacing: 10px;
+
+                    Text { text: "Desconto"; font-size: 14px; font-weight: 700; color: Theme.text-primary; }
+                    Text {
+                        text: "Aplicado automaticamente no preço exibido ao cliente no cardápio web.";
+                        font-size: 11px;
+                        color: Theme.text-secondary;
+                    }
+
+                    // Linha de pills (tipo de desconto) — uma única seleção.
+                    HorizontalLayout {
+                        spacing: 6px;
+                        DiscountPill {
+                            label: "Sem Desconto";
+                            active: root.product-discount-kind == "none";
+                            clicked => {
+                                root.product-discount-kind = "none";
+                                root.product-discount-value = "";
+                                root.product-discount-min-qty = "";
+                            }
+                        }
+                        DiscountPill {
+                            label: "Valor";
+                            active: root.product-discount-kind == "fixed";
+                            clicked => {
+                                root.product-discount-kind = "fixed";
+                                root.product-discount-min-qty = "";
+                            }
+                        }
+                        DiscountPill {
+                            label: "Porcentagem";
+                            active: root.product-discount-kind == "percent";
+                            clicked => {
+                                root.product-discount-kind = "percent";
+                                root.product-discount-min-qty = "";
+                            }
+                        }
+                        DiscountPill {
+                            label: "Acima de... (valor)";
+                            active: root.product-discount-kind == "bulk_fixed";
+                            clicked => {
+                                root.product-discount-kind = "bulk_fixed";
+                                root.product-discount-value = "";
+                                root.product-discount-min-qty = "";
+                                // Garante 1 faixa em branco para o usuário
+                                // ter onde digitar — Rust resolve o push.
+                                if root.product-discount-tiers.length == 0 {
+                                    root.add-discount-tier();
+                                }
+                            }
+                        }
+                        DiscountPill {
+                            label: "Acima de... (%)";
+                            active: root.product-discount-kind == "bulk_percent";
+                            clicked => {
+                                root.product-discount-kind = "bulk_percent";
+                                root.product-discount-value = "";
+                                root.product-discount-min-qty = "";
+                                if root.product-discount-tiers.length == 0 {
+                                    root.add-discount-tier();
+                                }
+                            }
+                        }
+                    }
+
+                    // Modo simples (fixed/percent): só um campo de valor.
+                    if root.product-discount-kind == "fixed" || root.product-discount-kind == "percent": HorizontalLayout {
+                        spacing: 12px;
+                        VerticalLayout {
+                            horizontal-stretch: 1;
+                            FormField {
+                                label: root.product-discount-kind == "percent" ? "Desconto (%)" : "Desconto (R$)";
+                                value <=> root.product-discount-value;
+                                placeholder: "0";
+                            }
+                        }
+                        Rectangle { horizontal-stretch: 1; }
+                    }
+
+                    // Modo bulk_*: lista mutável de faixas (min-qty + valor)
+                    // com "+" para adicionar e "−" por linha para remover.
+                    if root.product-discount-kind == "bulk_fixed" || root.product-discount-kind == "bulk_percent": VerticalLayout {
+                        spacing: 8px;
+
+                        Text {
+                            text: root.product-discount-kind == "bulk_percent"
+                                ? "Defina as faixas: a partir de N unidades, aplica X% de desconto."
+                                : "Defina as faixas: a partir de N unidades, aplica R$ X de desconto.";
+                            font-size: 11px;
+                            color: Theme.text-secondary;
+                        }
+
+                        for tier[idx] in root.product-discount-tiers: HorizontalLayout {
+                            spacing: 8px;
+                            // Quantidade mínima da faixa.
+                            VerticalLayout {
+                                horizontal-stretch: 1;
+                                Rectangle {
+                                    height: 22px;
+                                    Text {
+                                        x: 0;
+                                        text: "Acima de";
+                                        font-size: 12px; font-weight: 500;
+                                        color: Theme.text-secondary;
+                                        vertical-alignment: center;
+                                        height: parent.height;
+                                    }
+                                }
+                                Rectangle {
+                                    height: 36px;
+                                    border-radius: 6px; border-width: 1px;
+                                    border-color: qty-input.has-focus ? Theme.primary : Theme.border;
+                                    background: Theme.surface;
+                                    qty-input := TextInput {
+                                        x: 10px; y: 0;
+                                        width: parent.width - 20px;
+                                        height: parent.height;
+                                        text: tier.min-qty;
+                                        font-size: 13px;
+                                        color: Theme.text-primary;
+                                        vertical-alignment: center;
+                                        single-line: true;
+                                        edited => {
+                                            root.product-discount-tiers[idx].min-qty = self.text;
+                                        }
+                                    }
+                                    if tier.min-qty == "": Text {
+                                        x: 10px; y: 0;
+                                        height: parent.height;
+                                        text: "1";
+                                        font-size: 13px;
+                                        color: #BDBDBD;
+                                        vertical-alignment: center;
+                                    }
+                                }
+                            }
+                            // Valor do desconto da faixa, com o botão
+                            // de remover colado ao lado direito do
+                            // input (mais próximo do campo, conforme
+                            // padrão de campo com ação inline).
+                            VerticalLayout {
+                                horizontal-stretch: 1;
+                                Rectangle {
+                                    height: 22px;
+                                    Text {
+                                        x: 0;
+                                        text: root.product-discount-kind == "bulk_percent" ? "Desconto (%)" : "Desconto (R$)";
+                                        font-size: 12px; font-weight: 500;
+                                        color: Theme.text-secondary;
+                                        vertical-alignment: center;
+                                        height: parent.height;
+                                    }
+                                }
+                                HorizontalLayout {
+                                    height: 36px;
+                                    spacing: 6px;
+                                    Rectangle {
+                                        horizontal-stretch: 1;
+                                        border-radius: 6px; border-width: 1px;
+                                        border-color: val-input.has-focus ? Theme.primary : Theme.border;
+                                        background: Theme.surface;
+                                        val-input := TextInput {
+                                            x: 10px; y: 0;
+                                            width: parent.width - 20px;
+                                            height: parent.height;
+                                            text: tier.value;
+                                            font-size: 13px;
+                                            color: Theme.text-primary;
+                                            vertical-alignment: center;
+                                            single-line: true;
+                                            edited => {
+                                                root.product-discount-tiers[idx].value = self.text;
+                                            }
+                                        }
+                                        if tier.value == "": Text {
+                                            x: 10px; y: 0;
+                                            height: parent.height;
+                                            text: "0";
+                                            font-size: 13px;
+                                            color: #BDBDBD;
+                                            vertical-alignment: center;
+                                        }
+                                    }
+                                    DeleteBtn {
+                                        width: 32px; height: 32px;
+                                        clicked => { root.remove-discount-tier(idx); }
+                                    }
+                                }
+                            }
+                        }
+
+                        // Linha do botão "+": adiciona nova faixa em branco.
+                        HorizontalLayout {
+                            add-ta := TouchArea {
+                                height: 32px;
+                                horizontal-stretch: 1;
+                                clicked => { root.add-discount-tier(); }
+                                Rectangle {
+                                    border-radius: 6px;
+                                    border-width: 1px;
+                                    border-color: add-ta.has-hover ? Theme.primary : Theme.border;
+                                    background: add-ta.has-hover ? Theme.row-hover : Theme.surface;
+                                    HorizontalLayout {
+                                        alignment: center; spacing: 6px;
+                                        Text {
+                                            text: "+";
+                                            font-size: 16px; font-weight: 700;
+                                            color: Theme.primary;
+                                            vertical-alignment: center;
+                                        }
+                                        Text {
+                                            text: "Adicionar Faixa";
+                                            font-size: 12px; font-weight: 500;
+                                            color: Theme.primary;
+                                            vertical-alignment: center;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // ───── Card: Adicionais (Fase 4B) ─────
+            //
+            // Regras aplicadas (AI_RULES.md §3, §8):
+            // - Chips clicáveis multi-select: cada chip é um grupo da
+            //   empresa. O Rust mantém o flag `selected` por chip e
+            //   monta a lista final ao salvar.
+            // - Sem este card o produto sai sem adicionais (caminho
+            //   padrão para itens sem complementos).
+            Card {
+                vertical-stretch: 0;
+                border-radius: 10px;
+                VerticalLayout {
+                    padding: 16px;
+                    spacing: 10px;
+
+                    Text { text: "Adicionais"; font-size: 14px; font-weight: 700; color: Theme.text-primary; }
+                    Text {
+                        text: "Marque os grupos de adicionais que se aplicam a este produto.";
+                        font-size: 11px;
+                        color: Theme.text-secondary;
+                    }
+
+                    if root.addon-groups.length == 0: VerticalLayout {
+                        alignment: center;
+                        spacing: 4px;
+                        EmptyState {
+                            source: @image-url("../assets/empty/empty-addon-groups.svg");
+                            title: "Nenhum grupo de adicionais";
+                            art-size: 104px;
+                        }
+                        Text {
+                            text: "Acesse 'Adicionais' no menu lateral para criar um.";
+                            font-size: 12px;
+                            color: Theme.text-secondary;
+                            horizontal-alignment: center;
+                            wrap: word-wrap;
+                        }
+                    }
+
+                    // Lista de chips com auto-wrap (Slint não tem flex-wrap
+                    // nativo, então usamos linhas fixas de 4 chips de
+                    // largura constante alinhadas à esquerda). Slot vazio
+                    // sobra como `Rectangle { horizontal-stretch: 1 }`
+                    // ocupando todo o espaço restante da linha — assim
+                    // o chip não se "estica" quando há poucos grupos.
+                    if root.addon-groups.length > 0: VerticalLayout {
+                        spacing: 8px;
+                        for row-idx in (root.addon-groups.length + 3) / 4: HorizontalLayout {
+                            spacing: 8px;
+                            if row-idx * 4 < root.addon-groups.length: AddonGroupChip {
+                                label: root.addon-groups[row-idx * 4].name;
+                                selected: root.addon-groups[row-idx * 4].selected;
+                                clicked => { root.toggle-addon-group(root.addon-groups[row-idx * 4].id); }
+                            }
+                            if row-idx * 4 + 1 < root.addon-groups.length: AddonGroupChip {
+                                label: root.addon-groups[row-idx * 4 + 1].name;
+                                selected: root.addon-groups[row-idx * 4 + 1].selected;
+                                clicked => { root.toggle-addon-group(root.addon-groups[row-idx * 4 + 1].id); }
+                            }
+                            if row-idx * 4 + 2 < root.addon-groups.length: AddonGroupChip {
+                                label: root.addon-groups[row-idx * 4 + 2].name;
+                                selected: root.addon-groups[row-idx * 4 + 2].selected;
+                                clicked => { root.toggle-addon-group(root.addon-groups[row-idx * 4 + 2].id); }
+                            }
+                            if row-idx * 4 + 3 < root.addon-groups.length: AddonGroupChip {
+                                label: root.addon-groups[row-idx * 4 + 3].name;
+                                selected: root.addon-groups[row-idx * 4 + 3].selected;
+                                clicked => { root.toggle-addon-group(root.addon-groups[row-idx * 4 + 3].id); }
+                            }
+                            // Spacer final empurra os chips para a esquerda
+                            // quando a linha não está cheia.
+                            Rectangle { horizontal-stretch: 1; }
+                        }
+                    }
+                }
+            }
+
+            // ───── Card: Variações (Fase 5B) ─────
+            //
+            // Regras aplicadas (AI_RULES.md §3, §8):
+            // - Variações são per-produto. Cada uma tem título, tipo
+            //   de seleção (single/multi/max_value), flag obrigatória
+            //   e lista mutável de opções.
+            // - Push/remove em listas vai por callback Rust (Slint não
+            //   tem helper). Edição de texto via binding inline.
+            Card {
+                vertical-stretch: 0;
+                border-radius: 10px;
+                VerticalLayout {
+                    padding: 16px;
+                    spacing: 10px;
+
+                    Text { text: "Variações"; font-size: 14px; font-weight: 700; color: Theme.text-primary; }
+                    Text {
+                        text: "Defina opções como Tamanho, Sabor etc. O cliente escolhe no cardápio web.";
+                        font-size: 11px;
+                        color: Theme.text-secondary;
+                    }
+
+                    if root.variations.length == 0: EmptyState {
+                        source: @image-url("../assets/empty/empty-variations.svg");
+                        title: "Nenhuma variação";
+                        art-size: 104px;
+                    }
+
+                    for variation[v_idx] in root.variations: Rectangle {
+                        // Sem card-dentro-de-card: o conteúdo flui direto no
+                        // card "Variações". Separador acima da 2ª variação+.
+                        background: transparent;
+                        VerticalLayout {
+                            padding-top: 4px; padding-bottom: 4px;
+                            spacing: 8px;
+                            if v_idx > 0: Rectangle { height: 1px; background: Theme.border; }
+
+                            // Header: título do bloco + botão remover.
+                            HorizontalLayout {
+                                spacing: 8px;
+                                VerticalLayout {
+                                    horizontal-stretch: 1;
+                                    Rectangle {
+                                        height: 22px;
+                                        Text {
+                                            x: 0; text: "Título";
+                                            font-size: 12px; font-weight: 500;
+                                            color: Theme.text-secondary;
+                                            vertical-alignment: center;
+                                            height: parent.height;
+                                        }
+                                    }
+                                    Rectangle {
+                                        height: 32px;
+                                        border-radius: 6px; border-width: 1px;
+                                        border-color: title-input.has-focus ? Theme.primary : Theme.border;
+                                        background: Theme.surface;
+                                        title-input := TextInput {
+                                            x: 10px; y: 0;
+                                            width: parent.width - 20px;
+                                            height: parent.height;
+                                            text: variation.title;
+                                            font-size: 13px;
+                                            color: Theme.text-primary;
+                                            vertical-alignment: center;
+                                            single-line: true;
+                                            edited => {
+                                                root.variations[v_idx].title = self.text;
+                                            }
+                                        }
+                                        if variation.title == "": Text {
+                                            x: 10px; y: 0;
+                                            height: parent.height;
+                                            text: "Ex.: Tamanho, Sabor";
+                                            font-size: 13px;
+                                            color: #BDBDBD;
+                                            vertical-alignment: center;
+                                        }
+                                    }
+                                }
+                                VerticalLayout {
+                                    rm-var-spacer := Rectangle { height: 22px; }
+                                    DeleteBtn {
+                                        width: 32px; height: 32px;
+                                        clicked => { root.remove-variation(v_idx); }
+                                    }
+                                }
+                            }
+
+                            // Tipo de seleção.
+                            VerticalLayout {
+                                spacing: 4px;
+                                Text {
+                                    text: "Tipo de seleção";
+                                    font-size: 12px; font-weight: 500;
+                                    color: Theme.text-secondary;
+                                }
+                                HorizontalLayout {
+                                    spacing: 6px;
+                                    SelectionPill {
+                                        label: "Única";
+                                        active: variation.selection == "single";
+                                        clicked => { root.variations[v_idx].selection = "single"; }
+                                    }
+                                    SelectionPill {
+                                        label: "Múltipla";
+                                        active: variation.selection == "multi";
+                                        clicked => { root.variations[v_idx].selection = "multi"; }
+                                    }
+                                    SelectionPill {
+                                        label: "Valor Maior";
+                                        active: variation.selection == "max_value";
+                                        clicked => { root.variations[v_idx].selection = "max_value"; }
+                                    }
+                                }
+                            }
+
+                            // Obrigatório. Check mark via Path SVG —
+                            // glyph "✓" no Text tinha baseline desalinhada
+                            // em alguns renderers (visível na grade do
+                            // operador). O Path desenha o tick em
+                            // coordenadas pixel-perfect.
+                            req-ta := TouchArea {
+                                height: 28px;
+                                clicked => { root.variations[v_idx].required = !variation.required; }
+                                HorizontalLayout {
+                                    spacing: 8px;
+                                    alignment: start;
+                                    Rectangle {
+                                        width: 22px; height: 22px;
+                                        border-radius: 5px;
+                                        border-width: 1px;
+                                        border-color: variation.required ? Theme.primary : Theme.border;
+                                        background: variation.required ? Theme.sidebar-sel-bg : Theme.surface;
+                                        if variation.required: Path {
+                                            // Tick: M(start) → L(elbow) → L(end). Stroke
+                                            // grosso para alta visibilidade no quadrado 22px.
+                                            x: (parent.width - self.width) / 2;
+                                            y: (parent.height - self.height) / 2;
+                                            width: 14px;
+                                            height: 14px;
+                                            viewbox-width: 24;
+                                            viewbox-height: 24;
+                                            stroke: white;
+                                            stroke-width: 3.5px;
+                                            commands: "M 5 12.5 L 10 17.5 L 19.5 7";
+                                        }
+                                    }
+                                    Text {
+                                        text: "Obrigatório";
+                                        font-size: 12px;
+                                        color: Theme.text-primary;
+                                        vertical-alignment: center;
+                                    }
+                                }
+                            }
+
+                            // Mín./máx. de opções selecionáveis — só
+                            // para "Múltipla" e "Valor Maior". Vazio =
+                            // sem limite.
+                            if variation.selection == "multi" || variation.selection == "max_value": HorizontalLayout {
+                                spacing: 10px;
+                                VerticalLayout {
+                                    horizontal-stretch: 1;
+                                    spacing: 4px;
+                                    Text {
+                                        text: "Mín. seleções";
+                                        font-size: 12px; font-weight: 500;
+                                        color: Theme.text-secondary;
+                                    }
+                                    Rectangle {
+                                        height: 32px;
+                                        border-radius: 6px; border-width: 1px;
+                                        border-color: min-input.has-focus ? Theme.primary : Theme.border;
+                                        background: Theme.surface;
+                                        min-input := TextInput {
+                                            x: 10px; y: 0;
+                                            width: parent.width - 20px;
+                                            height: parent.height;
+                                            text: variation.min-select;
+                                            font-size: 13px;
+                                            color: Theme.text-primary;
+                                            vertical-alignment: center;
+                                            single-line: true;
+                                            input-type: number;
+                                            edited => {
+                                                root.variations[v_idx].min-select = self.text;
+                                            }
+                                        }
+                                        if variation.min-select == "": Text {
+                                            x: 10px; y: 0;
+                                            height: parent.height;
+                                            text: "0";
+                                            font-size: 13px;
+                                            color: #BDBDBD;
+                                            vertical-alignment: center;
+                                        }
+                                    }
+                                }
+                                VerticalLayout {
+                                    horizontal-stretch: 1;
+                                    spacing: 4px;
+                                    Text {
+                                        text: "Máx. seleções";
+                                        font-size: 12px; font-weight: 500;
+                                        color: Theme.text-secondary;
+                                    }
+                                    Rectangle {
+                                        height: 32px;
+                                        border-radius: 6px; border-width: 1px;
+                                        border-color: max-input.has-focus ? Theme.primary : Theme.border;
+                                        background: Theme.surface;
+                                        max-input := TextInput {
+                                            x: 10px; y: 0;
+                                            width: parent.width - 20px;
+                                            height: parent.height;
+                                            text: variation.max-select;
+                                            font-size: 13px;
+                                            color: Theme.text-primary;
+                                            vertical-alignment: center;
+                                            single-line: true;
+                                            input-type: number;
+                                            edited => {
+                                                root.variations[v_idx].max-select = self.text;
+                                            }
+                                        }
+                                        if variation.max-select == "": Text {
+                                            x: 10px; y: 0;
+                                            height: parent.height;
+                                            text: "Sem limite";
+                                            font-size: 13px;
+                                            color: #BDBDBD;
+                                            vertical-alignment: center;
+                                        }
+                                    }
+                                }
+                            }
+
+                            Rectangle { height: 1px; background: Theme.border; }
+
+                            // Opções.
+                            Text {
+                                text: "Opções";
+                                font-size: 12px; font-weight: 600;
+                                color: Theme.text-secondary;
+                            }
+                            for option[o_idx] in variation.options: HorizontalLayout {
+                                spacing: 6px;
+                                Rectangle {
+                                    height: 32px;
+                                    horizontal-stretch: 2;
+                                    border-radius: 6px; border-width: 1px;
+                                    border-color: opt-name-input.has-focus ? Theme.primary : Theme.border;
+                                    background: Theme.surface;
+                                    opt-name-input := TextInput {
+                                        x: 10px; y: 0;
+                                        width: parent.width - 20px;
+                                        height: parent.height;
+                                        text: option.name;
+                                        font-size: 13px;
+                                        color: Theme.text-primary;
+                                        vertical-alignment: center;
+                                        single-line: true;
+                                        edited => {
+                                            root.variations[v_idx].options[o_idx].name = self.text;
+                                        }
+                                    }
+                                    if option.name == "": Text {
+                                        x: 10px; y: 0;
+                                        height: parent.height;
+                                        text: "Nome";
+                                        font-size: 13px;
+                                        color: #BDBDBD;
+                                        vertical-alignment: center;
+                                    }
+                                }
+                                Rectangle {
+                                    height: 32px;
+                                    horizontal-stretch: 1;
+                                    border-radius: 6px; border-width: 1px;
+                                    border-color: opt-price-input.has-focus ? Theme.primary : Theme.border;
+                                    background: Theme.surface;
+                                    opt-price-input := TextInput {
+                                        x: 10px; y: 0;
+                                        width: parent.width - 20px;
+                                        height: parent.height;
+                                        text: option.price;
+                                        font-size: 13px;
+                                        color: Theme.text-primary;
+                                        vertical-alignment: center;
+                                        single-line: true;
+                                        edited => {
+                                            root.variations[v_idx].options[o_idx].price = self.text;
+                                        }
+                                    }
+                                    if option.price == "": Text {
+                                        x: 10px; y: 0;
+                                        height: parent.height;
+                                        text: "0,00";
+                                        font-size: 13px;
+                                        color: #BDBDBD;
+                                        vertical-alignment: center;
+                                    }
+                                }
+                                DeleteBtn {
+                                    width: 32px; height: 32px;
+                                    clicked => { root.remove-variation-option(v_idx, o_idx); }
+                                }
+                            }
+
+                            // Botão "+ Adicionar opção".
+                            add-opt-ta := TouchArea {
+                                height: 30px;
+                                horizontal-stretch: 1;
+                                clicked => { root.add-variation-option(v_idx); }
+                                Rectangle {
+                                    border-radius: 6px;
+                                    border-width: 1px;
+                                    border-color: add-opt-ta.has-hover ? Theme.primary : Theme.border;
+                                    background: add-opt-ta.has-hover ? Theme.row-hover : Theme.surface;
+                                    HorizontalLayout {
+                                        alignment: center; spacing: 6px;
+                                        Text {
+                                            text: "+";
+                                            font-size: 14px; font-weight: 700;
+                                            color: Theme.primary;
+                                            vertical-alignment: center;
+                                        }
+                                        Text {
+                                            text: "Adicionar Opção";
+                                            font-size: 12px; font-weight: 500;
+                                            color: Theme.primary;
+                                            vertical-alignment: center;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Botão "+ Nova variação".
+                    add-var-ta := TouchArea {
+                        height: 36px;
+                        horizontal-stretch: 1;
+                        clicked => { root.add-variation(); }
+                        Rectangle {
+                            border-radius: 6px;
+                            border-width: 1px;
+                            border-color: add-var-ta.has-hover ? Theme.primary : Theme.border;
+                            background: add-var-ta.has-hover ? Theme.row-hover : Theme.surface;
+                            HorizontalLayout {
+                                alignment: center; spacing: 6px;
+                                Text {
+                                    text: "+";
+                                    font-size: 16px; font-weight: 700;
+                                    color: Theme.primary;
+                                    vertical-alignment: center;
+                                }
+                                Text {
+                                    text: "Nova Variação";
+                                    font-size: 13px; font-weight: 600;
+                                    color: Theme.primary;
+                                    vertical-alignment: center;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // ───── Card: Imagem ─────
+            Card {
+                vertical-stretch: 0;
+                border-radius: 10px;
+                VerticalLayout {
+                    padding: 16px;
+                    spacing: 10px;
+
+                    Text { text: "Imagem"; font-size: 14px; font-weight: 700; color: Theme.text-primary; }
+
+                    img-ta := TouchArea {
+                        height: 140px;
+                        property <bool> hov: self.has-hover && !root.product-image-loading;
+                        enabled: !root.product-image-loading;
+                        clicked => { root.pick-product-image(); }
+                        Rectangle {
+                            border-radius: 8px; border-width: 1px;
+                            border-color: root.product-image-loading
+                                ? #E65100
+                                : (parent.hov
+                                    ? Theme.primary
+                                    : (root.product-image-data != "" ? #66BB6A : #BDBDBD));
+                            background: root.product-image-loading
+                                ? #FFF3E0
+                                : (root.product-image-data != "" ? #F1F8E9 : #FAFAFA);
+
+                            VerticalLayout {
+                                alignment: center;
+                                spacing: 4px;
+                                HorizontalLayout {
+                                    alignment: center;
+                                    if root.product-image-loading: Text {
+                                        text: Math.mod(root.load-tick, 4) == 0 ? "◐" : (Math.mod(root.load-tick, 4) == 1 ? "◓" : (Math.mod(root.load-tick, 4) == 2 ? "◑" : "◒"));
+                                        font-size: 28px;
+                                        color: #E65100;
+                                    }
+                                    if !root.product-image-loading: Text {
+                                        text: "\u{1F5BC}";
+                                        font-size: 28px;
+                                        color: root.product-image-data != "" ? #2E7D32 : Theme.text-secondary;
+                                    }
+                                }
+                                Text {
+                                    text: root.product-image-loading
+                                        ? "Processando imagem..."
+                                        : (root.product-image-data != ""
+                                            ? "Imagem Selecionada"
+                                            : "Arraste uma imagem ou selecione");
+                                    font-size: 13px;
+                                    color: root.product-image-loading ? #E65100
+                                        : (root.product-image-data != "" ? #2E7D32 : Theme.text-primary);
+                                    horizontal-alignment: center;
+                                }
+                                Text {
+                                    text: "JPG, PNG \u{00B7} até 2 MB";
+                                    font-size: 11px;
+                                    color: Theme.text-secondary;
+                                    horizontal-alignment: center;
+                                }
+                            }
+                        }
+                    }
+                    if root.product-image-data != "" && !root.product-image-loading: HorizontalLayout {
+                        alignment: end;
+                        clear-img := TouchArea {
+                            width: 100px; height: 26px;
+                            property <bool> hov: self.has-hover;
+                            clicked => { root.product-image-data = ""; }
+                            Rectangle {
+                                border-radius: 4px;
+                                background: parent.hov ? #FFEBEE : transparent;
+                                Text {
+                                    text: "\u{2715} Remover";
+                                    font-size: 12px;
+                                    color: Theme.danger;
+                                    horizontal-alignment: center;
+                                    vertical-alignment: center;
+                                    width: parent.width; height: parent.height;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+        if root.product-save-error != "": Text {
+            text: root.product-save-error;
+            font-size: 12px; color: Theme.danger; wrap: word-wrap;
+        }
+    }
+}

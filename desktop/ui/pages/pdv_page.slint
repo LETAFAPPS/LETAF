@@ -1,0 +1,1382 @@
+import { ScrollView } from "std-widgets.slint";
+import { AssetIcon } from "../components/icons.slint";
+import { Theme } from "../theme.slint";
+import { Card } from "../components/cards.slint";
+import { ActionBtn, OutlineBtn } from "../components/buttons.slint";
+import { EmptyState } from "../components/empty_state.slint";
+import { PdvProductRow, PdvCartRow, PdvCategoryChip, PdvAddressRow } from "../types.slint";
+
+// ── Tela: PDV (Ponto de Venda) ────────────────────────────────────
+//
+// AI_RULES.md §1, §3, §14: UI dispara callbacks; toda lógica fica
+// em Rust via `pdv::*` (cálculo de subtotal/desconto/total/troco,
+// validação, criação do Order).
+
+export component PdvPage inherits VerticalLayout {
+    in property <[PdvProductRow]> products;
+    in property <[PdvCartRow]> cart;
+    in property <[PdvCategoryChip]> categories;
+    /// Linha 2 de categorias — preenchida pelo Rust quando a largura
+    /// não comporta tudo numa linha. Vazia em telas largas.
+    in property <[PdvCategoryChip]> categories-row2;
+    in-out property <string> search-text;
+    in property <string> subtotal-display;
+    in property <string> discount-display;
+    in property <string> additional-display;
+    in property <string> total-display;
+    in-out property <string> discount-input;
+    in-out property <string> additional-input;
+    in property <int> cart-count;
+
+    // Carrinho integrado
+    in-out property <string> sale-type;          // "counter" | "delivery"
+    in-out property <string> payment-method;     // "cash" | "card" | "pix"
+    in-out property <string> payment-card-type;  // "credit" | "debit"
+    in-out property <string> secondary-payment;  // "" | "credit" | "debit" | "pix"
+    in-out property <string> amount-paid-input;
+    in property <string> change-display;
+    in property <string> remaining-display;
+    in property  <string> customer-name;
+    in-out property <string> delivery-street;
+    in-out property <string> delivery-number;
+    in-out property <string> delivery-neighborhood;
+    in property <string> finalize-error;
+    in property <[PdvAddressRow]> customer-addresses;
+
+    // Carteira do cliente (Fase 3 — integração PDV ↔ Wallet)
+    in property <bool>   wallet-has-account;
+    in property <string> wallet-balance-display;
+    in property <string> wallet-balance-tone;     // "pos" | "neg" | "neutral"
+    in property <string> wallet-credit-limit-display;
+    in property <string> wallet-available-display;
+    in property <float>  wallet-available-amount;
+    in property <float>  total-amount;
+
+    callback search-changed(string);
+    callback submit-search();
+    callback toggle-category(string);
+    callback clear-categories();
+    /// Sinal de mudança de largura do painel de categorias — Rust
+    /// decide se quebra em duas linhas e como distribuir os chips.
+    callback cats-width-changed(length);
+    callback add-product(string);
+    callback inc-line(string);
+    callback dec-line(string);
+    callback remove-line(string);
+    callback open-cart();   // pill "N itens" → abre o modal do carrinho
+    callback clear-cart();
+    callback open-customer-picker();
+    callback clear-customer();
+    callback finalize();
+    callback discount-changed(string);
+    callback additional-changed(string);
+    callback amount-paid-changed(string);
+    callback use-address(string);
+
+    /// Contador de inputs (desconto / valor pago / endereço) que
+    /// estão com foco AGORA. Cada input incrementa no `changed
+    /// has-focus` quando ganha foco e decrementa quando perde. O
+    /// Timer de refoco da busca pula seu trigger enquanto > 0 —
+    /// evita roubar foco do operador no meio da digitação.
+    property <int> active-text-fields: 0;
+
+    /// `true` quando o modal de seleção de cliente está aberto. O
+    /// Timer de refoco da busca de produtos pula seu trigger nesse
+    /// caso — senão o foco volta pra busca de barcode no meio da
+    /// digitação do nome do cliente.
+    in property <bool> customer-picker-open;
+
+    /// `true` enquanto o modal "Venda Finalizada" está aberto. Ao
+    /// fechar (passa a false), devolve o foco à busca pra próxima venda.
+    in property <bool> sold-modal-open;
+    changed sold-modal-open => {
+        if (!root.sold-modal-open) { root.focus-search(); }
+    }
+
+    /// Altura útil da janela, propagada de main.slint via
+    /// `root.height` da MainWindow. Usada como altura literal do
+    /// Rectangle RIGHT (coluna do carrinho), evitando ciclos de
+    /// binding causados por `root.height` direto aqui dentro
+    /// (que vira ciclo porque PdvPage.height é calculada pelos
+    /// filhos via layout).
+    in property <length> window-height;
+
+/// Toggle do editor de desconto: `false` (padrão) mostra o valor
+    /// + botão lápis; `true` mostra TextInput + botão check. Local
+    /// ao componente — não envolve Rust porque é puro estado de UI.
+    property <bool> discount-editing: false;
+    /// Toggle do editor de adicional (acréscimo) — mesma mecânica do desconto.
+    property <bool> additional-editing: false;
+
+    /// Altura estimada do rodapé do carrinho (totais + pagamento +
+    /// finalizar). Cresce conforme o sub-conteúdo da forma de
+    /// pagamento. Usada pra dar altura explícita ao Middle/Itens
+    /// (o Slint ignora vertical-stretch no aninhamento do carrinho).
+    property <length> cart-footer-h:
+        334px
+        + (root.payment-method == "cash" ? 52px : 0px)                                   // input Valor Pago
+        + (root.payment-method == "card" ? 52px : 0px)                                   // Crédito/Débito
+        + (root.payment-method == "wallet" ? 64px : 0px)                                 // box da carteira
+        + (root.remaining-display != "" ? 58px : 0px)                                    // display RESTANTE
+        + (root.payment-method == "cash" && root.remaining-display != "" ? 54px : 0px)   // botões do restante
+        + (root.change-display != "" ? 44px : 0px);                                      // display Troco
+
+    /// Devolve o foco à barra de busca (e zera o contador de inputs
+    /// ativos). Chamada de fora (ex.: ao fechar o modal de venda) para
+    /// deixar o PDV pronto pra próxima leitura de código de barras.
+    public function focus-search() {
+        root.active-text-fields = 0;
+        search-input.focus();
+    }
+
+    // PdvPage = VerticalLayout com 2 filhos:
+    //   1) HorizontalLayout (vertical-stretch:1) — produtos + carrinho topo
+    //   2) Rectangle footer-bar — barra full-width no fim com totais
+    //
+    // Padrão Slint nativo "stretch top + fixed bottom" que
+    // funciona sem batalha com propagação de altura.
+    padding: 24px;
+    spacing: 12px;
+
+    // FocusScope envolve o conteúdo pra capturar atalhos de teclado
+    // (F1–F12) que sobem dos inputs focados (bubble).
+    fs := FocusScope {
+        // Os ramos de pagamento/ação zeram `active-text-fields` e
+        // devolvem o foco à busca: ao trocar a forma de pagamento o
+        // input focado (ex.: Valor Pago) é destruído e o foco se
+        // perderia, matando os atalhos seguintes. F2/F3 abrem o editor
+        // (um Timer no bloco foca o campo); F5 deixa o Timer do Dinheiro
+        // focar o Valor Pago.
+        key-pressed(e) => {
+            if (e.text == Key.F1) { root.active-text-fields = 0; search-input.focus(); accept }
+            else if (e.text == Key.F2) { root.discount-editing = true; accept }
+            else if (e.text == Key.F3) { root.additional-editing = true; accept }
+            else if (e.text == Key.F5) { root.active-text-fields = 0; root.payment-method = "cash"; accept }
+            else if (e.text == Key.F6) { root.active-text-fields = 0; root.payment-method = "card"; search-input.focus(); accept }
+            else if (e.text == Key.F7) { root.active-text-fields = 0; root.payment-method = "pix"; search-input.focus(); accept }
+            else if (e.text == Key.F9) { root.active-text-fields = 0; root.finalize(); search-input.focus(); accept }
+            else if (e.text == Key.F12) { root.active-text-fields = 0; root.clear-cart(); search-input.focus(); accept }
+            else { reject }
+        }
+    HorizontalLayout {
+        width: parent.width;
+        spacing: 12px;
+        vertical-stretch: 1;
+        // Altura literal: o Slint ignora vertical-stretch aqui (vide
+        // main.slint). Sem o footer fixo de antes, esta âncora é o
+        // que dá altura às duas colunas (grid e cart-top). padding 48.
+        height: root.window-height - 48px;
+
+        // ESQUERDA: busca + categorias + grid
+        VerticalLayout {
+            horizontal-stretch: 1;
+            // Altura explícita (igual ao cart-top): sem isso o Slint não
+            // estica esta coluna e o grid (vertical-stretch) colapsa.
+            height: root.window-height - 48px;
+            // `start` empacota no topo; sem isso o layout ESTICA os filhos
+            // (ex.: separava o label "Endereço de entrega" dos campos).
+            alignment: start;
+            spacing: 10px;
+
+            // Barra de busca + pill do carrinho (mesma linha)
+            HorizontalLayout {
+                spacing: 12px;
+            Rectangle {
+                horizontal-stretch: 1;
+                height: 48px;
+                border-radius: 10px;
+                border-width: 1px;
+                border-color: search-input.has-focus ? Theme.primary : Theme.card-border;
+                background: Theme.surface;
+                drop-shadow-blur: 6px;
+                drop-shadow-offset-y: 0px;
+                drop-shadow-color: Theme.card-shadow;
+                HorizontalLayout {
+                    padding-left: 14px; padding-right: 16px;
+                    spacing: 10px;
+                    VerticalLayout {
+                        alignment: center;
+                        // Ícone menor — mais discreto, ainda
+                        // reconhecível como código de barras.
+                        AssetIcon {
+                            width: 22px; height: 22px;
+                            icon-size: 20px;
+                            icon-color: Theme.text-secondary;
+                            source: @image-url("../assets/icons/1.2/codigo-barras.svg");
+                        }
+                    }
+                    Rectangle {
+                        horizontal-stretch: 1;
+                        height: parent.height;
+                        search-input := TextInput {
+                            x: 0; y: 0;
+                            width: parent.width; height: parent.height;
+                            text <=> root.search-text;
+                            font-size: 14px; color: Theme.text-primary;
+                            vertical-alignment: center;
+                            single-line: true;
+                            edited => { root.search-changed(self.text); }
+                            accepted => { root.submit-search(); }
+                        }
+                        if root.search-text == "": Text {
+                            x: 0; y: 0;
+                            width: parent.width; height: parent.height;
+                            text: "Buscar produto ou escanear código de barras…";
+                            font-size: 14px; color: #BDBDBD;
+                            vertical-alignment: center;
+                        }
+                    }
+                    // Foco IMEDIATO ao abrir a tela. O `running:
+                    // focus-pending` faz o Timer disparar uma única
+                    // vez ~1ms após a primeira frame; o handler dá
+                    // foco e desliga. Sem isso o operador esperaria
+                    // até 2s (o intervalo do Timer abaixo) pra poder
+                    // escanear/digitar.
+                    property <bool> focus-pending: true;
+                    Timer {
+                        interval: 1ms;
+                        running: focus-pending;
+                        triggered => {
+                            if (root.active-text-fields == 0
+                                && !root.customer-picker-open
+                                && !root.sold-modal-open) {
+                                search-input.focus();
+                            }
+                            focus-pending = false;
+                        }
+                    }
+                    // Refoca a busca a cada 2s, MAS pula quando:
+                    // - operador está digitando em outro campo
+                    //   (`active-text-fields > 0`)
+                    // - já está na busca
+                    // - modal de seleção de cliente está aberto
+                    Timer {
+                        interval: 2s;
+                        running: true;
+                        triggered => {
+                            if (root.active-text-fields == 0
+                                && !search-input.has-focus
+                                && !root.customer-picker-open
+                                && !root.sold-modal-open) {
+                                search-input.focus();
+                            }
+                        }
+                    }
+                }
+            }
+                // Pill do carrinho: contador + total na mesma linha da busca.
+                Rectangle {
+                    width: 210px;
+                    height: 48px;
+                    border-radius: 10px;
+                    border-width: 1px;
+                    border-color: Theme.card-border;
+                    drop-shadow-blur: 12px;
+                    drop-shadow-offset-y: 0px;
+                    drop-shadow-color: Theme.card-shadow;
+                    background: Theme.surface;
+                    HorizontalLayout {
+                        padding-left: 16px; padding-right: 16px;
+                        spacing: 8px;
+                        alignment: center;
+                        AssetIcon {
+                            width: 22px; height: parent.height; icon-size: 18px;
+                            icon-color: Theme.text-secondary;
+                            source: @image-url("../assets/icons/1.2/compras-fornecedores.svg");
+                        }
+                        Text {
+                            text: root.cart-count + (root.cart-count == 1 ? " item" : " itens");
+                            font-size: 13px; font-weight: 600;
+                            color: Theme.text-secondary;
+                            vertical-alignment: center;
+                        }
+                        Text {
+                            text: "·"; color: Theme.text-secondary; vertical-alignment: center;
+                        }
+                        Text {
+                            // pill mostra o SUBTOTAL (soma dos itens), não o total
+                            text: root.subtotal-display;
+                            font-size: 14px; font-weight: 800;
+                            color: Theme.primary;
+                            vertical-alignment: center;
+                        }
+                    }
+                    // Card inteiro clicável → abre o modal do carrinho.
+                    pill-ta := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => { root.open-cart(); }
+                    }
+                }
+            }
+
+            // Categorias responsivas — 1 linha quando cabe, 2 quando
+            // a tela aperta. A largura é detectada aqui no Slint via
+            // `changed width` e enviada pro Rust, que decide como
+            // distribuir os chips entre `categories` (linha 1) e
+            // `categories-row2` (linha 2 — vazia quando cabe tudo).
+            cats-area := VerticalLayout {
+                spacing: 6px;
+                // NOTA: aqui existia `changed width => cats-width-changed`,
+                // que alimentava um split de categorias em 2 linhas. Esse
+                // split foi ABANDONADO (ver pdv/view.rs: categories-row2 é
+                // sempre vazio; os chips comprimem via `min-width`). O handler
+                // só armazenava uma largura inútil e, ao montar o PDV, forçava
+                // a leitura da largura DURANTE o passo de layout do conteúdo
+                // (PDV vive fora do ScrollView) → reentrância → 'Recursion
+                // detected'. Removido: sem função e causava crash no startup.
+
+                // Linha 1 — sempre presente. Inclui "Todas".
+                HorizontalLayout {
+                    spacing: 8px;
+                    clear-cats-ta := TouchArea {
+                        height: 32px;
+                        horizontal-stretch: 1;
+                        min-width: 56px;
+                        clicked => { root.clear-categories(); }
+                        Rectangle {
+                            border-radius: 8px;
+                            border-width: 1px;
+                            border-color: clear-cats-ta.has-hover ? Theme.primary : Theme.border;
+                            background: clear-cats-ta.has-hover ? Theme.row-hover : Theme.surface;
+                            HorizontalLayout {
+                                padding-left: 10px; padding-right: 10px;
+                                VerticalLayout {
+                                    alignment: center;
+                                    horizontal-stretch: 1;
+                                    Text {
+                                        text: "Todos";
+                                        font-size: 12px; font-weight: 600;
+                                        color: Theme.text-primary;
+                                        horizontal-alignment: center;
+                                        overflow: elide;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    for c in root.categories: cat-ta := TouchArea {
+                        height: 32px;
+                        horizontal-stretch: 1;
+                        min-width: 56px;
+                        clicked => { root.toggle-category(c.id); }
+                        Rectangle {
+                            border-radius: 8px;
+                            // Selecionado = só CONTORNO na cor de destaque
+                            // (mesmo estilo dos botões de Relatórios).
+                            border-width: c.selected ? 1.5px : 1px;
+                            border-color: c.selected
+                                ? Theme.sidebar-sel-bg
+                                : (cat-ta.has-hover ? Theme.primary : Theme.border);
+                            background: c.selected ? transparent
+                                : (cat-ta.has-hover ? Theme.row-hover : Theme.surface);
+                            HorizontalLayout {
+                                padding-left: 10px; padding-right: 10px;
+                                VerticalLayout {
+                                    alignment: center;
+                                    horizontal-stretch: 1;
+                                    Text {
+                                        text: c.name;
+                                        font-size: 12px; font-weight: 600;
+                                        color: c.selected ? Theme.sidebar-sel-bg : Theme.text-primary;
+                                        horizontal-alignment: center;
+                                        overflow: elide;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                // Linha 2 — só renderiza quando o Rust populou.
+                if root.categories-row2.length > 0: HorizontalLayout {
+                    spacing: 8px;
+                    for c in root.categories-row2: cat2-ta := TouchArea {
+                        height: 32px;
+                        horizontal-stretch: 1;
+                        min-width: 56px;
+                        clicked => { root.toggle-category(c.id); }
+                        Rectangle {
+                            border-radius: 8px;
+                            border-width: 1px;
+                            border-color: c.selected
+                                ? Theme.primary
+                                : (cat2-ta.has-hover ? Theme.primary : Theme.border);
+                            background: c.selected ? Theme.sidebar-sel-bg
+                                : (cat2-ta.has-hover ? Theme.row-hover : Theme.surface);
+                            HorizontalLayout {
+                                padding-left: 10px; padding-right: 10px;
+                                VerticalLayout {
+                                    alignment: center;
+                                    horizontal-stretch: 1;
+                                    Text {
+                                        text: c.name;
+                                        font-size: 12px; font-weight: 600;
+                                        color: c.selected ? white : Theme.text-primary;
+                                        horizontal-alignment: center;
+                                        overflow: elide;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Cliente — barra no rodapé da coluna de produtos (referência).
+            Rectangle {
+                height: 56px;
+                border-radius: 10px;
+                border-width: 1px;
+                border-color: Theme.card-border;
+                drop-shadow-blur: 12px;
+                drop-shadow-offset-y: 0px;
+                drop-shadow-color: Theme.card-shadow;
+                background: Theme.surface;
+                HorizontalLayout {
+                    padding-left: 18px; padding-right: 14px;
+                    spacing: 12px;
+                    AssetIcon {
+                        width: 22px; height: parent.height; icon-size: 20px;
+                        icon-color: Theme.text-secondary;
+                        source: @image-url("../assets/icons/1.2/user.svg");
+                    }
+                    VerticalLayout {
+                        alignment: center;
+                        Text { text: "CLIENTE"; font-size: 11px; font-weight: 700; color: Theme.text-secondary; letter-spacing: 1px; }
+                    }
+                    cli-pick-ta := TouchArea {
+                        horizontal-stretch: 1;
+                        clicked => { root.open-customer-picker(); }
+                        Rectangle {
+                            height: 32px;
+                            y: (parent.height - self.height) / 2;
+                            border-radius: 8px; border-width: 1px;
+                            border-color: cli-pick-ta.has-hover ? Theme.primary : Theme.border;
+                            background: Theme.surface;
+                            HorizontalLayout {
+                                padding-left: 12px; padding-right: 12px;
+                                Text {
+                                    text: root.customer-name != "" ? root.customer-name : "Selecionar Cliente (opcional)";
+                                    font-size: 13px;
+                                    color: root.customer-name != "" ? Theme.text-primary : #BDBDBD;
+                                    vertical-alignment: center; horizontal-stretch: 1; overflow: elide;
+                                }
+                            }
+                        }
+                    }
+                    if root.customer-name != "": cli-clear-ta := TouchArea {
+                        width: 38px;
+                        clicked => { root.clear-customer(); }
+                        Rectangle {
+                            width: 38px; height: 38px;
+                            y: (parent.height - self.height) / 2;
+                            border-radius: 6px; border-width: 1px;
+                            border-color: cli-clear-ta.has-hover ? #EF5350 : Theme.border;
+                            background: cli-clear-ta.has-hover ? #FFEBEE : Theme.surface;
+                            AssetIcon { width: parent.width; height: parent.height; icon-size: 13px; icon-color: cli-clear-ta.has-hover ? #C62828 : Theme.text-secondary; source: @image-url("../assets/icons/1.2/fechar.svg"); }
+                        }
+                    }
+                }
+            }
+            // ── Endereço de entrega (abaixo do Cliente, só Entrega) ──
+                        // Endereços cadastrados do cliente (se Entrega + cliente
+                        // selecionado + tem endereços). Cada linha é clicável e
+                        // popula `delivery-street/number/neighborhood` via Rust.
+                        if root.sale-type == "delivery" && root.customer-addresses.length > 0: VerticalLayout {
+                            spacing: 6px;
+                            Text {
+                                text: "Endereços do cliente";
+                                font-size: 10px; font-weight: 700;
+                                color: Theme.text-secondary;
+                                letter-spacing: 1px;
+                            }
+                            for addr in root.customer-addresses: addr-ta := TouchArea {
+                                height: 44px;
+                                clicked => { root.use-address(addr.id); }
+                                Rectangle {
+                                    border-radius: 6px;
+                                    border-width: 1px;
+                                    border-color: addr-ta.has-hover ? Theme.primary : Theme.border;
+                                    background: addr-ta.has-hover ? Theme.row-hover : Theme.surface;
+                                    HorizontalLayout {
+                                        padding-left: 10px; padding-right: 10px;
+                                        spacing: 8px;
+                                        VerticalLayout {
+                                            horizontal-stretch: 1;
+                                            alignment: center;
+                                            spacing: 1px;
+                                            Text {
+                                                text: addr.label != "" ? addr.label : "Endereço";
+                                                font-size: 11px; font-weight: 700;
+                                                color: Theme.text-primary;
+                                                overflow: elide;
+                                            }
+                                            Text {
+                                                text: addr.summary;
+                                                font-size: 10px;
+                                                color: Theme.text-secondary;
+                                                overflow: elide;
+                                            }
+                                        }
+                                        VerticalLayout {
+                                            alignment: center;
+                                            Text {
+                                                text: "Usar";
+                                                font-size: 10px; font-weight: 700;
+                                                color: addr-ta.has-hover ? Theme.primary : Theme.text-secondary;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        // Endereço (só Entrega) — campos manuais editáveis.
+                        // Operador pode digitar do zero OU clicar num endereço
+                        // do bloco acima que preenche e ainda permite edição.
+                        if root.sale-type == "delivery": VerticalLayout {
+                            spacing: 6px;
+                            HorizontalLayout {
+                                spacing: 6px;
+                            Rectangle {
+                                horizontal-stretch: 1;
+                                height: 32px;
+                                border-radius: 6px;
+                                border-width: 1px;
+                                border-color: street-input.has-focus ? Theme.primary : Theme.card-border;
+                                background: Theme.surface;
+                                drop-shadow-blur: 6px;
+                                drop-shadow-offset-y: 0px;
+                                drop-shadow-color: Theme.card-shadow;
+                                street-input := TextInput {
+                                    x: 10px; y: 0;
+                                    width: parent.width - 20px;
+                                    height: parent.height;
+                                    text <=> root.delivery-street;
+                                    font-size: 12px; color: Theme.text-primary;
+                                    vertical-alignment: center;
+                                    single-line: true;
+                                    changed has-focus => {
+                                        root.active-text-fields = root.active-text-fields + (self.has-focus ? 1 : -1);
+                                    }
+                                }
+                                if root.delivery-street == "": Text {
+                                    x: 10px; y: 0; height: parent.height;
+                                    text: "Rua";
+                                    font-size: 12px; color: #BDBDBD;
+                                    vertical-alignment: center;
+                                }
+                            }
+                                Rectangle {
+                                    width: 90px; height: 32px;
+                                    border-radius: 6px;
+                                    border-width: 1px;
+                                    border-color: num-input.has-focus ? Theme.primary : Theme.card-border;
+                                    background: Theme.surface;
+                                    drop-shadow-blur: 6px;
+                                    drop-shadow-offset-y: 0px;
+                                    drop-shadow-color: Theme.card-shadow;
+                                    num-input := TextInput {
+                                        x: 10px; y: 0;
+                                        width: parent.width - 20px;
+                                        height: parent.height;
+                                        text <=> root.delivery-number;
+                                        font-size: 12px; color: Theme.text-primary;
+                                        vertical-alignment: center;
+                                        single-line: true;
+                                        changed has-focus => {
+                                            root.active-text-fields = root.active-text-fields + (self.has-focus ? 1 : -1);
+                                        }
+                                    }
+                                    if root.delivery-number == "": Text {
+                                        x: 10px; y: 0; height: parent.height;
+                                        text: "Nº";
+                                        font-size: 12px; color: #BDBDBD;
+                                        vertical-alignment: center;
+                                    }
+                                }
+                                Rectangle {
+                                    width: 180px; height: 32px;
+                                    border-radius: 6px;
+                                    border-width: 1px;
+                                    border-color: neigh-input.has-focus ? Theme.primary : Theme.card-border;
+                                    background: Theme.surface;
+                                    drop-shadow-blur: 6px;
+                                    drop-shadow-offset-y: 0px;
+                                    drop-shadow-color: Theme.card-shadow;
+                                    neigh-input := TextInput {
+                                        x: 10px; y: 0;
+                                        width: parent.width - 20px;
+                                        height: parent.height;
+                                        text <=> root.delivery-neighborhood;
+                                        font-size: 12px; color: Theme.text-primary;
+                                        vertical-alignment: center;
+                                        single-line: true;
+                                        changed has-focus => {
+                                            root.active-text-fields = root.active-text-fields + (self.has-focus ? 1 : -1);
+                                        }
+                                    }
+                                    if root.delivery-neighborhood == "": Text {
+                                        x: 10px; y: 0; height: parent.height;
+                                        text: "Bairro";
+                                        font-size: 12px; color: #BDBDBD;
+                                        vertical-alignment: center;
+                                    }
+                                }
+                            }
+                        }
+            // Grid de produtos
+            Rectangle {
+                vertical-stretch: 1;
+                // Altura explícita: o Slint colapsa vertical-stretch aqui.
+                // window - padding(48) - busca(48) - cats(36|78) - cliente(56)
+                // - gaps(30). Não referencia irmãos (evita loop de layout);
+                // usa só propriedades. cats vira 2 linhas qd há categories-row2.
+                height: root.window-height - 218px
+                    - (root.categories-row2.length > 0 ? 42px : 0px)
+                    // Entrega abre os campos de endereço abaixo do Cliente,
+                    // que consomem altura da coluna → grid encolhe. Endereço
+                    // agora é 1 linha sem label (~44px).
+                    - (root.sale-type == "delivery" ? 44px : 0px)
+                    - (root.sale-type == "delivery" && root.customer-addresses.length > 0 ? 56px : 0px);
+                // Sem card revestindo: a lista é composta só pelos cards de
+                // cada produto (cada um tem o próprio contorno).
+                background: transparent;
+                if root.products.length == 0: Rectangle {
+                    EmptyState {
+                        source: root.search-text != ""
+                            ? @image-url("../assets/empty/empty-search.svg")
+                            : @image-url("../assets/empty/empty-products.svg");
+                        title: root.search-text != "" ? "Nada encontrado" : "Sem produtos";
+                        subtitle: root.search-text != "" ? "Tente outro termo de busca" : "";
+                        art-size: 130px;
+                    }
+                }
+                if root.products.length > 0: ScrollView { vertical-scrollbar-policy: ScrollBarPolicy.always-off; horizontal-scrollbar-policy: ScrollBarPolicy.always-off;
+                    VerticalLayout {
+                        // Folga lateral/topo/baixo p/ a sombra dos itens não
+                        // encostar (e ser cortada) na borda do ScrollView.
+                        padding-left: 14px; padding-right: 14px;
+                        padding-top: 6px; padding-bottom: 6px;
+                        spacing: 10px;
+                        for p in root.products: prod-ta := TouchArea {
+                            height: 88px;
+                            clicked => { root.add-product(p.id); }
+                            Rectangle {
+                                border-radius: 10px;
+                                border-width: 1px;
+                                border-color: prod-ta.has-hover ? Theme.primary : Theme.card-border;
+                                background: prod-ta.has-hover ? Theme.row-hover : Theme.surface;
+                                drop-shadow-blur: 12px;
+                                drop-shadow-offset-y: 0px;
+                                drop-shadow-color: Theme.card-shadow;
+                                HorizontalLayout {
+                                    padding: 12px;
+                                    spacing: 14px;
+                                    // Foto do produto (decodificada em Rust).
+                                    // Fallback para ícone quando não há imagem.
+                                    Rectangle {
+                                        width: 64px; height: 64px;
+                                        border-radius: 8px;
+                                        background: Theme.bg;
+                                        clip: true;
+                                        if p.has-image: Image {
+                                            width: 64px; height: 64px;
+                                            source: p.product-image;
+                                            image-fit: cover;
+                                        }
+                                        if !p.has-image: AssetIcon {
+                                            width: 64px; height: 64px; icon-size: 30px;
+                                            icon-color: #BDBDBD;
+                                            source: @image-url("../assets/icons/1.2/products.svg");
+                                        }
+                                    }
+                                    VerticalLayout {
+                                        horizontal-stretch: 1;
+                                        alignment: center;
+                                        spacing: 4px;
+                                        Text {
+                                            text: p.name;
+                                            font-size: 14px; font-weight: 700;
+                                            color: Theme.text-primary;
+                                            overflow: elide;
+                                        }
+                                        if p.has-config: Text {
+                                            text: "Variações / Adicionais";
+                                            font-size: 10px;
+                                            color: Theme.text-secondary;
+                                        }
+                                    }
+                                    VerticalLayout {
+                                        alignment: center;
+                                        Text {
+                                            text: p.price-display;
+                                            font-size: 16px; font-weight: 800;
+                                            color: Theme.primary;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+    // ════════════════════════════════════════════════
+    //  DIREITA: carrinho — dois Rectangles posicionados
+    //  ABSOLUTAMENTE no PdvPage. cart-bottom ancorado primeiro
+    //  no FIM (y = parent.height - 24 - self.height); cart-top
+    //  preenche entre topo (y=24) e cart-bottom. Tudo baseado
+    //  em parent.height = PdvPage.height = janela inteira.
+    // ════════════════════════════════════════════════
+
+        // CARRINHO TOPO (sem footer): Header + Tipo + Cliente + Itens
+        cart-top := Rectangle {
+            width: 380px;
+            // Altura definida via window-height (padding 24 topo+base = 48):
+            // o Slint não estica este Rectangle sozinho dentro do HBox.
+            height: root.window-height - 48px;
+            border-radius: 10px;
+            border-width: 1px;
+            border-color: Theme.card-border;
+            drop-shadow-blur: 12px;
+            drop-shadow-offset-y: 0px;
+            drop-shadow-color: Theme.card-shadow;
+            background: Theme.surface;
+                VerticalLayout {
+                    padding: 0px;
+                    spacing: 0px;
+
+                // Header — título "CARRINHO" centralizado. Sem destaque:
+                // mesmo fundo do card (não usar Theme.bg).
+                Rectangle {
+                    height: 48px;
+                    background: transparent;
+                    HorizontalLayout {
+                        alignment: center;
+                        Text {
+                            text: "CARRINHO";
+                            font-size: 12px; font-weight: 800;
+                            color: Theme.text-primary;
+                            letter-spacing: 1px;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+
+                // Middle — Tipo + Itens. Altura explícita (Slint ignora
+                // vertical-stretch aqui): preenche entre Header e footer.
+                Rectangle {
+                    height: root.window-height - 96px - root.cart-footer-h;
+                    VerticalLayout {
+                        // Tipo fixo no topo; a lista de Itens abaixo vai
+                        // num ScrollView que ESTICA, preenchendo todo o
+                        // espaço entre Tipo e o footer (Subtotal).
+                        padding: 12px;
+                        spacing: 12px;
+
+                        // Tipo (PDV/Entrega) — sem label.
+                        VerticalLayout {
+                            spacing: 6px;
+                            HorizontalLayout {
+                                spacing: 6px;
+                                for opt[oi] in [
+                                    { value: "counter",  label: "PDV" },
+                                    { value: "delivery", label: "Entrega" },
+                                ]: type-ta := TouchArea {
+                                    horizontal-stretch: 1; height: 32px;
+                                    // `min-width` igual em todos →
+                                    // preferred-width igual → stretch
+                                    // divide o resto igualmente.
+                                    min-width: 80px;
+                                    clicked => { root.sale-type = opt.value; }
+                                    Rectangle {
+                                        border-radius: 6px;
+                                        // Selecionado = só CONTORNO (estilo Relatórios).
+                                        border-width: root.sale-type == opt.value ? 1.5px : 1px;
+                                        border-color: root.sale-type == opt.value ? Theme.sidebar-sel-bg : Theme.border;
+                                        background: root.sale-type == opt.value ? transparent : Theme.surface;
+                                        HorizontalLayout {
+                                            alignment: center;
+                                            VerticalLayout {
+                                                alignment: center;
+                                                Text {
+                                                    text: opt.label;
+                                                    font-size: 12px; font-weight: 600;
+                                                    color: root.sale-type == opt.value ? Theme.sidebar-sel-bg : Theme.text-primary;
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+
+
+                        // Lista de itens (sem label e SEM borda no container):
+                        // aparecem só os cards dos produtos (ou o empty). Estica
+                        // (vertical-stretch) preenchendo até perto do subtotal.
+                        Rectangle {
+                            vertical-stretch: 1;
+                        ScrollView { vertical-scrollbar-policy: ScrollBarPolicy.always-off; horizontal-scrollbar-policy: ScrollBarPolicy.always-off;
+                        VerticalLayout {
+                            // `start`: cada card mantém tamanho fixo e empacota
+                            // no topo; a lista rola quando passa da altura.
+                            alignment: start;
+                            padding: 6px;
+                            spacing: 6px;
+                            for it in root.cart: Rectangle {
+                                border-radius: 6px;
+                                border-width: 1px;
+                                border-color: Theme.card-border;
+                                background: Theme.surface;
+                                VerticalLayout {
+                                    padding: 8px;
+                                    spacing: 4px;
+                                    HorizontalLayout {
+                                        spacing: 8px;
+                                        VerticalLayout {
+                                            horizontal-stretch: 1;
+                                            spacing: 1px;
+                                            Text {
+                                                text: it.name;
+                                                font-size: 12px; font-weight: 600;
+                                                color: Theme.text-primary;
+                                                overflow: elide;
+                                            }
+                                            if it.addons-summary != "": Text {
+                                                text: it.addons-summary;
+                                                font-size: 10px;
+                                                color: Theme.text-secondary;
+                                                wrap: word-wrap;
+                                            }
+                                        }
+                                        Text {
+                                            text: it.line-total-display;
+                                            font-size: 12px; font-weight: 700;
+                                            color: Theme.primary;
+                                            vertical-alignment: center;
+                                        }
+                                    }
+                                    HorizontalLayout {
+                                        spacing: 4px;
+                                        dec-ta := TouchArea {
+                                            width: 26px; height: 24px;
+                                            clicked => { root.dec-line(it.line-id); }
+                                            Rectangle {
+                                                border-radius: 4px;
+                                                border-width: 1px;
+                                                border-color: dec-ta.has-hover ? Theme.primary : Theme.border;
+                                                background: dec-ta.has-hover ? Theme.row-hover : Theme.surface;
+                                                HorizontalLayout {
+                                                    alignment: center;
+                                                    VerticalLayout {
+                                                        alignment: center;
+                                                        Text { text: "−"; font-size: 12px; font-weight: 700; color: Theme.text-primary; }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        Rectangle {
+                                            width: 32px; height: 24px;
+                                            border-radius: 4px;
+                                            border-width: 1px;
+                                            border-color: Theme.card-border;
+                                            background: Theme.surface;
+                                            HorizontalLayout {
+                                                alignment: center;
+                                                VerticalLayout {
+                                                    alignment: center;
+                                                    Text { text: it.qty; font-size: 12px; font-weight: 600; color: Theme.text-primary; }
+                                                }
+                                            }
+                                        }
+                                        inc-ta := TouchArea {
+                                            width: 26px; height: 24px;
+                                            clicked => { root.inc-line(it.line-id); }
+                                            Rectangle {
+                                                border-radius: 4px;
+                                                border-width: 1px;
+                                                border-color: inc-ta.has-hover ? Theme.primary : Theme.border;
+                                                background: inc-ta.has-hover ? Theme.row-hover : Theme.surface;
+                                                HorizontalLayout {
+                                                    alignment: center;
+                                                    VerticalLayout {
+                                                        alignment: center;
+                                                        Text { text: "+"; font-size: 12px; font-weight: 700; color: Theme.text-primary; }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        Rectangle { horizontal-stretch: 1; }
+                                        rem-ta := TouchArea {
+                                            width: 26px; height: 24px;
+                                            clicked => { root.remove-line(it.line-id); }
+                                            Rectangle {
+                                                border-radius: 4px;
+                                                border-width: 1px;
+                                                border-color: rem-ta.has-hover ? #EF5350 : Theme.border;
+                                                background: rem-ta.has-hover ? #FFEBEE : Theme.surface;
+                                                AssetIcon { width: parent.width; height: parent.height; icon-size: 11px; icon-color: rem-ta.has-hover ? #C62828 : Theme.text-secondary; source: @image-url("../assets/icons/1.2/fechar.svg"); }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            if root.cart.length == 0: Rectangle {
+                                // Sem ícone nem fundo — só o texto centralizado.
+                                // A borda da lista fica no container externo.
+                                HorizontalLayout {
+                                    alignment: center;
+                                    VerticalLayout {
+                                        alignment: center;
+                                        padding: 16px;
+                                        EmptyState {
+                                            source: @image-url("../assets/empty/empty-cart.svg");
+                                            title: "Carrinho vazio";
+                                            subtitle: "Adicione itens para começar";
+                                            art-size: 116px;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    }
+                    }
+                }
+
+                    // ── Totais + pagamento + finalizar (parte do carrinho) ──
+                    // Seamless: mesmo card do carrinho (sem borda/fundo próprios).
+                    Rectangle {
+        background: transparent;
+        // Altura explícita casada com o Middle (= window - 48 - 48 - middle).
+        height: root.cart-footer-h;
+        VerticalLayout {
+            // Fixa o bloco no rodapé do card; o excesso de altura vira
+            // espaço vazio ACIMA (área do carrinho), não vãos no meio.
+            alignment: end;
+            padding-left: 20px; padding-right: 20px;
+            padding-top: 12px; padding-bottom: 16px;
+            spacing: 14px;
+
+        // ── Totais/pagamento empilhados na coluna do carrinho ──
+        VerticalLayout {
+            spacing: 12px;
+
+            // Subtotal — rótulo à esquerda, valor à direita
+            HorizontalLayout {
+                Text { text: "Subtotal"; font-size: 12px; font-weight: 600; color: Theme.text-secondary; vertical-alignment: center; }
+                Rectangle { horizontal-stretch: 1; }
+                Text { text: root.subtotal-display; font-size: 14px; font-weight: 700; color: Theme.text-primary; vertical-alignment: center; }
+            }
+
+            // Desconto + edit — rótulo à esquerda; lápis À ESQUERDA do valor.
+            HorizontalLayout {
+                spacing: 6px;
+                Text { text: "Desconto"; font-size: 12px; font-weight: 600; color: Theme.text-secondary; vertical-alignment: center; }
+                Rectangle { horizontal-stretch: 1; }
+                    if !root.discount-editing: disc-edit-ta := TouchArea {
+                        width: 22px; height: 22px;
+                        clicked => { root.discount-editing = true; }
+                        Rectangle {
+                            border-radius: 4px;
+                            background: disc-edit-ta.has-hover ? Theme.row-hover : transparent;
+                            AssetIcon { width: parent.width; height: parent.height; icon-size: 12px; icon-color: disc-edit-ta.has-hover ? Theme.primary : Theme.text-secondary; source: @image-url("../assets/icons/1.2/editar.svg"); }
+                        }
+                    }
+                    if !root.discount-editing: Text {
+                        text: root.discount-display;
+                        font-size: 14px; font-weight: 700; color: Theme.text-primary;
+                        vertical-alignment: center;
+                    }
+                    if root.discount-editing: Rectangle {
+                        width: 80px; height: 26px;
+                        border-radius: 4px;
+                        border-width: 1px;
+                        border-color: disc-input.has-focus ? Theme.primary : Theme.border;
+                        background: Theme.surface;
+                        disc-input := TextInput {
+                            x: 6px; y: 0; width: parent.width - 12px; height: parent.height;
+                            text <=> root.discount-input;
+                            font-size: 12px; color: Theme.text-primary;
+                            vertical-alignment: center; horizontal-alignment: right;
+                            single-line: true;
+                            edited => { root.discount-changed(self.text); }
+                            accepted => { root.discount-editing = false; search-input.focus(); }
+                            changed has-focus => {
+                                root.active-text-fields = root.active-text-fields + (self.has-focus ? 1 : -1);
+                            }
+                        }
+                        // Auto-foca o campo ao abrir (clique no lápis ou atalho F2).
+                        Timer {
+                            interval: 1ms; running: true;
+                            triggered => { disc-input.focus(); self.running = false; }
+                        }
+                    }
+                    if root.discount-editing: disc-ok-ta := TouchArea {
+                        width: 22px; height: 22px;
+                        clicked => { root.discount-editing = false; search-input.focus(); }
+                        Rectangle {
+                            border-radius: 4px;
+                            background: disc-ok-ta.has-hover ? Theme.sidebar-sel-bg : transparent;
+                            AssetIcon { width: parent.width; height: parent.height; icon-size: 12px; icon-color: disc-ok-ta.has-hover ? white : Theme.primary; source: @image-url("../assets/icons/1.2/confirmar.svg"); }
+                        }
+                    }
+            }
+
+            // Adicional (acréscimo) — mesma estrutura do Desconto; SOMA ao total.
+            HorizontalLayout {
+                spacing: 6px;
+                Text { text: "Adicional"; font-size: 12px; font-weight: 600; color: Theme.text-secondary; vertical-alignment: center; }
+                Rectangle { horizontal-stretch: 1; }
+                    if !root.additional-editing: add-edit-ta := TouchArea {
+                        width: 22px; height: 22px;
+                        clicked => { root.additional-editing = true; }
+                        Rectangle {
+                            border-radius: 4px;
+                            background: add-edit-ta.has-hover ? Theme.row-hover : transparent;
+                            AssetIcon { width: parent.width; height: parent.height; icon-size: 12px; icon-color: add-edit-ta.has-hover ? Theme.primary : Theme.text-secondary; source: @image-url("../assets/icons/1.2/editar.svg"); }
+                        }
+                    }
+                    if !root.additional-editing: Text {
+                        text: root.additional-display;
+                        font-size: 14px; font-weight: 700; color: Theme.text-primary;
+                        vertical-alignment: center;
+                    }
+                    if root.additional-editing: Rectangle {
+                        width: 80px; height: 26px;
+                        border-radius: 4px;
+                        border-width: 1px;
+                        border-color: add-input.has-focus ? Theme.primary : Theme.border;
+                        background: Theme.surface;
+                        add-input := TextInput {
+                            x: 6px; y: 0; width: parent.width - 12px; height: parent.height;
+                            text <=> root.additional-input;
+                            font-size: 12px; color: Theme.text-primary;
+                            vertical-alignment: center; horizontal-alignment: right;
+                            single-line: true;
+                            edited => { root.additional-changed(self.text); }
+                            accepted => { root.additional-editing = false; search-input.focus(); }
+                            changed has-focus => {
+                                root.active-text-fields = root.active-text-fields + (self.has-focus ? 1 : -1);
+                            }
+                        }
+                        // Auto-foca o campo ao abrir (clique no lápis ou atalho F3).
+                        Timer {
+                            interval: 1ms; running: true;
+                            triggered => { add-input.focus(); self.running = false; }
+                        }
+                    }
+                    if root.additional-editing: add-ok-ta := TouchArea {
+                        width: 22px; height: 22px;
+                        clicked => { root.additional-editing = false; search-input.focus(); }
+                        Rectangle {
+                            border-radius: 4px;
+                            background: add-ok-ta.has-hover ? Theme.sidebar-sel-bg : transparent;
+                            AssetIcon { width: parent.width; height: parent.height; icon-size: 12px; icon-color: add-ok-ta.has-hover ? white : Theme.primary; source: @image-url("../assets/icons/1.2/confirmar.svg"); }
+                        }
+                    }
+            }
+
+            // Divisor horizontal
+            Rectangle { height: 1px; background: Theme.border; }
+
+            // Total (destaque) — rótulo à esquerda, valor à direita
+            HorizontalLayout {
+                Text { text: "TOTAL"; font-size: 13px; font-weight: 800; color: Theme.text-primary; vertical-alignment: center; }
+                Rectangle { horizontal-stretch: 1; }
+                Text { text: root.total-display; font-size: 22px; font-weight: 800; color: #2E7D32; vertical-alignment: center; }
+            }
+
+            // Divisor entre Total e Restante/Troco
+            if root.remaining-display != "" || root.change-display != "": Rectangle {
+                height: 1px; background: Theme.border;
+            }
+
+            // Restante (destaque vermelho) — só quando há valor a pagar
+            if root.remaining-display != "": VerticalLayout {
+                alignment: center;
+                spacing: 2px;
+                Text { text: "RESTANTE"; font-size: 10px; font-weight: 700; color: Theme.text-secondary; letter-spacing: 1px; }
+                Text { text: root.remaining-display; font-size: 20px; font-weight: 800; color: Theme.danger; }
+            }
+
+            // Troco (destaque verde) — quando valor pago >= total
+            if root.change-display != "": VerticalLayout {
+                alignment: center;
+                spacing: 2px;
+                Text { text: "TROCO"; font-size: 10px; font-weight: 700; color: Theme.text-secondary; letter-spacing: 1px; }
+                Text { text: root.change-display; font-size: 20px; font-weight: 800; color: #2E7D32; }
+            }
+
+            // Spacer
+            Rectangle { horizontal-stretch: 1; }
+
+            // Forma de pagamento — coluna: 3 botões em cima +
+            // sub-conteúdo abaixo (Valor pago se Dinheiro,
+            // Crédito/Débito se Cartão).
+            VerticalLayout {
+                alignment: center;
+                spacing: 6px;
+
+                // Linha de cima — Dinheiro / Cartão / Pix (+ Carteira
+                // quando o cliente vinculado tem conta aberta).
+                HorizontalLayout {
+                    alignment: stretch;
+                    spacing: 6px;
+                    for opt[oi] in [
+                        { value: "cash",  label: "Dinheiro", icon: @image-url("../assets/icons/1.2/pay-dinheiro.svg") },
+                        { value: "card",  label: "Cartão",   icon: @image-url("../assets/icons/1.2/app-cartao.svg") },
+                        { value: "pix",   label: "Pix",      icon: @image-url("../assets/icons/1.2/pay-pix.svg") },
+                    ]: pay-ta := TouchArea {
+                        horizontal-stretch: 1;
+                        min-width: 72px; height: 40px;
+                        clicked => { root.payment-method = opt.value; }
+                        Rectangle {
+                            border-radius: 6px;
+                            border-width: 1px;
+                            border-color: root.payment-method == opt.value ? Theme.primary : Theme.border;
+                            background: root.payment-method == opt.value ? Theme.sidebar-sel-bg : Theme.surface;
+                            HorizontalLayout {
+                                alignment: center;
+                                spacing: 6px;
+                                padding-left: 10px; padding-right: 10px;
+                                AssetIcon {
+                                    width: 18px; height: parent.height; icon-size: 16px;
+                                    icon-color: root.payment-method == opt.value ? white : Theme.text-primary;
+                                    source: opt.icon;
+                                }
+                                Text {
+                                    text: opt.label;
+                                    font-size: 12px; font-weight: 600;
+                                    color: root.payment-method == opt.value ? white : Theme.text-primary;
+                                    vertical-alignment: center;
+                                }
+                            }
+                        }
+                    }
+                    // Chip Carteira — só aparece quando há cliente com
+                    // conta aberta. Mantém a seleção mutually exclusive.
+                    if root.wallet-has-account: wallet-ta := TouchArea {
+                        horizontal-stretch: 1;
+                        min-width: 80px; height: 40px;
+                        clicked => {
+                            root.payment-method = "wallet";
+                            // Carteira não comporta split com outro
+                            // método — limpa o secondary.
+                            root.secondary-payment = "";
+                        }
+                        Rectangle {
+                            border-radius: 6px;
+                            border-width: 1px;
+                            border-color: root.payment-method == "wallet" ? Theme.primary : Theme.border;
+                            background: root.payment-method == "wallet" ? Theme.sidebar-sel-bg : Theme.surface;
+                            HorizontalLayout {
+                                alignment: center;
+                                spacing: 6px;
+                                padding-left: 10px; padding-right: 10px;
+                                AssetIcon {
+                                    width: 18px; height: parent.height; icon-size: 16px;
+                                    icon-color: root.payment-method == "wallet" ? white : Theme.text-primary;
+                                    source: @image-url("../assets/icons/1.2/pay-carteira.svg");
+                                }
+                                Text {
+                                    text: "Carteira";
+                                    font-size: 12px; font-weight: 600;
+                                    color: root.payment-method == "wallet" ? white : Theme.text-primary;
+                                    vertical-alignment: center;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Sub-conteúdo: Dinheiro → input Valor pago + 3 botões
+                // pra pagar o restante (Crédito/Débito/Pix) quando o
+                // valor pago é menor que o total.
+                if root.payment-method == "cash": VerticalLayout {
+                    spacing: 6px;
+                    // Foca o Valor Pago automaticamente ao escolher Dinheiro.
+                    Timer {
+                        interval: 1ms;
+                        running: true;
+                        triggered => { paid-input.focus(); self.running = false; }
+                    }
+                    Rectangle {
+                        height: 40px;
+                        border-radius: 6px;
+                        border-width: 1px;
+                        border-color: paid-input.has-focus ? Theme.primary : Theme.border;
+                        background: Theme.surface;
+                        paid-input := TextInput {
+                            x: 8px; y: 0; width: parent.width - 16px; height: parent.height;
+                            text <=> root.amount-paid-input;
+                            font-size: 12px; color: Theme.text-primary;
+                            vertical-alignment: center; horizontal-alignment: right;
+                            single-line: true;
+                            edited => { root.amount-paid-changed(self.text); }
+                            changed has-focus => {
+                                root.active-text-fields = root.active-text-fields + (self.has-focus ? 1 : -1);
+                            }
+                        }
+                        if root.amount-paid-input == "": Text {
+                            x: 8px; y: 0; width: parent.width - 16px; height: parent.height;
+                            text: "Valor Pago"; font-size: 11px; color: #BDBDBD;
+                            vertical-alignment: center; horizontal-alignment: right;
+                        }
+                    }
+                    // Quando há restante (valor pago < total), oferece
+                    // 3 botões pra pagar o resto.
+                    if root.remaining-display != "": HorizontalLayout {
+                        alignment: stretch;
+                        spacing: 6px;
+                        for opt[oi] in [
+                            { value: "credit", label: "Crédito" },
+                            { value: "debit",  label: "Débito" },
+                            { value: "pix",    label: "Pix" },
+                        ]: sec-ta := TouchArea {
+                            horizontal-stretch: 1;
+                            min-width: 60px; height: 40px;
+                            clicked => { root.secondary-payment = opt.value; }
+                            Rectangle {
+                                border-radius: 5px;
+                                border-width: 1px;
+                                border-color: root.secondary-payment == opt.value ? Theme.primary : Theme.border;
+                                background: root.secondary-payment == opt.value ? Theme.sidebar-sel-bg : Theme.surface;
+                                Text {
+                                    width: parent.width; height: parent.height;
+                                    text: opt.label;
+                                    font-size: 12px; font-weight: 600;
+                                    color: root.secondary-payment == opt.value ? white : Theme.text-primary;
+                                    horizontal-alignment: center; vertical-alignment: center;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Sub-conteúdo: Cartão → Crédito / Débito
+                if root.payment-method == "card": HorizontalLayout {
+                    alignment: stretch;
+                    spacing: 6px;
+                    for opt[oi] in [
+                        { value: "credit", label: "Crédito" },
+                        { value: "debit",  label: "Débito" },
+                    ]: card-ta := TouchArea {
+                        horizontal-stretch: 1;
+                        min-width: 70px; height: 40px;
+                        clicked => { root.payment-card-type = opt.value; }
+                        Rectangle {
+                            border-radius: 5px;
+                            border-width: 1px;
+                            border-color: root.payment-card-type == opt.value ? Theme.primary : Theme.border;
+                            background: root.payment-card-type == opt.value ? Theme.sidebar-sel-bg : Theme.surface;
+                            Text {
+                                width: parent.width; height: parent.height;
+                                text: opt.label;
+                                font-size: 11px; font-weight: 600;
+                                color: root.payment-card-type == opt.value ? white : Theme.text-primary;
+                                horizontal-alignment: center; vertical-alignment: center;
+                            }
+                        }
+                    }
+                }
+
+                // Sub-conteúdo Carteira: mostra saldo do cliente + aviso
+                // se a venda vai entrar em fiado (saldo < total).
+                if root.payment-method == "wallet": Rectangle {
+                    height: 64px;
+                    border-radius: 6px;
+                    border-width: 1px;
+                    border-color: root.total-amount > root.wallet-available-amount
+                        ? #E53935
+                        : Theme.border;
+                    background: root.total-amount > root.wallet-available-amount
+                        ? #FFEBEE
+                        : (root.wallet-balance-tone == "neg" ? #FFF3E0 : #E8F5E9);
+                    HorizontalLayout {
+                        padding-left: 10px; padding-right: 10px;
+                        spacing: 10px;
+                        VerticalLayout {
+                            horizontal-stretch: 1;
+                            alignment: center;
+                            spacing: 2px;
+                            Text {
+                                text: "SALDO DO CLIENTE";
+                                font-size: 9px; font-weight: 800;
+                                color: Theme.text-secondary;
+                                letter-spacing: 1px;
+                            }
+                            Text {
+                                text: root.wallet-balance-display;
+                                font-size: 14px; font-weight: 800;
+                                color: root.wallet-balance-tone == "neg" ? #C62828
+                                    : (root.wallet-balance-tone == "pos" ? #2E7D32 : Theme.text-primary);
+                            }
+                            Text {
+                                text: root.total-amount > root.wallet-available-amount
+                                    ? "Saldo insuficiente · limite: " + root.wallet-credit-limit-display
+                                    : root.wallet-available-display;
+                                font-size: 10px;
+                                color: root.total-amount > root.wallet-available-amount
+                                    ? #C62828
+                                    : Theme.text-secondary;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Finalizar Venda + Limpar Carrinho — coluna vertical
+            // pra economizar largura horizontal (cabe melhor em
+            // telas menores) e ainda dar destaque ao Finalizar.
+            VerticalLayout {
+                spacing: 4px;
+                alignment: center;
+                ActionBtn {
+                    label: "Finalizar Venda";
+                    bg-color: Theme.sidebar-sel-bg;
+                    icon: @image-url("../assets/icons/1.2/confirmar.svg");
+                    min-width: 160px; height: 40px;
+                    enabled: root.cart-count > 0;
+                    clicked => { root.finalize(); }
+                }
+                clear-cart-btn-ta := TouchArea {
+                    min-width: 160px; height: 40px;
+                    enabled: root.cart-count > 0;
+                    clicked => { root.clear-cart(); }
+                    Rectangle {
+                        border-radius: 6px;
+                        border-width: 1px;
+                        border-color: root.cart-count > 0 && clear-cart-btn-ta.has-hover ? #EF5350 : Theme.border;
+                        background: root.cart-count > 0 && clear-cart-btn-ta.has-hover ? #FFEBEE : Theme.surface;
+                        Text {
+                            width: parent.width; height: parent.height;
+                            text: "Limpar Carrinho";
+                            font-size: 11px; font-weight: 600;
+                            color: root.cart-count > 0
+                                ? (clear-cart-btn-ta.has-hover ? #C62828 : Theme.text-secondary)
+                                : #BDBDBD;
+                            horizontal-alignment: center; vertical-alignment: center;
+                        }
+                    }
+                }
+            }
+        }   // fecha HorizontalLayout linha 1
+        }   // fecha VerticalLayout (só linha 1 agora — Troco/Restante migraram pra linha 1 ao lado do TOTAL)
+    }
+}   // fecha VerticalLayout do cart-top
+            }       // fecha cart-top Rectangle
+        }           // fecha HorizontalLayout (LEFT + cart-top)
+    }               // fecha FocusScope (atalhos F1–F12)
+
+    // ════════════════════════════════════════════════
+    //  FOOTER BAR — barra horizontal full-width no fim da janela.
+    //  Contém: Subtotal | Desconto | Total | Pagamento | Finalizar | Limpar.
+    //  Como é filho de VerticalLayout do PdvPage sem stretch,
+    //  fica naturalmente colado embaixo (depois do HorizontalLayout
+    //  com stretch:1 que ocupa o resto).
+    // ════════════════════════════════════════════════
+    
+}

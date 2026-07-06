@@ -1,0 +1,981 @@
+import { ScrollView } from "std-widgets.slint";
+import { Theme } from "../theme.slint";
+import { OrderData, OrderItemData, KanbanCol, CalDay } from "../types.slint";
+import { OrderCard, OrderItemCard, Card } from "../components/cards.slint";
+import { ActionBtn, OutlineBtn } from "../components/buttons.slint";
+import { PaginationBar } from "../components/pagination.slint";
+import { SearchIcon, AssetIcon } from "../components/icons.slint";
+import { EmptyState } from "../components/empty_state.slint";
+
+// Cor de status (mesma paleta dos OrderCard/chips — não muda).
+global OrderPalette {
+    pure public function st-color(k: string) -> color {
+        return k == "delivered"  ? #2E7D32
+            : (k == "ready"      ? #81C784
+            : (k == "preparing"  ? #FF9E40
+            : (k == "confirmed"  ? #42A5F5
+            : (k == "cancelled"  ? #EF5350
+            : #C9A227))));
+    }
+}
+
+// Calendário de período (início → fim, mesmo dia permitido). A grade
+// (42 células) vem pronta do Rust; a UI só dispara callbacks (§1/§3).
+export component CalendarPopup inherits Rectangle {
+    in property <string> title;
+    in property <[CalDay]> days;
+    callback prev();
+    callback next();
+    callback pick(string);
+    callback clear();
+    callback close();
+
+    // Fundo escurecido — clique fora fecha.
+    background: #00000066;
+    TouchArea { clicked => { root.close(); } }
+
+    Rectangle {
+        width: 320px;
+        // Altura fixa: um Rectangle que envolve um layout NÃO deriva o
+        // tamanho do conteúdo (estica) — sem isto o calendário ocupava
+        // a janela toda.
+        height: 392px;
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+        border-radius: 12px;
+        border-width: 1px;
+        border-color: Theme.card-border;
+        drop-shadow-blur: 12px;
+        drop-shadow-offset-y: 0px;
+        drop-shadow-color: Theme.card-shadow;
+        background: Theme.surface;
+        // Absorve cliques dentro do painel (não fecha).
+        TouchArea { }
+        VerticalLayout {
+            alignment: start;
+            padding: 16px;
+            spacing: 8px;
+
+            HorizontalLayout {
+                spacing: 8px;
+                prev-ta := TouchArea {
+                    width: 30px; height: 30px;
+                    clicked => { root.prev(); }
+                    Rectangle {
+                        border-radius: 6px;
+                        background: prev-ta.has-hover ? Theme.row-hover : transparent;
+                        Text { text: "\u{2039}"; font-size: 18px; color: Theme.text-primary; horizontal-alignment: center; vertical-alignment: center; width: parent.width; height: parent.height; }
+                    }
+                }
+                Text {
+                    text: root.title;
+                    font-size: 14px; font-weight: 700; color: Theme.text-primary;
+                    horizontal-stretch: 1; horizontal-alignment: center; vertical-alignment: center;
+                }
+                next-ta := TouchArea {
+                    width: 30px; height: 30px;
+                    clicked => { root.next(); }
+                    Rectangle {
+                        border-radius: 6px;
+                        background: next-ta.has-hover ? Theme.row-hover : transparent;
+                        Text { text: "\u{203A}"; font-size: 18px; color: Theme.text-primary; horizontal-alignment: center; vertical-alignment: center; width: parent.width; height: parent.height; }
+                    }
+                }
+            }
+
+            HorizontalLayout {
+                spacing: 2px;
+                for w in ["D", "S", "T", "Q", "Q", "S", "S"]: Text {
+                    text: w; font-size: 11px; font-weight: 600;
+                    color: Theme.text-secondary;
+                    horizontal-stretch: 1; horizontal-alignment: center;
+                }
+            }
+
+            for wk in 6: HorizontalLayout {
+                spacing: 2px;
+                for cl in 7: cell-ta := TouchArea {
+                    property <CalDay> d: root.days[wk * 7 + cl];
+                    horizontal-stretch: 1;
+                    height: 34px;
+                    clicked => { if (cell-ta.d.ymd != "") { root.pick(cell-ta.d.ymd); } }
+                    Rectangle {
+                        border-radius: 6px;
+                        background: cell-ta.d.selected ? Theme.sidebar-sel-bg
+                            : (cell-ta.d.in-range ? #F57C0026
+                            : ((cell-ta.has-hover && cell-ta.d.label != "") ? Theme.row-hover : transparent));
+                        border-width: cell-ta.d.today ? 1px : 0px;
+                        border-color: Theme.primary;
+                        Text {
+                            text: cell-ta.d.label;
+                            font-size: 12px;
+                            font-weight: cell-ta.d.selected ? 700 : 400;
+                            color: cell-ta.d.selected ? white : Theme.text-primary;
+                            horizontal-alignment: center; vertical-alignment: center;
+                            width: parent.width; height: parent.height;
+                        }
+                    }
+                }
+            }
+
+            HorizontalLayout {
+                spacing: 8px;
+                clr-ta := TouchArea {
+                    width: 90px; height: 32px;
+                    clicked => { root.clear(); }
+                    Rectangle {
+                        border-radius: 6px; border-width: 1px; border-color: Theme.card-border;
+                        background: clr-ta.has-hover ? Theme.row-hover : transparent;
+                        Text { text: "Limpar"; font-size: 12px; color: Theme.text-secondary; horizontal-alignment: center; vertical-alignment: center; width: parent.width; height: parent.height; }
+                    }
+                }
+                Rectangle { horizontal-stretch: 1; }
+                cls-ta := TouchArea {
+                    width: 90px; height: 32px;
+                    clicked => { root.close(); }
+                    Rectangle {
+                        border-radius: 6px;
+                        background: cls-ta.has-hover ? Theme.primary-dark : Theme.sidebar-sel-bg;
+                        Text { text: "Filtrar"; font-size: 12px; font-weight: 700; color: white; horizontal-alignment: center; vertical-alignment: center; width: parent.width; height: parent.height; }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// Coluna do Kanban. SEM contorno na coluna: o contorno fica só no
+// bloco de cabeçalho (faixa colorida no topo + título/subtítulo) e
+// nos cards (OrderCard já tem o seu). Paginação por coluna usando a
+// mesma config da grade (`per-page`).
+component KanbanColumn inherits VerticalLayout {
+    in property <KanbanCol> data;
+    callback open-detail(string);
+    callback advance-order(string);
+    // Sem isto a min-width dos OrderCard desequilibra as colunas.
+    min-width: 0;
+
+    property <color> accent: OrderPalette.st-color(root.data.key);
+
+    padding: 12px;
+    spacing: 10px;
+
+    // Cabeçalho SEM caixa: título + contagem + subtítulo na cor do
+    // status, sobre o fundo tintado da coluna (como no mockup).
+    VerticalLayout {
+        spacing: 3px;
+        HorizontalLayout {
+            spacing: 8px;
+            Text {
+                text: root.data.label;
+                font-size: Theme.fs-section; font-weight: Theme.fw-strong;
+                color: root.accent;
+                horizontal-stretch: 1; overflow: elide;
+            }
+            Text {
+                text: root.data.count;
+                font-size: Theme.fs-section; font-weight: Theme.fw-strong;
+                color: root.accent;
+            }
+        }
+        Text {
+            text: root.data.subtitle;
+            font-size: Theme.fs-meta; color: root.accent;
+            overflow: elide;
+        }
+    }
+
+    // Lista de cards (cada um com seu próprio contorno).
+    ScrollView { vertical-scrollbar-policy: ScrollBarPolicy.always-off; horizontal-scrollbar-policy: ScrollBarPolicy.always-off;
+        vertical-stretch: 1;
+        VerticalLayout {
+            alignment: start;
+            // SEM `spacing`: itens fora da página têm height 0, mas o
+            // spacing do layout era aplicado entre TODOS (inclusive os
+            // ocultos), empurrando o card visível para baixo do título.
+            // O respiro de 10px vai embutido na altura do item visível.
+            spacing: 0px;
+            for o in root.data.orders: Rectangle {
+                // Sem paginação no kanban: todos os cards visíveis e a
+                // coluna rola (ScrollView). O respiro de 10px vai embutido
+                // na altura do item (186 = 176 do card + 10).
+                height: 186px;
+                OrderCard {
+                    x: 0; y: 0;
+                    width: parent.width;
+                    height: 176px;
+                    order: o;
+                    open-detail => { root.open-detail(o.id); }
+                    advance-order => { root.advance-order(o.id); }
+                }
+            }
+            // Estado vazio da coluna: ilustração compacta tingida com o
+            // accent do status (mantém o código de cor por coluna).
+            if root.data.orders.length == 0: Rectangle {
+                height: 140px;
+                border-radius: 10px;
+                border-width: 1px;
+                border-color: root.accent.transparentize(0.55);
+                background: transparent;
+                EmptyState {
+                    source: @image-url("../assets/empty/empty-orders.svg");
+                    tint: root.accent;
+                    art-size: 90px;
+                }
+            }
+        }
+    }
+
+}
+
+// ── Tela: grade de pedidos e detalhe ─────────────────────────────────────────
+// Regras aplicadas (AI_RULES.md §3, §8, §14):
+// - Grade 5 colunas com OrderCard reutilizável
+// - Detalhe exibido quando order-detail-id != ""
+// - Filtros de status via chips (lógica no Rust)
+// - Paginação: barra acima e abaixo da grade. `current-page` é resetada
+//   sempre que o filtro de status muda, evitando ficar numa página
+//   inexistente após reduzir a lista.
+
+export component OrdersPage inherits VerticalLayout {
+    in property <[OrderData]> orders;
+    in property <[KanbanCol]> kanban-cols;
+    in-out property <string> order-search-query;
+    // Filtro por período (calendário). start/end em "AAAA-MM-DD".
+    in-out property <string> order-date-start;
+    in-out property <string> order-date-label;
+    in-out property <bool>   cal-open;
+    callback cal-toggle();
+    callback cal-clear();
+    in-out property <string> order-filter-status;
+    in-out property <string> order-detail-id;
+    in property <OrderData> detail-order;
+    in property <[OrderItemData]> detail-order-items;
+    in property <int> orders-per-page: 20;
+    in-out property <int> current-page: 1;
+
+    callback open-order(string);
+    callback advance-order-status(string);
+    callback request-cancel(string, string);
+    callback refresh-orders();
+    /// Recalcula `detail-order.elapsed-display` no Rust (Timer 60s).
+    callback refresh-order-elapsed();
+    /// Entra no modo de edição inline do pedido (Fase 10).
+    callback edit-order(string);
+    /// Gera HTML da comanda completa e abre no navegador para impressão.
+    callback print-order-receipt(string);
+    /// Gera HTML da comanda da cozinha (compacta) e abre no navegador.
+    callback print-order-kitchen(string);
+
+    // ── Derivados de paginação ─────────────────────────────────────────
+    property <int> total-pages:
+        root.orders.length == 0
+            ? 0
+            : (root.orders.length + root.orders-per-page - 1) / root.orders-per-page;
+    property <int> effective-page:
+        root.total-pages == 0
+            ? 1
+            : (root.current-page > root.total-pages
+                ? root.total-pages
+                : (root.current-page < 1 ? 1 : root.current-page));
+    property <int> page-start: (root.effective-page - 1) * root.orders-per-page;
+    property <int> page-end:
+        min(root.page-start + root.orders-per-page, root.orders.length);
+
+    vertical-stretch: 1;
+    spacing: 12px;
+
+    // Cabeçalho (muda conforme contexto: lista ou detalhe)
+    HorizontalLayout {
+        height: 42px;
+        spacing: 12px;
+        if root.order-detail-id == "": VerticalLayout {
+            horizontal-stretch: 1;
+            min-width: 0;
+            spacing: 2px;
+            Text {
+                text: "Pedidos";
+                font-size: 22px; font-weight: 700;
+                color: Theme.text-primary;
+                overflow: elide;
+            }
+            Text {
+                text: root.orders.length + " Pedidos Totais";
+                font-size: 12px;
+                color: Theme.text-secondary;
+                overflow: elide;
+            }
+        }
+        if root.order-detail-id != "": HorizontalLayout {
+            spacing: 12px;
+            horizontal-stretch: 1;
+            padding-left: 8px;
+            padding-right: 8px;
+            VerticalLayout {
+                alignment: center;
+                TouchArea {
+                    width: 36px; height: 36px;
+                    clicked => { root.order-detail-id = ""; }
+                    Rectangle {
+                        border-radius: 6px;
+                        border-width: 1px;
+                        border-color: parent.has-hover ? Theme.border : transparent;
+                        background: parent.has-hover ? Theme.row-hover : transparent;
+                        Text {
+                            text: "\u{2190}";
+                            font-size: 22px; font-weight: 400;
+                            color: Theme.text-primary;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+            }
+            Text {
+                text: "Pedido " + root.detail-order.number;
+                font-size: 22px; font-weight: 700;
+                color: Theme.text-primary;
+                vertical-alignment: center;
+                horizontal-stretch: 1;
+            }
+            Text {
+                text: root.detail-order.payment-method != "" ? "PDV"
+                    : (root.detail-order.delivery-type == "pickup" ? "Retirada" : "Entrega");
+                font-size: 13px; font-weight: 700;
+                color: root.detail-order.payment-method != "" ? #2E7D32
+                    : (root.detail-order.delivery-type == "pickup" ? #E65100 : #1565C0);
+                vertical-alignment: center;
+            }
+        }
+    }
+
+    // Linha divisória abaixo do título (só na grade), mesmo
+    // padrão das demais telas.
+    if root.order-detail-id == "": Rectangle { height: 1.5px; background: Theme.border; }
+
+    // Chips de filtro (só na grade)
+    if root.order-detail-id == "": HorizontalLayout {
+        height: 32px;
+        spacing: 6px;
+        alignment: start;
+        for chip-def in [
+            { key: "all",       label: "Todos" },
+            { key: "pending",   label: "Pendente" },
+            { key: "confirmed", label: "Confirmado" },
+            { key: "preparing", label: "Preparando" },
+            { key: "ready",     label: "Pronto" },
+            { key: "delivered", label: "Entregue" },
+            { key: "cancelled", label: "Cancelado" },
+        ]: TouchArea {
+            property <bool> active: root.order-filter-status == chip-def.key;
+            property <bool> hov: self.has-hover;
+            // Largura ajustada ao texto (padding simétrico) — o rótulo fica
+            // sempre centralizado, sem depender de largura fixa.
+            width: chip-txt.preferred-width + 28px;
+            clicked => {
+                root.order-filter-status = chip-def.key;
+                root.current-page = 1;
+                root.refresh-orders();
+            }
+            Rectangle {
+                border-radius: 6px;
+                // Selecionado = só CONTORNO na cor de destaque (estilo Relatórios).
+                border-width: active ? 1.5px : 1px;
+                border-color: active ? Theme.sidebar-sel-bg : Theme.border;
+                background: active ? transparent : (hov ? Theme.row-hover : Theme.surface);
+                chip-txt := Text {
+                    text: chip-def.label;
+                    width: parent.width; height: parent.height;
+                    horizontal-alignment: center; vertical-alignment: center;
+                    font-size: 12px;
+                    font-weight: active ? 700 : 400;
+                    color: active ? Theme.sidebar-sel-bg : Theme.text-secondary;
+                }
+            }
+        }
+    }
+
+    // Filtro de pesquisa (só na grade/kanban). O Timer foca o campo
+    // assim que ele aparece (a cada entrada na lista), agilizando a
+    // busca. Fica dentro do `if` para só existir junto do input.
+    if root.order-detail-id == "": HorizontalLayout {
+        spacing: 8px;
+        // Busca textual (foco automático ao abrir a lista).
+        Rectangle {
+            horizontal-stretch: 1;
+            property <bool> focus-pending: true;
+            height: 36px;
+            border-radius: 8px;
+            border-width: 1px;
+            border-color: search-input.has-focus ? Theme.primary : Theme.card-border;
+            background: Theme.surface;
+            drop-shadow-blur: 6px;
+            drop-shadow-offset-y: 0px;
+            drop-shadow-color: Theme.card-shadow;
+            Timer {
+                interval: 1ms;
+                running: parent.focus-pending;
+                triggered => { parent.focus-pending = false; search-input.focus(); }
+            }
+            HorizontalLayout {
+                padding-left: 12px; padding-right: 12px; spacing: 8px;
+                VerticalLayout {
+                    alignment: center; width: 16px;
+                    SearchIcon {
+                        icon-size: 14px;
+                        icon-color: search-input.has-focus ? Theme.primary : Theme.text-secondary;
+                        icon-stroke: 1.6px;
+                    }
+                }
+                Rectangle {
+                    horizontal-stretch: 1;
+                    search-input := TextInput {
+                        x: 0; y: 0; width: parent.width; height: parent.height;
+                        font-size: 13px; color: Theme.text-primary;
+                        vertical-alignment: center; single-line: true;
+                        text: root.order-search-query;
+                        edited => {
+                            root.order-search-query = self.text;
+                            root.current-page = 1;
+                            root.refresh-orders();
+                        }
+                    }
+                    if search-input.text == "": Text {
+                        x: 0; y: 0; width: parent.width; height: parent.height;
+                        text: "Buscar Pedido / Cliente..."; font-size: 13px;
+                        color: #BDBDBD; vertical-alignment: center;
+                    }
+                }
+            }
+        }
+        // Filtro por período: abre o calendário (início/fim).
+        date-btn := TouchArea {
+            // Em HorizontalLayout o `width:` é ignorado — fixa via min/max.
+            min-width: 220px;
+            max-width: 220px;
+            clicked => { root.cal-toggle(); }
+            Rectangle {
+                height: 36px;
+                border-radius: 8px;
+                border-width: 1px;
+                border-color: root.cal-open ? Theme.primary
+                    : (date-btn.has-hover ? Theme.primary : Theme.card-border);
+                background: Theme.surface;
+                drop-shadow-blur: 6px;
+                drop-shadow-offset-y: 0px;
+                drop-shadow-color: Theme.card-shadow;
+                HorizontalLayout {
+                    padding-left: 12px; padding-right: 10px; spacing: 8px;
+                    Text {
+                        text: root.order-date-label;
+                        font-size: 13px;
+                        color: root.order-date-start == "" ? #BDBDBD : Theme.text-primary;
+                        vertical-alignment: center;
+                        horizontal-stretch: 1;
+                        overflow: elide;
+                    }
+                    if root.order-date-start != "": TouchArea {
+                        width: 16px;
+                        clicked => {
+                            root.cal-clear();
+                            root.current-page = 1;
+                        }
+                        AssetIcon { width: parent.width; height: parent.height; icon-size: 12px; icon-color: Theme.text-secondary; source: @image-url("../assets/icons/1.2/fechar.svg"); }
+                    }
+                }
+            }
+        }
+    }
+
+    // Estado vazio (grade — só no filtro por status específico)
+    if root.order-detail-id == "" && root.order-filter-status != "all" && root.orders.length == 0: Rectangle {
+        vertical-stretch: 1;
+        EmptyState {
+            source: @image-url("../assets/empty/empty-orders.svg");
+            title: "Nenhum pedido";
+            subtitle: "Os pedidos aparecerão aqui";
+        }
+    }
+
+    // Paginação topo
+    if root.order-detail-id == "" && root.order-filter-status != "all" && root.total-pages > 1: PaginationBar {
+        total-pages: root.total-pages;
+        effective-page: root.effective-page;
+        change-page(p) => { root.current-page = p; }
+    }
+
+    // Grade de pedidos (filtro por status específico — inalterada)
+    if root.order-detail-id == "" && root.order-filter-status != "all": ScrollView { vertical-scrollbar-policy: ScrollBarPolicy.always-off; horizontal-scrollbar-policy: ScrollBarPolicy.always-off;
+        vertical-stretch: 1;
+        VerticalLayout {
+            alignment: start;
+            spacing: 10px;
+            padding-top: 4px;
+            padding-bottom: 4px;
+            for row-idx in (root.page-end - root.page-start + 4) / 5: HorizontalLayout {
+                spacing: 10px;
+                height: 193px;
+                Rectangle {
+                    horizontal-stretch: 1;
+                    if root.page-start + row-idx * 5 < root.page-end: OrderCard {
+                        order: root.orders[root.page-start + row-idx * 5];
+                        open-detail => { root.open-order(root.orders[root.page-start + row-idx * 5].id); }
+                        advance-order => { root.advance-order-status(root.orders[root.page-start + row-idx * 5].id); }
+                    }
+                }
+                Rectangle {
+                    horizontal-stretch: 1;
+                    if root.page-start + row-idx * 5 + 1 < root.page-end: OrderCard {
+                        order: root.orders[root.page-start + row-idx * 5 + 1];
+                        open-detail => { root.open-order(root.orders[root.page-start + row-idx * 5 + 1].id); }
+                        advance-order => { root.advance-order-status(root.orders[root.page-start + row-idx * 5 + 1].id); }
+                    }
+                }
+                Rectangle {
+                    horizontal-stretch: 1;
+                    if root.page-start + row-idx * 5 + 2 < root.page-end: OrderCard {
+                        order: root.orders[root.page-start + row-idx * 5 + 2];
+                        open-detail => { root.open-order(root.orders[root.page-start + row-idx * 5 + 2].id); }
+                        advance-order => { root.advance-order-status(root.orders[root.page-start + row-idx * 5 + 2].id); }
+                    }
+                }
+                Rectangle {
+                    horizontal-stretch: 1;
+                    if root.page-start + row-idx * 5 + 3 < root.page-end: OrderCard {
+                        order: root.orders[root.page-start + row-idx * 5 + 3];
+                        open-detail => { root.open-order(root.orders[root.page-start + row-idx * 5 + 3].id); }
+                        advance-order => { root.advance-order-status(root.orders[root.page-start + row-idx * 5 + 3].id); }
+                    }
+                }
+                Rectangle {
+                    horizontal-stretch: 1;
+                    if root.page-start + row-idx * 5 + 4 < root.page-end: OrderCard {
+                        order: root.orders[root.page-start + row-idx * 5 + 4];
+                        open-detail => { root.open-order(root.orders[root.page-start + row-idx * 5 + 4].id); }
+                        advance-order => { root.advance-order-status(root.orders[root.page-start + row-idx * 5 + 4].id); }
+                    }
+                }
+            }
+        }
+    }
+
+    // Paginação base
+    if root.order-detail-id == "" && root.order-filter-status != "all" && root.total-pages > 1: PaginationBar {
+        total-pages: root.total-pages;
+        effective-page: root.effective-page;
+        change-page(p) => { root.current-page = p; }
+    }
+
+    // ── Kanban (filtro "Todos"): 5 colunas fixas de mesma largura ──
+    // Cancelados NÃO aparece aqui — acesso só pelo chip "Cancelado".
+    if root.order-detail-id == "" && root.order-filter-status == "all": kanban-row := HorizontalLayout {
+        vertical-stretch: 1;
+        spacing: 10px;
+        // Largura FIXA e idêntica por coluna: o `horizontal-stretch`
+        // distribuía proporcional à min-width do conteúdo (colunas com
+        // cards mais longos ficavam mais largas). Calculada a partir da
+        // largura da linha → continua adaptativa ao tamanho da tela.
+        // 5 colunas + 4 espaçamentos de 10px.
+        property <length> col-w: (kanban-row.width - 40px) / 5;
+        // Wrapper Rectangle: um componente que herda layout (KanbanColumn
+        // = VerticalLayout) IGNORA min/max-width externos; um Rectangle
+        // os HONRA. Garante 5 colunas idênticas.
+        for kc in root.kanban-cols: Rectangle {
+            min-width: kanban-row.col-w;
+            max-width: kanban-row.col-w;
+            // Fundo da coluna = leve tint da cor do status (como no mockup).
+            border-radius: 12px;
+            background: OrderPalette.st-color(kc.key).transparentize(0.90);
+            KanbanColumn {
+                data: kc;
+                open-detail(id) => { root.open-order(id); }
+                advance-order(id) => { root.advance-order-status(id); }
+            }
+        }
+    }
+
+    // Detalhe do pedido
+    if root.order-detail-id != "": ScrollView { vertical-scrollbar-policy: ScrollBarPolicy.always-off; horizontal-scrollbar-policy: ScrollBarPolicy.always-off;
+        vertical-stretch: 1;
+        VerticalLayout {
+            alignment: start;
+            padding: 8px;
+            spacing: 0px;
+            Rectangle {
+                property <OrderData> o: root.detail-order;
+                property <color> status-color:
+                    o.status == "delivered"  ? #2E7D32 :
+                    o.status == "ready"      ? #66BB6A :
+                    o.status == "preparing"  ? #FF9E40 :
+                    o.status == "confirmed"  ? #42A5F5 :
+                    o.status == "cancelled"  ? #EF5350 : #C9A227;
+
+                HorizontalLayout {
+                    spacing: 12px;
+
+                    // Painel esquerdo — wrapper VerticalLayout com
+                    // `alignment: start` para o Card sizar pela própria
+                    // preferred-height (não esticar à altura do painel
+                    // direito, que costuma ter mais botões/cards).
+                    VerticalLayout {
+                        horizontal-stretch: 2;
+                        alignment: start;
+                    Card {
+                        VerticalLayout {
+                            padding: 20px;
+                            spacing: 0px;
+
+                            if o.status != "cancelled": HorizontalLayout {
+                                spacing: 4px;
+                                VerticalLayout {
+                                    horizontal-stretch: 1; spacing: 3px;
+                                    Rectangle { height: 4px; border-radius: 2px; background: status-color; }
+                                    Text { text: "Pendente"; font-size: 9px; color: status-color; horizontal-alignment: center; }
+                                }
+                                VerticalLayout {
+                                    horizontal-stretch: 1; spacing: 3px;
+                                    property <bool> a: o.status == "confirmed" || o.status == "preparing" || o.status == "ready" || o.status == "delivered";
+                                    Rectangle { height: 4px; border-radius: 2px; background: parent.a ? status-color : Theme.border; }
+                                    Text { text: "Confirmado"; font-size: 9px; color: parent.a ? status-color : Theme.text-secondary; horizontal-alignment: center; }
+                                }
+                                VerticalLayout {
+                                    horizontal-stretch: 1; spacing: 3px;
+                                    property <bool> a: o.status == "preparing" || o.status == "ready" || o.status == "delivered";
+                                    Rectangle { height: 4px; border-radius: 2px; background: parent.a ? status-color : Theme.border; }
+                                    Text { text: "Preparando"; font-size: 9px; color: parent.a ? status-color : Theme.text-secondary; horizontal-alignment: center; }
+                                }
+                                VerticalLayout {
+                                    horizontal-stretch: 1; spacing: 3px;
+                                    property <bool> a: o.status == "ready" || o.status == "delivered";
+                                    Rectangle { height: 4px; border-radius: 2px; background: parent.a ? status-color : Theme.border; }
+                                    Text { text: "Pronto"; font-size: 9px; color: parent.a ? status-color : Theme.text-secondary; horizontal-alignment: center; }
+                                }
+                                VerticalLayout {
+                                    horizontal-stretch: 1; spacing: 3px;
+                                    property <bool> a: o.status == "delivered";
+                                    Rectangle { height: 4px; border-radius: 2px; background: parent.a ? status-color : Theme.border; }
+                                    Text { text: "Entregue"; font-size: 9px; color: parent.a ? status-color : Theme.text-secondary; horizontal-alignment: center; }
+                                }
+                            }
+                            if o.status == "cancelled": Text {
+                                text: "✕  Pedido Cancelado";
+                                font-size: 13px; font-weight: 700;
+                                color: #EF5350;
+                                vertical-alignment: center;
+                            }
+
+                            Rectangle { height: 16px; }
+
+                            VerticalLayout {
+                                spacing: 4px;
+                                Text { text: "Cliente"; font-size: 11px; font-weight: 600; color: Theme.text-secondary; }
+                                Text { text: o.customer-name; font-size: 15px; font-weight: 600; color: Theme.text-primary; }
+                            }
+
+                            if o.delivery-street != "": Rectangle { height: 10px; }
+                            if o.delivery-street != "": Rectangle {
+                                border-radius: 8px;
+                                border-width: 1px;
+                                border-color: Theme.card-border;
+                                drop-shadow-blur: 12px;
+                                drop-shadow-offset-y: 0px;
+                                drop-shadow-color: Theme.card-shadow;
+                                background: Theme.bg;
+                                VerticalLayout {
+                                    padding: 10px;
+                                    spacing: 0px;
+                                    HorizontalLayout {
+                                        spacing: 6px;
+                                        VerticalLayout {
+                                            alignment: center;
+                                            Rectangle {
+                                                width: 13px; height: 16px;
+                                                Path {
+                                                    width: 13px; height: 16px;
+                                                    viewbox-width: 14;
+                                                    viewbox-height: 17;
+                                                    commands: "M 7 0 C 3.13 0 0 3.13 0 7 C 0 11.5 7 17 7 17 C 7 17 14 11.5 14 7 C 14 3.13 10.87 0 7 0 Z";
+                                                    fill: Theme.text-secondary;
+                                                }
+                                                Rectangle {
+                                                    x: 4px; y: 4px;
+                                                    width: 6px; height: 6px;
+                                                    border-radius: 3px;
+                                                    background: Theme.bg;
+                                                }
+                                            }
+                                        }
+                                        Text {
+                                            text: "Endereço de Entrega";
+                                            font-size: 11px; font-weight: 700;
+                                            color: Theme.text-secondary;
+                                            vertical-alignment: center;
+                                            horizontal-stretch: 1;
+                                        }
+                                    }
+                                    Rectangle { height: 8px; }
+                                    Rectangle { height: 1px; background: Theme.border; }
+                                    Rectangle { height: 8px; }
+                                    if o.delivery-label != "": HorizontalLayout {
+                                        spacing: 0px;
+                                        padding-bottom: 4px;
+                                        Rectangle {
+                                            width: 58px;
+                                            Text { text: "Tipo"; font-size: 11px; color: Theme.text-secondary; vertical-alignment: center; }
+                                        }
+                                        Text { text: ":"; font-size: 11px; color: Theme.text-secondary; vertical-alignment: center; width: 12px; }
+                                        Text { text: o.delivery-label; font-size: 11px; font-weight: 600; color: Theme.text-primary; vertical-alignment: center; horizontal-stretch: 1; }
+                                    }
+                                    HorizontalLayout {
+                                        spacing: 0px;
+                                        padding-bottom: 4px;
+                                        Rectangle {
+                                            width: 58px;
+                                            Text { text: "Rua"; font-size: 11px; color: Theme.text-secondary; vertical-alignment: center; }
+                                        }
+                                        Text { text: ":"; font-size: 11px; color: Theme.text-secondary; vertical-alignment: center; width: 12px; }
+                                        Text { text: o.delivery-street; font-size: 11px; color: Theme.text-primary; wrap: word-wrap; horizontal-stretch: 1; vertical-alignment: center; }
+                                    }
+                                    HorizontalLayout {
+                                        spacing: 0px;
+                                        padding-bottom: 4px;
+                                        Rectangle {
+                                            width: 58px;
+                                            Text { text: "Número"; font-size: 11px; color: Theme.text-secondary; vertical-alignment: center; }
+                                        }
+                                        Text { text: ":"; font-size: 11px; color: Theme.text-secondary; vertical-alignment: center; width: 12px; }
+                                        Text { text: o.delivery-number; font-size: 11px; color: Theme.text-primary; vertical-alignment: center; horizontal-stretch: 1; }
+                                    }
+                                    HorizontalLayout {
+                                        spacing: 0px;
+                                        padding-bottom: o.delivery-apartment != "" ? 4px : 0px;
+                                        Rectangle {
+                                            width: 58px;
+                                            Text { text: "Bairro"; font-size: 11px; color: Theme.text-secondary; vertical-alignment: center; }
+                                        }
+                                        Text { text: ":"; font-size: 11px; color: Theme.text-secondary; vertical-alignment: center; width: 12px; }
+                                        Text { text: o.delivery-neighborhood; font-size: 11px; color: Theme.text-primary; vertical-alignment: center; horizontal-stretch: 1; }
+                                    }
+                                    if o.delivery-apartment != "": HorizontalLayout {
+                                        spacing: 0px;
+                                        Rectangle {
+                                            width: 58px;
+                                            Text { text: "Apto"; font-size: 11px; color: Theme.text-secondary; vertical-alignment: center; }
+                                        }
+                                        Text { text: ":"; font-size: 11px; color: Theme.text-secondary; vertical-alignment: center; width: 12px; }
+                                        Text { text: o.delivery-apartment; font-size: 11px; color: Theme.text-primary; vertical-alignment: center; horizontal-stretch: 1; }
+                                    }
+                                }
+                            }
+
+                            Rectangle { height: 16px; }
+                            Rectangle { height: 1px; background: Theme.border; }
+                            Rectangle { height: 12px; }
+
+                            Text { text: "Itens"; font-size: 13px; font-weight: 700; color: Theme.text-primary; }
+                            Rectangle { height: 8px; }
+                            VerticalLayout {
+                                spacing: 8px;
+                                for item in root.detail-order-items: OrderItemCard {
+                                    height: 72px;
+                                    item: item;
+                                }
+                                if root.detail-order-items.length == 0: Rectangle {
+                                    height: 44px;
+                                    border-radius: 6px;
+                                    border-width: 1px;
+                                    border-color: Theme.card-border;
+                                    drop-shadow-blur: 12px;
+                                    drop-shadow-offset-y: 0px;
+                                    drop-shadow-color: Theme.card-shadow;
+                                    background: Theme.bg;
+                                    HorizontalLayout {
+                                        padding: 12px;
+                                        Text { text: o.items-summary; font-size: 13px; color: Theme.text-primary; wrap: word-wrap; horizontal-stretch: 1; }
+                                    }
+                                }
+                            }
+
+                            if o.notes != "": Rectangle { height: 12px; }
+                            if o.notes != "": Rectangle {
+                                border-radius: 6px;
+                                border-width: 1px;
+                                border-color: #FFE0B2;
+                                background: #FFF8F0;
+                                HorizontalLayout {
+                                    padding: 12px;
+                                    VerticalLayout {
+                                        horizontal-stretch: 1; spacing: 4px;
+                                        Text { text: "Observações"; font-size: 11px; font-weight: 600; color: #E65100; }
+                                        Text { text: o.notes; font-size: 13px; color: Theme.text-primary; wrap: word-wrap; horizontal-stretch: 1; }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    }
+
+                    // Painel direito
+                    VerticalLayout {
+                        horizontal-stretch: 1;
+                        alignment: start;
+                    Card {
+                        VerticalLayout {
+                            padding: 20px;
+                            spacing: 0px;
+
+                            // ── Card "Tempo Ativo" (PRIMEIRO bloco) ──
+                            // Empilhado em VerticalLayout (ícone, label e
+                            // valor) com `horizontal-alignment: center` em
+                            // cada Text: em VerticalLayout os filhos
+                            // esticam no eixo horizontal por padrão, então
+                            // o alignment do texto centraliza de fato dentro
+                            // da caixa. Tentativa anterior com HorizontalLayout
+                            // + `alignment: center` deixava o grupo encostado
+                            // à esquerda porque o segundo VerticalLayout
+                            // (textos) crescia até o tamanho do maior texto
+                            // e o "centro" ficava deslocado. Timer 60s no
+                            // Rust recalcula `elapsed-display`.
+                            if o.status != "delivered" && o.status != "cancelled": Rectangle {
+                                border-radius: 10px;
+                                border-width: 1px;
+                                border-color: #FFE0B2;
+                                background: #FFF8F0;
+                                // Apenas duas linhas centradas — o ícone
+                                // ⏱ foi removido porque deslocava o título
+                                // do centro visual quando inline. Em
+                                // VerticalLayout, os filhos esticam no
+                                // cross-axis, então `horizontal-alignment:
+                                // center` no Text efetivamente centraliza.
+                                VerticalLayout {
+                                    padding-top: 8px; padding-bottom: 8px;
+                                    padding-left: 12px; padding-right: 12px;
+                                    spacing: 2px;
+                                    Text {
+                                        text: "Tempo Ativo";
+                                        font-size: 10px; font-weight: 700;
+                                        color: #E65100;
+                                        letter-spacing: 1px;
+                                        horizontal-alignment: center;
+                                    }
+                                    Text {
+                                        text: o.elapsed-display != "" ? o.elapsed-display : "agora";
+                                        font-size: 16px; font-weight: 700;
+                                        color: #BF360C;
+                                        horizontal-alignment: center;
+                                    }
+                                }
+                                Timer {
+                                    interval: 60s;
+                                    running: true;
+                                    triggered => { root.refresh-order-elapsed(); }
+                                }
+                            }
+                            // Data/Horário removidos do painel direito a
+                            // pedido do operador: a informação aparece no
+                            // header da página (`Pedido #NNNN`) e nas
+                            // comandas impressas, então duplicar aqui só
+                            // ocupa espaço. Mantemos apenas o espaçador
+                            // entre Tempo Ativo e o bloco de valores.
+                            if o.status != "delivered" && o.status != "cancelled": Rectangle { height: 16px; }
+
+                            // ── Ações (Editar / Imprimir / Avançar / Cancelar) ──
+                            // Movidas para ACIMA do detalhamento de valores
+                            // a pedido do operador: durante a operação ao
+                            // vivo, os botões de ação são os mais clicados
+                            // (avançar status, abrir comanda/cozinha) e ter
+                            // eles próximos ao Tempo Ativo encurta o
+                            // caminho da mão. Subtotal/Desconto/Total
+                            // continuam visíveis mas mais abaixo.
+                            VerticalLayout {
+                                spacing: 8px;
+                                if o.status != "delivered" && o.status != "cancelled": OutlineBtn {
+                                    label: "Editar Pedido";
+                                    height: 32px;
+                                    clicked => { root.edit-order(o.id); }
+                                }
+                                HorizontalLayout {
+                                    spacing: 8px;
+                                    OutlineBtn {
+                                        label: "Comanda";
+                                        horizontal-stretch: 1; height: 32px;
+                                        clicked => { root.print-order-receipt(o.id); }
+                                    }
+                                    OutlineBtn {
+                                        label: "Cozinha";
+                                        horizontal-stretch: 1; height: 32px;
+                                        clicked => { root.print-order-kitchen(o.id); }
+                                    }
+                                }
+                                if o.status != "delivered" && o.status != "cancelled": ActionBtn {
+                                    label:
+                                        o.status == "pending"   ? "Confirmar" :
+                                        o.status == "confirmed" ? "Preparar"  :
+                                        o.status == "preparing" ? "Pronto"    : "Entregar";
+                                    bg-color: o.status == "ready" ? #2E7D32 : Theme.sidebar-sel-bg;
+                                    height: 40px;
+                                    clicked => { root.advance-order-status(o.id); }
+                                }
+                                if o.status != "delivered" && o.status != "cancelled": OutlineBtn {
+                                    label: "Cancelar";
+                                    btn-color: Theme.danger;
+                                    height: 40px;
+                                    clicked => {
+                                        root.request-cancel(o.id, "Pedido " + o.number + " — " + o.customer-name + " — " + o.total);
+                                    }
+                                }
+                            }
+
+                            Rectangle { height: 16px; }
+                            Rectangle { height: 1px; background: Theme.border; }
+                            Rectangle { height: 16px; }
+
+                            // ── Detalhamento de valores ─────────────
+                            // (AI_RULES §1/§14: strings já formatadas
+                            // em Rust; UI só renderiza linhas.)
+                            VerticalLayout {
+                                spacing: 6px;
+                                HorizontalLayout {
+                                    Text { text: "Subtotal"; font-size: 11px; color: Theme.text-secondary; horizontal-stretch: 1; vertical-alignment: center; }
+                                    Text { text: o.subtotal-display; font-size: 12px; font-weight: 600; color: Theme.text-primary; vertical-alignment: center; }
+                                }
+                                HorizontalLayout {
+                                    Text { text: "Taxa de entrega"; font-size: 11px; color: Theme.text-secondary; horizontal-stretch: 1; vertical-alignment: center; }
+                                    Text { text: o.delivery-fee-display; font-size: 12px; font-weight: 600; color: Theme.text-primary; vertical-alignment: center; }
+                                }
+                                HorizontalLayout {
+                                    Text { text: "Desconto"; font-size: 11px; color: Theme.text-secondary; horizontal-stretch: 1; vertical-alignment: center; }
+                                    Text {
+                                        text: o.discount-display;
+                                        font-size: 12px; font-weight: 600;
+                                        color: o.discount-display == "—" ? Theme.text-primary : #C62828;
+                                        vertical-alignment: center;
+                                    }
+                                }
+                                HorizontalLayout {
+                                    Text { text: "Cupom"; font-size: 11px; color: Theme.text-secondary; horizontal-stretch: 1; vertical-alignment: center; }
+                                    Text {
+                                        text: o.coupon-code-display;
+                                        font-size: 12px; font-weight: 600;
+                                        color: o.coupon-code-display == "—" ? Theme.text-primary : Theme.primary;
+                                        vertical-alignment: center;
+                                    }
+                                }
+                            }
+
+                            Rectangle { height: 12px; }
+                            Rectangle { height: 1px; background: Theme.border; }
+                            Rectangle { height: 12px; }
+
+                            HorizontalLayout {
+                                Text { text: "Total"; font-size: 13px; font-weight: 700; color: Theme.text-secondary; horizontal-stretch: 1; vertical-alignment: center; }
+                                Text { text: o.total; font-size: 24px; font-weight: 800; color: #2E7D32; vertical-alignment: center; }
+                            }
+                        }
+                    }
+                    }
+                }
+            }
+        }
+    }
+}

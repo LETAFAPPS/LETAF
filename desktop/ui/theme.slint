@@ -1,0 +1,114 @@
+// ── Paleta de cores ─────────────────────────────────────────────────────────
+
+export global Theme {
+    // Alternância de tema: false = claro, true = escuro.
+    // O toggle no .slint grava diretamente; cores reativas sem Rust.
+    in-out property <bool> dark-mode: false;
+
+    // Acento de CONTEÚDO do design system: laranja (#e8731c) nos DOIS
+    // temas. Botões/destaques/gráficos/contornos de conteúdo derivam
+    // destes tokens (substitui o marrom/âmbar antigo).
+    out property <color> primary:        #e8731c;
+    out property <color> primary-light:  #e8731c;
+    out property <color> primary-dark:   #c45f14;
+    out property <color> accent:         #e8731c;
+    // Texto/ícone SOBRE o acento: branco (contrasta no laranja e no verde).
+    out property <color> on-primary:     #FFFFFF;
+    out property <color> danger:         #C62828;
+    out property <color> danger-hover:   #E53935;
+    out property <color> bg:             dark-mode ? #181818 : #f8f7f4;
+    out property <color> surface:        dark-mode ? #1e1e1c : #ffffff;
+    // Sidebar — acento laranja. No tema CLARO o fundo é café torrado;
+    // no tema ESCURO permanece near-black. Os demais tokens (texto,
+    // seção, acento) têm contraste adequado nas duas cores.
+    // `sidebar-active`  = cor do acento (barra + texto do item ativo)
+    // `sidebar-active-bg` = leve realce de fundo do item ativo
+    // `sidebar-section` = cinza dos títulos de seção
+    // `sidebar-badge-bg` = fundo do badge (contador) inativo
+    // Sidebar FIXA no padrão do tema escuro (design system) — não muda
+    // com o tema do app, então a logo branca sempre contrasta.
+    out property <color> sidebar-bg:        #1a1a18;
+    // Painel/realce um pouco mais claro (item ativo do menu).
+    out property <color> sidebar-bg-light:  #252524;
+    // Texto/ícones da sidebar em branco (igual à logo). O realce do item
+    // ativo continua no accent (`sidebar-active`) como indicador de seleção.
+    out property <color> sidebar-text:      #FFFFFF;
+    out property <color> sidebar-hover:     #FFFFFF0D;
+    // Acento da sidebar = accent do conteúdo: laranja (#e8731c) nos dois
+    // temas (a sidebar é fixa escura; o realce usa o mesmo laranja).
+    out property <color> sidebar-active:    #e8731c;
+    out property <color> sidebar-active-bg: #252524;
+    // Cor de botões/gráficos/chips de conteúdo = accent do design system
+    // (laranja no claro / verde no escuro). Antes era marrom.
+    out property <color> sidebar-sel-bg:    #e8731c;
+    out property <color> sidebar-section:   #FFFFFF;
+    out property <color> sidebar-badge-bg:  #FFFFFF14;
+
+    // ── Tipografia (escala única do sistema) ────────────────────────
+    // Família única: Hanken Grotesk (design system). Se a fonte não
+    // estiver instalada/embarcada, o Slint cai no fallback automaticamente
+    // — o `font-family` é seguro.
+    // Papéis (tam/peso): página 28/600, seção 16/600, corpo 14/400,
+    // meta 12.5/400, eyebrow 11.5/600.
+    out property <string> font-sans: "Hanken Grotesk";
+    out property <string> font-mono: "Hanken Grotesk";
+    out property <length> fs-page:    28px;
+    out property <length> fs-section: 16px;
+    out property <length> fs-body:    14px;
+    out property <length> fs-meta:    12.5px;
+    out property <length> fs-eyebrow: 11.5px;
+    out property <int>    fw-strong:  600;
+    out property <int>    fw-regular: 400;
+    out property <int>    fw-medium:    500;
+    out property <int>    fw-bold:      700;
+    out property <int>    fw-extrabold: 800;
+    // Escala do design system (Hanken Grotesk) — tokens nomeados.
+    out property <length> fs-display:    36px;  // peso 800 · -0.02em
+    out property <length> fs-heading-lg: 24px;  // peso 800 · -0.01em
+    out property <length> fs-heading:    18px;  // peso 700
+    out property <length> fs-body-lg:    15px;  // peso 500
+    out property <length> fs-caption:    12px;  // peso 500
+    out property <length> fs-label:      10px;  // peso 700 · +0.13em
+    out property <length> fs-wordmark:   14px;  // peso 800 · +0.06em
+
+    // ── Espaçamento (escala 4..48) ──────────────────────────────────
+    out property <length> space-1:  4px;
+    out property <length> space-2:  8px;
+    out property <length> space-3:  12px;
+    out property <length> space-4:  16px;
+    out property <length> space-5:  20px;
+    out property <length> space-6:  24px;
+    out property <length> space-7:  32px;
+    out property <length> space-8:  48px;  // page padding
+
+    // ── Border radius ───────────────────────────────────────────────
+    out property <length> radius-xs:  4px;
+    out property <length> radius-sm:  6px;
+    out property <length> radius-md:  7px;
+    out property <length> radius-lg:  9px;
+    out property <length> radius-xl:  10px;
+    out property <length> radius-2xl: 12px;
+    out property <length> radius-3xl: 14px;
+
+    out property <color> text-primary:   dark-mode ? #f0f0ee : #1c1a18;
+    out property <color> text-secondary: dark-mode ? #888884 : #6a6460;
+    out property <color> border:         dark-mode ? #3a3a36 : #e8e3dd;
+    // Borda dos CARDS: cinza claro neutro/suave (padrão do mockup).
+    // Separada de `border` para afetar só a moldura dos cards, não
+    // divisores/inputs.
+    out property <color> card-border:    dark-mode ? #3a3a36 : #e8eaed;
+    // Sombra suave dos cards (efeito "flutuante" do mockup). Simétrica
+    // (offset 0) → aparece igual em todas as bordas. No CLARO segue como
+    // era (preto suave). No ESCURO a cor deriva da BORDA do tema (não
+    // preto), harmonizando com a moldura.
+    out property <color> card-shadow:    dark-mode ? card-border.transparentize(0.35) : #00000021;
+    out property <color> row-alt:        dark-mode ? #252524 : #f0ece6;
+    out property <color> row-hover:      dark-mode ? #2a2a28 : #f5f0e8;
+    out property <color> header-bg:      dark-mode ? #2a2a28 : #f5f0e8;
+
+    // Caixa de ícone (ícones com fundo): cinza neutro. Claro = fundo um
+    // pouco mais claro + ícone cinza; escuro = fundo um pouco mais escuro
+    // + ícone cinza-claro.
+    out property <color> icon-box-bg: dark-mode ? #161614 : #efece6;
+    out property <color> icon-box-fg: dark-mode ? #aeaaa4 : #6a6460;
+}

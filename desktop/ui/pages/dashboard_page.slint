@@ -1,0 +1,815 @@
+import { ScrollView } from "std-widgets.slint";
+import { Theme } from "../theme.slint";
+import { AssetIcon } from "../components/icons.slint";
+import { EmptyState } from "../components/empty_state.slint";
+import {
+    DashboardKpi,
+    DashboardBarPoint,
+    DashboardComparePoint,
+    DashboardTopProduct,
+    DashboardPaymentSlice,
+    DashboardLinePoint,
+} from "../types.slint";
+
+// ── Tela: Dashboard (Resumo Executivo) ────────────────────────────
+// Header + hero "Receita da Semana" (com gráfico de linha) + 3 KPIs +
+// Comparativo semanal + Top Produtos + Formas de Pagamento (donut).
+// Toda derivação acontece no Rust (AI_RULES §1). Gráficos desenhados
+// com `Path` a partir de comandos SVG calculados no Rust.
+
+// ── KPI (ícone + label/valor + delta) ───────────────────────────────
+component KpiCard inherits Rectangle {
+    in property <string> label;
+    in property <string> value-display;
+    in property <string> delta;
+    in property <string> delta-tone;   // "pos"/"warn"/"neg"/"neutral"
+    in property <string> value-tone;   // colore o valor (sync); vazio = padrão
+    in property <image> icon;
+
+    height: 96px;
+    border-radius: 14px;
+    border-width: 1px;
+    border-color: Theme.card-border;
+    drop-shadow-blur: 12px;
+    drop-shadow-offset-y: 0px;
+    drop-shadow-color: Theme.card-shadow;
+    background: Theme.surface;
+
+    HorizontalLayout {
+        padding-left: 18px; padding-right: 18px;
+        spacing: 14px;
+        // Ícone em quadrado tintado
+        VerticalLayout {
+            alignment: center;
+            Rectangle {
+                width: 48px; height: 48px;
+                border-radius: 12px;
+                background: Theme.icon-box-bg;
+                AssetIcon {
+                    width: parent.width; height: parent.height;
+                    icon-size: 22px;
+                    icon-color: Theme.icon-box-fg;
+                    source: root.icon;
+                }
+            }
+        }
+        VerticalLayout {
+            horizontal-stretch: 1;
+            alignment: center;
+            spacing: 3px;
+            Text {
+                text: root.label;
+                font-size: 10px; font-weight: 700;
+                color: Theme.text-secondary; letter-spacing: 1px;
+            }
+            Text {
+                text: root.value-display;
+                font-size: 24px; font-weight: 800;
+                color: root.value-tone == "pos" ? #2E7D32
+                    : (root.value-tone == "warn" ? #EF6C00
+                    : (root.value-tone == "neg" ? #E53935 : Theme.text-primary));
+                overflow: elide;
+            }
+        }
+        VerticalLayout {
+            alignment: center;
+            Text {
+                text: root.delta;
+                font-size: 13px; font-weight: 700;
+                color: root.delta-tone == "pos" ? #2E7D32
+                    : (root.delta-tone == "warn" ? #EF6C00
+                    : (root.delta-tone == "neg" ? #E53935
+                    : (root.delta-tone == "ink" ? Theme.text-primary : Theme.text-secondary)));
+            }
+        }
+    }
+}
+
+// ── Hero: Receita da Semana + gráfico de linha ──────────────────────
+component HeroCard inherits Rectangle {
+    in property <string> revenue;
+    in property <string> revenue-label;
+    in property <string> delta;
+    in property <string> delta-tone;
+    in property <string> orders;
+    in property <string> ticket;
+    in property <string> best-day;
+    in property <string> line-path;
+    in property <string> area-path;
+    in property <[DashboardLinePoint]> points;
+    // Só mostra o gráfico quando há movimentações no período.
+    in property <bool> show-chart: true;
+
+    height: 220px;
+    border-radius: 16px;
+    border-width: 1px;
+    border-color: Theme.card-border;
+    drop-shadow-blur: 12px;
+    drop-shadow-offset-y: 0px;
+    drop-shadow-color: Theme.card-shadow;
+    // Mesmo padrão dos demais cards: superfície clara + contorno.
+    background: Theme.surface;
+
+    HorizontalLayout {
+        padding: 28px;
+        spacing: 24px;
+
+        // ESQUERDA: números
+        VerticalLayout {
+            horizontal-stretch: 1;
+            spacing: 8px;
+            Text {
+                text: root.revenue-label;
+                font-size: 11px; font-weight: 700;
+                color: Theme.text-secondary; letter-spacing: 1.5px;
+            }
+            Text {
+                text: root.revenue;
+                font-size: 42px; font-weight: 800;
+                color: Theme.text-primary;
+            }
+            // Badge de variação — pílula tintada (verde sobe / vermelho cai).
+            HorizontalLayout {
+                alignment: start;
+                Rectangle {
+                    height: 26px;
+                    background: root.delta-tone == "neg" ? #C62828.with-alpha(0.12)
+                        : (root.delta-tone == "pos" ? #2E7D32.with-alpha(0.12) : Theme.row-hover);
+                    border-radius: 8px;
+                    HorizontalLayout {
+                        padding-left: 10px; padding-right: 10px;
+                        Text {
+                            text: root.delta;
+                            font-size: 11px; font-weight: 700;
+                            color: root.delta-tone == "neg" ? #C62828
+                                : (root.delta-tone == "pos" ? #2E7D32 : Theme.text-secondary);
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+            }
+            Rectangle { vertical-stretch: 1; }
+            // 3 stats — agrupados à esquerda, espaçamento moderado.
+            HorizontalLayout {
+                spacing: 40px;
+                VerticalLayout {
+                    spacing: 2px;
+                    Text { text: root.orders; font-size: 18px; font-weight: 800; color: Theme.text-primary; }
+                    Text { text: "Pedidos"; font-size: 11px; color: Theme.text-secondary; }
+                }
+                VerticalLayout {
+                    spacing: 2px;
+                    Text { text: root.ticket; font-size: 18px; font-weight: 800; color: Theme.text-primary; }
+                    Text { text: "Ticket Médio"; font-size: 11px; color: Theme.text-secondary; }
+                }
+                VerticalLayout {
+                    spacing: 2px;
+                    Text { text: root.best-day; font-size: 18px; font-weight: 800; color: Theme.text-primary; }
+                    Text { text: "Melhor Dia"; font-size: 11px; color: Theme.text-secondary; }
+                }
+                Rectangle { horizontal-stretch: 1; }
+            }
+        }
+
+        // DIREITA: gráfico de linha. Coordenadas em PX do próprio chart
+        // (viewbox = tamanho do elemento), então a linha preenche toda a
+        // largura e os marcadores usam as MESMAS coords (acompanham a
+        // linha). Marcadores só aparecem no hover.
+        if root.show-chart: chart := Rectangle {
+            horizontal-stretch: 2;
+            // O Path do Slint sempre PRESERVA o aspect-ratio do viewbox.
+            // Usando um viewbox FIXO 8:1 (1000×125), MAIS LARGO que o card,
+            // o Path passa a ser limitado pela LARGURA → preenche toda ela
+            // (sobra vertical, centralizada). lh/oy reproduzem essa mesma
+            // transformação p/ os marcadores caírem exatamente na linha.
+            property <length> lh: self.width / 8;                 // altura renderizada da curva
+            property <length> oy: (self.height - self.lh) / 2;    // centraliza na vertical
+            property <string> line-cmd:
+                "M \{Math.round(root.points[0].x * 1000)} \{Math.round(root.points[0].y * 125)}"
+                + " L \{Math.round(root.points[1].x * 1000)} \{Math.round(root.points[1].y * 125)}"
+                + " L \{Math.round(root.points[2].x * 1000)} \{Math.round(root.points[2].y * 125)}"
+                + " L \{Math.round(root.points[3].x * 1000)} \{Math.round(root.points[3].y * 125)}"
+                + " L \{Math.round(root.points[4].x * 1000)} \{Math.round(root.points[4].y * 125)}"
+                + " L \{Math.round(root.points[5].x * 1000)} \{Math.round(root.points[5].y * 125)}"
+                + " L \{Math.round(root.points[6].x * 1000)} \{Math.round(root.points[6].y * 125)}";
+
+            // Área sob a curva (linha fechada até a base do viewbox).
+            Path {
+                width: 100%; height: 100%;
+                viewbox-x: 0; viewbox-y: 0;
+                viewbox-width: 1000; viewbox-height: 125;
+                commands: chart.line-cmd + " L 1000 125 L 0 125 Z";
+                fill: @linear-gradient(180deg, Theme.accent.with-alpha(0.4) 0%, Theme.accent.with-alpha(0.0) 100%);
+            }
+            // Linha.
+            Path {
+                width: 100%; height: 100%;
+                viewbox-x: 0; viewbox-y: 0;
+                viewbox-width: 1000; viewbox-height: 125;
+                commands: chart.line-cmd;
+                stroke: Theme.accent; stroke-width: 3px; fill: transparent;
+            }
+            // Marcadores (só no hover) + tooltip com dia/valor.
+            for pt in root.points: Rectangle {
+                x: pt.x * chart.width - 16px;
+                y: chart.oy + pt.y * chart.lh - 16px;
+                width: 32px; height: 32px;
+                dot-ta := TouchArea { }
+                if dot-ta.has-hover: Rectangle {
+                    x: (parent.width - 10px) / 2;
+                    y: (parent.height - 10px) / 2;
+                    width: 10px; height: 10px;
+                    border-radius: 5px;
+                    background: white;
+                    border-width: 2px; border-color: Theme.accent;
+                }
+                if dot-ta.has-hover: Rectangle {
+                    x: parent.width / 2 - self.width / 2;
+                    y: -34px;
+                    width: tt-txt.preferred-width + 16px;
+                    height: 30px;
+                    border-radius: 8px;
+                    background: white;
+                    drop-shadow-blur: 8px;
+                    drop-shadow-color: #00000040;
+                    tt-txt := Text {
+                        width: parent.width; height: parent.height;
+                        text: pt.label + ": " + pt.value-display;
+                        font-size: 11px; font-weight: 700;
+                        color: Theme.text-primary;
+                        horizontal-alignment: center; vertical-alignment: center;
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ── Comparativo semanal: 2 barras por dia (atual + anterior) ─────────
+component ComparePairSlot inherits Rectangle {
+    in property <float> current-progress;
+    in property <float> previous-progress;
+    in property <string> current-display;
+    in property <string> previous-display;
+    in property <string> label;
+
+    // Barras SOBREPOSTAS e centralizadas no slot: anterior (clara, larga,
+    // atrás) + atual (escura, fina, na frente). Ambas centradas no slot e o
+    // RÓTULO fica na MESMA célula (embaixo) → alinhamento garantido, sem
+    // depender de uma HBox de rótulos separada, em qualquer quantidade.
+    property <length> prev-w: min(20px, root.width * 0.62);
+    property <length> cur-w: min(11px, root.width * 0.34);
+    property <length> tooltip-h: 24px;
+    property <length> label-h: 16px;
+    property <length> bar-area-h: max(0px, root.height - root.tooltip-h - root.label-h);
+
+    slot-ta := TouchArea { }
+    // Anterior (clara, atrás).
+    Rectangle {
+        x: (root.width - root.prev-w) / 2;
+        width: root.prev-w;
+        y: root.tooltip-h + root.bar-area-h * (1.0 - root.previous-progress);
+        height: root.bar-area-h * root.previous-progress;
+        border-radius: 4px;
+        background: slot-ta.has-hover ? #B3B0A4 : #C9C7BD;
+    }
+    // Atual (escura, na frente).
+    Rectangle {
+        x: (root.width - root.cur-w) / 2;
+        width: root.cur-w;
+        y: root.tooltip-h + root.bar-area-h * (1.0 - root.current-progress);
+        height: root.bar-area-h * root.current-progress;
+        border-radius: 3px;
+        background: slot-ta.has-hover ? Theme.primary.darker(0.1) : Theme.primary;
+    }
+    // Tooltip (no hover): Atual e Anterior, centrado e sem corte.
+    if slot-ta.has-hover && (root.current-display != "" || root.previous-display != ""): Rectangle {
+        x: root.width / 2 - self.width / 2;
+        y: 0;
+        width: 96px;
+        height: tt-col.preferred-height;
+        border-radius: 8px;
+        background: white;
+        drop-shadow-blur: 8px;
+        drop-shadow-color: #00000033;
+        tt-col := VerticalLayout {
+            padding: 4px;
+            Text {
+                text: "Atual: " + root.current-display;
+                font-size: 10px; font-weight: 700; color: Theme.primary;
+                horizontal-alignment: center;
+            }
+            Text {
+                text: "Ant.: " + (root.previous-display != "" ? root.previous-display : "—");
+                font-size: 10px; font-weight: 600; color: #8A8A8A;
+                horizontal-alignment: center;
+            }
+        }
+    }
+    // Rótulo do dia/hora — na MESMA célula da barra (alinhado por construção).
+    Text {
+        x: 0;
+        y: root.height - root.label-h;
+        width: root.width;
+        height: root.label-h;
+        text: root.label;
+        font-size: 9px; color: Theme.text-secondary;
+        horizontal-alignment: center; vertical-alignment: center;
+        overflow: elide;
+    }
+}
+
+component WeeklyCompareChart inherits Rectangle {
+    in property <[DashboardComparePoint]> points;
+    in property <string> subtitle;
+
+    border-radius: 16px;
+    border-width: 1px;
+    border-color: Theme.card-border;
+    drop-shadow-blur: 12px;
+    drop-shadow-offset-y: 0px;
+    drop-shadow-color: Theme.card-shadow;
+    background: Theme.surface;
+
+    VerticalLayout {
+        padding: 20px;
+        spacing: 8px;
+        HorizontalLayout {
+            VerticalLayout {
+                horizontal-stretch: 1;
+                spacing: 2px;
+                Text {
+                    text: "Comparativo";
+                    font-size: 15px; font-weight: 700;
+                    color: Theme.text-primary;
+                }
+                Text {
+                    text: root.subtitle;
+                    font-size: 11px; color: Theme.text-secondary;
+                }
+            }
+            HorizontalLayout {
+                spacing: 14px;
+                alignment: end;
+                HorizontalLayout {
+                    spacing: 6px;
+                    VerticalLayout { alignment: center; Rectangle { width: 12px; height: 12px; border-radius: 3px; background: Theme.primary; } }
+                    Text { text: "Atual"; font-size: 11px; color: Theme.text-secondary; vertical-alignment: center; }
+                }
+                HorizontalLayout {
+                    spacing: 6px;
+                    VerticalLayout { alignment: center; Rectangle { width: 12px; height: 12px; border-radius: 3px; background: #C9C7BD; } }
+                    Text { text: "Anterior"; font-size: 11px; color: Theme.text-secondary; vertical-alignment: center; }
+                }
+            }
+        }
+        Rectangle { height: 4px; }
+        HorizontalLayout {
+            spacing: 8px;
+            vertical-stretch: 1;
+            for p in root.points: ComparePairSlot {
+                horizontal-stretch: 1;
+                current-progress: p.current-progress;
+                previous-progress: p.previous-progress;
+                current-display: p.current-display;
+                previous-display: p.previous-display;
+                label: p.label;
+            }
+        }
+    }
+}
+
+// ── Top Produtos ────────────────────────────────────────────────────
+// Cada produto vira um card próprio; a antiga "faixa" de proporção é
+// agora um mini-donut (anel) preenchido por `progress` (arc calculado
+// no Rust). O rótulo do canto reflete o filtro (Dia/Semana/Mês).
+component TopProductsCard inherits Rectangle {
+    in property <[DashboardTopProduct]> products;
+    in property <string> period-label: "Semana";
+
+    border-radius: 16px;
+    border-width: 1px;
+    border-color: Theme.card-border;
+    drop-shadow-blur: 12px;
+    drop-shadow-offset-y: 0px;
+    drop-shadow-color: Theme.card-shadow;
+    background: Theme.surface;
+
+    VerticalLayout {
+        padding: 20px;
+        spacing: 10px;
+        HorizontalLayout {
+            Text {
+                text: "Melhores Produtos";
+                font-size: 15px; font-weight: 700;
+                color: Theme.text-primary;
+                horizontal-stretch: 1;
+            }
+            Text {
+                text: root.period-label;
+                font-size: 11px; color: Theme.text-secondary;
+                vertical-alignment: center;
+            }
+        }
+        if root.products.length == 0: EmptyState {
+            vertical-stretch: 1;
+            art-size: 108px;
+            source: @image-url("../assets/empty/empty-sales.svg");
+            title: "Sem vendas ainda";
+            subtitle: "Os mais vendidos aparecerão aqui";
+        }
+        for p in root.products: Rectangle {
+            height: 76px;
+            border-radius: 12px;
+            border-width: 1px;
+            border-color: Theme.card-border;
+            background: Theme.surface;
+            HorizontalLayout {
+                padding: 12px;
+                spacing: 14px;
+                // Posição (rank) à ESQUERDA do nome.
+                VerticalLayout {
+                    width: 28px;
+                    alignment: center;
+                    Text {
+                        text: "\{p.rank}°";
+                        font-size: 18px; font-weight: 800;
+                        color: Theme.accent;
+                        horizontal-alignment: center;
+                    }
+                }
+                // Nome + vendas.
+                VerticalLayout {
+                    horizontal-stretch: 1;
+                    alignment: center;
+                    spacing: 4px;
+                    Text {
+                        text: p.name;
+                        font-size: 13px; font-weight: 700;
+                        color: Theme.text-primary;
+                        overflow: elide;
+                    }
+                    Text {
+                        text: p.sales-display;
+                        font-size: 10px; color: Theme.text-secondary;
+                    }
+                }
+                // Mini-donut (anel de progresso) — à ESQUERDA do valor.
+                VerticalLayout {
+                    alignment: center;
+                    Rectangle {
+                        width: 44px; height: 44px;
+                        // Trilho (círculo completo, viewbox 0 0 100 100, raio 38).
+                        Path {
+                            width: 100%; height: 100%;
+                            viewbox-x: 0; viewbox-y: 0;
+                            viewbox-width: 100; viewbox-height: 100;
+                            commands: "M 50 12 A 38 38 0 1 1 50 88 A 38 38 0 1 1 50 12";
+                            stroke: Theme.row-hover; stroke-width: 8px; fill: transparent;
+                        }
+                        // Arco de progresso.
+                        Path {
+                            width: 100%; height: 100%;
+                            viewbox-x: 0; viewbox-y: 0;
+                            viewbox-width: 100; viewbox-height: 100;
+                            commands: p.arc-commands;
+                            stroke: Theme.accent; stroke-width: 8px; fill: transparent;
+                        }
+                    }
+                }
+                // Valor à direita.
+                VerticalLayout {
+                    alignment: center;
+                    Text {
+                        text: p.revenue-display;
+                        font-size: 14px; font-weight: 800;
+                        color: Theme.text-primary;
+                        horizontal-alignment: right;
+                    }
+                }
+            }
+        }
+        Rectangle { vertical-stretch: 1; }
+    }
+}
+
+// Ícone da forma de pagamento por chave (tingido com a cor da forma),
+// igual ao card "Recebimentos" de Relatórios.
+component PayIcon inherits Rectangle {
+    in property <string> key;
+    in property <color> tint;
+    if root.key == "pay-pix": AssetIcon { width: 100%; height: 100%; icon-size: 18px; icon-color: root.tint; source: @image-url("../assets/icons/1.2/pay-pix.svg"); }
+    if root.key == "pay-cartao-credito": AssetIcon { width: 100%; height: 100%; icon-size: 18px; icon-color: root.tint; source: @image-url("../assets/icons/1.2/pay-cartao-credito.svg"); }
+    if root.key == "pay-cartao-debito": AssetIcon { width: 100%; height: 100%; icon-size: 18px; icon-color: root.tint; source: @image-url("../assets/icons/1.2/pay-cartao-debito.svg"); }
+    if root.key == "pay-dinheiro": AssetIcon { width: 100%; height: 100%; icon-size: 18px; icon-color: root.tint; source: @image-url("../assets/icons/1.2/pay-dinheiro.svg"); }
+}
+
+// ── Formas de Pagamento (donut) ─────────────────────────────────────
+component PaymentDonutCard inherits Rectangle {
+    in property <[DashboardPaymentSlice]> slices;
+    in property <string> total;
+    // Índice da fatia em destaque (hover na legenda); -1 = nenhuma.
+    property <int> hovered: -1;
+
+    // A cor de cada forma é FIXA e vem do Rust (`s.color`): Pix azul,
+    // Crédito vermelho, Débito amarelo, Dinheiro verde — igual nos dois
+    // temas. A UI só pinta.
+
+    border-radius: 16px;
+    border-width: 1px;
+    border-color: Theme.card-border;
+    drop-shadow-blur: 12px;
+    drop-shadow-offset-y: 0px;
+    drop-shadow-color: Theme.card-shadow;
+    background: Theme.surface;
+
+    VerticalLayout {
+        padding: 20px;
+        spacing: 14px;
+        Text {
+            text: "Formas de Pagamento";
+            font-size: 15px; font-weight: 700;
+            color: Theme.text-primary;
+            horizontal-alignment: center;
+        }
+        // Donut: arcos (Path com stroke) sobrepostos + total no centro
+        HorizontalLayout {
+            alignment: center;
+            Rectangle {
+                width: 170px; height: 170px;
+                for s[i] in root.slices: Path {
+                    width: 100%; height: 100%;
+                    viewbox-x: 0; viewbox-y: 0;
+                    viewbox-width: 100; viewbox-height: 100;
+                    commands: s.arc-commands;
+                    stroke: i == root.hovered ? s.color.brighter(0.25) : s.color;
+                    stroke-width: i == root.hovered ? 21px : 16px;
+                    fill: transparent;
+                }
+                VerticalLayout {
+                    alignment: center;
+                    Text {
+                        text: root.total;
+                        font-size: 22px; font-weight: 800;
+                        color: Theme.text-primary;
+                        horizontal-alignment: center;
+                    }
+                    Text {
+                        text: "Recebido";
+                        font-size: 11px; color: Theme.text-secondary;
+                        horizontal-alignment: center;
+                    }
+                }
+            }
+        }
+        // Legenda — passar o mouse destaca a linha E a fatia do donut.
+        for s[i] in root.slices: leg-ta := TouchArea {
+            height: 32px;
+            changed has-hover => { root.hovered = leg-ta.has-hover ? i : -1; }
+            Rectangle {
+                border-radius: 8px;
+                background: i == root.hovered ? Theme.row-hover : transparent;
+                HorizontalLayout {
+                    padding-left: 6px; padding-right: 6px;
+                    spacing: 10px;
+                    VerticalLayout {
+                        alignment: center;
+                        PayIcon { width: 20px; height: 20px; key: s.icon-key; tint: s.color; }
+                    }
+                    Text {
+                        text: s.label;
+                        font-size: 13px;
+                        font-weight: i == root.hovered ? 700 : 400;
+                        color: Theme.text-primary;
+                        vertical-alignment: center;
+                        horizontal-stretch: 1;
+                    }
+                    Text {
+                        text: s.value-display;
+                        font-size: 12px; color: Theme.text-secondary;
+                        vertical-alignment: center;
+                    }
+                    Text {
+                        text: s.pct-display;
+                        font-size: 13px; font-weight: 700;
+                        color: Theme.text-primary;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+        }
+        Rectangle { vertical-stretch: 1; }
+    }
+}
+
+export component DashboardPage inherits VerticalLayout {
+    in property <[DashboardKpi]> kpis;
+    in property <[DashboardBarPoint]> sales-bars;
+    in property <[DashboardComparePoint]> compare-points;
+    in property <string> compare-label;
+    in property <[DashboardTopProduct]> top-products;
+    in property <[DashboardPaymentSlice]> payment-slices;
+    in property <[DashboardLinePoint]> line-points;
+
+    in property <string> subtitle;
+    in property <string> week-revenue;
+    in property <string> week-revenue-label;
+    in property <string> week-delta;
+    in property <string> week-delta-tone;
+    in property <string> week-orders;
+    in property <string> week-ticket;
+    in property <string> week-best-day;
+    in property <string> week-line-path;
+    in property <string> week-area-path;
+    in property <bool> week-has-chart: true;
+    in property <string> payment-total;
+
+    in-out property <string> period: "week";   // "today" | "week" | "month"
+    property <string> period-label:
+        root.period == "today" ? "Hoje"
+        : (root.period == "month" ? "Este mês" : "Esta semana");
+
+    callback period-changed(string);
+
+    padding: 0px;
+    spacing: 14px;
+
+    // ── Header ────────────────────────────────────────────────
+    HorizontalLayout {
+        height: 52px;
+        spacing: 12px;
+        VerticalLayout {
+            horizontal-stretch: 1;
+            alignment: center;
+            spacing: 2px;
+            Text {
+                text: "Resumo Executivo";
+                font-size: 22px; font-weight: 800;
+                color: Theme.text-primary;
+            }
+            Text {
+                text: root.subtitle;
+                font-size: 12px; color: Theme.text-secondary;
+            }
+        }
+        // Filtro de período (dropdown)
+        VerticalLayout {
+            alignment: center;
+            period-ta := TouchArea {
+                width: 150px; height: 40px;
+                clicked => { period-popup.show(); }
+                Rectangle {
+                    border-radius: 10px;
+                    border-width: 1px;
+                    border-color: period-ta.has-hover ? Theme.primary : Theme.border;
+                    background: Theme.surface;
+                    HorizontalLayout {
+                        padding-left: 12px; padding-right: 12px;
+                        spacing: 8px;
+                        AssetIcon {
+                            width: 16px; height: parent.height; icon-size: 14px;
+                            icon-color: Theme.text-secondary;
+                            source: @image-url("../assets/icons/1.2/calendario.svg");
+                        }
+                        Text {
+                            text: root.period-label;
+                            font-size: 13px; font-weight: 600;
+                            color: Theme.text-primary;
+                            vertical-alignment: center;
+                            horizontal-stretch: 1;
+                        }
+                        Text {
+                            text: "▾";
+                            font-size: 12px; color: Theme.text-secondary;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+                period-popup := PopupWindow {
+                    x: 0; y: 44px;
+                    width: 150px;
+                    Rectangle {
+                        background: Theme.surface;
+                        border-radius: 10px;
+                        border-width: 1px;
+                        border-color: Theme.card-border;
+                        drop-shadow-blur: 12px;
+                        drop-shadow-color: #00000030;
+                        VerticalLayout {
+                            padding: 4px;
+                            for opt in [
+                                { k: "today", l: "Hoje" },
+                                { k: "week",  l: "Esta semana" },
+                                { k: "month", l: "Este mês" },
+                            ]: opt-ta := TouchArea {
+                                height: 36px;
+                                clicked => {
+                                    root.period = opt.k;
+                                    root.period-changed(opt.k);
+                                }
+                                Rectangle {
+                                    border-radius: 6px;
+                                    background: opt-ta.has-hover ? Theme.row-hover : transparent;
+                                    HorizontalLayout {
+                                        padding-left: 10px; padding-right: 10px;
+                                        Text {
+                                            text: opt.l;
+                                            font-size: 13px;
+                                            font-weight: root.period == opt.k ? 700 : 500;
+                                            color: root.period == opt.k ? Theme.primary : Theme.text-primary;
+                                            vertical-alignment: center;
+                                            horizontal-stretch: 1;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // ── Hero ──────────────────────────────────────────────────
+    HeroCard {
+        revenue: root.week-revenue;
+        revenue-label: root.week-revenue-label;
+        delta: root.week-delta;
+        delta-tone: root.week-delta-tone;
+        orders: root.week-orders;
+        ticket: root.week-ticket;
+        best-day: root.week-best-day;
+        line-path: root.week-line-path;
+        area-path: root.week-area-path;
+        points: root.line-points;
+        show-chart: root.week-has-chart;
+    }
+
+    // ── 3 KPIs (larguras idênticas via layout absoluto) ───────
+    Rectangle {
+        height: 96px;
+        property <length> col-w: (self.width - 28px) / 3;  // 28 = 2 spacings de 14px
+        background: transparent;
+        KpiCard {
+            x: 0; width: parent.col-w;
+            label: "PEDIDOS HOJE";
+            value-display: root.kpis.length >= 2 ? root.kpis[1].value-display : "0";
+            delta: root.kpis.length >= 2 ? root.kpis[1].sub-text : "";
+            delta-tone: root.kpis.length >= 2 ? root.kpis[1].sub-tone : "neutral";
+            icon: @image-url("../assets/icons/1.2/compras-fornecedores.svg");
+        }
+        KpiCard {
+            x: parent.col-w + 14px; width: parent.col-w;
+            label: "TICKET MÉDIO";
+            value-display: root.kpis.length >= 3 ? root.kpis[2].value-display : "R$ 0,00";
+            delta: root.kpis.length >= 3 ? root.kpis[2].sub-text : "";
+            delta-tone: root.kpis.length >= 3 ? root.kpis[2].sub-tone : "neutral";
+            icon: @image-url("../assets/icons/1.2/app-cartao.svg");
+        }
+        KpiCard {
+            x: 2 * parent.col-w + 28px; width: parent.col-w;
+            label: "SINCRONIZAÇÃO";
+            value-display: root.kpis.length >= 4 ? root.kpis[3].value-display : "—";
+            value-tone: root.kpis.length >= 4 ? root.kpis[3].sub-tone : "neutral";
+            delta: root.kpis.length >= 4 ? root.kpis[3].sub-text : "";
+            delta-tone: "ink";   // o número (pendentes) sempre preto
+            icon: @image-url("../assets/icons/1.2/app-nuvem.svg");
+        }
+    }
+
+    // ── Comparativo ───────────────────────────────────────────
+    WeeklyCompareChart {
+        vertical-stretch: 1;
+        // Altura mínima: impede as barras de sumirem quando a janela
+        // encolhe (mantém o gráfico legível e adaptativo).
+        min-height: 240px;
+        points: root.compare-points;
+        subtitle: root.compare-label;
+    }
+
+    // ── Melhores Produtos + Formas de Pagamento ───────────────
+    // Cada card é adaptativo (altura = seu próprio conteúdo), sem ficar
+    // preso à altura do outro — por isso cada um vai num VBox alinhado
+    // ao topo dentro do HBox.
+    HorizontalLayout {
+        vertical-stretch: 1;
+        spacing: 14px;
+        VerticalLayout {
+            horizontal-stretch: 1;
+            alignment: start;
+            TopProductsCard {
+                products: root.top-products;
+                period-label: root.period == "today" ? "Dia"
+                    : (root.period == "month" ? "Mês" : "Semana");
+            }
+        }
+        VerticalLayout {
+            alignment: start;
+            PaymentDonutCard {
+                width: 340px;
+                slices: root.payment-slices;
+                total: root.payment-total;
+            }
+        }
+    }
+}

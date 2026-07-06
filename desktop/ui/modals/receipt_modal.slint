@@ -1,0 +1,348 @@
+import { ScrollView } from "std-widgets.slint";
+import { Theme } from "../theme.slint";
+import { OrderData, OrderItemData } from "../types.slint";
+import { Card } from "../components/cards.slint";
+import { ActionBtn, OutlineBtn } from "../components/buttons.slint";
+import { AssetIcon } from "../components/icons.slint";
+
+// ── Modal: preview de Comanda ─────────────────────────────────────
+//
+// Pedido do usuário: comanda NÃO abre mais no navegador; abre em
+// modal interno com preview + botão "Imprimir". O botão delega ao
+// Rust, que gera o HTML com `<script>window.print()</script>` para
+// que a impressão dispare automaticamente no browser (Slint não
+// expõe API nativa de impressão).
+//
+// Duas variantes via `mode`:
+// - "complete" — comanda do cliente (com valores)
+// - "kitchen"  — comanda da cozinha (compacta, sem valores)
+
+export component ReceiptModal inherits Rectangle {
+    in property <string> mode;  // "complete" | "kitchen"
+    in property <OrderData> order;
+    in property <[OrderItemData]> items;
+
+    callback close();
+    callback print();
+
+    background: #00000080;
+
+    // Clique fora do painel fecha.
+    TouchArea { clicked => { root.close(); } }
+
+    VerticalLayout {
+        alignment: center;
+        HorizontalLayout {
+            alignment: center;
+            Card {
+                width: 420px;
+                // Recorta filhos pelos cantos arredondados do Card —
+                // sem isso, o cabeçalho e a área "papel" cobrem os
+                // cantos e o modal aparece quadrado.
+                // Absorve cliques dentro do modal (não fecha).
+                TouchArea { }
+
+                VerticalLayout {
+                    padding: 0px;
+                    spacing: 0px;
+
+                    // Cabeçalho do modal — fora da área "papel"
+                    Rectangle {
+                        background: Theme.surface;
+                        VerticalLayout {
+                            padding-left: 20px; padding-right: 20px;
+                            padding-top: 18px; padding-bottom: 14px;
+                            HorizontalLayout {
+                                spacing: 8px;
+                                VerticalLayout {
+                                    horizontal-stretch: 1; spacing: 2px;
+                                    Text {
+                                        text: root.mode == "kitchen" ? "Comanda Cozinha" : "Comanda";
+                                        font-size: 16px; font-weight: 700;
+                                        color: Theme.text-primary;
+                                    }
+                                    Text {
+                                        text: "Pedido #" + root.order.number + " · " + root.order.order-date + " " + root.order.order-time;
+                                        font-size: 11px;
+                                        color: Theme.text-secondary;
+                                    }
+                                }
+                                close-ta := TouchArea {
+                                    width: 28px; height: 28px;
+                                    clicked => { root.close(); }
+                                    Rectangle {
+                                        border-radius: 4px;
+                                        background: close-ta.has-hover ? Theme.row-hover : transparent;
+                                        AssetIcon {
+                                            width: parent.width; height: parent.height;
+                                            icon-size: 14px;
+                                            icon-color: Theme.text-secondary;
+                                            source: @image-url("../assets/icons/1.2/fechar.svg");
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Área "papel" — fundo branco, fonte monoespaçada,
+                    // simulando comanda térmica de 80mm. Separação
+                    // entre header/body por contraste de background
+                    // (Theme.surface → white) — sem divider full-width.
+                    Rectangle {
+                        background: white;
+                        VerticalLayout {
+                            padding: 20px;
+                            spacing: 0px;
+
+                            // ── Comanda COMPLETA ──
+                            // Tipografia revisada a pedido do operador:
+                            // tudo em preto (sem cinzas), modalidade
+                            // promovida a cabeçalho destacado (sem a label
+                            // "Modalidade"), cliente em corpo grande à
+                            // esquerda com endereço logo abaixo também em
+                            // destaque, e itens + adicionais com fontes
+                            // maiores para leitura rápida.
+                            if root.mode != "kitchen": VerticalLayout {
+                                spacing: 0px;
+                                Text {
+                                    text: "PEDIDO #" + root.order.number;
+                                    font-size: 20px; font-weight: 800; color: black;
+                                    horizontal-alignment: center;
+                                }
+                                Text {
+                                    text: root.order.order-date + " · " + root.order.order-time;
+                                    font-size: 12px; color: black;
+                                    horizontal-alignment: center;
+                                }
+                                Rectangle { height: 10px; }
+
+                                // ── Modalidade (cabeçalho destacado) ──
+                                Text {
+                                    text: root.order.delivery-type == "pickup" ? "RETIRADA" : "ENTREGA";
+                                    font-size: 17px; font-weight: 800; color: black;
+                                    letter-spacing: 2px;
+                                    horizontal-alignment: center;
+                                }
+
+                                Rectangle { height: 10px; }
+                                Rectangle { height: 1px; background: black; }
+                                Rectangle { height: 10px; }
+
+                                // ── Cliente + endereço ──
+                                // Nome corrido à esquerda, fonte grande. Endereço
+                                // imediatamente abaixo, também maior e em
+                                // peso 600 — é a informação que o entregador
+                                // mais precisa quando bate o olho na comanda.
+                                Text {
+                                    text: root.order.customer-name;
+                                    font-size: 18px; font-weight: 700; color: black;
+                                    wrap: word-wrap;
+                                }
+                                // Telefone do cliente — útil tanto para a
+                                // entrega (contato em caso de problema)
+                                // quanto para o balcão (confirmar pedido).
+                                // Vazio quando o cliente não tem telefone
+                                // cadastrado → linha some.
+                                if root.order.customer-phone != "": Text {
+                                    text: root.order.customer-phone;
+                                    font-size: 14px; font-weight: 600; color: black;
+                                }
+                                if root.order.delivery-street != "": Text {
+                                    text: root.order.delivery-street + ", " + root.order.delivery-number + " — " + root.order.delivery-neighborhood;
+                                    font-size: 14px; font-weight: 600; color: black;
+                                    wrap: word-wrap;
+                                }
+
+                                Rectangle { height: 10px; }
+                                Rectangle { height: 1px; background: black; }
+                                Rectangle { height: 8px; }
+                                Text { text: "ITENS"; font-size: 13px; font-weight: 700; color: black; letter-spacing: 1px; }
+                                Rectangle { height: 4px; }
+                                for it in root.items: VerticalLayout {
+                                    padding-top: 4px;
+                                    spacing: 2px;
+                                    HorizontalLayout {
+                                        Text { text: it.qty-label; font-size: 15px; font-weight: 700; color: black; width: 48px; }
+                                        Text { text: it.product-name; font-size: 15px; font-weight: 600; color: black; horizontal-stretch: 1; wrap: word-wrap; }
+                                        Text { text: it.price; font-size: 14px; font-weight: 600; color: black; }
+                                    }
+                                    // Variações + adicionais (snapshot já formatado:
+                                    // "Sabor: A, B · Borda: C"). Indentado para
+                                    // alinhar com o nome do produto. Fonte maior
+                                    // e em preto — instrução crítica para preparo.
+                                    if it.addons-summary != "": HorizontalLayout {
+                                        Rectangle { width: 48px; }
+                                        Text {
+                                            text: it.addons-summary;
+                                            font-size: 13px;
+                                            color: black;
+                                            wrap: word-wrap;
+                                            horizontal-stretch: 1;
+                                        }
+                                    }
+                                }
+                                Rectangle { height: 10px; }
+                                Rectangle { height: 1px; background: black; }
+                                Rectangle { height: 8px; }
+                                HorizontalLayout {
+                                    padding-bottom: 3px;
+                                    Text { text: "Subtotal"; font-size: 12px; color: black; horizontal-stretch: 1; }
+                                    Text { text: root.order.subtotal-display; font-size: 13px; font-weight: 600; color: black; }
+                                }
+                                HorizontalLayout {
+                                    padding-bottom: 3px;
+                                    Text { text: "Taxa de entrega"; font-size: 12px; color: black; horizontal-stretch: 1; }
+                                    Text { text: root.order.delivery-fee-display; font-size: 13px; font-weight: 600; color: black; }
+                                }
+                                if root.order.discount-display != "—": HorizontalLayout {
+                                    padding-bottom: 3px;
+                                    Text { text: "Desconto"; font-size: 12px; color: black; horizontal-stretch: 1; }
+                                    Text { text: root.order.discount-display; font-size: 13px; font-weight: 600; color: black; }
+                                }
+                                if root.order.coupon-code-display != "—": HorizontalLayout {
+                                    padding-bottom: 3px;
+                                    Text { text: "Cupom"; font-size: 12px; color: black; horizontal-stretch: 1; }
+                                    Text { text: root.order.coupon-code-display; font-size: 13px; font-weight: 600; color: black; }
+                                }
+                                Rectangle { height: 4px; }
+                                Rectangle { height: 1px; background: black; }
+                                Rectangle { height: 6px; }
+                                HorizontalLayout {
+                                    Text { text: "TOTAL"; font-size: 16px; font-weight: 700; color: black; horizontal-stretch: 1; }
+                                    Text { text: root.order.total; font-size: 18px; font-weight: 800; color: black; }
+                                }
+                                if root.order.notes != "": Rectangle { height: 10px; }
+                                if root.order.notes != "": Rectangle {
+                                    border-width: 1px; border-color: black; border-radius: 4px;
+                                    background: white;
+                                    VerticalLayout {
+                                        padding: 8px;
+                                        spacing: 2px;
+                                        Text { text: "Observações"; font-size: 11px; font-weight: 700; color: black; letter-spacing: 1px; }
+                                        Text { text: root.order.notes; font-size: 13px; color: black; wrap: word-wrap; }
+                                    }
+                                }
+                            }
+
+                            // ── Comanda COZINHA (sem valores) ──
+                            // Paleta unificada com a comanda completa: tudo
+                            // em preto, divisores em preto. Modalidade,
+                            // cliente e endereço agora aparecem aqui
+                            // também — o preparador precisa saber se o
+                            // pedido é entrega ou retirada (impacta tempo
+                            // e prioridade) e o nome ajuda a identificar
+                            // no balcão quando fica pronto.
+                            if root.mode == "kitchen": VerticalLayout {
+                                spacing: 0px;
+                                Text {
+                                    text: "COZINHA · #" + root.order.number;
+                                    font-size: 20px; font-weight: 800; color: black;
+                                    horizontal-alignment: center;
+                                }
+                                Text {
+                                    text: root.order.order-time + "   ·   " + (root.order.elapsed-display != "" ? root.order.elapsed-display : "—");
+                                    font-size: 13px; font-weight: 600; color: black;
+                                    horizontal-alignment: center;
+                                }
+                                Rectangle { height: 10px; }
+
+                                // ── Modalidade (cabeçalho destacado) ──
+                                Text {
+                                    text: root.order.delivery-type == "pickup" ? "RETIRADA" : "ENTREGA";
+                                    font-size: 17px; font-weight: 800; color: black;
+                                    letter-spacing: 2px;
+                                    horizontal-alignment: center;
+                                }
+
+                                Rectangle { height: 10px; }
+                                Rectangle { height: 1px; background: black; }
+                                Rectangle { height: 10px; }
+
+                                // ── Cliente + endereço ──
+                                Text {
+                                    text: root.order.customer-name;
+                                    font-size: 18px; font-weight: 700; color: black;
+                                    wrap: word-wrap;
+                                }
+                                // Telefone do cliente — útil tanto para a
+                                // entrega (contato em caso de problema)
+                                // quanto para o balcão (confirmar pedido).
+                                // Vazio quando o cliente não tem telefone
+                                // cadastrado → linha some.
+                                if root.order.customer-phone != "": Text {
+                                    text: root.order.customer-phone;
+                                    font-size: 14px; font-weight: 600; color: black;
+                                }
+                                if root.order.delivery-street != "": Text {
+                                    text: root.order.delivery-street + ", " + root.order.delivery-number + " — " + root.order.delivery-neighborhood;
+                                    font-size: 14px; font-weight: 600; color: black;
+                                    wrap: word-wrap;
+                                }
+
+                                Rectangle { height: 10px; }
+                                Rectangle { height: 1px; background: black; }
+                                Rectangle { height: 8px; }
+                                for it in root.items: VerticalLayout {
+                                    padding-top: 6px;
+                                    padding-bottom: 6px;
+                                    spacing: 2px;
+                                    HorizontalLayout {
+                                        Text { text: it.qty-label; font-size: 16px; font-weight: 800; color: black; width: 50px; }
+                                        Text { text: it.product-name; font-size: 15px; font-weight: 600; color: black; horizontal-stretch: 1; wrap: word-wrap; }
+                                    }
+                                    // Variações + adicionais — crítico para a cozinha:
+                                    // sem isso, o preparador não sabe qual sabor / borda
+                                    // / extras montar. Fonte maior que na comanda do
+                                    // cliente porque é a única fonte de instrução aqui.
+                                    if it.addons-summary != "": HorizontalLayout {
+                                        Rectangle { width: 50px; }
+                                        Text {
+                                            text: it.addons-summary;
+                                            font-size: 13px;
+                                            color: black;
+                                            wrap: word-wrap;
+                                            horizontal-stretch: 1;
+                                        }
+                                    }
+                                    // Separador entre itens
+                                    Rectangle { height: 6px; }
+                                    Rectangle { height: 1px; background: black; }
+                                }
+                                if root.order.notes != "": Rectangle { height: 8px; }
+                                if root.order.notes != "": Rectangle {
+                                    border-width: 1px; border-color: black; border-radius: 4px;
+                                    background: white;
+                                    VerticalLayout {
+                                        padding: 10px;
+                                        spacing: 2px;
+                                        Text { text: "Observações"; font-size: 12px; font-weight: 700; color: black; letter-spacing: 1px; }
+                                        Text { text: root.order.notes; font-size: 13px; color: black; wrap: word-wrap; }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Rodapé com ação principal — sem botão "Fechar"
+                    // (o "X" do header já fecha; "de fora a fora" das
+                    // bordas é o contraste de background entre seções).
+                    Rectangle {
+                        background: Theme.surface;
+                        HorizontalLayout {
+                            padding: 14px;
+                            spacing: 10px;
+                            Rectangle { horizontal-stretch: 1; }
+                            ActionBtn {
+                                label: "Imprimir";
+                                bg-color: Theme.sidebar-sel-bg;
+                                width: 140px; height: 32px;
+                                clicked => { root.print(); }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

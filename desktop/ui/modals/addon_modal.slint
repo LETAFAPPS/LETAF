@@ -1,0 +1,258 @@
+import { Theme } from "../theme.slint";
+import { AssetIcon } from "../components/icons.slint";
+import { Card } from "../components/cards.slint";
+import { FormField } from "../components/form_fields.slint";
+import { ActionBtn, OutlineBtn } from "../components/buttons.slint";
+
+// ── Modal: Grupo de adicionais (Fase 4B) ─────────────────────────────────────
+//
+// Regras aplicadas (AI_RULES.md §3, §8):
+// - Modal padrão (overlay 60%) — mesmo molde do CategoryModal.
+// - Sem lógica de negócio: apenas dispara callbacks `add-*` / `update-*`.
+
+export component AddonGroupModal inherits Rectangle {
+    in-out property <string> editing-id;
+    in-out property <string> group-name;
+    in-out property <string> group-selection: "single";
+    in-out property <string> group-min;
+    in-out property <string> group-max;
+    in-out property <string> error-name;
+
+    callback close();
+    callback add-group();
+    callback update-group();
+
+    background: #00000060;
+    TouchArea { clicked => { root.close(); } }
+
+    VerticalLayout {
+        alignment: center;
+        HorizontalLayout {
+            alignment: center;
+            Card {
+                width: 460px;
+                TouchArea { }
+
+                VerticalLayout {
+                    padding: 24px;
+                    spacing: 12px;
+
+                    HorizontalLayout {
+                        Text {
+                            text: root.editing-id != "" ? "Editar Grupo de Adicionais" : "Novo Grupo de Adicionais";
+                            font-size: 18px; font-weight: 700;
+                            color: Theme.text-primary;
+                            horizontal-stretch: 1; vertical-alignment: center;
+                        }
+                        TouchArea {
+                            width: 28px; height: 28px;
+                            clicked => { root.close(); }
+                            property <bool> hov: self.has-hover;
+                            Rectangle {
+                                border-radius: 6px;
+                                background: parent.hov ? #f0f0f0 : transparent;
+                                AssetIcon { width: 16px; height: 16px; icon-size: 16px; icon-color: Theme.text-secondary; source: @image-url("../assets/icons/1.2/fechar.svg"); }
+                            }
+                        }
+                    }
+
+                    Rectangle { height: 1px; background: Theme.border; }
+
+                    VerticalLayout {
+                        FormField { label: "Nome"; value <=> root.group-name; placeholder: "Ex.: Borda, Acompanhamentos"; }
+                        if root.error-name != "": Text { text: root.error-name; font-size: 11px; color: Theme.danger; }
+                    }
+
+                    VerticalLayout {
+                        spacing: 4px;
+                        Text { text: "Modo de seleção"; font-size: 12px; font-weight: 500; color: Theme.text-secondary; }
+                        HorizontalLayout {
+                            spacing: 8px;
+                            single-ta := TouchArea {
+                                horizontal-stretch: 1;
+                                height: 32px;
+                                clicked => {
+                                    root.group-selection = "single";
+                                    // No modo "Único" os limites são
+                                    // fixos: mínimo=0 (opcional) e máximo=1.
+                                    root.group-min = "0";
+                                    root.group-max = "1";
+                                }
+                                Rectangle {
+                                    border-radius: 6px; border-width: 1px;
+                                    border-color: root.group-selection == "single" ? Theme.primary : Theme.border;
+                                    background: root.group-selection == "single" ? Theme.sidebar-sel-bg : (single-ta.has-hover ? Theme.row-hover : Theme.surface);
+                                    Text {
+                                        text: "Único";
+                                        font-size: 12px; font-weight: 600;
+                                        color: root.group-selection == "single" ? white : Theme.text-primary;
+                                        horizontal-alignment: center; vertical-alignment: center;
+                                        width: parent.width; height: parent.height;
+                                    }
+                                }
+                            }
+                            multi-ta := TouchArea {
+                                horizontal-stretch: 1;
+                                height: 32px;
+                                clicked => {
+                                    root.group-selection = "multi";
+                                    // Default sensato em "Múltiplos":
+                                    // min=0 (opcional), max=0 (sem teto).
+                                    // O operador ajusta depois conforme
+                                    // a regra do grupo.
+                                    root.group-min = "0";
+                                    root.group-max = "0";
+                                }
+                                Rectangle {
+                                    border-radius: 6px; border-width: 1px;
+                                    border-color: root.group-selection == "multi" ? Theme.primary : Theme.border;
+                                    background: root.group-selection == "multi" ? Theme.sidebar-sel-bg : (multi-ta.has-hover ? Theme.row-hover : Theme.surface);
+                                    Text {
+                                        text: "Múltiplos";
+                                        font-size: 12px; font-weight: 600;
+                                        color: root.group-selection == "multi" ? white : Theme.text-primary;
+                                        horizontal-alignment: center; vertical-alignment: center;
+                                        width: parent.width; height: parent.height;
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    HorizontalLayout {
+                        spacing: 10px;
+                        VerticalLayout {
+                            horizontal-stretch: 1;
+                            FormField {
+                                label: "Mínimo";
+                                value <=> root.group-min;
+                                placeholder: "0";
+                                // Em "Único" os limites são fixos (0/1)
+                                // — editar não faz sentido. Em "Múltiplos"
+                                // o operador define o range.
+                                enabled: root.group-selection != "single";
+                            }
+                        }
+                        VerticalLayout {
+                            horizontal-stretch: 1;
+                            FormField {
+                                label: "Máximo";
+                                value <=> root.group-max;
+                                placeholder: root.group-selection == "single" ? "1" : "0";
+                                enabled: root.group-selection != "single";
+                            }
+                        }
+                    }
+
+                    Text {
+                        text: root.group-selection == "single"
+                            ? "Cliente escolhe no máximo 1 item desse grupo."
+                            : "Cliente pode marcar vários itens desse grupo.";
+                        font-size: 11px;
+                        color: Theme.text-secondary;
+                    }
+
+                    Rectangle { height: 4px; }
+
+                    HorizontalLayout {
+                        alignment: end;
+                        spacing: 10px;
+                        OutlineBtn { label: "Cancelar"; width: 110px; clicked => { root.close(); } }
+                        ActionBtn {
+                            label: "Salvar"; bg-color: Theme.sidebar-sel-bg; width: 130px;
+                            clicked => { if root.editing-id != "" { root.update-group(); } else { root.add-group(); } }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ── Modal: Adicional individual (Fase 4B) ────────────────────────────────────
+
+export component AddonItemModal inherits Rectangle {
+    in-out property <string> editing-id;
+    in-out property <string> group-name;        // contexto do grupo (read-only)
+    in-out property <string> addon-name;
+    in-out property <string> addon-price;
+    in-out property <string> error-name;
+
+    callback close();
+    callback add-addon();
+    callback update-addon();
+
+    background: #00000060;
+    TouchArea { clicked => { root.close(); } }
+
+    VerticalLayout {
+        alignment: center;
+        HorizontalLayout {
+            alignment: center;
+            Card {
+                width: 420px;
+                TouchArea { }
+
+                VerticalLayout {
+                    padding: 24px;
+                    spacing: 12px;
+
+                    HorizontalLayout {
+                        Text {
+                            text: root.editing-id != "" ? "Editar Adicional" : "Novo Adicional";
+                            font-size: 18px; font-weight: 700;
+                            color: Theme.text-primary;
+                            horizontal-stretch: 1; vertical-alignment: center;
+                        }
+                        TouchArea {
+                            width: 28px; height: 28px;
+                            clicked => { root.close(); }
+                            property <bool> hov: self.has-hover;
+                            Rectangle {
+                                border-radius: 6px;
+                                background: parent.hov ? #f0f0f0 : transparent;
+                                AssetIcon { width: 16px; height: 16px; icon-size: 16px; icon-color: Theme.text-secondary; source: @image-url("../assets/icons/1.2/fechar.svg"); }
+                            }
+                        }
+                    }
+
+                    Rectangle { height: 1px; background: Theme.border; }
+
+                    if root.group-name != "": Text {
+                        text: "Grupo: " + root.group-name;
+                        font-size: 12px;
+                        color: Theme.text-secondary;
+                    }
+
+                    VerticalLayout {
+                        FormField { label: "Nome"; value <=> root.addon-name; placeholder: "Ex.: Catupiry, Cheddar"; }
+                        if root.error-name != "": Text { text: root.error-name; font-size: 11px; color: Theme.danger; }
+                    }
+
+                    FormField {
+                        label: "Acréscimo (R$)";
+                        value <=> root.addon-price;
+                        placeholder: "0,00";
+                    }
+                    Text {
+                        text: "Use 0 para adicionais gratuitos (ex.: 'Sem Cebola').";
+                        font-size: 11px;
+                        color: Theme.text-secondary;
+                    }
+
+                    Rectangle { height: 4px; }
+
+                    HorizontalLayout {
+                        alignment: end;
+                        spacing: 10px;
+                        OutlineBtn { label: "Cancelar"; width: 110px; clicked => { root.close(); } }
+                        ActionBtn {
+                            label: "Salvar"; bg-color: Theme.sidebar-sel-bg; width: 130px;
+                            clicked => { if root.editing-id != "" { root.update-addon(); } else { root.add-addon(); } }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

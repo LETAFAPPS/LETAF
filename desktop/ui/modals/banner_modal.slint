@@ -1,0 +1,316 @@
+import { ScrollView } from "std-widgets.slint";
+import { AssetIcon } from "../components/icons.slint";
+import { Theme } from "../theme.slint";
+import { ProductData } from "../types.slint";
+import { Card } from "../components/cards.slint";
+import { FormField } from "../components/form_fields.slint";
+import { ActionBtn, OutlineBtn } from "../components/buttons.slint";
+
+// ── Pill (Tipo: Produto / URL) ────────────────────────────────────
+component TypePill inherits TouchArea {
+    in property <string> label;
+    in property <bool> active: false;
+    height: 32px;
+    width: 110px;
+    Rectangle {
+        border-radius: 6px;
+        border-width: 1px;
+        border-color: root.active ? Theme.primary : (root.has-hover ? Theme.primary : Theme.border);
+        background: root.active ? Theme.sidebar-sel-bg : Theme.surface;
+        Text {
+            text: root.label;
+            font-size: 12px;
+            font-weight: root.active ? 700 : 500;
+            color: root.active ? white : Theme.text-primary;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+    }
+}
+
+// ── Modal: formulário de Banner ───────────────────────────────────
+//
+// Regras aplicadas (AI_RULES.md §3, §5, §8):
+// - Largura enxuta (560px) — antes sobrava espaço à direita.
+// - Coluna direita usa `alignment: start` para o título + área de
+//   upload ficarem ANCORADOS no topo, mesmo quando a coluna
+//   esquerda cresce (URL longa, sugestões de busca abertas, etc.).
+// - Produto: barra de busca livre (não dropdown). Sugestões só
+//   aparecem ao digitar; clicar em uma sugestão preenche e limpa
+//   a busca, e a seleção atual fica como uma "chip" acima da barra.
+export component BannerModal inherits Rectangle {
+    in property <[ProductData]> products;
+    in property <[ProductData]> products-filtered;
+    in-out property <string> editing-id;
+    in-out property <string> banner-title;
+    in-out property <string> banner-item-type;
+    in-out property <string> banner-product-id;
+    in-out property <string> banner-product-name;
+    in-out property <string> banner-product-search;
+    in-out property <string> banner-url;
+    in-out property <string> banner-image-data;
+    in-out property <image>  banner-image;
+    in-out property <bool>   banner-image-loading;
+    in-out property <string> banner-error-title;
+    in-out property <string> banner-error-image;
+    in-out property <string> banner-error-target;
+
+    callback close();
+    callback request-pick-image();
+    callback request-clear-image();
+    callback add-banner();
+    callback update-banner();
+    callback filter-products();
+
+    background: #00000060;
+
+    TouchArea {
+        clicked => { root.close(); }
+    }
+
+    VerticalLayout {
+        alignment: center;
+        HorizontalLayout {
+            alignment: center;
+            Card {
+                width: 480px;
+                TouchArea { }
+
+                VerticalLayout {
+                    padding: 24px;
+                    spacing: 12px;
+
+                    HorizontalLayout {
+                        Text {
+                            text: root.editing-id != "" ? "Editar Banner" : "Novo Banner";
+                            font-size: 18px; font-weight: 700;
+                            color: Theme.text-primary;
+                            horizontal-stretch: 1; vertical-alignment: center;
+                        }
+                        TouchArea {
+                            width: 28px; height: 28px;
+                            clicked => { root.close(); }
+                            property <bool> hov: self.has-hover;
+                            Rectangle {
+                                border-radius: 6px;
+                                background: parent.hov ? #f0f0f0 : transparent;
+                                AssetIcon { width: 16px; height: 16px; icon-size: 16px; icon-color: Theme.text-secondary; source: @image-url("../assets/icons/1.2/fechar.svg"); }
+                            }
+                        }
+                    }
+
+                    Rectangle { height: 1px; background: Theme.border; }
+
+                    HorizontalLayout {
+                        spacing: 14px;
+                        alignment: start;
+
+                        // Coluna esquerda: campos do form
+                        VerticalLayout {
+                            horizontal-stretch: 1;
+                            spacing: 10px;
+
+                            VerticalLayout {
+                                FormField { label: "Título"; value <=> root.banner-title; placeholder: "Ex.: Promoção do Açaí"; }
+                                if root.banner-error-title != "": Text { text: root.banner-error-title; font-size: 11px; color: Theme.danger; }
+                            }
+
+                            VerticalLayout {
+                                spacing: 4px;
+                                Text { text: "Tipo de Banner"; font-size: 12px; font-weight: 500; color: Theme.text-secondary; }
+                                HorizontalLayout {
+                                    spacing: 10px;
+                                    TypePill {
+                                        label: "Produto";
+                                        active: root.banner-item-type == "product";
+                                        clicked => { root.banner-item-type = "product"; root.banner-error-target = ""; }
+                                    }
+                                    TypePill {
+                                        label: "URL";
+                                        active: root.banner-item-type == "url";
+                                        clicked => { root.banner-item-type = "url"; root.banner-error-target = ""; }
+                                    }
+                                }
+                            }
+
+                            // Produto: barra de busca livre + sugestões.
+                            // Seleção atual aparece como "chip" acima do
+                            // campo de busca (com X para limpar).
+                            if root.banner-item-type == "product": VerticalLayout {
+                                spacing: 4px;
+
+                                if root.banner-product-id != "": HorizontalLayout {
+                                    alignment: start;
+                                    Rectangle {
+                                        border-radius: 14px;
+                                        border-width: 1px;
+                                        border-color: Theme.primary;
+                                        background: #FFF7ED;
+                                        height: 28px;
+                                        HorizontalLayout {
+                                            padding-left: 10px; padding-right: 6px;
+                                            spacing: 6px;
+                                            Text {
+                                                text: "✓ " + root.banner-product-name;
+                                                font-size: 12px;
+                                                color: Theme.primary;
+                                                vertical-alignment: center;
+                                            }
+                                            clear-chip := TouchArea {
+                                                width: 20px; height: 20px;
+                                                clicked => {
+                                                    root.banner-product-id = "";
+                                                    root.banner-product-name = "";
+                                                }
+                                                Rectangle {
+                                                    border-radius: 10px;
+                                                    background: clear-chip.has-hover ? Theme.sidebar-sel-bg : transparent;
+                                                    AssetIcon { width: 11px; height: 11px; icon-size: 11px; icon-color: clear-chip.has-hover ? white : Theme.primary; source: @image-url("../assets/icons/1.2/fechar.svg"); }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+
+                                FormField {
+                                    label: root.banner-product-id == "" ? "Produto" : "Trocar produto";
+                                    value <=> root.banner-product-search;
+                                    placeholder: "Buscar produto...";
+                                    edited(t) => { root.filter-products(); }
+                                }
+
+                                // Sugestões: só quando houver texto na busca.
+                                if root.banner-product-search != "": Rectangle {
+                                    height: min(180px, root.products-filtered.length * 32px + 4px);
+                                    border-radius: 6px; border-width: 1px;
+                                    border-color: Theme.card-border; background: Theme.surface;
+                                    drop-shadow-blur: 12px;
+                                    drop-shadow-offset-y: 0px;
+                                    drop-shadow-color: Theme.card-shadow;
+                                    ScrollView { vertical-scrollbar-policy: ScrollBarPolicy.always-off; horizontal-scrollbar-policy: ScrollBarPolicy.always-off;
+                                        VerticalLayout {
+                                            for p in root.products-filtered: TouchArea {
+                                                height: 32px;
+                                                property <bool> hov: self.has-hover;
+                                                clicked => {
+                                                    root.banner-product-id = p.id;
+                                                    root.banner-product-name = p.name;
+                                                    root.banner-product-search = "";
+                                                    root.banner-error-target = "";
+                                                }
+                                                Rectangle {
+                                                    background: parent.hov ? Theme.row-hover : transparent;
+                                                    HorizontalLayout {
+                                                        padding-left: 10px; padding-right: 10px;
+                                                        Text { text: p.name; font-size: 13px; color: Theme.text-primary; vertical-alignment: center; horizontal-stretch: 1; }
+                                                    }
+                                                }
+                                            }
+                                            if root.products-filtered.length == 0: Rectangle {
+                                                height: 32px;
+                                                HorizontalLayout {
+                                                    padding-left: 10px;
+                                                    Text {
+                                                        text: "Nenhum produto encontrado";
+                                                        font-size: 12px;
+                                                        color: Theme.text-secondary;
+                                                        vertical-alignment: center;
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            // URL (só quando type == "url")
+                            if root.banner-item-type == "url": FormField {
+                                label: "URL";
+                                value <=> root.banner-url;
+                                placeholder: "https://exemplo.com.br";
+                            }
+
+                            if root.banner-error-target != "": Text { text: root.banner-error-target; font-size: 11px; color: Theme.danger; }
+                        }
+
+                        // Coluna direita: upload de imagem ANCORADO no topo.
+                        VerticalLayout {
+                            alignment: start;
+                            width: 200px;
+                            spacing: 6px;
+                            VerticalLayout {
+                                spacing: 4px;
+                                Text {
+                                    text: "Imagem Banner (3:1)";
+                                    font-size: 12px; font-weight: 500;
+                                    color: Theme.text-secondary;
+                                }
+                                Rectangle {
+                                    // Coluna = 200px → 3:1 ≈ 67px de altura.
+                                    height: 67px;
+                                    img-ta := TouchArea {
+                                        clicked => { root.request-pick-image(); }
+                                    }
+                                    border-radius: 8px;
+                                    border-width: 1px;
+                                    border-color: img-ta.has-hover ? Theme.primary
+                                        : (root.banner-error-image != "" ? Theme.danger
+                                        : (root.banner-image-data != "" ? #66BB6A : Theme.border));
+                                    background: img-ta.has-hover ? Theme.row-hover
+                                        : (root.banner-image-data != "" ? #F1F8E9 : #FAFAFA);
+                                    clip: true;
+
+                                    if root.banner-image-data != "" && !root.banner-image-loading: Image {
+                                        source: root.banner-image;
+                                        width: parent.width;
+                                        height: parent.height;
+                                        image-fit: contain;
+                                    }
+                                    if root.banner-image-data == "" || root.banner-image-loading: VerticalLayout {
+                                        alignment: center;
+                                        Text {
+                                            text: root.banner-image-loading ? "Carregando..." : "Enviar (PNG, JPG, WEBP)";
+                                            font-size: 11px;
+                                            color: Theme.text-secondary;
+                                            horizontal-alignment: center;
+                                            wrap: word-wrap;
+                                        }
+                                    }
+                                    if root.banner-image-data != "" && !root.banner-image-loading: TouchArea {
+                                        x: parent.width - 28px;
+                                        y: 4px;
+                                        width: 24px;
+                                        height: 24px;
+                                        clicked => { root.request-clear-image(); }
+                                        Rectangle {
+                                            border-radius: 12px;
+                                            background: parent.has-hover ? #ef4444 : #00000080;
+                                            AssetIcon { width: 13px; height: 13px; icon-size: 13px; icon-color: white; source: @image-url("../assets/icons/1.2/fechar.svg"); }
+                                        }
+                                    }
+                                }
+                            }
+                            if root.banner-error-image != "": Text { text: root.banner-error-image; font-size: 11px; color: Theme.danger; }
+                        }
+                    }
+
+                    Rectangle { height: 4px; }
+
+                    HorizontalLayout {
+                        alignment: end;
+                        spacing: 10px;
+                        OutlineBtn { label: "Cancelar"; width: 110px; clicked => { root.close(); } }
+                        ActionBtn {
+                            label: "Salvar";
+                            bg-color: Theme.sidebar-sel-bg;
+                            width: 130px;
+                            clicked => {
+                                if root.editing-id != "" { root.update-banner(); } else { root.add-banner(); }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

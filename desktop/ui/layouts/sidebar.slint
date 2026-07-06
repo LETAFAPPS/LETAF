@@ -1,0 +1,378 @@
+import { Theme } from "../theme.slint";
+import { NavPerms } from "../types.slint";
+import {
+    SidebarItem,
+    SidebarSection,
+    SidebarFooter,
+} from "../components/buttons.slint";
+import { AssetIcon, PersonIcon } from "../components/icons.slint";
+
+// ── Layout: sidebar de navegação ────────────────────────────────────────────
+//
+// Regras aplicadas (AI_RULES.md §3, §8, §14F):
+// - Largura dinâmica: 76px (colapsada, default) ou 248px (expandida).
+// - Toggle: clicar no logo do topo.
+// - Ícones em SVG monocromático em `../assets/icons/` (colorizados
+//   conforme tema).
+// - Sem barra de busca.
+
+export component Sidebar inherits Rectangle {
+    in-out property <string> active-tab;
+    in-out property <bool> expanded: false;
+
+    // Permissões de navegação (RBAC §11). `is-admin` libera tudo.
+    in property <NavPerms> nav: { is-admin: true };
+
+    // Acesso aos menus da LOJA: admin/funcionário, mas NUNCA o super admin
+    // de plataforma (que tem menus próprios). Sem isso, o super admin (com
+    // `is-admin=true`) veria também os menus da loja.
+    property <bool> store-access: root.nav.is-admin && !root.nav.is-super-admin;
+
+    // Cabeçalho
+    in property <string> store-name;
+    in property <string> user-role;
+    in property <string> user-name: "Minha conta";
+    in property <image>  store-logo-image;
+
+    // Badges numéricos
+    in property <int> orders-count: 0;
+    in property <int> subscription-pending-count: 0;
+    in property <int> finance-overdue-count: 0;   // contas vencidas
+    in property <int> stock-out-count: 0;          // produtos fora de estoque
+
+    // Rodapé (status do SyncWorker)
+    in property <bool> sync-online: true;
+    in property <string> sync-status-label: "Sincronizado";
+    in property <string> sync-last-label: "Agora";
+    in property <int> sync-pending-count: 0;
+
+    callback navigate(string);
+    callback request-logout();
+    callback open-profile();
+    callback toggle-expanded();
+
+    width: root.expanded ? 248px : 76px;
+    background: Theme.sidebar-bg;
+    // Animação suave (200ms) na largura ao alternar modo. `animate`
+    // só funciona em propriedades; width recebe a transição.
+    animate width { duration: 180ms; easing: ease-in-out; }
+
+    VerticalLayout {
+        padding-left: root.expanded ? 16px : 12px;
+        padding-right: root.expanded ? 16px : 12px;
+        padding-top: 16px;
+        padding-bottom: 6px;
+        spacing: 4px;
+
+        // Logo LETAF centralizada na seção. Expandida: wordmark largo
+        // (letaf.png); colapsada: ícone quadrado (icone.png).
+        // Clique alterna expandir/colapsar.
+        logo-ta := TouchArea {
+            height: 66px;
+            clicked => { root.toggle-expanded(); }
+            HorizontalLayout {
+                alignment: center;
+                VerticalLayout {
+                    alignment: center;
+                    Image {
+                        source: root.expanded
+                            ? @image-url("../letaf.png")
+                            : @image-url("../icone.png");
+                        width: root.expanded ? 196px : 52px;
+                        height: 52px;
+                        image-fit: contain;
+                    }
+                }
+            }
+        }
+
+        // ── Navegação ── (Flickable: rola com mouse wheel / drag,
+        // sem desenhar barra de scroll)
+        Flickable {
+            vertical-stretch: 1;
+            interactive: true;
+            viewport-width: self.width;
+            viewport-height: items-column.preferred-height;
+            items-column := VerticalLayout {
+            width: parent.width;
+            spacing: 4px;
+            alignment: start;
+
+                // Itens usam `if` (não `visible:`) para COLAPSAR o espaço
+                // quando o operador não tem a permissão — sidebar adaptativa,
+                // sem buracos (§11: esconder é só UX; o backend revalida).
+
+                // ── PLATAFORMA (super admin) ──────────────
+                // Menus próprios do painel de administrador; substituem os
+                // menus da loja (que ficam ocultos via `store-access`).
+                if root.nav.is-super-admin:
+                    SidebarSection { title: "PLATAFORMA"; compact: !root.expanded; }
+                if root.nav.is-super-admin: SidebarItem {
+                    icon-source: @image-url("../assets/icons/1.2/dashboard.svg");
+                    label: "Painel";
+                    compact: !root.expanded;
+                    active: root.active-tab == "admin-overview";
+                    clicked => { root.navigate("admin-overview"); }
+                }
+                if root.nav.is-super-admin: SidebarItem {
+                    icon-source: @image-url("../assets/icons/1.2/app-maleta.svg");
+                    label: "Empresas";
+                    compact: !root.expanded;
+                    active: root.active-tab == "admin-companies";
+                    clicked => { root.navigate("admin-companies"); }
+                }
+                if root.nav.is-super-admin: SidebarItem {
+                    icon-source: @image-url("../assets/icons/1.2/subscription.svg");
+                    label: "Assinaturas";
+                    compact: !root.expanded;
+                    active: root.active-tab == "admin-subscriptions";
+                    clicked => { root.navigate("admin-subscriptions"); }
+                }
+                if root.nav.is-super-admin: SidebarItem {
+                    icon-source: @image-url("../assets/icons/1.2/coupons.svg");
+                    label: "Planos";
+                    compact: !root.expanded;
+                    active: root.active-tab == "admin-plans";
+                    clicked => { root.navigate("admin-plans"); }
+                }
+                if root.nav.is-super-admin: SidebarItem {
+                    icon-source: @image-url("../assets/icons/1.2/customers.svg");
+                    label: "Administradores";
+                    compact: !root.expanded;
+                    active: root.active-tab == "admin-admins";
+                    clicked => { root.navigate("admin-admins"); }
+                }
+
+                // ── PRINCIPAL ─────────────────────────────
+                if root.store-access || root.nav.dashboard || root.nav.reports:
+                    SidebarSection { title: "PRINCIPAL"; compact: !root.expanded; }
+                if root.store-access || root.nav.dashboard: SidebarItem {
+                    icon-source: @image-url("../assets/icons/1.2/dashboard.svg");
+                    label: "Dashboard";
+                    compact: !root.expanded;
+                    active: root.active-tab == "dashboard";
+                    clicked => { root.navigate("dashboard"); }
+                }
+                if root.store-access || root.nav.reports: SidebarItem {
+                    icon-source: @image-url("../assets/icons/1.2/reports.svg");
+                    label: "Relatórios";
+                    compact: !root.expanded;
+                    active: root.active-tab == "reports";
+                    clicked => { root.navigate("reports"); }
+                }
+
+                // ── VENDAS ────────────────────────────────
+                if root.store-access || root.nav.pdv || root.nav.orders:
+                    SidebarSection { title: "VENDAS"; compact: !root.expanded; }
+                if root.store-access || root.nav.pdv: SidebarItem {
+                    icon-source: @image-url("../assets/icons/1.2/compras-fornecedores.svg");
+                    label: "PDV";
+                    compact: !root.expanded;
+                    active: root.active-tab == "pdv";
+                    clicked => { root.navigate("pdv"); }
+                }
+                if root.store-access || root.nav.orders: SidebarItem {
+                    icon-source: @image-url("../assets/icons/1.2/orders.svg");
+                    label: "Pedidos";
+                    compact: !root.expanded;
+                    badge: root.orders-count > 0 ? root.orders-count : "";
+                    active: root.active-tab == "orders";
+                    clicked => { root.navigate("orders"); }
+                }
+
+                // ── FINANCEIRO ────────────────────────────
+                if root.store-access || root.nav.cash || root.nav.finance:
+                    SidebarSection { title: "FINANCEIRO"; compact: !root.expanded; }
+                if root.store-access || root.nav.cash: SidebarItem {
+                    icon-source: @image-url("../assets/icons/1.2/cash.svg");
+                    label: "Caixa";
+                    compact: !root.expanded;
+                    active: root.active-tab == "cash";
+                    clicked => { root.navigate("cash"); }
+                }
+                if root.store-access || root.nav.finance: SidebarItem {
+                    icon-source: @image-url("../assets/icons/1.2/financeiro.svg");
+                    label: "Financeiro";
+                    compact: !root.expanded;
+                    badge: root.finance-overdue-count > 0 ? root.finance-overdue-count : "";
+                    active: root.active-tab == "finance";
+                    clicked => { root.navigate("finance"); }
+                }
+
+                // ── CADASTROS ─────────────────────────────
+                if root.store-access || root.nav.products || root.nav.inventory || root.nav.addons || root.nav.categories:
+                    SidebarSection { title: "CADASTROS"; compact: !root.expanded; }
+                if root.store-access || root.nav.products: SidebarItem {
+                    icon-source: @image-url("../assets/icons/1.2/products.svg");
+                    label: "Produtos";
+                    compact: !root.expanded;
+                    active: root.active-tab == "products";
+                    clicked => { root.navigate("products"); }
+                }
+                if root.store-access || root.nav.inventory: SidebarItem {
+                    icon-source: @image-url("../assets/icons/1.2/inventory.svg");
+                    label: "Estoque";
+                    compact: !root.expanded;
+                    badge: root.stock-out-count > 0 ? root.stock-out-count : "";
+                    active: root.active-tab == "inventory";
+                    clicked => { root.navigate("inventory"); }
+                }
+                if root.store-access || root.nav.addons: SidebarItem {
+                    icon-source: @image-url("../assets/icons/1.2/addons.svg");
+                    label: "Adicionais";
+                    compact: !root.expanded;
+                    active: root.active-tab == "addons";
+                    clicked => { root.navigate("addons"); }
+                }
+                if root.store-access || root.nav.categories: SidebarItem {
+                    icon-source: @image-url("../assets/icons/1.2/categories.svg");
+                    label: "Categorias";
+                    compact: !root.expanded;
+                    active: root.active-tab == "categories";
+                    clicked => { root.navigate("categories"); }
+                }
+
+                // ── PROMOÇÕES ─────────────────────────────
+                if root.store-access || root.nav.banners || root.nav.coupons:
+                    SidebarSection { title: "PROMOÇÕES"; compact: !root.expanded; }
+                if root.store-access || root.nav.banners: SidebarItem {
+                    icon-source: @image-url("../assets/icons/1.2/banners.svg");
+                    label: "Banners";
+                    compact: !root.expanded;
+                    active: root.active-tab == "banners";
+                    clicked => { root.navigate("banners"); }
+                }
+                if root.store-access || root.nav.coupons: SidebarItem {
+                    icon-source: @image-url("../assets/icons/1.2/coupons.svg");
+                    label: "Cupons";
+                    compact: !root.expanded;
+                    active: root.active-tab == "coupons";
+                    clicked => { root.navigate("coupons"); }
+                }
+
+                // ── USUÁRIOS ──────────────────────────────
+                if root.store-access || root.nav.customers || root.nav.collaborators:
+                    SidebarSection { title: "USUÁRIOS"; compact: !root.expanded; }
+                if root.store-access || root.nav.customers: SidebarItem {
+                    icon-source: @image-url("../assets/icons/1.2/usuario.svg");
+                    label: "Clientes";
+                    compact: !root.expanded;
+                    active: root.active-tab == "customers";
+                    clicked => { root.navigate("customers"); }
+                }
+                if root.store-access || root.nav.collaborators: SidebarItem {
+                    icon-source: @image-url("../assets/icons/1.2/user.svg");
+                    label: "Colaboradores";
+                    compact: !root.expanded;
+                    active: root.active-tab == "collaborators";
+                    clicked => { root.navigate("collaborators"); }
+                }
+
+                // ── ASSINATURA ────────────────────────────
+                if root.store-access || root.nav.subscription:
+                    SidebarSection { title: "ASSINATURA"; compact: !root.expanded; }
+                if root.store-access || root.nav.subscription: SidebarItem {
+                    icon-source: @image-url("../assets/icons/1.2/subscription.svg");
+                    label: "Plano & Cobrança";
+                    compact: !root.expanded;
+                    badge: root.subscription-pending-count > 0
+                        ? root.subscription-pending-count
+                        : "";
+                    active: root.active-tab == "subscription";
+                    clicked => { root.navigate("subscription"); }
+                }
+
+                // ── SISTEMA ─────────────────────────────── (somente Admin)
+                if root.store-access: SidebarSection { title: "SISTEMA"; compact: !root.expanded; }
+                if root.store-access: SidebarItem {
+                    icon-source: @image-url("../assets/icons/1.2/settings.svg");
+                    label: "Configurações";
+                    compact: !root.expanded;
+                    active: root.active-tab == "settings";
+                    clicked => { root.navigate("settings"); }
+                }
+            }
+        }
+
+        // ── Conta do usuário (seção separada, acima do status) ──
+        Rectangle { height: 1px; background: #ffffff15; }
+        // Expandida: avatar + nome/cargo + sair na mesma linha.
+        // Altura fixa igual à do status do servidor (rodapé).
+        if root.expanded: HorizontalLayout {
+            height: 52px;
+            spacing: 10px;
+            // Avatar + nome/cargo clicáveis → abre o perfil do usuário.
+            profile-ta := TouchArea {
+                horizontal-stretch: 1;
+                clicked => { root.open-profile(); }
+                HorizontalLayout {
+                    spacing: 10px;
+                    VerticalLayout {
+                        alignment: center;
+                        Rectangle {
+                            width: 30px; height: 30px; border-radius: 8px;
+                            background: profile-ta.has-hover ? #FFFFFF24 : #FFFFFF14;
+                            clip: true;
+                            // Imagem do estabelecimento; fallback no ícone de pessoa.
+                            if root.store-logo-image.width > 0: Image {
+                                source: root.store-logo-image;
+                                width: parent.width; height: parent.height;
+                                image-fit: cover;
+                            }
+                            if root.store-logo-image.width <= 0: PersonIcon {
+                                icon-size: 18px; icon-color: Theme.sidebar-text;
+                                x: (parent.width - self.width) / 2;
+                                y: (parent.height - self.height) / 2;
+                            }
+                        }
+                    }
+                    VerticalLayout {
+                        horizontal-stretch: 1;
+                        alignment: center;
+                        spacing: 1px;
+                        Text { text: root.user-name; font-size: 13px; font-weight: 700; color: profile-ta.has-hover ? Theme.primary : white; overflow: elide; }
+                        Text { text: root.user-role; font-size: 10px; color: Theme.sidebar-section; overflow: elide; }
+                    }
+                }
+            }
+            VerticalLayout {
+                alignment: center;
+                logout-ta := TouchArea {
+                    width: 30px; height: 30px;
+                    clicked => { root.request-logout(); }
+                    AssetIcon {
+                        width: 100%; height: 100%; icon-size: 18px;
+                        icon-color: logout-ta.has-hover ? #E57373 : Theme.sidebar-text;
+                        source: @image-url("../assets/icons/1.2/logout.svg");
+                    }
+                }
+            }
+        }
+        // Colapsada: perfil + sair, no MESMO tamanho dos itens de
+        // navegação (reusa SidebarItem em modo compacto).
+        if !root.expanded: SidebarItem {
+            icon-source: @image-url("../assets/icons/1.2/customers.svg");
+            label: "Perfil";
+            compact: true;
+            clicked => { root.open-profile(); }
+        }
+        if !root.expanded: SidebarItem {
+            icon-source: @image-url("../assets/icons/1.2/logout.svg");
+            label: "Sair";
+            compact: true;
+            clicked => { root.request-logout(); }
+        }
+
+        // ── Status do servidor (abaixo da conta) ──
+        Rectangle { height: 1px; background: #ffffff15; }
+        SidebarFooter {
+            // Minimizado: mesma altura dos itens de navegação (42px).
+            height: root.expanded ? 52px : 42px;
+            online: root.sync-online;
+            status-label: root.sync-status-label;
+            last-label: root.sync-last-label;
+            pending-count: root.sync-pending-count;
+            compact: !root.expanded;
+        }
+    }
+}

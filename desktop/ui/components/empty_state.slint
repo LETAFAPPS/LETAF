@@ -1,0 +1,64 @@
+// Estado vazio reutilizável: ilustração monocromática (SVG de
+// `../assets/empty/`, arte quadrada de traço preto) + um rótulo curto
+// renderizado como texto Slint. O texto NÃO é embutido no SVG.
+//
+// Regras (AI_RULES.md §3, §8):
+// - Componente sem lógica de negócio; só renderiza a imagem e o texto.
+// - `colorize` tinge a arte pelo `tint` (segue o tema claro/escuro); as
+//   variações de opacidade do SVG (contorno x preenchimento) são
+//   preservadas, mantendo o efeito de duas tonalidades.
+//
+// Uso:
+//   EmptyState {
+//       source: @image-url("../assets/empty/empty-products.svg");
+//       title: "Nenhum produto";
+//       subtitle: "Cadastre o primeiro para começar";
+//   }
+import { Theme } from "../theme.slint";
+
+export component EmptyState inherits Rectangle {
+    in property <image> source;
+    // Rótulo principal (curto) e apoio (opcional). Vazios → não aparecem.
+    in property <string> title;
+    in property <string> subtitle;
+    // Cor da ilustração; por padrão segue o tema (adapta claro/escuro).
+    in property <color> tint: Theme.text-secondary;
+    // Lado da ilustração (arte quadrada). Ajustável por local
+    // (áreas grandes x painéis pequenos).
+    in property <length> art-size: 132px;
+
+    min-width: root.art-size;
+    min-height: root.art-size + 56px;
+
+    VerticalLayout {
+        alignment: center;
+        spacing: 2px;
+
+        HorizontalLayout {
+            alignment: center;
+            Image {
+                width: root.art-size;
+                height: root.art-size;
+                source: root.source;
+                colorize: root.tint;
+                image-fit: contain;
+            }
+        }
+
+        if root.title != "": Text {
+            text: root.title;
+            horizontal-alignment: center;
+            font-size: 15px;
+            font-weight: 600;
+            color: Theme.text-primary;
+        }
+
+        if root.subtitle != "": Text {
+            text: root.subtitle;
+            horizontal-alignment: center;
+            font-size: 13px;
+            color: Theme.text-secondary;
+            wrap: word-wrap;
+        }
+    }
+}

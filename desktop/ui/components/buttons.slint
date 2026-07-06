@@ -1,0 +1,563 @@
+import { Theme } from "../theme.slint";
+import { AssetIcon } from "../components/icons.slint";
+
+// ── Componente: item da sidebar (sem icone de letra) ────────────────────────
+//
+// Regras aplicadas (AI_RULES.md §8):
+// - Responsabilidade única: renderizar 1 item navegável da sidebar.
+// - `badge` opcional (string vazia = sem badge); preserva comportamento anterior.
+
+export component SidebarItem inherits TouchArea {
+    in property <string> label;
+    in property <bool> active: false;
+    in property <string> badge: "";
+    /// SVG do item (monocromático preto + colorize aplicado pelo tema).
+    in property <image> icon-source;
+    /// `true` = sidebar colapsada (só ícone); `false` = expandida (ícone + label).
+    in property <bool> compact: false;
+    height: 42px;
+
+    Rectangle {
+        x: 0; y: 0;
+        width: parent.width;
+        height: parent.height;
+        border-radius: 8px;
+        // Ativo: realce sutil + barra de acento à esquerda (igual antes).
+        background: root.active ? Theme.sidebar-active-bg :
+                    root.has-hover ? Theme.sidebar-hover : transparent;
+
+        if root.active: Rectangle {
+            x: 0;
+            width: 3px;
+            height: 22px;
+            y: (parent.height - self.height) / 2;
+            border-radius: 2px;
+            background: Theme.sidebar-active;
+        }
+
+        // ── Modo COMPACTO ── (só ícone centralizado)
+        if root.compact: Image {
+            width: 28px; height: 28px;
+            x: (parent.width - 28px) / 2;
+            y: (parent.height - 28px) / 2;
+            source: root.icon-source;
+            colorize: root.active ? Theme.sidebar-active : Theme.sidebar-text;
+            image-fit: contain;
+        }
+        if root.compact && root.badge != "": Rectangle {
+            // Badge no canto superior direito do ícone.
+            width: max(16px, compact-badge.preferred-width + 8px);
+            height: 16px;
+            x: parent.width - self.width - 8px;
+            y: 4px;
+            border-radius: 4px;
+            background: Theme.sidebar-active;
+            compact-badge := Text {
+                text: root.badge;
+                font-size: 9px;
+                font-weight: 800;
+                color: white;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+                width: parent.width; height: parent.height;
+            }
+        }
+
+        // ── Modo EXPANDIDO ── (ícone + label + badge)
+        if !root.compact: HorizontalLayout {
+            padding-left: 16px;
+            padding-right: 12px;
+            spacing: 10px;
+
+            Image {
+                width: 22px; height: 22px;
+                y: (parent.height - 22px) / 2;
+                source: root.icon-source;
+                colorize: root.active ? Theme.sidebar-active : Theme.sidebar-text;
+                image-fit: contain;
+            }
+
+            Text {
+                text: root.label;
+                font-size: 13px;
+                font-weight: root.active ? 600 : 400;
+                color: root.active ? Theme.sidebar-active : Theme.sidebar-text;
+                vertical-alignment: center;
+                overflow: elide;
+                horizontal-stretch: 1;
+            }
+
+            if root.badge != "": Rectangle {
+                width: max(18px, badge-text.preferred-width + 10px);
+                height: 18px;
+                border-radius: 5px;
+                // Sempre laranja (igual selecionado/minimizado), independente do estado.
+                background: Theme.sidebar-active;
+                y: (parent.height - self.height) / 2;
+                badge-text := Text {
+                    text: root.badge;
+                    font-size: 10px;
+                    font-weight: 600;
+                    color: white;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+            }
+        }
+    }
+}
+
+// ── Componente: cabeçalho da sidebar (logo + nome + papel) ──────────────────
+//
+// Regras aplicadas (AI_RULES.md §3, §8):
+// - Sem lógica de negócio; apenas exibe propriedades recebidas.
+// - Título: nome do estabelecimento (store-name).
+// - Subtítulo: papel do usuário logado (user-role — ex.: Admin, Funcionário).
+// - Logo: imagem do estabelecimento (store-logo-image). Fallback: quadrado
+//   laranja com a primeira letra do nome quando não há logo.
+
+export component SidebarHeader inherits TouchArea {
+    in property <string> store-name;
+    in property <string> user-role;
+    in property <image>  store-logo-image;
+    /// `true` esconde a coluna textual (nome + cargo). Mantém só o logo.
+    in property <bool> compact: false;
+
+    height: 52px;
+
+    HorizontalLayout {
+        spacing: 10px;
+        alignment: root.compact ? center : start;
+        padding-left: root.compact ? 0 : 4px;
+        padding-right: root.compact ? 0 : 4px;
+
+        // Logo: imagem ou fallback com inicial "L". O TouchArea pai
+        // captura o clique para toggle expand/colapsar (§14F).
+        Rectangle {
+            width: 34px;
+            height: 34px;
+            border-radius: 8px;
+            clip: true;
+            background: root.store-logo-image.width > 0 ? transparent : Theme.primary;
+            y: (parent.height - self.height) / 2;
+
+            if root.store-logo-image.width > 0: Image {
+                source: root.store-logo-image;
+                width: parent.width;
+                height: parent.height;
+                image-fit: cover;
+            }
+
+            if !(root.store-logo-image.width > 0): Text {
+                text: "L";
+                font-size: 18px;
+                font-weight: 800;
+                color: white;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+        }
+
+        if !root.compact: VerticalLayout {
+            alignment: center;
+            spacing: 2px;
+
+            Text {
+                text: root.store-name != "" ? root.store-name : "—";
+                font-size: 14px;
+                font-weight: 800;
+                color: white;
+                letter-spacing: 1px;
+                overflow: elide;
+            }
+            Text {
+                text: root.user-role != "" ? root.user-role : "—";
+                font-size: 10px;
+                color: Theme.sidebar-section;
+                overflow: elide;
+            }
+        }
+    }
+}
+
+// ── Componente: rodapé da sidebar (status online + sync) ────────────────────
+//
+// Regras aplicadas (AI_RULES.md §3, §7, §8):
+// - Reflete o estado de sync (offline-first) recebido via propriedades.
+// - Sem lógica: o Rust preenche `online`, `status-label`, `last-label`,
+//   `pending-count` a partir do SyncWorker.
+
+export component SidebarFooter inherits VerticalLayout {
+    in property <bool> online: true;
+    in property <string> status-label: "Sincronizado";
+    in property <string> last-label: "Agora";
+    in property <int> pending-count: 0;
+    /// `true` mostra só a bolinha online/offline.
+    in property <bool> compact: false;
+
+    spacing: 4px;
+    // Compacto: bolinha centralizada (vertical). Expandido: alinhado ao topo.
+    alignment: root.compact ? center : start;
+    padding-top: root.compact ? 0px : 8px;
+
+    HorizontalLayout {
+        spacing: 6px;
+        alignment: root.compact ? center : start;
+        Rectangle {
+            width: 8px;
+            height: 8px;
+            border-radius: 4px;
+            background: root.online ? #4CAF50 : #C62828;
+            y: (parent.height - self.height) / 2;
+        }
+        if !root.compact: Text {
+            text: (root.online ? "Online" : "Offline") + " · " + root.status-label;
+            font-size: 11px;
+            font-weight: 600;
+            color: Theme.sidebar-text;
+            vertical-alignment: center;
+        }
+    }
+
+    if !root.compact: Text {
+        text: "Última: " + root.last-label + " · " + root.pending-count + " na fila";
+        font-size: 10px;
+        color: #ffffff50;
+        overflow: elide;
+    }
+}
+
+// ── Componente: titulo de secao na sidebar ──────────────────────────────────
+
+export component SidebarSection inherits VerticalLayout {
+    in property <string> title;
+    /// `true` esconde o título e mostra apenas uma divisória curta.
+    in property <bool> compact: false;
+    spacing: 0;
+    padding-top: 8px;
+    padding-bottom: 4px;
+
+    if !root.compact: Text {
+        text: root.title;
+        font-size: 10px;
+        font-weight: 700;
+        color: Theme.sidebar-section;
+        letter-spacing: 1.5px;
+    }
+    if root.compact: Rectangle {
+        height: 1px;
+        background: #ffffff20;
+    }
+}
+
+// ── Componente: botao de acao estilizado ─────────────────────────────────────
+
+export component ActionBtn inherits TouchArea {
+    in property <string> label;
+    // Cor padrão dos botões = a mesma da seleção do menu/Relatórios
+    // (`sidebar-sel-bg`), escura nos dois temas → texto branco.
+    in property <color> bg-color: Theme.sidebar-sel-bg;
+    // Fundo escuro nos dois temas → texto branco. Callers com fundo
+    // claro (ex.: disabled cinza) devem passar `text-color` próprio.
+    in property <color> text-color: white;
+    /// Ícone opcional à esquerda do label (vazio = sem ícone).
+    in property <image> icon;
+    height: 32px;
+    min-width: 80px;
+
+    Rectangle {
+        x: 0; y: 0;
+        width: parent.width;
+        height: parent.height;
+        border-radius: 8px;
+        background: root.has-hover ? root.bg-color.darker(0.15) : root.bg-color;
+        // Mesma sombra suave dos cards (mais discreta) — dá elevação aos
+        // botões avulsos (Novo/Sincronizar/Salvar/etc.).
+        drop-shadow-blur: 6px;
+        drop-shadow-offset-y: 0px;
+        drop-shadow-color: Theme.card-shadow;
+
+        HorizontalLayout {
+            alignment: center;
+            spacing: 8px;
+            if root.icon.width > 0: AssetIcon {
+                width: 18px; height: parent.height; icon-size: 16px;
+                icon-color: root.text-color;
+                source: root.icon;
+            }
+            Text {
+                text: root.label;
+                font-size: 13px;
+                font-weight: 600;
+                color: root.text-color;
+                vertical-alignment: center;
+            }
+        }
+    }
+}
+
+// ── Componente: botao outline (secundario) ──────────────────────────────────
+
+export component OutlineBtn inherits TouchArea {
+    in property <string> label;
+    in property <color> btn-color: Theme.text-secondary;
+    // Cor aplicada a TEXTO + BORDA no hover. Quando não definida,
+    // mantém o comportamento original (texto sempre em btn-color,
+    // borda fica em btn-color no hover).
+    in property <color> hover-color: btn-color;
+    /// Ícone opcional à esquerda do label (vazio = sem ícone).
+    in property <image> icon;
+    // Modo "destaque" (estilo dos botões da tela Relatórios): contorno
+    // 1.5px SEMPRE na cor de destaque, fundo transparente, texto/ícone
+    // na cor de destaque. Use com `btn-color: Theme.sidebar-sel-bg`.
+    in property <bool> accent: false;
+    height: 32px;
+    min-width: 80px;
+
+    Rectangle {
+        x: 0; y: 0;
+        width: parent.width;
+        height: parent.height;
+        border-radius: 8px;
+        border-width: root.accent ? 1.5px : 1px;
+        border-color: root.accent
+            ? root.btn-color
+            : (root.has-hover ? root.hover-color : Theme.card-border);
+        background: root.accent
+            ? (root.has-hover ? Theme.row-hover : transparent)
+            : (root.has-hover ? #00000008 : transparent);
+
+        HorizontalLayout {
+            alignment: center;
+            spacing: 6px;
+            if root.icon.width > 0: AssetIcon {
+                width: 16px; height: parent.height; icon-size: 14px;
+                icon-color: root.has-hover ? root.hover-color : root.btn-color;
+                source: root.icon;
+            }
+            Text {
+                text: root.label;
+                font-size: 13px;
+                font-weight: root.accent ? 700 : 500;
+                color: root.has-hover ? root.hover-color : root.btn-color;
+                vertical-alignment: center;
+            }
+        }
+    }
+}
+
+// ── Componente: botao pequeno de excluir ────────────────────────────────────
+
+export component DeleteBtn inherits TouchArea {
+    height: 30px;
+    width: 30px;
+
+    Rectangle {
+        x: 0; y: 0;
+        width: parent.width;
+        height: parent.height;
+        border-radius: 6px;
+        border-width: 1px;
+        border-color: root.has-hover ? Theme.danger : transparent;
+        background: root.has-hover ? #FFEBEE : transparent;
+
+        Text {
+            text: "\u{2715}";
+            font-size: 13px;
+            font-weight: 500;
+            color: root.has-hover ? Theme.danger : Theme.text-secondary;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+    }
+}
+
+// ── Componente: botao de ativar/desativar ────────────────────────────────
+
+export component ToggleActiveBtn inherits TouchArea {
+    in property <bool> active: true;
+    height: 30px;
+    width: 30px;
+
+    Rectangle {
+        x: 0; y: 0;
+        width: parent.width;
+        height: parent.height;
+        border-radius: 6px;
+        border-width: 1px;
+        border-color: root.active
+            ? (root.has-hover ? #388E3C : transparent)
+            : (root.has-hover ? Theme.danger : transparent);
+        background: root.active
+            ? (root.has-hover ? #E8F5E9 : transparent)
+            : (root.has-hover ? #FFEBEE : transparent);
+
+        Text {
+            text: "●";
+            font-size: 13px;
+            color: root.active
+                ? (root.has-hover ? #388E3C : #4CAF50)
+                : (root.has-hover ? Theme.danger : Theme.danger);
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+    }
+}
+
+// ── Componente: chip de filtro de categoria ───────────────────────────────
+//
+// Regras aplicadas (AI_RULES.md §3, §8):
+// - Botão pequeno arredondado com estado ativo/inativo
+// - Não tem lógica; apenas dispara `clicked`
+
+export component CategoryChip inherits TouchArea {
+    in property <string> label;
+    in property <bool> active: false;
+    height: 32px;
+    width: 110px;
+
+    Rectangle {
+        border-radius: 6px;
+        border-width: 1px;
+        border-color: root.active ? Theme.sidebar-sel-bg : Theme.border;
+        background: root.active ? Theme.sidebar-sel-bg : (root.has-hover ? Theme.row-hover : Theme.surface);
+
+        Text {
+            text: root.label;
+            font-size: 12px;
+            font-weight: root.active ? 600 : 500;
+            color: root.active ? white : Theme.text-primary;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+            overflow: elide;
+            width: parent.width - 12px;
+            height: parent.height;
+        }
+    }
+}
+
+// ── Componente: botão de visibilidade no cardápio web ─────────────────────
+//
+// Regras aplicadas (AI_RULES.md §8, §11):
+// - `visible = true`  → produto aparece no cardápio web (ícone globo verde).
+// - `visible = false` → produto oculto na web (ícone globo riscado, vermelho).
+// - Não afeta `active`: produto oculto na web continua disponível no PDV.
+
+export component ToggleWebVisibleBtn inherits TouchArea {
+    in property <bool> is-visible: true;
+    height: 32px;
+    width: 32px;
+
+    Rectangle {
+        x: 0; y: 0;
+        width: parent.width;
+        height: parent.height;
+        border-radius: 6px;
+        border-width: 1px;
+        border-color: root.is-visible
+            ? (root.has-hover ? #1565C0 : transparent)
+            : (root.has-hover ? Theme.danger : transparent);
+        background: root.is-visible
+            ? (root.has-hover ? #E3F2FD : transparent)
+            : (root.has-hover ? #FFEBEE : transparent);
+
+        // Globo (visível) / proibido (oculto). Botão dimensionado para
+        // acomodar o glyph sem cortar em renderers do Linux/GNOME.
+        Text {
+            text: root.is-visible ? "\u{1F310}" : "\u{1F6AB}";
+            font-size: 12px;
+            width: parent.width;
+            height: parent.height;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+    }
+}
+
+// ── Componente: botao pequeno de editar ──────────────────────────────────
+
+export component EditBtn inherits TouchArea {
+    height: 30px;
+    width: 30px;
+
+    Rectangle {
+        x: 0; y: 0;
+        width: parent.width;
+        height: parent.height;
+        border-radius: 6px;
+        border-width: 1px;
+        border-color: root.has-hover ? Theme.primary : transparent;
+        background: root.has-hover ? Theme.row-hover : transparent;
+
+        AssetIcon { width: 13px; height: 13px; icon-size: 13px; icon-color: root.has-hover ? Theme.primary : Theme.text-secondary; source: @image-url("../assets/icons/1.2/editar.svg"); }
+    }
+}
+
+// ── Componente: botão de página (paginação da grade) ─────────────────────
+//
+// Regras aplicadas (AI_RULES.md §8, §14):
+// - `active = true` destaca a página atual com o accent color.
+// - `enabled = false` aplica opacidade reduzida e desativa o cursor.
+// - Usado tanto para números quanto para os controles "‹" / "›".
+
+export component PageBtn inherits TouchArea {
+    in property <string> label;
+    in property <bool> active: false;
+    in property <bool> enabled-look: true;
+    height: 28px;
+    width: 34px;
+    mouse-cursor: root.enabled-look ? pointer : default;
+    enabled: root.enabled-look;
+
+    Rectangle {
+        border-radius: 4px;
+        border-width: 1px;
+        border-color: root.active ? Theme.sidebar-sel-bg : Theme.border;
+        background: root.active
+            ? Theme.sidebar-sel-bg
+            : (root.enabled-look && root.has-hover ? Theme.row-hover : Theme.surface);
+        opacity: root.enabled-look ? 1.0 : 0.4;
+
+        Text {
+            text: root.label;
+            font-size: 12px;
+            font-weight: root.active ? 700 : 500;
+            color: root.active ? white : Theme.text-primary;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+            width: parent.width;
+            height: parent.height;
+        }
+    }
+}
+
+// ── Componente: botão avançar status de pedido ─────────────────────────────
+
+export component AdvanceOrderBtn inherits TouchArea {
+    in property <color> status-color: Theme.primary;
+    height: 32px;
+    width: 36px;
+    mouse-cursor: pointer;
+
+    Rectangle {
+        x: 0; y: 0;
+        width: parent.width;
+        height: parent.height;
+        border-radius: 9px;
+        // Sem contorno por padrão; o contorno só aparece ao passar o
+        // mouse. Leve tint da cor do status; seta na cor do status.
+        border-width: root.has-hover ? 1px : 0px;
+        border-color: Theme.border;
+        background: root.has-hover
+            ? root.status-color.transparentize(0.76)
+            : root.status-color.transparentize(0.86);
+
+        Text {
+            text: "▶";
+            font-size: 12px;
+            color: root.status-color;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+    }
+}

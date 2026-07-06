@@ -1,0 +1,1137 @@
+import { ScrollView } from "std-widgets.slint";
+import { Theme } from "../theme.slint";
+import { AssetIcon } from "../components/icons.slint";
+import { EmptyState } from "../components/empty_state.slint";
+import {
+    ReportOption,
+    ReportKpi,
+    ReportDailyBar,
+    ReportHBar,
+    ReportDreLine,
+    ReportProductRow,
+    ReportCustomerRow,
+    ReportNewVsReturning,
+    ReportHourlyBar,
+} from "../types.slint";
+
+// ── Tela: Relatórios (Central de análises) ────────────────────────
+// Sidebar com tipos de relatório (Financeiro/Pedidos/Produtos/
+// Clientes); área central muda conforme o tipo ativo.
+// Toda derivação acontece em ui/reports.rs (AI_RULES §1/§14).
+
+// ── Ícone do KPI ─────────────────────────────────────────────────
+// O Rust passa o STEM do ícone (icon-key); aqui mapeamos para o asset
+// (o `@image-url` exige caminho literal, então é um if por chave).
+component KpiIcon inherits Rectangle {
+    in property <string> key;
+    in property <color> tint;
+    if root.key == "atividade": AssetIcon { width: 100%; height: 100%; icon-size: 18px; icon-color: root.tint; source: @image-url("../assets/icons/1.2/atividade.svg"); }
+    if root.key == "saida-estoque": AssetIcon { width: 100%; height: 100%; icon-size: 18px; icon-color: root.tint; source: @image-url("../assets/icons/1.2/saida-estoque.svg"); }
+    if root.key == "pay-carteira": AssetIcon { width: 100%; height: 100%; icon-size: 18px; icon-color: root.tint; source: @image-url("../assets/icons/1.2/pay-carteira.svg"); }
+    if root.key == "coupons": AssetIcon { width: 100%; height: 100%; icon-size: 18px; icon-color: root.tint; source: @image-url("../assets/icons/1.2/coupons.svg"); }
+    if root.key == "orders": AssetIcon { width: 100%; height: 100%; icon-size: 18px; icon-color: root.tint; source: @image-url("../assets/icons/1.2/orders.svg"); }
+    if root.key == "nao-conformidade": AssetIcon { width: 100%; height: 100%; icon-size: 18px; icon-color: root.tint; source: @image-url("../assets/icons/1.2/nao-conformidade.svg"); }
+    if root.key == "relogio": AssetIcon { width: 100%; height: 100%; icon-size: 18px; icon-color: root.tint; source: @image-url("../assets/icons/1.2/relogio.svg"); }
+    if root.key == "inventory": AssetIcon { width: 100%; height: 100%; icon-size: 18px; icon-color: root.tint; source: @image-url("../assets/icons/1.2/inventory.svg"); }
+    if root.key == "desempenho": AssetIcon { width: 100%; height: 100%; icon-size: 18px; icon-color: root.tint; source: @image-url("../assets/icons/1.2/desempenho.svg"); }
+    if root.key == "cotacao": AssetIcon { width: 100%; height: 100%; icon-size: 18px; icon-color: root.tint; source: @image-url("../assets/icons/1.2/cotacao.svg"); }
+    if root.key == "customers": AssetIcon { width: 100%; height: 100%; icon-size: 18px; icon-color: root.tint; source: @image-url("../assets/icons/1.2/customers.svg"); }
+    if root.key == "user": AssetIcon { width: 100%; height: 100%; icon-size: 18px; icon-color: root.tint; source: @image-url("../assets/icons/1.2/user.svg"); }
+    if root.key == "atualizar": AssetIcon { width: 100%; height: 100%; icon-size: 18px; icon-color: root.tint; source: @image-url("../assets/icons/1.2/atualizar.svg"); }
+}
+
+// ── Ícone da aba de tipo ─────────────────────────────────────────
+component ReportTypeIcon inherits Rectangle {
+    in property <string> key;
+    in property <color> tint;
+    if root.key == "financial": AssetIcon { width: 100%; height: 100%; icon-size: 16px; icon-color: root.tint; source: @image-url("../assets/icons/1.2/financeiro.svg"); }
+    if root.key == "orders": AssetIcon { width: 100%; height: 100%; icon-size: 16px; icon-color: root.tint; source: @image-url("../assets/icons/1.2/orders.svg"); }
+    if root.key == "products": AssetIcon { width: 100%; height: 100%; icon-size: 16px; icon-color: root.tint; source: @image-url("../assets/icons/1.2/products.svg"); }
+    if root.key == "customers": AssetIcon { width: 100%; height: 100%; icon-size: 16px; icon-color: root.tint; source: @image-url("../assets/icons/1.2/customers.svg"); }
+}
+
+// ── Ícone das barras horizontais (forma de pagamento / canal) ────
+component HBarIcon inherits Rectangle {
+    in property <string> key;
+    in property <color> tint;
+    if root.key == "pay-dinheiro": AssetIcon { width: 100%; height: 100%; icon-size: 16px; icon-color: root.tint; source: @image-url("../assets/icons/1.2/pay-dinheiro.svg"); }
+    if root.key == "pay-pix": AssetIcon { width: 100%; height: 100%; icon-size: 16px; icon-color: root.tint; source: @image-url("../assets/icons/1.2/pay-pix.svg"); }
+    if root.key == "pay-cartao-credito": AssetIcon { width: 100%; height: 100%; icon-size: 16px; icon-color: root.tint; source: @image-url("../assets/icons/1.2/pay-cartao-credito.svg"); }
+    if root.key == "pay-cartao-debito": AssetIcon { width: 100%; height: 100%; icon-size: 16px; icon-color: root.tint; source: @image-url("../assets/icons/1.2/pay-cartao-debito.svg"); }
+    if root.key == "pdv": AssetIcon { width: 100%; height: 100%; icon-size: 16px; icon-color: root.tint; source: @image-url("../assets/icons/1.2/pdv.svg"); }
+    if root.key == "rastreamento": AssetIcon { width: 100%; height: 100%; icon-size: 16px; icon-color: root.tint; source: @image-url("../assets/icons/1.2/rastreamento.svg"); }
+    if root.key == "recebimento": AssetIcon { width: 100%; height: 100%; icon-size: 16px; icon-color: root.tint; source: @image-url("../assets/icons/1.2/recebimento.svg"); }
+}
+
+// ── KPI Card ─────────────────────────────────────────────────────
+// Rótulo + ícone (caixa colorida com o tom do KPI) na 1ª linha; valor
+// e sub-texto abaixo. `overflow: elide` evita corte sob `clip: true`.
+component ReportKpiCard inherits Rectangle {
+    in property <ReportKpi> data;
+    // Cor do ícone/caixa: marrom do sistema p/ KPIs neutros; cor
+    // semântica (verde/vermelho) p/ os demais — mesma do valor.
+    property <color> icon-color: root.data.value-muted ? Theme.primary : root.data.accent-color;
+
+    height: 128px;
+    border-radius: 14px;
+    border-width: 1px;
+    border-color: Theme.card-border;
+    drop-shadow-blur: 12px;
+    drop-shadow-offset-y: 0px;
+    drop-shadow-color: Theme.card-shadow;
+    background: Theme.surface;
+
+    // Texto (rótulo/valor/sub) centralizado VERTICALMENTE no card.
+    VerticalLayout {
+        padding-left: 18px; padding-right: 60px;
+        spacing: 4px;
+        alignment: center;
+        Text {
+            text: root.data.label;
+            font-size: 10px; font-weight: 700;
+            color: Theme.text-secondary;
+            letter-spacing: 1px;
+            overflow: elide;
+        }
+        Text {
+            text: root.data.value-display;
+            font-size: 26px; font-weight: 800;
+            color: root.data.value-muted ? Theme.text-primary : root.data.accent-color;
+            overflow: elide;
+        }
+        // Empurra o subtítulo um pouco mais para baixo.
+        Rectangle { height: 6px; background: transparent; }
+        Text {
+            text: root.data.sub-text;
+            font-size: 11px;
+            color: root.data.sub-tone == "pos" ? #2E7D32
+                : (root.data.sub-tone == "neg" ? #E53935 : Theme.text-secondary);
+            overflow: elide;
+        }
+    }
+    // Ícone no canto superior-direito.
+    Rectangle {
+        x: parent.width - self.width - 16px;
+        y: 16px;
+        width: 40px; height: 40px;
+        border-radius: 11px;
+        background: Theme.icon-box-bg;
+        KpiIcon { width: 100%; height: 100%; key: root.data.icon-key; tint: Theme.icon-box-fg; }
+    }
+}
+
+// ── BarSlot (vertical, com tooltip no hover) ─────────────────────
+// Tooltip tem largura fixa (56px) e fica centralizado sobre a barra
+// — assim valores como "258,00" não são cortados quando o slot da
+// barra é estreito (mensal com 31 dias).
+component VertBar inherits Rectangle {
+    in property <float> progress;
+    in property <color> bar-color;
+    in property <string> value-display;
+    // Override para gráficos sem tooltip (ex.: pedidos por horário):
+    // caller passa tooltip-h: 0 e a barra ocupa a altura inteira.
+    in property <length> tooltip-h: 22px;
+    // Quando true, o valor fica SEMPRE visível acima da barra (como no
+    // mockup); senão só no hover. Caller liga com poucas barras (semana).
+    in property <bool> show-label: false;
+
+    property <length> tooltip-w: 56px;
+    property <length> bar-area-h: max(0px, root.height - root.tooltip-h);
+
+    ta := TouchArea { }
+    // Base do candle — linha fininha no rodapé do slot, sempre visível
+    // (aparece nos dias/horas sem barra, igual ao mockup). A barra cheia
+    // a cobre.
+    Rectangle {
+        x: 0;
+        y: parent.height - 4px;
+        width: parent.width;
+        height: 4px;
+        border-radius: 2px;
+        background: Theme.border;
+    }
+    Rectangle {
+        x: 0;
+        y: root.tooltip-h + root.bar-area-h * (1.0 - root.progress);
+        width: parent.width;
+        height: root.bar-area-h * root.progress;
+        border-radius: 5px;
+        background: ta.has-hover ? root.bar-color.darker(0.1) : root.bar-color;
+    }
+    if (root.show-label || ta.has-hover) && root.value-display != "": Rectangle {
+        x: (parent.width - root.tooltip-w) / 2;
+        y: root.bar-area-h * (1.0 - root.progress);
+        width: root.tooltip-w;
+        height: 18px;
+        Text {
+            width: parent.width; height: parent.height;
+            text: root.value-display;
+            font-size: 11px; font-weight: 700;
+            color: Theme.text-primary;
+            horizontal-alignment: center; vertical-alignment: center;
+        }
+    }
+}
+
+// ── Card genérico com header + slot ──────────────────────────────
+// `min-width: 0` permite que o card encolha sob janelas estreitas
+// sem transbordar e cortar conteúdo do lado direito.
+component PanelCard inherits Rectangle {
+    in property <string> title;
+    in property <string> subtitle;
+    border-radius: 12px;
+    border-width: 1px;
+    border-color: Theme.card-border;
+    drop-shadow-blur: 12px;
+    drop-shadow-offset-y: 0px;
+    drop-shadow-color: Theme.card-shadow;
+    background: Theme.surface;
+    min-width: 0;
+}
+
+// ── Card individual do Top Produtos (grade 3×3) ──────────────────
+component ProductCard inherits Rectangle {
+    in property <ReportProductRow> data;
+    border-radius: 10px;
+    border-width: 1px;
+    border-color: Theme.card-border;
+    drop-shadow-blur: 12px;
+    drop-shadow-offset-y: 0px;
+    drop-shadow-color: Theme.card-shadow;
+    background: Theme.surface;
+    min-width: 0;
+
+    HorizontalLayout {
+        padding: 10px; spacing: 10px;
+        // Ranking à ESQUERDA da imagem, um pouco mais alto.
+        VerticalLayout {
+            width: 18px;
+            alignment: start;
+            padding-top: 2px;
+            Text {
+                text: root.data.rank + "°";
+                font-size: 13px; font-weight: 800;
+                color: Theme.sidebar-sel-bg;
+                horizontal-alignment: center;
+            }
+        }
+        // Imagem GRANDE (ocupa a altura do card).
+        Rectangle {
+            width: 96px;
+            border-radius: 10px;
+            background: Theme.border;
+            clip: true;
+            if root.data.has-image: Image {
+                width: 100%; height: 100%;
+                source: root.data.product-image;
+                image-fit: cover;
+            }
+            // Placeholder quando o produto não tem foto.
+            if !root.data.has-image: AssetIcon {
+                width: 100%; height: 100%;
+                icon-size: 34px;
+                icon-color: #9E9E9E;
+                source: @image-url("../assets/icons/1.2/products.svg");
+            }
+        }
+        // Infos à direita.
+        VerticalLayout {
+            horizontal-stretch: 1;
+            min-width: 0;
+            spacing: 8px;
+            alignment: center;
+            // Linha 1: nome/categoria
+            HorizontalLayout {
+                spacing: 6px;
+                VerticalLayout {
+                    horizontal-stretch: 1;
+                    min-width: 0;
+                    spacing: 0px;
+                    Text {
+                        text: root.data.name;
+                        font-size: 13px; font-weight: 700;
+                        color: Theme.text-primary;
+                        overflow: elide;
+                    }
+                    Text {
+                        text: root.data.category;
+                        font-size: 10px;
+                        color: Theme.text-secondary;
+                        overflow: elide;
+                    }
+                }
+            }
+            // Linha 3: qtd + receita
+            HorizontalLayout {
+                spacing: 8px;
+                Text {
+                    horizontal-stretch: 1;
+                    text: root.data.qty-display + " un.";
+                    font-size: 11px;
+                    color: Theme.text-secondary;
+                    vertical-alignment: center;
+                    overflow: elide;
+                }
+                Text {
+                    text: root.data.revenue-display;
+                    font-size: 13px; font-weight: 800;
+                    color: Theme.text-primary;
+                    horizontal-alignment: right;
+                    vertical-alignment: center;
+                    overflow: elide;
+                }
+            }
+        }
+    }
+}
+
+// ── Card individual do Top Clientes (grade 3×3) ──────────────────
+// Mesmo estilo do ProductCard: rank + avatar grande (foto ou inicial
+// colorida) + nome/pedidos/LTV.
+component CustomerCard inherits Rectangle {
+    in property <ReportCustomerRow> data;
+    border-radius: 10px;
+    border-width: 1px;
+    border-color: Theme.card-border;
+    drop-shadow-blur: 12px;
+    drop-shadow-offset-y: 0px;
+    drop-shadow-color: Theme.card-shadow;
+    background: Theme.surface;
+    min-width: 0;
+
+    HorizontalLayout {
+        padding: 10px; spacing: 10px;
+        // Ranking à ESQUERDA do avatar.
+        VerticalLayout {
+            width: 18px;
+            alignment: start;
+            padding-top: 2px;
+            Text {
+                text: root.data.rank + "°";
+                font-size: 13px; font-weight: 800;
+                color: Theme.sidebar-sel-bg;
+                horizontal-alignment: center;
+            }
+        }
+        // Avatar QUADRADO: foto do cliente quando houver; senão ícone
+        // placeholder (mesmo padrão do card de produtos).
+        VerticalLayout {
+            alignment: center;
+            Rectangle {
+                width: 72px; height: 72px;
+                border-radius: 10px;
+                background: Theme.border;
+                clip: true;
+                if root.data.has-photo: Image {
+                    width: 100%; height: 100%;
+                    source: root.data.profile-picture;
+                    image-fit: cover;
+                }
+                if !root.data.has-photo: AssetIcon {
+                    width: 100%; height: 100%;
+                    icon-size: 30px;
+                    icon-color: #9E9E9E;
+                    source: @image-url("../assets/icons/1.2/user.svg");
+                }
+            }
+        }
+        // Infos à direita.
+        VerticalLayout {
+            horizontal-stretch: 1;
+            min-width: 0;
+            spacing: 8px;
+            alignment: center;
+            HorizontalLayout {
+                spacing: 4px;
+                Text {
+                    text: root.data.name;
+                    font-size: 13px; font-weight: 700;
+                    color: Theme.text-primary;
+                    overflow: elide;
+                    horizontal-stretch: 1;
+                    vertical-alignment: center;
+                }
+                if root.data.is-vip: Text {
+                    text: "★";
+                    font-size: 11px; color: Theme.primary;
+                    vertical-alignment: center;
+                }
+            }
+            Text {
+                text: root.data.orders-display;
+                font-size: 10px;
+                color: Theme.text-secondary;
+                overflow: elide;
+            }
+            HorizontalLayout {
+                spacing: 8px;
+                Text {
+                    horizontal-stretch: 1;
+                    text: "LTV";
+                    font-size: 11px;
+                    color: Theme.text-secondary;
+                    vertical-alignment: center;
+                    overflow: elide;
+                }
+                Text {
+                    text: root.data.revenue-display;
+                    font-size: 13px; font-weight: 800;
+                    color: Theme.text-primary;
+                    horizontal-alignment: right;
+                    vertical-alignment: center;
+                    overflow: elide;
+                }
+            }
+        }
+    }
+}
+
+// ── Header com 4 KPIs em larguras iguais ─────────────────────────
+// `min-width: 0` permite que os cards encolham proporcionalmente
+// quando a janela é estreita (em vez de manter preferred-width e
+// transbordar o container pai).
+component KpiRow inherits Rectangle {
+    in property <[ReportKpi]> kpis;
+    height: 128px;
+    min-width: 0;
+    property <length> col-w: kpis.length > 0
+        ? (self.width - (kpis.length - 1) * 8px) / kpis.length
+        : self.width;
+    background: transparent;
+    if kpis.length >= 1: ReportKpiCard { x: 0; width: parent.col-w; data: root.kpis[0]; }
+    if kpis.length >= 2: ReportKpiCard { x: parent.col-w + 8px; width: parent.col-w; data: root.kpis[1]; }
+    if kpis.length >= 3: ReportKpiCard { x: 2 * parent.col-w + 16px; width: parent.col-w; data: root.kpis[2]; }
+    if kpis.length >= 4: ReportKpiCard { x: 3 * parent.col-w + 24px; width: parent.col-w; data: root.kpis[3]; }
+}
+
+export component ReportsPage inherits HorizontalLayout {
+    // Tipo ativo: "financial" | "orders" | "products" | "customers"
+    in property <string> active-type: "financial";
+    in property <[ReportOption]> types;
+    in property <[ReportOption]> periods;
+    in property <string> header-title;
+    in property <string> header-subtitle;
+    in property <string> chart-title;
+    in property <string> chart-subtitle;
+
+    // KPIs do sub-relatório (sempre 4).
+    in property <[ReportKpi]> kpis;
+
+    // Financeiro
+    in property <[ReportDailyBar]> daily-bars;     // Receita diária
+    in property <[ReportDreLine]> dre-lines;
+    in property <[ReportHBar]> method-bars;        // Recebimentos por método
+    in property <string> method-total;             // "Total Recebido" (rodapé)
+
+    // Pedidos
+    in property <[ReportDailyBar]> orders-bars;
+    in property <[ReportHBar]> channel-bars;
+    in property <[ReportHourlyBar]> hourly-bars;
+
+    // Produtos
+    in property <[ReportProductRow]> top-products;
+
+    // Clientes
+    in property <[ReportCustomerRow]> top-customers;
+    in property <ReportNewVsReturning> new-vs-ret;
+
+    callback set-type(string);
+    callback set-period(string);
+    callback export-report();
+
+    spacing: 0px;
+
+    // ── Conteúdo (sem sidebar interna — abas horizontais no topo) ──
+    Rectangle {
+        horizontal-stretch: 1;
+        min-width: 0;
+        background: transparent;
+        VerticalLayout {
+            // Sem padding horizontal aqui: o ScrollView abaixo precisa
+            // ocupar a largura toda para que os cards roláveis tenham
+            // folga da borda do clip. Header/abas recebem os 24px próprios.
+            padding-top: 24px; padding-bottom: 0px;
+            spacing: 14px;
+
+            // Header: título à ESQUERDA + período segmentado à DIREITA.
+            HorizontalLayout {
+                padding-left: 24px; padding-right: 24px;
+                spacing: 12px;
+                VerticalLayout {
+                    horizontal-stretch: 1;
+                    alignment: center;
+                    spacing: 2px;
+                    Text {
+                        text: "Relatórios";
+                        font-size: 22px; font-weight: 800;
+                        color: Theme.text-primary;
+                        horizontal-alignment: left;
+                    }
+                    Text {
+                        text: "Central de Análises";
+                        font-size: 11px; color: Theme.text-secondary;
+                        horizontal-alignment: left;
+                    }
+                }
+                // Controle segmentado de período.
+                Rectangle {
+                    height: 40px;
+                    border-radius: 10px;
+                    border-width: 1px; border-color: Theme.card-border;
+                    drop-shadow-blur: 12px;
+                    drop-shadow-offset-y: 0px;
+                    drop-shadow-color: Theme.card-shadow;
+                    background: Theme.surface;
+                    HorizontalLayout {
+                        padding: 4px; spacing: 4px;
+                        for p in root.periods: pseg := Rectangle {
+                            width: 76px;
+                            border-radius: 7px;
+                            // Selecionado = só CONTORNO (borda) na cor de
+                            // destaque, sem preencher o botão inteiro.
+                            border-width: p.selected ? 1.5px : 0px;
+                            border-color: Theme.sidebar-sel-bg;
+                            background: p.selected ? transparent
+                                : (pseg-ta.has-hover ? Theme.row-hover : transparent);
+                            pseg-ta := TouchArea { clicked => { root.set-period(p.key); } }
+                            Text {
+                                width: parent.width; height: parent.height;
+                                text: p.label;
+                                font-size: 12px; font-weight: 700;
+                                color: p.selected ? Theme.sidebar-sel-bg : Theme.text-primary;
+                                horizontal-alignment: center; vertical-alignment: center;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Abas de tipo (esquerda) + status colado na PAREDE DIREITA.
+            // Posicionamento absoluto do status (x = largura - própria
+            // largura) garante que ele encoste à direita, sem depender de
+            // espaçador elástico.
+            Rectangle {
+                height: 40px;
+                HorizontalLayout {
+                    width: 100%; height: 100%;
+                    padding-left: 24px; padding-right: 24px;
+                    alignment: start;
+                    spacing: 8px;
+                    for t in root.types: pill := Rectangle {
+                        width: 116px;
+                        height: 40px;
+                        border-radius: 10px;
+                        // Selecionado = só CONTORNO na cor de destaque (mesmo
+                        // estilo dos botões de filtro), sem preencher o botão.
+                        background: t.selected ? transparent
+                            : (pill-ta.has-hover ? Theme.row-hover : Theme.surface);
+                        border-width: t.selected ? 1.5px : 1px;
+                        border-color: t.selected ? Theme.sidebar-sel-bg : Theme.border;
+                        pill-ta := TouchArea { clicked => { root.set-type(t.key); } }
+                        HorizontalLayout {
+                            alignment: center;
+                            spacing: 8px;
+                            ReportTypeIcon {
+                                width: 16px; height: parent.height;
+                                key: t.key;
+                                tint: t.selected ? Theme.sidebar-sel-bg : Theme.text-secondary;
+                            }
+                            Text {
+                                text: t.label;
+                                font-size: 13px; font-weight: 700;
+                                color: t.selected ? Theme.sidebar-sel-bg : Theme.text-primary;
+                                vertical-alignment: center;
+                            }
+                        }
+                    }
+                }
+                // Status: ● Tipo · Período — texto com largura natural,
+                // ancorado à direita; bolinha logo à esquerda dele.
+                status-txt := Text {
+                    x: parent.width - self.width - 24px;
+                    y: (parent.height - self.height) / 2;
+                    text: root.header-title;
+                    font-size: 12px; font-weight: 600;
+                    color: Theme.text-secondary;
+                }
+                Rectangle {
+                    x: status-txt.x - 14px;
+                    y: (parent.height - 8px) / 2;
+                    width: 8px; height: 8px;
+                    border-radius: 4px;
+                    background: #2E7D32;
+                }
+            }
+
+            // ── Conteúdo do sub-relatório (KPIs rolam junto) ──
+            // O ScrollView ocupa a largura toda; as margens 24px ficam AQUI
+            // dentro para os cards não encostarem na borda do clip (a sombra
+            // aparece inteira). Topo pequeno dá o espaçamento até o 1º card.
+            ScrollView { vertical-scrollbar-policy: ScrollBarPolicy.always-off; horizontal-scrollbar-policy: ScrollBarPolicy.always-off;
+                vertical-stretch: 1;
+                VerticalLayout {
+                    padding-left: 24px; padding-right: 24px;
+                    padding-top: 14px; padding-bottom: 24px;
+                    spacing: 14px;
+                    alignment: start;
+
+                    // KPIs (fazem parte do conteúdo rolável).
+                    KpiRow { kpis: root.kpis; }
+
+                    // ── FINANCEIRO ────────────────────────────
+                    // Receita diária (largura total). Spacing das
+                    // barras adapta com a quantidade (≤14 → 8px,
+                    // ≤20 → 4px, >20 → 2px) para mês com 28..31 dias
+                    // não ficarem com slot < 6px.
+                    if root.active-type == "financial": PanelCard {
+                        VerticalLayout {
+                            padding: 18px; spacing: 8px;
+                            VerticalLayout {
+                                spacing: 0px;
+                                Text { text: root.chart-title; font-size: 14px; font-weight: 700; color: Theme.text-primary; overflow: elide; }
+                                Text { text: root.chart-subtitle; font-size: 11px; color: Theme.text-secondary; overflow: elide; }
+                            }
+                            Rectangle { height: 220px;
+                                HorizontalLayout {
+                                    spacing: root.daily-bars.length <= 14 ? 8px
+                                        : (root.daily-bars.length <= 20 ? 4px : 2px);
+                                    for b in root.daily-bars: VertBar {
+                                        horizontal-stretch: 1;
+                                        min-width: 0;
+                                        progress: b.progress;
+                                        bar-color: Theme.sidebar-sel-bg;
+                                        value-display: b.value-display;
+                                        show-label: root.daily-bars.length <= 14;
+                                    }
+                                }
+                            }
+                            HorizontalLayout {
+                                spacing: root.daily-bars.length <= 14 ? 8px
+                                    : (root.daily-bars.length <= 20 ? 4px : 2px);
+                                for b in root.daily-bars: Text {
+                                    horizontal-stretch: 1;
+                                    min-width: 0;
+                                    text: b.label;
+                                    font-size: 10px; color: Theme.text-secondary;
+                                    horizontal-alignment: center;
+                                    overflow: elide;
+                                }
+                            }
+                        }
+                    }
+
+                    // DRE + Recebimentos LADO A LADO (como no mockup).
+                    if root.active-type == "financial": HorizontalLayout {
+                      spacing: 14px;
+                      PanelCard {
+                        horizontal-stretch: 1;
+                        VerticalLayout {
+                            padding: 18px; spacing: 8px;
+                            VerticalLayout {
+                                spacing: 2px;
+                                Text { text: "DRE Simplificada"; font-size: 14px; font-weight: 700; color: Theme.text-primary; }
+                                Text { text: "Entradas e saídas do período"; font-size: 11px; color: Theme.text-secondary; }
+                            }
+                            for l in root.dre-lines: Rectangle {
+                                // Linha-total (LUCRO LÍQUIDO) ganha caixa
+                                // destacada (bege arredondada), como no mockup.
+                                height: l.tone == "total" ? 46px : 30px;
+                                border-radius: 10px;
+                                background: l.tone == "total"
+                                    ? Theme.primary.transparentize(0.92) : transparent;
+                                HorizontalLayout {
+                                    padding-left: l.tone == "total" ? 12px : 0px;
+                                    padding-right: l.tone == "total" ? 12px : 0px;
+                                    spacing: 8px;
+                                    HorizontalLayout {
+                                        horizontal-stretch: 1;
+                                        min-width: 0;
+                                        spacing: 8px;
+                                        alignment: start;
+                                        Rectangle {
+                                            width: 6px; height: 6px;
+                                            border-radius: 3px;
+                                            y: (parent.height - 6px) / 2;
+                                            background: l.tone == "pos" ? #2E7D32
+                                                : (l.tone == "neg" ? #E53935 : Theme.primary);
+                                        }
+                                        Text {
+                                            horizontal-stretch: 1;
+                                            text: l.label;
+                                            font-size: 12px;
+                                            font-weight: l.tone == "total" ? 800 : 500;
+                                            color: Theme.text-primary;
+                                            vertical-alignment: center;
+                                            overflow: elide;
+                                        }
+                                    }
+                                    Text {
+                                        width: 110px;
+                                        text: l.value-display;
+                                        font-size: l.tone == "total" ? 14px : 12px;
+                                        font-weight: l.tone == "total" ? 800 : 700;
+                                        color: l.tone == "pos" ? #2E7D32
+                                            : (l.tone == "neg" ? #E53935
+                                            : (l.tone == "total" ? Theme.primary : Theme.text-primary));
+                                        horizontal-alignment: right;
+                                        vertical-alignment: center;
+                                        overflow: elide;
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                      PanelCard {
+                        horizontal-stretch: 1;
+                        recv := VerticalLayout {
+                            // Fatia em destaque (hover na legenda); -1 = nenhuma.
+                            property <int> hovered: -1;
+                            padding: 18px; spacing: 14px;
+                            VerticalLayout {
+                                spacing: 2px;
+                                Text { text: "Recebimentos"; font-size: 14px; font-weight: 700; color: Theme.text-primary; }
+                                Text { text: "Distribuição da receita do período por forma de pagamento"; font-size: 11px; color: Theme.text-secondary; }
+                            }
+                            // Gráfico MEIA-LUA (gauge): trilho cinza + fatias
+                            // coloridas (arcos calculados no Rust). Total no
+                            // miolo, abaixo do arco.
+                            HorizontalLayout {
+                                alignment: center;
+                                Rectangle {
+                                    width: 230px; height: 124px;
+                                    // Trilho (semicírculo superior).
+                                    Path {
+                                        width: 100%; height: 100%;
+                                        viewbox-x: 0; viewbox-y: 0;
+                                        viewbox-width: 100; viewbox-height: 56;
+                                        commands: "M 10 50 A 40 40 0 0 1 90 50";
+                                        stroke: Theme.row-hover; stroke-width: 14px; fill: transparent;
+                                    }
+                                    // Fatias por forma de pagamento — a fatia
+                                    // em hover (na legenda) ganha realce.
+                                    for m[i] in root.method-bars: Path {
+                                        width: 100%; height: 100%;
+                                        viewbox-x: 0; viewbox-y: 0;
+                                        viewbox-width: 100; viewbox-height: 56;
+                                        commands: m.arc-commands;
+                                        stroke: i == recv.hovered ? m.bar-color.brighter(0.25) : m.bar-color;
+                                        stroke-width: i == recv.hovered ? 18px : 14px;
+                                        fill: transparent;
+                                    }
+                                    // Total no miolo (área vazia abaixo do arco).
+                                    Rectangle {
+                                        x: 0; width: parent.width;
+                                        y: parent.height * 0.42; height: parent.height * 0.5;
+                                        VerticalLayout {
+                                            alignment: center;
+                                            Text {
+                                                text: root.method-total;
+                                                font-size: 20px; font-weight: 800;
+                                                color: Theme.text-primary;
+                                                horizontal-alignment: center;
+                                            }
+                                            Text {
+                                                text: "Recebido";
+                                                font-size: 10px; color: Theme.text-secondary;
+                                                horizontal-alignment: center;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            // Legenda — passar o mouse destaca a linha E a
+                            // fatia correspondente da meia-lua.
+                            for m[i] in root.method-bars: leg-ta := TouchArea {
+                                height: 30px;
+                                changed has-hover => { recv.hovered = leg-ta.has-hover ? i : -1; }
+                                Rectangle {
+                                    border-radius: 8px;
+                                    background: i == recv.hovered ? Theme.row-hover : transparent;
+                                    HorizontalLayout {
+                                        padding-left: 6px; padding-right: 6px;
+                                        spacing: 8px;
+                                        HBarIcon {
+                                            width: 18px; height: parent.height;
+                                            key: m.icon-key;
+                                            tint: m.bar-color;
+                                        }
+                                        Text {
+                                            horizontal-stretch: 1;
+                                            text: m.label;
+                                            font-size: 12px;
+                                            font-weight: i == recv.hovered ? 700 : 600;
+                                            color: Theme.text-primary;
+                                            vertical-alignment: center;
+                                            overflow: elide;
+                                        }
+                                        Text {
+                                            text: m.value-display;
+                                            font-size: 12px; font-weight: 700;
+                                            color: Theme.text-primary;
+                                            vertical-alignment: center;
+                                            horizontal-alignment: right;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                      }
+                    }
+
+                    // ── PEDIDOS ───────────────────────────────
+                    // Pedidos por dia (largura total) — mesma adaptação
+                    // de spacing do gráfico financeiro.
+                    if root.active-type == "orders": PanelCard {
+                        VerticalLayout {
+                            padding: 18px; spacing: 8px;
+                            VerticalLayout {
+                                spacing: 0px;
+                                Text { text: root.chart-title; font-size: 14px; font-weight: 700; color: Theme.text-primary; overflow: elide; }
+                                Text { text: root.chart-subtitle; font-size: 11px; color: Theme.text-secondary; overflow: elide; }
+                            }
+                            Rectangle { height: 220px;
+                                HorizontalLayout {
+                                    spacing: root.orders-bars.length <= 14 ? 8px
+                                        : (root.orders-bars.length <= 20 ? 4px : 2px);
+                                    for b in root.orders-bars: VertBar {
+                                        horizontal-stretch: 1;
+                                        min-width: 0;
+                                        progress: b.progress;
+                                        bar-color: Theme.sidebar-sel-bg;
+                                        value-display: b.value-display;
+                                        show-label: root.orders-bars.length <= 14;
+                                    }
+                                }
+                            }
+                            HorizontalLayout {
+                                spacing: root.orders-bars.length <= 14 ? 8px
+                                    : (root.orders-bars.length <= 20 ? 4px : 2px);
+                                for b in root.orders-bars: Text {
+                                    horizontal-stretch: 1;
+                                    min-width: 0;
+                                    text: b.label;
+                                    font-size: 10px; color: Theme.text-secondary;
+                                    horizontal-alignment: center;
+                                    overflow: elide;
+                                }
+                            }
+                        }
+                    }
+
+                    // Canais de Venda + Pedidos por Horário LADO A LADO.
+                    if root.active-type == "orders": HorizontalLayout {
+                      spacing: 14px;
+                      // Canais: card adaptativo (alinhado ao topo) — não
+                      // estica com a altura do "Pedidos por Horário" ao lado.
+                      VerticalLayout {
+                       horizontal-stretch: 1;
+                       alignment: start;
+                       PanelCard {
+                        VerticalLayout {
+                            padding: 18px; spacing: 12px;
+                            VerticalLayout {
+                                spacing: 2px;
+                                Text { text: "Canais de Venda"; font-size: 14px; font-weight: 700; color: Theme.text-primary; overflow: elide; }
+                                Text { text: "De onde vêm os pedidos"; font-size: 11px; color: Theme.text-secondary; overflow: elide; }
+                            }
+                            // Cada canal: nome + valor em cima, BARRA abaixo;
+                            // ícone em cinza neutro.
+                            for c in root.channel-bars: VerticalLayout {
+                                spacing: 6px;
+                                HorizontalLayout {
+                                    spacing: 8px;
+                                    HBarIcon {
+                                        width: 18px; height: 18px;
+                                        key: c.icon-key;
+                                        tint: Theme.text-secondary;
+                                    }
+                                    Text {
+                                        horizontal-stretch: 1;
+                                        text: c.label;
+                                        font-size: 12px; font-weight: 600;
+                                        color: Theme.text-primary;
+                                        vertical-alignment: center;
+                                        overflow: elide;
+                                    }
+                                    Text {
+                                        text: c.value-display;
+                                        font-size: 12px; font-weight: 700;
+                                        color: Theme.text-primary;
+                                        horizontal-alignment: right;
+                                        vertical-alignment: center;
+                                    }
+                                }
+                                Rectangle {
+                                    height: 8px;
+                                    Rectangle {
+                                        x: 0; y: 0;
+                                        width: parent.width * c.progress;
+                                        height: 8px;
+                                        border-radius: 4px;
+                                        background: Theme.sidebar-sel-bg;
+                                    }
+                                    Rectangle {
+                                        x: parent.width * c.progress; y: 0;
+                                        width: parent.width * (1.0 - c.progress);
+                                        height: 8px;
+                                        border-radius: 4px;
+                                        background: Theme.border;
+                                    }
+                                }
+                            }
+                        }
+                       }
+                      }
+                      PanelCard {
+                        horizontal-stretch: 1;
+                        VerticalLayout {
+                            padding: 18px; spacing: 8px;
+                            VerticalLayout {
+                                spacing: 0px;
+                                Text { text: "Pedidos por Horário"; font-size: 14px; font-weight: 700; color: Theme.text-primary; }
+                                Text { text: "Concentração ao longo do dia"; font-size: 11px; color: Theme.text-secondary; }
+                            }
+                            Rectangle { height: 200px;
+                                HorizontalLayout {
+                                    spacing: 6px;
+                                    for h in root.hourly-bars: VertBar {
+                                        horizontal-stretch: 1;
+                                        min-width: 0;
+                                        tooltip-h: 20px;
+                                        progress: h.progress;
+                                        bar-color: Theme.sidebar-sel-bg;
+                                        value-display: h.value-display;
+                                    }
+                                }
+                            }
+                            HorizontalLayout {
+                                spacing: 6px;
+                                for h in root.hourly-bars: Text {
+                                    horizontal-stretch: 1;
+                                    text: h.label;
+                                    font-size: 10px; color: Theme.text-secondary;
+                                    horizontal-alignment: center;
+                                }
+                            }
+                        }
+                      }
+                    }
+
+                    // ── PRODUTOS ──────────────────────────────
+                    // Grade 3×3 com até 9 produtos. Layout absoluto
+                    // para garantir colunas de larguras IDÊNTICAS
+                    // (mesma técnica do KpiRow do dashboard).
+                    if root.active-type == "products": Rectangle {
+                        background: transparent;
+                        VerticalLayout {
+                            padding: 0px; spacing: 12px;
+                            VerticalLayout {
+                                spacing: 0px;
+                                Text { text: "Melhores Produtos"; font-size: 14px; font-weight: 700; color: Theme.text-primary; }
+                                Text { text: "Por receita no período"; font-size: 11px; color: Theme.text-secondary; }
+                            }
+                            // Grade dos 9 cards. Constantes locais
+                            // (card-h, gaps) declaradas no próprio
+                            // Rectangle pra serem alcançáveis via
+                            // `parent.*` dos ProductCards.
+                            Rectangle {
+                                property <length> card-h: 124px;
+                                property <length> row-gap: 8px;
+                                property <length> col-gap: 8px;
+                                property <length> col-w: (self.width - 2 * self.col-gap) / 3;
+                                // Altura adaptativa: nº de linhas = teto(qtd/3).
+                                property <int> rows: Math.floor((root.top-products.length + 2) / 3);
+                                height: self.rows > 0
+                                    ? self.rows * self.card-h + (self.rows - 1) * self.row-gap
+                                    : 0px;
+                                background: transparent;
+                                if root.top-products.length >= 1: ProductCard {
+                                    x: 0; y: 0;
+                                    width: parent.col-w; height: parent.card-h;
+                                    data: root.top-products[0];
+                                }
+                                if root.top-products.length >= 2: ProductCard {
+                                    x: parent.col-w + parent.col-gap; y: 0;
+                                    width: parent.col-w; height: parent.card-h;
+                                    data: root.top-products[1];
+                                }
+                                if root.top-products.length >= 3: ProductCard {
+                                    x: 2 * parent.col-w + 2 * parent.col-gap; y: 0;
+                                    width: parent.col-w; height: parent.card-h;
+                                    data: root.top-products[2];
+                                }
+                                if root.top-products.length >= 4: ProductCard {
+                                    x: 0; y: parent.card-h + parent.row-gap;
+                                    width: parent.col-w; height: parent.card-h;
+                                    data: root.top-products[3];
+                                }
+                                if root.top-products.length >= 5: ProductCard {
+                                    x: parent.col-w + parent.col-gap; y: parent.card-h + parent.row-gap;
+                                    width: parent.col-w; height: parent.card-h;
+                                    data: root.top-products[4];
+                                }
+                                if root.top-products.length >= 6: ProductCard {
+                                    x: 2 * parent.col-w + 2 * parent.col-gap; y: parent.card-h + parent.row-gap;
+                                    width: parent.col-w; height: parent.card-h;
+                                    data: root.top-products[5];
+                                }
+                                if root.top-products.length >= 7: ProductCard {
+                                    x: 0; y: 2 * (parent.card-h + parent.row-gap);
+                                    width: parent.col-w; height: parent.card-h;
+                                    data: root.top-products[6];
+                                }
+                                if root.top-products.length >= 8: ProductCard {
+                                    x: parent.col-w + parent.col-gap; y: 2 * (parent.card-h + parent.row-gap);
+                                    width: parent.col-w; height: parent.card-h;
+                                    data: root.top-products[7];
+                                }
+                                if root.top-products.length >= 9: ProductCard {
+                                    x: 2 * parent.col-w + 2 * parent.col-gap; y: 2 * (parent.card-h + parent.row-gap);
+                                    width: parent.col-w; height: parent.card-h;
+                                    data: root.top-products[8];
+                                }
+                            }
+                            if root.top-products.length == 0: EmptyState {
+                                art-size: 116px;
+                                source: @image-url("../assets/empty/empty-sales.svg");
+                                title: "Sem vendas no período";
+                            }
+                        }
+                    }
+
+                    // ── CLIENTES ──────────────────────────────
+                    // Top Clientes — grade 3×3 de cards (mesmo estilo do
+                    // "Melhores Produtos" da aba Produtos).
+                    if root.active-type == "customers": Rectangle {
+                        background: transparent;
+                        VerticalLayout {
+                            padding: 0px; spacing: 12px;
+                            VerticalLayout {
+                                spacing: 0px;
+                                Text { text: "Melhores Clientes"; font-size: 14px; font-weight: 700; color: Theme.text-primary; }
+                                Text { text: "Por valor histórico (LTV)"; font-size: 11px; color: Theme.text-secondary; }
+                            }
+                            Rectangle {
+                                property <length> card-h: 124px;
+                                property <length> row-gap: 8px;
+                                property <length> col-gap: 8px;
+                                property <length> col-w: (self.width - 2 * self.col-gap) / 3;
+                                property <int> rows: Math.floor((root.top-customers.length + 2) / 3);
+                                height: self.rows > 0
+                                    ? self.rows * self.card-h + (self.rows - 1) * self.row-gap
+                                    : 0px;
+                                background: transparent;
+                                if root.top-customers.length >= 1: CustomerCard {
+                                    x: 0; y: 0;
+                                    width: parent.col-w; height: parent.card-h;
+                                    data: root.top-customers[0];
+                                }
+                                if root.top-customers.length >= 2: CustomerCard {
+                                    x: parent.col-w + parent.col-gap; y: 0;
+                                    width: parent.col-w; height: parent.card-h;
+                                    data: root.top-customers[1];
+                                }
+                                if root.top-customers.length >= 3: CustomerCard {
+                                    x: 2 * parent.col-w + 2 * parent.col-gap; y: 0;
+                                    width: parent.col-w; height: parent.card-h;
+                                    data: root.top-customers[2];
+                                }
+                                if root.top-customers.length >= 4: CustomerCard {
+                                    x: 0; y: parent.card-h + parent.row-gap;
+                                    width: parent.col-w; height: parent.card-h;
+                                    data: root.top-customers[3];
+                                }
+                                if root.top-customers.length >= 5: CustomerCard {
+                                    x: parent.col-w + parent.col-gap; y: parent.card-h + parent.row-gap;
+                                    width: parent.col-w; height: parent.card-h;
+                                    data: root.top-customers[4];
+                                }
+                                if root.top-customers.length >= 6: CustomerCard {
+                                    x: 2 * parent.col-w + 2 * parent.col-gap; y: parent.card-h + parent.row-gap;
+                                    width: parent.col-w; height: parent.card-h;
+                                    data: root.top-customers[5];
+                                }
+                                if root.top-customers.length >= 7: CustomerCard {
+                                    x: 0; y: 2 * (parent.card-h + parent.row-gap);
+                                    width: parent.col-w; height: parent.card-h;
+                                    data: root.top-customers[6];
+                                }
+                                if root.top-customers.length >= 8: CustomerCard {
+                                    x: parent.col-w + parent.col-gap; y: 2 * (parent.card-h + parent.row-gap);
+                                    width: parent.col-w; height: parent.card-h;
+                                    data: root.top-customers[7];
+                                }
+                            }
+                            if root.top-customers.length == 0: EmptyState {
+                                art-size: 116px;
+                                source: @image-url("../assets/empty/empty-customers.svg");
+                                title: "Sem clientes ativos no período";
+                            }
+                        }
+                    }
+
+                    // Novos vs Recorrentes — card full-width, abaixo
+                    // de Top Clientes (empilhado pelo VerticalLayout
+                    // do ScrollView).
+                    if root.active-type == "customers": PanelCard {
+                        VerticalLayout {
+                            padding: 18px; spacing: 14px;
+                            alignment: start;
+                            VerticalLayout {
+                                spacing: 0px;
+                                Text { text: "Novos vs Recorrentes"; font-size: 14px; font-weight: 700; color: Theme.text-primary; }
+                                Text { text: "Composição da base no período"; font-size: 11px; color: Theme.text-secondary; }
+                            }
+                            // Barra única segmentada
+                            Rectangle {
+                                height: 14px;
+                                border-radius: 7px;
+                                background: Theme.border;
+                                Rectangle {
+                                    x: 0;
+                                    width: parent.width * root.new-vs-ret.returning-progress;
+                                    height: parent.height;
+                                    background: #2E7D32;
+                                }
+                                Rectangle {
+                                    x: parent.width * root.new-vs-ret.returning-progress;
+                                    width: parent.width * root.new-vs-ret.new-progress;
+                                    height: parent.height;
+                                    background: #1E88E5;
+                                }
+                            }
+                            VerticalLayout {
+                                spacing: 8px;
+                                HorizontalLayout {
+                                    spacing: 8px;
+                                    Rectangle {
+                                        width: 10px; height: 10px;
+                                        y: (parent.height - 10px) / 2;
+                                        border-radius: 5px;
+                                        background: #2E7D32;
+                                    }
+                                    Text { horizontal-stretch: 1; text: "Recorrentes"; font-size: 12px; color: Theme.text-primary; vertical-alignment: center; }
+                                    Text { text: root.new-vs-ret.returning-count + " Clientes"; font-size: 11px; color: Theme.text-secondary; vertical-alignment: center; }
+                                    Text { width: 40px; text: root.new-vs-ret.returning-pct; font-size: 12px; font-weight: 700; color: Theme.text-primary; horizontal-alignment: right; vertical-alignment: center; }
+                                }
+                                HorizontalLayout {
+                                    spacing: 8px;
+                                    Rectangle {
+                                        width: 10px; height: 10px;
+                                        y: (parent.height - 10px) / 2;
+                                        border-radius: 5px;
+                                        background: #1E88E5;
+                                    }
+                                    Text { horizontal-stretch: 1; text: "Novos"; font-size: 12px; color: Theme.text-primary; vertical-alignment: center; }
+                                    Text { text: root.new-vs-ret.new-count + " Clientes"; font-size: 11px; color: Theme.text-secondary; vertical-alignment: center; }
+                                    Text { width: 40px; text: root.new-vs-ret.new-pct; font-size: 12px; font-weight: 700; color: Theme.text-primary; horizontal-alignment: right; vertical-alignment: center; }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

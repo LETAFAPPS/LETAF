@@ -1,0 +1,61 @@
+import { Theme } from "../theme.slint";
+import { Card } from "../components/cards.slint";
+import { ActionBtn } from "../components/buttons.slint";
+
+// ── Tela: PDV bloqueado (caixa fechado) ─────────────────────────────────────
+//
+// Renderizada no LUGAR do PdvPage quando `cash-blocked == true`.
+// Implementada como página (e não modal overlay) porque overlays
+// top-level que aparecem ao mesmo tempo em que a aba muda causavam
+// panic "Recursion detected" no layout do Slint.
+//
+// AI_RULES.md §1, §14: UI sem lógica de negócio; só renderiza.
+
+export component PdvBlockedView inherits Rectangle {
+    callback go-to-cash();
+
+    background: Theme.bg;
+
+    VerticalLayout {
+        alignment: center;
+        HorizontalLayout {
+            alignment: center;
+            Card {
+                width: 420px;
+                height: 220px;
+                VerticalLayout {
+                    padding: 28px;
+                    spacing: 16px;
+
+                    Text {
+                        text: "🔒  Caixa fechado";
+                        font-size: 20px; font-weight: 700;
+                        color: Theme.text-primary;
+                        horizontal-alignment: center;
+                    }
+
+                    Rectangle { height: 1px; background: Theme.border; }
+
+                    Text {
+                        text: "Para registrar vendas no PDV é necessário\nabrir o caixa.";
+                        font-size: 14px;
+                        color: Theme.text-secondary;
+                        horizontal-alignment: center;
+                    }
+
+                    Rectangle { height: 4px; }
+
+                    HorizontalLayout {
+                        alignment: center;
+                        ActionBtn {
+                            label: "Ir para o Caixa";
+                            bg-color: Theme.sidebar-sel-bg;
+                            width: 220px;
+                            clicked => { root.go-to-cash(); }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

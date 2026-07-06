@@ -1,0 +1,602 @@
+//! Painel do super admin (plataforma) — rotas `/admin/*` cross-tenant.
+//!
+//! Regras aplicadas (AI_RULES.md §1, §10, §11):
+//! - Autoridade no backend: TODA rota exige `role == super_admin` (JWT),
+//!   validado por `AuthClaims::verify_role`. O frontend é burro.
+//! - Exceção documentada ao isolamento por `company_id`: o super admin é
+//!   cross-tenant por natureza (gestão da plataforma). Fora daqui, o
+//!   isolamento por empresa continua obrigatório.
+//! - Os usuários super admin vivem na "empresa-plataforma" (subdomínio
+//!   reservado); assim a gestão deles reusa o `AuthService` já existente,
+//!   escopado ao `company_id` do próprio super admin (vem do JWT).
+
+use axum::extract::{Path, State};
+use axum::http::StatusCode;
+use axum::routing::{get, put};
+use axum::{Json, Router};
+use serde::{Deserialize, Serialize};
+use serde_json::{json, Value};
+use uuid::Uuid;
+
+use letaf_core::auth::model::UserRole;
+use letaf_core::company::model::Company;
+use letaf_core::error::CoreError;
+use letaf_core::plan::model::Plan;
+use letaf_core::plan::service::PlanInput;
+
+use crate::context::AppState;
+use crate::error::ServerError;
+use crate::jwt::ROLE_SUPER_ADMIN;
+use crate::middleware::auth::AuthClaims;
+
+/// Subdomínio reservado da empresa-plataforma (container dos super admins).
+/// Nunca é um tenant real — filtrado das listas de empresas.
+pub const PLATFORM_SUBDOMAIN: &str = "__platform__";
+const PLATFORM_COMPANY_NAME: &str = "LETAF · Plataforma";
+/// E-mail default do super admin de plataforma; pode ser sobrescrito por
+/// `PLATFORM_ADMIN_EMAIL`. É apenas um identificador — a proteção real é a
+/// senha, que NUNCA é hardcoded (ver `ensure_platform_admin`).
+const DEFAULT_ADMIN_EMAIL: &str = "admin@letaf.app";
+const DEFAULT_ADMIN_NAME: &str = "Master Admin";
+
+pub fn routes() -> Router<AppState> {
+    Router::new()
+        .route("/admin/overview", get(overview))
+        .route("/admin/companies", get(list_companies).post(create_company))
+        .route("/admin/subscriptions", get(list_subscriptions))
+        .route("/admin/admins", get(list_admins).post(create_admin))
+        .route("/admin/admins/{id}", put(update_admin).delete(delete_admin))
+        .route("/admin/plans", get(list_plans).post(create_plan))
+        .route("/admin/plans/{id}", put(update_plan).delete(delete_plan))
+}
+
+/// Guard: exige `super_admin`. `verify_role` NÃO checa `company_id`
+/// (cross-tenant) — correto para o painel de plataforma.
+fn require_super_admin(auth: &AuthClaims) -> Result<(), ServerError> {
+    auth.verify_role(ROLE_SUPER_ADMIN)
+}
+
+/// Empresas reais (tenants) — exclui a empresa-plataforma.
+async fn tenants(state: &AppState) -> Result<Vec<Company>, ServerError> {
+    let all = state.company_service.find_all().await?;
+    Ok(all
+        .into_iter()
+        .filter(|c| c.subdomain != PLATFORM_SUBDOMAIN)
+        .collect())
+}
+
+// ── Painel (visão geral) ─────────────────────────────────────────────────
+#[derive(Serialize)]
+struct OverviewResponse {
+    companies: usize,
+    active_subscriptions: usize,
+    super_admins: usize,
+}
+
+async fn overview(
+    State(state): State<AppState>,
+    auth: AuthClaims,
+) -> Result<Json<OverviewResponse>, ServerError> {
+    require_super_admin(&auth)?;
+    let tenants = tenants(&state).await?;
+    let mut active = 0usize;
+    for c in &tenants {
+        if let Ok(Some(sub)) = state.subscription_service.find_current(c.id).await {
+            if sub.status.as_str() == "active" {
+                active += 1;
+            }
+        }
+    }
+    let admins = state.auth_service.find_all(auth.0.company_id).await?;
+    Ok(Json(OverviewResponse {
+        companies: tenants.len(),
+        active_subscriptions: active,
+        super_admins: admins.len(),
+    }))
+}
+
+// ── Empresas (tenants) ───────────────────────────────────────────────────
+#[derive(Serialize)]
+struct CompanyRow {
+    id: Uuid,
+    name: String,
+    subdomain: String,
+    created_at: String,
+    plan: String,
+    status: String,
+}
+
+/// Cadastro de um novo estabelecimento (tenant) + seu administrador
+/// inicial. Sem admin a empresa não teria como logar, então os dois são
+/// criados juntos (§11 — company_id do novo tenant é gerado no domínio,
+/// nunca vindo do frontend).
+#[derive(Deserialize)]
+struct CreateCompanyRequest {
+    name: String,
+    subdomain: String,
+    admin_name: String,
+    admin_email: String,
+    admin_password: String,
+    // Informações do estabelecimento (opcionais no cadastro).
+    #[serde(default)]
+    address: Option<String>,
+    #[serde(default)]
+    phone: Option<String>,
+    #[serde(default)]
+    whatsapp: Option<String>,
+    #[serde(default)]
+    email: Option<String>,
+    #[serde(default)]
+    document: Option<String>,
+    #[serde(default)]
+    neighborhood: Option<String>,
+    #[serde(default)]
+    zip_code: Option<String>,
+    #[serde(default)]
+    city: Option<String>,
+    #[serde(default)]
+    uf: Option<String>,
+    #[serde(default)]
+    logo_data: Option<String>,
+    #[serde(default)]
+    cover_data: Option<String>,
+    /// Desconto comercial em R$ por mês na mensalidade (0 = sem desconto).
+    #[serde(default)]
+    plan_discount: Option<f64>,
+}
+
+/// `Some("")`/só espaços → `None`; caso contrário devolve o texto aparado.
+fn none_if_blank(v: Option<String>) -> Option<String> {
+    v.map(|s| s.trim().to_string()).filter(|s| !s.is_empty())
+}
+
+async fn create_company(
+    State(state): State<AppState>,
+    auth: AuthClaims,
+    Json(body): Json<CreateCompanyRequest>,
+) -> Result<(StatusCode, Json<Value>), ServerError> {
+    require_super_admin(&auth)?;
+    let name = body.name.trim().to_string();
+    let subdomain = body.subdomain.trim().to_lowercase();
+    let admin_name = body.admin_name.trim().to_string();
+    let admin_email = body.admin_email.trim().to_string();
+
+    if name.is_empty() || subdomain.is_empty() || admin_name.is_empty() || admin_email.is_empty() {
+        return Err(ServerError::Core(CoreError::Validation(
+            "Preencha nome, subdomínio, nome e e-mail do administrador".into(),
+        )));
+    }
+    if body.admin_password.trim().is_empty() {
+        return Err(ServerError::Core(CoreError::Validation(
+            "Defina uma senha para o administrador".into(),
+        )));
+    }
+    if !subdomain.chars().all(|c| c.is_ascii_alphanumeric() || c == '-') {
+        return Err(ServerError::Core(CoreError::Validation(
+            "Subdomínio inválido: use apenas letras, números e hífen".into(),
+        )));
+    }
+    // Subdomínio único (identifica o tenant nas requisições).
+    if state.company_service.find_by_subdomain(&subdomain).await?.is_some() {
+        return Err(ServerError::Core(CoreError::Validation(
+            "Este subdomínio já está em uso".into(),
+        )));
+    }
+    // E-mail único no sistema (login é global por e-mail).
+    if !email_available(&state, &admin_email, None).await {
+        return Err(ServerError::Core(CoreError::Validation(EMAIL_TAKEN.into())));
+    }
+
+    // 1) Cria o tenant. 2) Aplica as informações. 3) Cria o admin inicial.
+    // Em qualquer falha depois do passo 1, desfaz a empresa (evita um tenant
+    // órfão/incompleto sem quem consiga acessar).
+    let company = state.company_service.create(name.clone(), subdomain.clone()).await?;
+
+    let info = letaf_core::company::service::UpdateInfoInput {
+        name,
+        address: none_if_blank(body.address),
+        phone: none_if_blank(body.phone),
+        whatsapp: none_if_blank(body.whatsapp),
+        email: none_if_blank(body.email),
+        instagram: None,
+        document: none_if_blank(body.document),
+        neighborhood: none_if_blank(body.neighborhood),
+        zip_code: none_if_blank(body.zip_code),
+        city: none_if_blank(body.city),
+        uf: none_if_blank(body.uf),
+        logo_data: none_if_blank(body.logo_data),
+        cover_data: none_if_blank(body.cover_data),
+        products_per_page: 20,
+        orders_per_page: 20,
+    };
+    if let Err(e) = state.company_service.update_info(company.id, info).await {
+        let _ = state.company_service.soft_delete(company.id).await;
+        return Err(ServerError::Core(e));
+    }
+
+    if let Err(e) = state
+        .auth_service
+        .create(company.id, admin_email, body.admin_password, admin_name, UserRole::Admin)
+        .await
+    {
+        let _ = state.company_service.soft_delete(company.id).await;
+        return Err(ServerError::Core(e));
+    }
+
+    // 4) Desconto comercial (R$/mês) na mensalidade, se informado. Garante
+    //    a assinatura (seed) e grava o desconto — o billing (que usa
+    //    `terms()`) passa a cobrar o valor com o abatimento. Best-effort:
+    //    a empresa+admin já são válidos; erro aqui só é logado.
+    let discount = body.plan_discount.unwrap_or(0.0).max(0.0);
+    if discount > 0.0 {
+        let today = chrono::Utc::now().date_naive();
+        let _ = state.subscription_service.ensure_seed(company.id, today).await;
+        if let Err(e) = state
+            .subscription_service
+            .set_plan_discount(company.id, discount)
+            .await
+        {
+            tracing::error!("Falha ao aplicar desconto ({discount}) na empresa {}: {e}", company.id);
+        }
+    }
+
+    Ok((
+        StatusCode::CREATED,
+        Json(json!({ "id": company.id, "subdomain": subdomain })),
+    ))
+}
+
+async fn list_companies(
+    State(state): State<AppState>,
+    auth: AuthClaims,
+) -> Result<Json<Vec<CompanyRow>>, ServerError> {
+    require_super_admin(&auth)?;
+    let tenants = tenants(&state).await?;
+    let mut rows = Vec::with_capacity(tenants.len());
+    for c in tenants {
+        let (plan, status) = match state.subscription_service.find_current(c.id).await {
+            Ok(Some(sub)) => (sub.plan_kind.as_str().to_string(), sub.status.as_str().to_string()),
+            _ => (String::new(), "none".to_string()),
+        };
+        rows.push(CompanyRow {
+            id: c.id,
+            name: c.name,
+            subdomain: c.subdomain,
+            created_at: c.created_at.format("%d/%m/%Y").to_string(),
+            plan,
+            status,
+        });
+    }
+    Ok(Json(rows))
+}
+
+// ── Assinaturas & planos ─────────────────────────────────────────────────
+#[derive(Serialize)]
+struct SubscriptionRow {
+    company_id: Uuid,
+    company_name: String,
+    plan: String,
+    status: String,
+    next_charge: String,
+    payment_kind: String,
+}
+
+async fn list_subscriptions(
+    State(state): State<AppState>,
+    auth: AuthClaims,
+) -> Result<Json<Vec<SubscriptionRow>>, ServerError> {
+    require_super_admin(&auth)?;
+    let tenants = tenants(&state).await?;
+    let mut rows = Vec::with_capacity(tenants.len());
+    for c in tenants {
+        if let Ok(Some(sub)) = state.subscription_service.find_current(c.id).await {
+            rows.push(SubscriptionRow {
+                company_id: c.id,
+                company_name: c.name,
+                plan: sub.plan_kind.as_str().to_string(),
+                status: sub.status.as_str().to_string(),
+                next_charge: sub
+                    .next_charge_date
+                    .map(|d| d.format("%d/%m/%Y").to_string())
+                    .unwrap_or_default(),
+                payment_kind: sub.payment_method.kind.clone(),
+            });
+        }
+    }
+    Ok(Json(rows))
+}
+
+// ── Administradores (gestão dos super admins) ────────────────────────────
+#[derive(Serialize)]
+struct AdminRow {
+    id: Uuid,
+    name: String,
+    email: String,
+}
+
+async fn list_admins(
+    State(state): State<AppState>,
+    auth: AuthClaims,
+) -> Result<Json<Vec<AdminRow>>, ServerError> {
+    require_super_admin(&auth)?;
+    let users = state.auth_service.find_all(auth.0.company_id).await?;
+    let rows = users
+        .into_iter()
+        .filter(|u| u.role.is_super_admin())
+        .map(|u| AdminRow {
+            id: u.base.id,
+            name: u.name,
+            email: u.email,
+        })
+        .collect();
+    Ok(Json(rows))
+}
+
+/// `true` se o email está livre para o super admin em TODO o sistema.
+/// O login do desktop é global por email → um email de super admin não pode
+/// coincidir com o de nenhum usuário de outra empresa (senão o login fica
+/// ambíguo e falha). `exclude` = id do próprio usuário (no update, o email
+/// atual dele não conta como conflito).
+async fn email_available(state: &AppState, email: &str, exclude: Option<Uuid>) -> bool {
+    match state.auth_service.find_by_email_global(email).await {
+        Ok(None) => true,
+        Ok(Some(u)) => Some(u.base.id) == exclude,
+        // Err = email em mais de uma empresa (ou erro de banco) → indisponível.
+        Err(_) => false,
+    }
+}
+
+const EMAIL_TAKEN: &str = "Este e-mail já está em uso em outra conta do sistema.";
+
+#[derive(Deserialize)]
+struct CreateAdminRequest {
+    name: String,
+    email: String,
+    password: String,
+}
+
+async fn create_admin(
+    State(state): State<AppState>,
+    auth: AuthClaims,
+    Json(body): Json<CreateAdminRequest>,
+) -> Result<(StatusCode, Json<Value>), ServerError> {
+    require_super_admin(&auth)?;
+    if !email_available(&state, &body.email, None).await {
+        return Err(ServerError::Core(CoreError::Validation(EMAIL_TAKEN.into())));
+    }
+    let user = state
+        .auth_service
+        .create(
+            auth.0.company_id,
+            body.email,
+            body.password,
+            body.name,
+            UserRole::SuperAdmin,
+        )
+        .await?;
+    Ok((StatusCode::CREATED, Json(json!({ "id": user.base.id }))))
+}
+
+#[derive(Deserialize)]
+struct UpdateAdminRequest {
+    name: String,
+    email: String,
+    /// Nova senha; vazio/ausente mantém a atual.
+    #[serde(default)]
+    password: Option<String>,
+}
+
+async fn update_admin(
+    State(state): State<AppState>,
+    auth: AuthClaims,
+    Path(id): Path<Uuid>,
+    Json(body): Json<UpdateAdminRequest>,
+) -> Result<Json<Value>, ServerError> {
+    require_super_admin(&auth)?;
+    if !email_available(&state, &body.email, Some(id)).await {
+        return Err(ServerError::Core(CoreError::Validation(EMAIL_TAKEN.into())));
+    }
+    state
+        .auth_service
+        .update_credentials(auth.0.company_id, id, body.email, body.name, body.password)
+        .await?;
+    Ok(Json(json!({ "ok": true })))
+}
+
+async fn delete_admin(
+    State(state): State<AppState>,
+    auth: AuthClaims,
+    Path(id): Path<Uuid>,
+) -> Result<Json<Value>, ServerError> {
+    require_super_admin(&auth)?;
+    // Não pode remover a si mesmo.
+    if id == auth.0.sub {
+        return Err(ServerError::Core(CoreError::Validation(
+            "Você não pode remover o próprio usuário.".into(),
+        )));
+    }
+    // Não pode remover o último super admin (não deixar a plataforma sem acesso).
+    let admins = state.auth_service.find_all(auth.0.company_id).await?;
+    let count = admins.iter().filter(|u| u.role.is_super_admin()).count();
+    if count <= 1 {
+        return Err(ServerError::Core(CoreError::Validation(
+            "Deve existir ao menos um administrador.".into(),
+        )));
+    }
+    state.auth_service.soft_delete(auth.0.company_id, id).await?;
+    Ok(Json(json!({ "ok": true })))
+}
+
+// ── Catálogo de planos (CRUD do super admin) ─────────────────────────────
+/// Payload de plano (reusado pela vitrine das lojas em subscriptions.rs).
+#[derive(Serialize)]
+pub(crate) struct PlanPayload {
+    pub id: Uuid,
+    pub name: String,
+    pub amount: f64,
+    pub period_months: i32,
+    pub trial_days: i32,
+    pub description: String,
+    pub highlight_label: String,
+    pub active: bool,
+    pub sort_order: i32,
+    /// Mensalidade efetiva (R$/mês) — conveniência para a UI.
+    pub monthly_price: f64,
+}
+
+pub(crate) fn plan_payload(p: Plan) -> PlanPayload {
+    let monthly_price = p.monthly_price();
+    PlanPayload {
+        id: p.id,
+        name: p.name,
+        amount: p.amount,
+        period_months: p.period_months,
+        trial_days: p.trial_days,
+        description: p.description,
+        highlight_label: p.highlight_label,
+        active: p.active,
+        sort_order: p.sort_order,
+        monthly_price,
+    }
+}
+
+async fn list_plans(
+    State(state): State<AppState>,
+    auth: AuthClaims,
+) -> Result<Json<Vec<PlanPayload>>, ServerError> {
+    require_super_admin(&auth)?;
+    let plans = state.plan_service.find_all().await?;
+    Ok(Json(plans.into_iter().map(plan_payload).collect()))
+}
+
+fn default_true() -> bool {
+    true
+}
+
+#[derive(Deserialize)]
+struct PlanBody {
+    name: String,
+    amount: f64,
+    period_months: i32,
+    #[serde(default)]
+    trial_days: i32,
+    #[serde(default)]
+    description: String,
+    #[serde(default)]
+    highlight_label: String,
+    #[serde(default = "default_true")]
+    active: bool,
+    #[serde(default)]
+    sort_order: i32,
+}
+
+impl PlanBody {
+    fn into_input(self) -> PlanInput {
+        PlanInput {
+            name: self.name,
+            amount: self.amount,
+            period_months: self.period_months,
+            trial_days: self.trial_days,
+            description: self.description,
+            highlight_label: self.highlight_label,
+            active: self.active,
+            sort_order: self.sort_order,
+        }
+    }
+}
+
+async fn create_plan(
+    State(state): State<AppState>,
+    auth: AuthClaims,
+    Json(body): Json<PlanBody>,
+) -> Result<(StatusCode, Json<Value>), ServerError> {
+    require_super_admin(&auth)?;
+    let plan = state.plan_service.create(body.into_input()).await?;
+    Ok((StatusCode::CREATED, Json(json!({ "id": plan.id }))))
+}
+
+async fn update_plan(
+    State(state): State<AppState>,
+    auth: AuthClaims,
+    Path(id): Path<Uuid>,
+    Json(body): Json<PlanBody>,
+) -> Result<Json<Value>, ServerError> {
+    require_super_admin(&auth)?;
+    state.plan_service.update(id, body.into_input()).await?;
+    Ok(Json(json!({ "ok": true })))
+}
+
+async fn delete_plan(
+    State(state): State<AppState>,
+    auth: AuthClaims,
+    Path(id): Path<Uuid>,
+) -> Result<Json<Value>, ServerError> {
+    require_super_admin(&auth)?;
+    state.plan_service.soft_delete(id).await?;
+    Ok(Json(json!({ "ok": true })))
+}
+
+// ── Bootstrap (chamado no startup do servidor) ───────────────────────────
+/// Garante que a empresa-plataforma e um super admin default existam.
+/// Idempotente: roda a cada boot sem duplicar.
+pub async fn ensure_platform_admin(state: &AppState) {
+    let company = match state.company_service.find_by_subdomain(PLATFORM_SUBDOMAIN).await {
+        Ok(Some(c)) => c,
+        Ok(None) => match state
+            .company_service
+            .create(PLATFORM_COMPANY_NAME.into(), PLATFORM_SUBDOMAIN.into())
+            .await
+        {
+            Ok(c) => {
+                tracing::info!("Empresa-plataforma criada ({})", c.id);
+                c
+            }
+            Err(e) => {
+                tracing::error!("Falha ao criar empresa-plataforma: {e}");
+                return;
+            }
+        },
+        Err(e) => {
+            tracing::error!("Falha ao consultar empresa-plataforma: {e}");
+            return;
+        }
+    };
+
+    match state.auth_service.find_all(company.id).await {
+        Ok(users) if users.iter().any(|u| u.role.is_super_admin()) => {}
+        Ok(_) => {
+            // §11: a senha inicial NUNCA é hardcoded no fonte. Vem de
+            // `PLATFORM_ADMIN_PASSWORD` (env). Sem ela, NÃO criamos o super
+            // admin (fail-closed) — melhor um painel inacessível até o
+            // operador definir a senha do que uma conta com senha pública.
+            let email = std::env::var("PLATFORM_ADMIN_EMAIL")
+                .unwrap_or_else(|_| DEFAULT_ADMIN_EMAIL.to_string());
+            match std::env::var("PLATFORM_ADMIN_PASSWORD") {
+                Ok(password) if !password.trim().is_empty() => {
+                    match state
+                        .auth_service
+                        .create(
+                            company.id,
+                            email.clone(),
+                            password,
+                            DEFAULT_ADMIN_NAME.into(),
+                            UserRole::SuperAdmin,
+                        )
+                        .await
+                    {
+                        Ok(_) => tracing::info!(
+                            "Super admin de plataforma criado (email={email}) a partir de PLATFORM_ADMIN_PASSWORD"
+                        ),
+                        Err(e) => tracing::error!("Falha ao criar super admin de plataforma: {e}"),
+                    }
+                }
+                _ => tracing::warn!(
+                    "Nenhum super admin de plataforma existe e PLATFORM_ADMIN_PASSWORD não está definida — \
+                     painel /admin ficará inacessível. Defina PLATFORM_ADMIN_PASSWORD (e opcionalmente \
+                     PLATFORM_ADMIN_EMAIL) no ambiente e reinicie para criar o super admin inicial."
+                ),
+            }
+        }
+        Err(e) => tracing::error!("Falha ao consultar super admins: {e}"),
+    }
+}

@@ -1,0 +1,264 @@
+import { Theme } from "../theme.slint";
+import { AssetIcon } from "../components/icons.slint";
+import { Card } from "../components/cards.slint";
+import { FormField } from "../components/form_fields.slint";
+import { ActionBtn, OutlineBtn } from "../components/buttons.slint";
+
+// ── Modal: cadastrar cartão de crédito recorrente ────────────────
+//
+// Regras aplicadas (AI_RULES.md §1, §3, §11, §14):
+// - UI só lê/escreve propriedades e dispara `submit`/`close`.
+// - Máscaras vêm de callbacks implementados no Rust (`fmt-*`) — a UI
+//   não contém lógica; só roteia o texto digitado para formatação.
+// - O cartão é enviado ao SERVER, que tokeniza na Efi. O desktop nunca
+//   guarda PAN/CVV — os campos são limpos ao fechar (handler Rust).
+// - Erros por campo (`error-*`) são preenchidos pelo Rust na validação.
+
+export component CardModal inherits Rectangle {
+    in-out property <string> number;
+    in-out property <string> holder;
+    in-out property <string> expiry;     // "MM/AA"
+    in-out property <string> cvv;
+    in-out property <string> cpf;
+    in-out property <string> email;
+    in-out property <string> phone;
+    in-out property <string> birth;      // "DD/MM/AAAA"
+    in-out property <string> error;      // erro global (backend/rede)
+    in property <bool> loading: false;
+
+    // Erros por campo (validação no Rust).
+    in-out property <string> error-number;
+    in-out property <string> error-holder;
+    in-out property <string> error-expiry;
+    in-out property <string> error-cvv;
+    in-out property <string> error-cpf;
+    in-out property <string> error-birth;
+    in-out property <string> error-email;
+    in-out property <string> error-phone;
+
+    // Máscaras (implementadas no Rust).
+    callback fmt-card-number(string) -> string;
+    callback fmt-card-expiry(string) -> string;
+    callback fmt-cvv(string) -> string;
+    callback fmt-cpf-cnpj(string) -> string;
+    callback fmt-birth(string) -> string;
+    callback fmt-phone(string) -> string;
+
+    callback close();
+    callback submit();
+
+    background: #00000060;
+
+    TouchArea {
+        clicked => { root.close(); }
+    }
+
+    VerticalLayout {
+        alignment: center;
+        HorizontalLayout {
+            alignment: center;
+            Card {
+                width: 560px;
+                TouchArea { }
+                VerticalLayout {
+                    padding: 24px;
+                    spacing: 10px;
+
+                    // Header
+                    HorizontalLayout {
+                        Text {
+                            horizontal-stretch: 1;
+                            text: "Cadastrar Cartão";
+                            font-size: 18px; font-weight: 700;
+                            color: Theme.text-primary;
+                            vertical-alignment: center;
+                        }
+                        TouchArea {
+                            width: 28px; height: 28px;
+                            clicked => { root.close(); }
+                            property <bool> hov: self.has-hover;
+                            Rectangle {
+                                border-radius: 6px;
+                                background: parent.hov ? #f0f0f0 : transparent;
+                                AssetIcon { width: 16px; height: 16px; icon-size: 16px; icon-color: Theme.text-secondary; source: @image-url("../assets/icons/1.2/fechar.svg"); }
+                            }
+                        }
+                    }
+
+                    Rectangle { height: 1px; background: Theme.border; }
+
+                    Text {
+                        text: "Os dados do cartão são enviados com segurança ao servidor e tokenizados na Efi. Nada sensível é armazenado neste computador.";
+                        font-size: 11px;
+                        color: Theme.text-secondary;
+                        wrap: word-wrap;
+                    }
+
+                    // Número do cartão
+                    VerticalLayout {
+                        spacing: 2px;
+                        FormField {
+                            label: "Número do cartão";
+                            value <=> root.number;
+                            placeholder: "0000 0000 0000 0000";
+                            force-end-cursor: true;
+                            edited(t) => { root.number = root.fmt-card-number(t); root.error-number = ""; }
+                        }
+                        if root.error-number != "": Text {
+                            text: root.error-number; font-size: 10px; color: #E53935; wrap: word-wrap;
+                        }
+                    }
+
+                    // Nome impresso
+                    VerticalLayout {
+                        spacing: 2px;
+                        FormField {
+                            label: "Nome impresso no cartão";
+                            value <=> root.holder;
+                            placeholder: "Como está no cartão";
+                            edited(t) => { root.error-holder = ""; }
+                        }
+                        if root.error-holder != "": Text {
+                            text: root.error-holder; font-size: 10px; color: #E53935; wrap: word-wrap;
+                        }
+                    }
+
+                    // Validade + CVV
+                    HorizontalLayout {
+                        spacing: 14px;
+                        VerticalLayout {
+                            horizontal-stretch: 1;
+                            spacing: 2px;
+                            FormField {
+                                label: "Validade (MM/AA)";
+                                value <=> root.expiry;
+                                placeholder: "08/28";
+                                force-end-cursor: true;
+                                edited(t) => { root.expiry = root.fmt-card-expiry(t); root.error-expiry = ""; }
+                            }
+                            if root.error-expiry != "": Text {
+                                text: root.error-expiry; font-size: 10px; color: #E53935; wrap: word-wrap;
+                            }
+                        }
+                        VerticalLayout {
+                            horizontal-stretch: 1;
+                            spacing: 2px;
+                            FormField {
+                                label: "CVV";
+                                value <=> root.cvv;
+                                placeholder: "123";
+                                force-end-cursor: true;
+                                edited(t) => { root.cvv = root.fmt-cvv(t); root.error-cvv = ""; }
+                            }
+                            if root.error-cvv != "": Text {
+                                text: root.error-cvv; font-size: 10px; color: #E53935; wrap: word-wrap;
+                            }
+                        }
+                    }
+
+                    Rectangle { height: 1px; background: Theme.border; }
+
+                    Text {
+                        text: "Titular (exigido pelo antifraude)";
+                        font-size: 12px; font-weight: 600;
+                        color: Theme.text-secondary;
+                    }
+
+                    // CPF/CNPJ + Nascimento
+                    HorizontalLayout {
+                        spacing: 14px;
+                        VerticalLayout {
+                            horizontal-stretch: 1;
+                            spacing: 2px;
+                            FormField {
+                                label: "CPF/CNPJ";
+                                value <=> root.cpf;
+                                placeholder: "000.000.000-00";
+                                force-end-cursor: true;
+                                edited(t) => { root.cpf = root.fmt-cpf-cnpj(t); root.error-cpf = ""; }
+                            }
+                            if root.error-cpf != "": Text {
+                                text: root.error-cpf; font-size: 10px; color: #E53935; wrap: word-wrap;
+                            }
+                        }
+                        VerticalLayout {
+                            horizontal-stretch: 1;
+                            spacing: 2px;
+                            FormField {
+                                label: "Nascimento (DD/MM/AAAA)";
+                                value <=> root.birth;
+                                placeholder: "20/05/1990";
+                                force-end-cursor: true;
+                                edited(t) => { root.birth = root.fmt-birth(t); root.error-birth = ""; }
+                            }
+                            if root.error-birth != "": Text {
+                                text: root.error-birth; font-size: 10px; color: #E53935; wrap: word-wrap;
+                            }
+                        }
+                    }
+
+                    // E-mail + Telefone
+                    HorizontalLayout {
+                        spacing: 14px;
+                        VerticalLayout {
+                            horizontal-stretch: 2;
+                            spacing: 2px;
+                            FormField {
+                                label: "E-mail";
+                                value <=> root.email;
+                                placeholder: "voce@empresa.com";
+                                edited(t) => { root.error-email = ""; }
+                            }
+                            if root.error-email != "": Text {
+                                text: root.error-email; font-size: 10px; color: #E53935; wrap: word-wrap;
+                            }
+                        }
+                        VerticalLayout {
+                            horizontal-stretch: 1;
+                            spacing: 2px;
+                            FormField {
+                                label: "Telefone";
+                                value <=> root.phone;
+                                placeholder: "(11) 99999-8888";
+                                force-end-cursor: true;
+                                edited(t) => { root.phone = root.fmt-phone(t); root.error-phone = ""; }
+                            }
+                            if root.error-phone != "": Text {
+                                text: root.error-phone; font-size: 10px; color: #E53935; wrap: word-wrap;
+                            }
+                        }
+                    }
+
+                    if root.error != "": Text {
+                        text: root.error;
+                        font-size: 11px;
+                        color: #E53935;
+                        wrap: word-wrap;
+                    }
+
+                    Rectangle { height: 4px; }
+
+                    HorizontalLayout {
+                        spacing: 10px;
+                        Rectangle { horizontal-stretch: 1; background: transparent; }
+                        OutlineBtn {
+                            label: "Cancelar";
+                            width: 110px;
+                            clicked => { root.close(); }
+                        }
+                        ActionBtn {
+                            label: root.loading ? "Processando…" : "Cadastrar";
+                            bg-color: Theme.sidebar-sel-bg;
+                            width: 180px;
+                            clicked => {
+                                if !root.loading {
+                                    root.submit();
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

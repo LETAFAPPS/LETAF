@@ -1,0 +1,481 @@
+import { ScrollView } from "std-widgets.slint";
+import { Theme } from "../theme.slint";
+import { SearchIcon, EditIcon, AssetIcon } from "../components/icons.slint";
+import { EmptyState } from "../components/empty_state.slint";
+import { InventoryHealthData, InventoryProductRow } from "../types.slint";
+
+// ── Tela: Controle de Estoque ─────────────────────────────────────
+// Cabeçalho claro (título + resumo + busca + Sincronizar); 3 cartões
+// de métrica (Sem Estoque / Estoque Baixo / Aguardando Sync); abas de
+// filtro; lista AGRUPADA por situação (Sem Estoque → Estoque Baixo →
+// Saudável) com barra de progresso por linha.
+//
+// AI_RULES §1/§14: a UI só renderiza — agrupamento, rótulos, cor da
+// situação e proporção da barra vêm prontos do Rust (view.rs).
+
+// ── Cartão de métrica do topo ──────────────────────────────────────
+component KpiCard inherits Rectangle {
+    in property <string> label;
+    in property <int> value;
+    in property <string> hint;
+    in property <image> icon-source;
+    in property <color> tint;
+    in property <color> accent;
+
+    horizontal-stretch: 1;
+    height: 96px;
+    border-radius: 12px;
+    border-width: 1px;
+    border-color: Theme.card-border;
+    drop-shadow-blur: 12px;
+    drop-shadow-offset-y: 0px;
+    drop-shadow-color: Theme.card-shadow;
+    background: Theme.surface;
+    HorizontalLayout {
+        padding: 18px;
+        spacing: 14px;
+        // Ícone em caixa tintada.
+        VerticalLayout {
+            alignment: center;
+            Rectangle {
+                width: 48px; height: 48px;
+                border-radius: 12px;
+                background: Theme.icon-box-bg;
+                AssetIcon {
+                    width: 100%; height: 100%; icon-size: 24px;
+                    icon-color: Theme.icon-box-fg;
+                    source: root.icon-source;
+                }
+            }
+        }
+        // Rótulo + valor.
+        VerticalLayout {
+            horizontal-stretch: 1;
+            alignment: center;
+            spacing: 2px;
+            Text {
+                text: root.label;
+                font-size: 10px; font-weight: 700;
+                letter-spacing: 1px; color: Theme.text-secondary;
+                overflow: elide;
+            }
+            Text {
+                text: root.value;
+                font-size: 30px; font-weight: 800;
+                color: root.accent;
+            }
+        }
+        // Dica encostada à direita.
+        VerticalLayout {
+            alignment: center;
+            Text {
+                text: root.hint;
+                font-size: 11px; color: Theme.text-secondary;
+                horizontal-alignment: right;
+                wrap: word-wrap;
+            }
+        }
+    }
+}
+
+// ── Aba de filtro (Todos / Saudável / Estoque Baixo / Sem Estoque) ──
+component FilterChip inherits TouchArea {
+    in property <string> label;
+    in property <bool> active: false;
+    height: 32px;
+    Rectangle {
+        border-radius: 8px;
+        // Selecionado = só CONTORNO na cor de destaque (estilo Relatórios).
+        border-width: root.active ? 1.5px : 1px;
+        border-color: root.active ? Theme.sidebar-sel-bg : Theme.border;
+        background: root.active ? transparent
+            : (root.has-hover ? Theme.row-hover : Theme.surface);
+        HorizontalLayout {
+            padding-left: 16px; padding-right: 16px;
+            Text {
+                text: root.label;
+                font-size: 13px; font-weight: root.active ? 700 : 600;
+                color: root.active ? Theme.sidebar-sel-bg : Theme.text-secondary;
+                vertical-alignment: center;
+            }
+        }
+    }
+}
+
+// ── Linha de produto (lista agrupada) ─────────────────────────────
+component InventoryRow inherits Rectangle {
+    in property <InventoryProductRow> data;
+    callback edit();
+    callback add();
+
+    property <color> st-color: root.data.status == "out" ? #C62828
+        : (root.data.status == "low" ? #F57F17
+        : (root.data.status == "ok" ? #2E7D32 : #9E9E9E));
+
+    height: 72px;
+    border-radius: 12px;
+    border-width: 1px;
+    border-color: Theme.card-border;
+    drop-shadow-blur: 12px;
+    drop-shadow-offset-y: 0px;
+    drop-shadow-color: Theme.card-shadow;
+    background: ta.has-hover ? Theme.row-hover : Theme.surface;
+    ta := TouchArea { }
+
+    HorizontalLayout {
+        padding-left: 14px; padding-right: 14px;
+        spacing: 14px;
+
+        // Avatar (imagem ou iniciais), tintado pela situação.
+        VerticalLayout {
+            alignment: center;
+            Rectangle {
+                width: 44px; height: 44px;
+                border-radius: 10px;
+                clip: true;
+                background: root.data.has-image ? transparent
+                    : (root.data.status == "out" ? #FBE3E0 : #EDE7DE);
+                if root.data.has-image: Image {
+                    width: parent.width; height: parent.height;
+                    source: root.data.product-image;
+                    image-fit: cover;
+                }
+                if !root.data.has-image: Text {
+                    width: parent.width; height: parent.height;
+                    text: root.data.initials;
+                    font-size: 14px; font-weight: 700;
+                    color: root.data.status == "out" ? #C0392B : #8D8275;
+                    horizontal-alignment: center; vertical-alignment: center;
+                }
+            }
+        }
+
+        // Nome + categoria.
+        VerticalLayout {
+            horizontal-stretch: 1;
+            alignment: center;
+            spacing: 2px;
+            Text {
+                text: root.data.name;
+                font-size: 14px; font-weight: 700;
+                color: Theme.text-primary; overflow: elide;
+            }
+            Text {
+                text: root.data.category-label;
+                font-size: 11px; color: Theme.text-secondary;
+                overflow: elide;
+            }
+        }
+
+        // Barra de progresso + rótulo do mínimo.
+        VerticalLayout {
+            width: 280px;
+            alignment: center;
+            spacing: 6px;
+            Rectangle {
+                height: 6px;
+                border-radius: 3px;
+                background: #EDE6DB;
+                Rectangle {
+                    x: 0; y: 0;
+                    width: parent.width * root.data.fill-ratio;
+                    height: parent.height;
+                    border-radius: 3px;
+                    background: root.st-color;
+                }
+            }
+            Text {
+                text: root.data.min-display;
+                font-size: 11px; color: Theme.text-secondary;
+            }
+        }
+
+        // Quantidade + situação (à direita).
+        VerticalLayout {
+            width: 96px;
+            alignment: center;
+            spacing: 2px;
+            Text {
+                text: root.data.qty-display;
+                font-size: 16px; font-weight: 800;
+                horizontal-alignment: right;
+                color: root.st-color;
+            }
+            Text {
+                text: root.data.status-label;
+                font-size: 11px; font-weight: 600;
+                horizontal-alignment: right;
+                color: root.st-color;
+            }
+        }
+
+        // Editar (lápis, contorno).
+        VerticalLayout {
+            alignment: center;
+            edit-ta := TouchArea {
+                width: 32px; height: 32px;
+                clicked => { root.edit(); }
+                Rectangle {
+                    border-radius: 8px;
+                    border-width: 1px;
+                    border-color: edit-ta.has-hover ? Theme.primary : Theme.border;
+                    background: edit-ta.has-hover ? #00000008 : transparent;
+                    EditIcon {
+                        icon-size: 15px;
+                        icon-color: edit-ta.has-hover ? Theme.primary : Theme.text-primary;
+                        icon-stroke: 1.6px;
+                    }
+                }
+            }
+        }
+
+        // Repor — botão quadrado só com o ícone "+", estilo outline (Relatórios).
+        VerticalLayout {
+            alignment: center;
+            repor-ta := TouchArea {
+                width: 32px; height: 32px;
+                clicked => { root.add(); }
+                Rectangle {
+                    border-radius: 8px;
+                    border-width: 1px;
+                    border-color: Theme.sidebar-sel-bg;
+                    background: repor-ta.has-hover ? Theme.row-hover : transparent;
+                    AssetIcon {
+                        width: parent.width; height: parent.height;
+                        icon-size: 16px;
+                        icon-color: Theme.sidebar-sel-bg;
+                        source: @image-url("../assets/icons/1.2/adicionar.svg");
+                    }
+                }
+            }
+        }
+    }
+}
+
+export component InventoryPage inherits VerticalLayout {
+    in property <InventoryHealthData> health;
+    in property <[InventoryProductRow]> products;
+    in-out property <string> search: "";
+    in-out property <string> filter: "all";
+    // Sincronização em andamento — gira o ícone do botão "Sincronizar".
+    in-out property <bool> syncing: false;
+    // Ângulo do giro do ícone (avançado por um Timer enquanto `syncing`).
+    property <angle> sync-angle: 0deg;
+
+    callback search-changed(string);
+    callback filter-changed(string);
+    callback refresh();
+    // Dispara a sincronização real (SyncWorker) — gira até concluir.
+    callback sync();
+    callback request-add-stock(string);
+    callback request-edit-stock(string);
+
+    padding: 16px;
+    spacing: 14px;
+
+    // ── Cabeçalho: título + resumo · busca · Sincronizar ───────────
+    HorizontalLayout {
+        spacing: 14px;
+        VerticalLayout {
+            horizontal-stretch: 1;
+            alignment: center;
+            spacing: 2px;
+            Text {
+                text: "Estoque";
+                font-size: 24px; font-weight: 800; color: Theme.text-primary;
+            }
+            Text {
+                text: "\{root.health.total-count} produtos · \{root.health.out-count + root.health.low-count} precisam de atenção";
+                font-size: 12px; color: Theme.text-secondary;
+            }
+        }
+        // Sincronizar (mesma altura da barra de busca).
+        VerticalLayout {
+            alignment: center;
+            sync-ta := TouchArea {
+                width: 124px; height: 32px;
+                enabled: !root.syncing;
+                clicked => { root.sync(); }
+                // Enquanto sincroniza, gira o ícone (~6°/quadro a 60fps).
+                Timer {
+                    interval: 16ms;
+                    running: root.syncing;
+                    triggered => { root.sync-angle += 6deg; }
+                }
+                Rectangle {
+                    border-radius: 8px;
+                    // Estilo outline (Relatórios): contorno + conteúdo na cor de destaque.
+                    border-width: 1px;
+                    border-color: Theme.sidebar-sel-bg;
+                    background: sync-ta.has-hover ? Theme.row-hover : transparent;
+                    HorizontalLayout {
+                        alignment: center;
+                        spacing: 8px;
+                        VerticalLayout {
+                            alignment: center;
+                            // Image direto: `rotation-angle` é do elemento Image.
+                            Image {
+                                width: 15px; height: 15px;
+                                source: @image-url("../assets/icons/1.2/atualizar.svg");
+                                colorize: Theme.sidebar-sel-bg;
+                                image-fit: contain;
+                                transform-rotation: root.sync-angle;
+                            }
+                        }
+                        Text {
+                            text: root.syncing ? "Sincronizando…" : "Sincronizar";
+                            font-size: 12px; font-weight: 700; color: Theme.sidebar-sel-bg;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // ── 3 cartões de métrica ───────────────────────────────────────
+    HorizontalLayout {
+        spacing: 14px;
+        KpiCard {
+            label: "SEM ESTOQUE";
+            value: root.health.out-count;
+            hint: "Precisam de\nreposição";
+            tint: #FBE3E0;
+            accent: #C62828;
+            icon-source: @image-url("../assets/icons/1.2/nao-conformidade.svg");
+        }
+        KpiCard {
+            label: "ESTOQUE BAIXO";
+            value: root.health.low-count;
+            hint: "Abaixo do\nmínimo";
+            tint: #FDEFD9;
+            accent: #F57F17;
+            icon-source: @image-url("../assets/icons/1.2/saida-estoque.svg");
+        }
+        KpiCard {
+            label: "AGUARDANDO SYNC";
+            value: root.health.sync-pending-count;
+            hint: "Produtos\npendentes";
+            tint: #E3F2FD;
+            accent: #1E88E5;
+            icon-source: @image-url("../assets/icons/1.2/atualizar.svg");
+        }
+    }
+
+    // ── Busca (lupa + auto-focus) — acima das abas, largura cheia ──
+    Rectangle {
+        height: 32px;
+        border-radius: 8px;
+        border-width: 1px;
+        border-color: search-input.has-focus ? Theme.primary : Theme.card-border;
+        background: Theme.surface;
+        drop-shadow-blur: 6px;
+        drop-shadow-offset-y: 0px;
+        drop-shadow-color: Theme.card-shadow;
+        focus-timer := Timer {
+            interval: 80ms; running: true;
+            triggered => { search-input.focus(); self.running = false; }
+        }
+        HorizontalLayout {
+            padding-left: 14px; padding-right: 14px; spacing: 10px;
+            VerticalLayout {
+                alignment: center; width: 16px;
+                SearchIcon {
+                    icon-size: 14px;
+                    icon-color: search-input.has-focus ? Theme.primary : Theme.text-secondary;
+                    icon-stroke: 1.6px;
+                }
+            }
+            Rectangle {
+                horizontal-stretch: 1;
+                search-input := TextInput {
+                    x: 0; y: 0; width: parent.width; height: parent.height;
+                    text <=> root.search;
+                    font-size: 13px; color: Theme.text-primary;
+                    vertical-alignment: center;
+                    single-line: true;
+                    edited => { root.search-changed(self.text); }
+                }
+                if root.search == "": Text {
+                    x: 0; y: 0; width: parent.width; height: parent.height;
+                    text: "Buscar produto..."; font-size: 13px;
+                    color: #BDBDBD; vertical-alignment: center;
+                }
+            }
+        }
+    }
+
+    // ── Abas de filtro ─────────────────────────────────────────────
+    HorizontalLayout {
+        spacing: 8px;
+        alignment: start;
+        FilterChip {
+            label: "Todos"; active: root.filter == "all";
+            clicked => { root.filter = "all"; root.filter-changed("all"); }
+        }
+        FilterChip {
+            label: "Saudável"; active: root.filter == "ok";
+            clicked => { root.filter = "ok"; root.filter-changed("ok"); }
+        }
+        FilterChip {
+            label: "Estoque Baixo"; active: root.filter == "low";
+            clicked => { root.filter = "low"; root.filter-changed("low"); }
+        }
+        FilterChip {
+            label: "Sem Estoque"; active: root.filter == "out";
+            clicked => { root.filter = "out"; root.filter-changed("out"); }
+        }
+    }
+
+    // ── Lista agrupada ─────────────────────────────────────────────
+    ScrollView { vertical-scrollbar-policy: ScrollBarPolicy.always-off; horizontal-scrollbar-policy: ScrollBarPolicy.always-off;
+        vertical-stretch: 1;
+        VerticalLayout {
+            alignment: start;
+            spacing: 8px;
+            // Folga lateral/inferior para o ScrollView não recortar a
+            // sombra dos cards (drop-shadow-blur 12px).
+            padding-left: 12px; padding-right: 12px; padding-bottom: 12px;
+            for p in root.products: VerticalLayout {
+                spacing: 8px;
+                // Cabeçalho do grupo (na 1ª linha do grupo).
+                if p.group-first: HorizontalLayout {
+                    spacing: 8px;
+                    padding-top: 6px;
+                    padding-left: 2px;
+                    VerticalLayout {
+                        alignment: center;
+                        Rectangle {
+                            width: 8px; height: 8px; border-radius: 4px;
+                            background: p.group-color;
+                        }
+                    }
+                    Text {
+                        text: p.group-label;
+                        font-size: 11px; font-weight: 700; letter-spacing: 1px;
+                        color: p.group-color;
+                        vertical-alignment: center;
+                    }
+                    Text {
+                        text: " · \{p.group-count}";
+                        font-size: 11px; font-weight: 700;
+                        color: Theme.text-secondary;
+                        vertical-alignment: center;
+                    }
+                    // Empurra o espaço extra pra direita: status + contador
+                    // ficam juntos à esquerda (não no meio da lista).
+                    Rectangle { horizontal-stretch: 1; }
+                }
+                InventoryRow {
+                    data: p;
+                    edit => { root.request-edit-stock(p.id); }
+                    add => { root.request-add-stock(p.id); }
+                }
+            }
+            if root.products.length == 0: EmptyState {
+                source: @image-url("../assets/empty/empty-products.svg");
+                title: "Nenhum produto";
+            }
+        }
+    }
+}

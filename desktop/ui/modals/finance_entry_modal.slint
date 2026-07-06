@@ -1,0 +1,493 @@
+import { Theme } from "../theme.slint";
+import { AssetIcon } from "../components/icons.slint";
+import { Card } from "../components/cards.slint";
+import { ActionBtn, OutlineBtn } from "../components/buttons.slint";
+
+// ── Modal: Nova/Editar conta a pagar/receber ─────────────────────
+//
+// Inspirado no mockup Phosphor. Todos os textos do estado vivem em
+// propriedades do `MainWindow` (passadas como aliases) — Rust valida
+// e persiste; UI apenas exibe (AI_RULES §1/§14).
+//
+// Estrutura: header + body em 4 linhas + footer.
+
+// Campo de texto com label e mensagem de erro opcional.
+component LabeledTextField inherits VerticalLayout {
+    in property <string> label;
+    in property <string> placeholder;
+    in-out property <string> value;
+    in property <string> error;
+    callback edited(string);
+    spacing: 6px;
+    Text {
+        text: root.label;
+        font-size: 11px; font-weight: 700;
+        color: Theme.text-secondary;
+        letter-spacing: 0.5px;
+    }
+    Rectangle {
+        height: 40px;
+        border-radius: 8px;
+        border-width: 1px;
+        border-color: root.error != ""
+            ? #E53935
+            : (input.has-focus ? Theme.primary : Theme.border);
+        background: Theme.surface;
+        input := TextInput {
+            x: 12px; y: 0;
+            width: parent.width - 24px;
+            height: parent.height;
+            text <=> root.value;
+            font-size: 13px;
+            color: Theme.text-primary;
+            vertical-alignment: center;
+            single-line: true;
+            edited => { root.edited(self.text); }
+        }
+        if input.text == "" && !input.has-focus: Text {
+            x: 12px; y: 0;
+            height: parent.height;
+            text: root.placeholder;
+            font-size: 13px;
+            color: Theme.text-secondary;
+            vertical-alignment: center;
+        }
+    }
+    if root.error != "": Text {
+        text: root.error;
+        font-size: 10px;
+        color: #E53935;
+    }
+}
+
+// Chip de recorrência (Único / Mensal / Semanal / Personalizar).
+component ChipBtn inherits TouchArea {
+    in property <string> label;
+    in property <bool> selected;
+    callback selected-changed();
+    height: 32px;
+    HorizontalLayout {
+        spacing: 0;
+        Rectangle {
+            border-radius: 8px;
+            border-width: 1px;
+            border-color: root.selected ? Theme.text-primary : Theme.border;
+            background: root.selected
+                ? Theme.text-primary
+                : (root.has-hover ? Theme.row-hover : Theme.surface);
+            Text {
+                width: parent.width; height: parent.height;
+                text: root.label;
+                font-size: 13px; font-weight: 700;
+                color: root.selected ? white : Theme.text-primary;
+                horizontal-alignment: center; vertical-alignment: center;
+            }
+        }
+    }
+    clicked => { root.selected-changed(); }
+}
+
+export component FinanceEntryModal inherits Rectangle {
+    // ── Inputs (vêm como aliases bind das props do MainWindow) ──
+    in property <string> kind;              // "payable" | "receivable"
+    in property <bool>   editing;            // true quando id != ""
+    in-out property <string> description;
+    /// Nome do cliente/fornecedor selecionado (readonly do ponto de
+    /// vista do modal — preenchido pelo picker). Vazio = não escolhido.
+    in property <string> party;
+    in-out property <string> amount;
+    /// Vencimento exibido em pt-BR ("dd/mm/aaaa"). O calendário é
+    /// aberto via `toggle-due-cal` e a data escolhida volta pelo Rust.
+    in property <string> due-date;
+    in-out property <int>    installments;
+    in-out property <string> recurrence;
+    in-out property <string> notes;
+    in property <string> error-description;
+    in property <string> error-amount;
+    in property <string> error-due-date;
+    in property <string> error-general;
+
+    callback close();
+    callback save();
+    callback set-recurrence(string);
+    callback set-installments(int);
+    callback open-party-picker();
+    callback clear-party();
+    callback toggle-due-cal();
+
+    background: #00000080;
+    TouchArea { clicked => { root.close(); } }
+
+    VerticalLayout {
+        alignment: center;
+        HorizontalLayout {
+            alignment: center;
+            Card {
+                width: 560px;
+                // Intercepta cliques dentro do card pra não fechar.
+                TouchArea { }
+
+                VerticalLayout {
+                    padding: 0px; spacing: 0px;
+
+                    // ── Header ───────────────────────────────
+                    Rectangle {
+                        background: Theme.surface;
+                        VerticalLayout {
+                            padding-left: 22px; padding-right: 18px;
+                            padding-top: 18px; padding-bottom: 14px;
+                            spacing: 4px;
+                            HorizontalLayout {
+                                spacing: 8px;
+                                VerticalLayout {
+                                    horizontal-stretch: 1; spacing: 2px;
+                                    Text {
+                                        text: root.editing
+                                            ? (root.kind == "receivable" ? "Editar conta a receber" : "Editar conta a pagar")
+                                            : (root.kind == "receivable" ? "Nova conta a receber" : "Nova conta a pagar");
+                                        font-size: 16px; font-weight: 700;
+                                        color: Theme.text-primary;
+                                    }
+                                    Text {
+                                        text: "Lançamento financeiro avulso · não vinculado a um pedido";
+                                        font-size: 11px; color: Theme.text-secondary;
+                                    }
+                                }
+                                close-ta := TouchArea {
+                                    width: 28px; height: 28px;
+                                    clicked => { root.close(); }
+                                    Rectangle {
+                                        border-radius: 4px;
+                                        background: close-ta.has-hover ? Theme.row-hover : transparent;
+                                        AssetIcon { width: parent.width; height: parent.height; icon-size: 14px; icon-color: Theme.text-secondary; source: @image-url("../assets/icons/1.2/fechar.svg"); }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // ── Body ─────────────────────────────────
+                    Rectangle {
+                        background: Theme.bg;
+                        VerticalLayout {
+                            padding: 18px;
+                            spacing: 14px;
+
+                            // Descrição
+                            LabeledTextField {
+                                label: "DESCRIÇÃO";
+                                placeholder: root.kind == "receivable"
+                                    ? "Ex: Serviço de catering · evento corporativo"
+                                    : "Ex: Compra de embalagens";
+                                value <=> root.description;
+                                error: root.error-description;
+                            }
+
+                            // Cliente/Fornecedor — botão que abre o
+                            // PdvCustomerPickerModal global (busca com
+                            // teclado). Mostra o nome escolhido; "✕"
+                            // limpa a seleção.
+                            VerticalLayout {
+                                spacing: 6px;
+                                Text {
+                                    text: root.kind == "receivable" ? "CLIENTE" : "FORNECEDOR";
+                                    font-size: 11px; font-weight: 700;
+                                    color: Theme.text-secondary;
+                                    letter-spacing: 0.5px;
+                                }
+                                HorizontalLayout {
+                                    spacing: 8px;
+                                    party-ta := TouchArea {
+                                        horizontal-stretch: 1;
+                                        height: 40px;
+                                        clicked => { root.open-party-picker(); }
+                                        Rectangle {
+                                            border-radius: 8px;
+                                            border-width: 1px;
+                                            border-color: Theme.card-border;
+                                            drop-shadow-blur: 12px;
+                                            drop-shadow-offset-y: 0px;
+                                            drop-shadow-color: Theme.card-shadow;
+                                            background: party-ta.has-hover ? Theme.row-hover : Theme.surface;
+                                            HorizontalLayout {
+                                                padding-left: 12px; padding-right: 12px;
+                                                spacing: 8px;
+                                                Text {
+                                                    horizontal-stretch: 1;
+                                                    text: root.party != ""
+                                                        ? root.party
+                                                        : (root.kind == "receivable"
+                                                            ? "Buscar cliente…"
+                                                            : "Buscar fornecedor…");
+                                                    font-size: 13px;
+                                                    color: root.party != ""
+                                                        ? Theme.text-primary
+                                                        : Theme.text-secondary;
+                                                    vertical-alignment: center;
+                                                    overflow: elide;
+                                                }
+                                                Text {
+                                                    text: "🔍";
+                                                    font-size: 13px;
+                                                    color: Theme.text-secondary;
+                                                    vertical-alignment: center;
+                                                }
+                                            }
+                                        }
+                                    }
+                                    if root.party != "": clear-ta := TouchArea {
+                                        width: 40px; height: 40px;
+                                        clicked => { root.clear-party(); }
+                                        Rectangle {
+                                            border-radius: 8px;
+                                            border-width: 1px;
+                                            border-color: Theme.card-border;
+                                            drop-shadow-blur: 12px;
+                                            drop-shadow-offset-y: 0px;
+                                            drop-shadow-color: Theme.card-shadow;
+                                            background: clear-ta.has-hover ? Theme.row-hover : Theme.surface;
+                                            AssetIcon { width: parent.width; height: parent.height; icon-size: 14px; icon-color: Theme.text-secondary; source: @image-url("../assets/icons/1.2/fechar.svg"); }
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Linha: Valor + Vencimento + Parcelas
+                            HorizontalLayout {
+                                spacing: 12px;
+                                LabeledTextField {
+                                    horizontal-stretch: 1;
+                                    label: "VALOR";
+                                    placeholder: "0,00";
+                                    value <=> root.amount;
+                                    error: root.error-amount;
+                                }
+                                VerticalLayout {
+                                    horizontal-stretch: 1;
+                                    spacing: 6px;
+                                    Text {
+                                        text: "VENCIMENTO";
+                                        font-size: 11px; font-weight: 700;
+                                        color: Theme.text-secondary;
+                                        letter-spacing: 0.5px;
+                                    }
+                                    due-ta := TouchArea {
+                                        height: 40px;
+                                        clicked => { root.toggle-due-cal(); }
+                                        Rectangle {
+                                            border-radius: 8px;
+                                            border-width: 1px;
+                                            border-color: root.error-due-date != ""
+                                                ? #E53935
+                                                : (due-ta.has-hover ? Theme.primary : Theme.border);
+                                            background: due-ta.has-hover ? Theme.row-hover : Theme.surface;
+                                            HorizontalLayout {
+                                                padding-left: 12px; padding-right: 12px;
+                                                spacing: 8px;
+                                                Text {
+                                                    horizontal-stretch: 1;
+                                                    text: root.due-date != "" ? root.due-date : "dd/mm/aaaa";
+                                                    font-size: 13px;
+                                                    color: root.due-date != ""
+                                                        ? Theme.text-primary
+                                                        : Theme.text-secondary;
+                                                    vertical-alignment: center;
+                                                }
+                                                Text {
+                                                    text: "📅";
+                                                    font-size: 13px;
+                                                    color: Theme.text-secondary;
+                                                    vertical-alignment: center;
+                                                }
+                                            }
+                                        }
+                                    }
+                                    if root.error-due-date != "": Text {
+                                        text: root.error-due-date;
+                                        font-size: 10px;
+                                        color: #E53935;
+                                    }
+                                }
+                                VerticalLayout {
+                                    horizontal-stretch: 1;
+                                    spacing: 6px;
+                                    Text {
+                                        text: "PARCELAS";
+                                        font-size: 11px; font-weight: 700;
+                                        color: Theme.text-secondary;
+                                        letter-spacing: 0.5px;
+                                    }
+                                    Rectangle {
+                                        height: 40px;
+                                        border-radius: 8px;
+                                        border-width: 1px;
+                                        border-color: Theme.card-border;
+                                        drop-shadow-blur: 12px;
+                                        drop-shadow-offset-y: 0px;
+                                        drop-shadow-color: Theme.card-shadow;
+                                        background: Theme.surface;
+                                        HorizontalLayout {
+                                            padding-left: 12px; padding-right: 6px;
+                                            Text {
+                                                horizontal-stretch: 1;
+                                                text: root.installments == 1
+                                                    ? "1x à vista"
+                                                    : root.installments + "x";
+                                                font-size: 13px;
+                                                color: Theme.text-primary;
+                                                vertical-alignment: center;
+                                            }
+                                            // Botões − / + para escolher.
+                                            minus-ta := TouchArea {
+                                                width: 28px; height: 28px;
+                                                y: (parent.height - 28px) / 2;
+                                                clicked => {
+                                                    if (root.installments > 1) {
+                                                        root.set-installments(root.installments - 1);
+                                                    }
+                                                }
+                                                Rectangle {
+                                                    border-radius: 4px;
+                                                    background: minus-ta.has-hover ? Theme.row-hover : transparent;
+                                                    Text {
+                                                        width: parent.width; height: parent.height;
+                                                        text: "−";
+                                                        font-size: 14px; font-weight: 800;
+                                                        color: Theme.text-primary;
+                                                        horizontal-alignment: center; vertical-alignment: center;
+                                                    }
+                                                }
+                                            }
+                                            plus-ta := TouchArea {
+                                                width: 28px; height: 28px;
+                                                y: (parent.height - 28px) / 2;
+                                                clicked => {
+                                                    if (root.installments < 60) {
+                                                        root.set-installments(root.installments + 1);
+                                                    }
+                                                }
+                                                Rectangle {
+                                                    border-radius: 4px;
+                                                    background: plus-ta.has-hover ? Theme.row-hover : transparent;
+                                                    Text {
+                                                        width: parent.width; height: parent.height;
+                                                        text: "+";
+                                                        font-size: 14px; font-weight: 800;
+                                                        color: Theme.text-primary;
+                                                        horizontal-alignment: center; vertical-alignment: center;
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Recorrência (chips)
+                            VerticalLayout {
+                                spacing: 6px;
+                                Text {
+                                    text: "RECORRÊNCIA";
+                                    font-size: 11px; font-weight: 700;
+                                    color: Theme.text-secondary;
+                                    letter-spacing: 0.5px;
+                                }
+                                HorizontalLayout {
+                                    spacing: 8px;
+                                    ChipBtn {
+                                        horizontal-stretch: 1;
+                                        label: "Único";
+                                        selected: root.recurrence == "once";
+                                        selected-changed => { root.set-recurrence("once"); }
+                                    }
+                                    ChipBtn {
+                                        horizontal-stretch: 1;
+                                        label: "Mensal";
+                                        selected: root.recurrence == "monthly";
+                                        selected-changed => { root.set-recurrence("monthly"); }
+                                    }
+                                    ChipBtn {
+                                        horizontal-stretch: 1;
+                                        label: "Semanal";
+                                        selected: root.recurrence == "weekly";
+                                        selected-changed => { root.set-recurrence("weekly"); }
+                                    }
+                                }
+                            }
+
+                            // Observação
+                            VerticalLayout {
+                                spacing: 6px;
+                                Text {
+                                    text: "OBSERVAÇÃO";
+                                    font-size: 11px; font-weight: 700;
+                                    color: Theme.text-secondary;
+                                    letter-spacing: 0.5px;
+                                }
+                                Rectangle {
+                                    height: 70px;
+                                    border-radius: 8px;
+                                    border-width: 1px;
+                                    border-color: notes-input.has-focus ? Theme.primary : Theme.border;
+                                    background: Theme.surface;
+                                    notes-input := TextInput {
+                                        x: 12px; y: 8px;
+                                        width: parent.width - 24px;
+                                        height: parent.height - 16px;
+                                        text <=> root.notes;
+                                        font-size: 13px;
+                                        color: Theme.text-primary;
+                                        wrap: word-wrap;
+                                        single-line: false;
+                                    }
+                                    if notes-input.text == "" && !notes-input.has-focus: Text {
+                                        x: 12px; y: 8px;
+                                        text: "Notas internas";
+                                        font-size: 13px;
+                                        color: Theme.text-secondary;
+                                    }
+                                }
+                            }
+
+                            // Erro geral
+                            if root.error-general != "": Rectangle {
+                                background: #FFEBEE;
+                                border-radius: 8px;
+                                height: 36px;
+                                Text {
+                                    x: 12px; y: 0;
+                                    width: parent.width - 24px; height: parent.height;
+                                    text: root.error-general;
+                                    font-size: 12px; color: #C62828;
+                                    vertical-alignment: center;
+                                    wrap: word-wrap;
+                                }
+                            }
+                        }
+                    }
+
+                    // ── Footer ───────────────────────────────
+                    Rectangle {
+                        background: Theme.surface;
+                        VerticalLayout {
+                            padding-left: 18px; padding-right: 18px;
+                            padding-top: 14px; padding-bottom: 14px;
+                            HorizontalLayout {
+                                spacing: 10px;
+                                alignment: end;
+                                OutlineBtn {
+                                    label: "Cancelar";
+                                    clicked => { root.close(); }
+                                }
+                                ActionBtn {
+                                    label: "Salvar";
+                                    clicked => { root.save(); }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

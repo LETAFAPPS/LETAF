@@ -1,0 +1,521 @@
+import { ScrollView } from "std-widgets.slint";
+import { AssetIcon } from "../components/icons.slint";
+import { Theme } from "../theme.slint";
+import { Card } from "../components/cards.slint";
+import { ActionBtn, OutlineBtn } from "../components/buttons.slint";
+import { PrinterCategoryRow } from "../types.slint";
+
+// ── Modal: cadastrar / editar impressora ──────────────────────────
+//
+// Usado tanto para "Adicionar" quanto "Editar" — `editing-id != ""`
+// indica modo edição. Toda persistência fica em Rust via callbacks
+// `save` / `test-print`; o modal só coleta e valida o necessário
+// para mostrar erros (campos vazios). Validações de negócio (kind /
+// paper width permitidos) acontecem no service (AI_RULES.md §11).
+
+export component PrinterModal inherits Rectangle {
+    in-out property <string> editing-id;          // "" = novo
+    in-out property <string> printer-name;
+    in-out property <string> printer-kind;        // "order" | "kitchen" | "fiscal"
+    in-out property <string> printer-system-name;
+    in-out property <bool>   printer-is-default;
+    in-out property <int>    printer-paper-width: 80;
+    in property <string>     printer-error;
+    /// Lista de impressoras detectadas no SO — populada pelo Rust
+    /// quando o modal abre. Mostrada num dropdown abaixo do campo
+    /// "Impressora"; clicar numa entrada seta `printer-system-name`.
+    in property <[string]>   available-list;
+    /// Categorias da empresa para o multi-select. Rust popula com
+    /// `selected = true` no modo edição (IDs em
+    /// `Printer.category_ids`). Lista vazia (nenhuma categoria
+    /// cadastrada) → seção do form é omitida.
+    in-out property <[PrinterCategoryRow]> categories;
+
+    callback close();
+    callback save();
+    callback test-print();
+    /// Re-lista impressoras (botão de refresh do dropdown). O Rust
+    /// reconsulta `lpstat`/`Get-Printer` e atualiza `available-list`.
+    callback refresh-available();
+
+    /// Estado local do dropdown — aberto/fechado. Não exposto ao caller.
+    private property <bool> picker-open: false;
+
+    background: #00000080;
+    TouchArea { clicked => { root.close(); } }
+
+    VerticalLayout {
+        alignment: center;
+        HorizontalLayout {
+            alignment: center;
+            Card {
+                width: 460px;
+                TouchArea { }
+
+                VerticalLayout {
+                    padding: 0px;
+                    spacing: 0px;
+
+                    // Header
+                    Rectangle {
+                        background: Theme.surface;
+                        VerticalLayout {
+                            padding-left: 22px; padding-right: 22px;
+                            padding-top: 18px; padding-bottom: 14px;
+                            HorizontalLayout {
+                                spacing: 8px;
+                                VerticalLayout {
+                                    horizontal-stretch: 1; spacing: 2px;
+                                    Text {
+                                        text: root.editing-id != "" ? "Editar Impressora" : "Adicionar Impressora";
+                                        font-size: 16px; font-weight: 700;
+                                        color: Theme.text-primary;
+                                    }
+                                    Text {
+                                        text: "Configure como o sistema deve enviar comandas / cozinha / NFC-e.";
+                                        font-size: 11px; color: Theme.text-secondary;
+                                    }
+                                }
+                                close-ta := TouchArea {
+                                    width: 28px; height: 28px;
+                                    clicked => { root.close(); }
+                                    Rectangle {
+                                        border-radius: 4px;
+                                        background: close-ta.has-hover ? Theme.row-hover : transparent;
+                                        HorizontalLayout {
+                                            alignment: center;
+                                            VerticalLayout {
+                                                alignment: center;
+                                                AssetIcon { width: 14px; height: 14px; icon-size: 14px; icon-color: Theme.text-secondary; source: @image-url("../assets/icons/1.2/fechar.svg"); }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Body
+                    Rectangle {
+                        background: Theme.bg;
+                        VerticalLayout {
+                            padding: 20px;
+                            spacing: 14px;
+
+                            // ── Nome (rótulo livre) ──
+                            // Padrão visual: `spacing: 4px` entre label e
+                            // campo em TODAS as seções. Antes usávamos 6
+                            // e depois 8 px, mas a percepção visual de
+                            // distância no Slint depende também do
+                            // "respiro interno" do campo: TextInput tem
+                            // texto colado no centro do Rectangle de
+                            // 34 px, enquanto os botões/dropdown têm o
+                            // texto centralizado num HorizontalLayout
+                            // interno (mais respiro). 4 px iguala os
+                            // dois grupos visualmente.
+                            VerticalLayout {
+                                spacing: 4px;
+                                Text { text: "Nome"; font-size: 11px; font-weight: 700; color: Theme.text-secondary; letter-spacing: 1px; }
+                                Rectangle {
+                                    height: 34px;
+                                    border-radius: 6px;
+                                    border-width: 1px;
+                                    border-color: name-input.has-focus ? Theme.primary : Theme.border;
+                                    background: Theme.surface;
+                                    name-input := TextInput {
+                                        x: 10px; y: 0;
+                                        width: parent.width - 20px;
+                                        height: parent.height;
+                                        text <=> root.printer-name;
+                                        font-size: 13px; color: Theme.text-primary;
+                                        vertical-alignment: center;
+                                        single-line: true;
+                                    }
+                                    if root.printer-name == "": Text {
+                                        x: 10px; y: 0; height: parent.height;
+                                        text: "Cozinha 1, Balcão, etc.";
+                                        font-size: 13px; color: #BDBDBD;
+                                        vertical-alignment: center;
+                                    }
+                                }
+                            }
+
+                            // ── Tipo (radio) ──
+                            // Tipo/Impressora/Papel usam `spacing: 10px`
+                            // (maior que o do Nome) porque os componentes
+                            // de seleção (botões/dropdown) não têm o
+                            // mesmo "respiro interno" do TextInput — o
+                            // texto fica colado ao topo do Rectangle.
+                            // Compensamos visualmente com mais espaço
+                            // entre o label e o componente.
+                            VerticalLayout {
+                                spacing: 10px;
+                                Text { text: "Tipo"; font-size: 11px; font-weight: 700; color: Theme.text-secondary; letter-spacing: 1px; }
+                                HorizontalLayout {
+                                    spacing: 8px;
+                                    for opt[oi] in [
+                                        { value: "order",   label: "Comanda" },
+                                        { value: "kitchen", label: "Cozinha" },
+                                        { value: "fiscal",  label: "Nota Fiscal" },
+                                    ]: kind-ta := TouchArea {
+                                        clicked => { root.printer-kind = opt.value; }
+                                        Rectangle {
+                                            height: 34px;
+                                            border-radius: 6px;
+                                            border-width: 1px;
+                                            border-color: root.printer-kind == opt.value ? Theme.primary : Theme.border;
+                                            background: root.printer-kind == opt.value ? Theme.sidebar-sel-bg : Theme.surface;
+                                            HorizontalLayout {
+                                                alignment: center;
+                                                VerticalLayout {
+                                                    alignment: center;
+                                                    Text {
+                                                        text: opt.label;
+                                                        font-size: 12px; font-weight: 600;
+                                                        color: root.printer-kind == opt.value ? white : Theme.text-primary;
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            // ── Impressora (seletor) ──
+                            // Dropdown que lista impressoras conectadas ao
+                            // computador. A enumeração é feita pelo Rust via
+                            // `lpstat -p` (Linux/macOS) ou `Get-Printer`
+                            // (Windows). Operador clica para abrir e escolher
+                            // — evita erro de digitação do nome do driver.
+                            VerticalLayout {
+                                spacing: 10px;
+                                Text { text: "Impressora"; font-size: 11px; font-weight: 700; color: Theme.text-secondary; letter-spacing: 1px; }
+                                printer-picker-ta := TouchArea {
+                                    clicked => {
+                                        if (root.picker-open) {
+                                            root.picker-open = false;
+                                        } else {
+                                            root.refresh-available();
+                                            root.picker-open = true;
+                                        }
+                                    }
+                                    Rectangle {
+                                        height: 34px;
+                                        border-radius: 6px;
+                                        border-width: 1px;
+                                        border-color: root.picker-open ? Theme.primary : Theme.border;
+                                        background: Theme.surface;
+                                        HorizontalLayout {
+                                            padding-left: 10px;
+                                            padding-right: 10px;
+                                            spacing: 8px;
+                                            Text {
+                                                text: root.printer-system-name != ""
+                                                    ? root.printer-system-name
+                                                    : "Selecionar impressora";
+                                                font-size: 13px;
+                                                color: root.printer-system-name != ""
+                                                    ? Theme.text-primary
+                                                    : #BDBDBD;
+                                                vertical-alignment: center;
+                                                horizontal-stretch: 1;
+                                                overflow: elide;
+                                            }
+                                            VerticalLayout {
+                                                alignment: center;
+                                                Text {
+                                                    text: root.picker-open ? "▲" : "▼";
+                                                    font-size: 10px;
+                                                    color: Theme.text-secondary;
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                                if root.picker-open && root.available-list.length == 0: Rectangle {
+                                    height: 50px;
+                                    border-radius: 6px;
+                                    border-width: 1px;
+                                    border-color: Theme.card-border;
+                                    drop-shadow-blur: 12px;
+                                    drop-shadow-offset-y: 0px;
+                                    drop-shadow-color: Theme.card-shadow;
+                                    background: Theme.surface;
+                                    HorizontalLayout {
+                                        alignment: center;
+                                        VerticalLayout {
+                                            alignment: center;
+                                            padding-left: 12px; padding-right: 12px;
+                                            Text {
+                                                text: "Nenhuma impressora detectada. Verifique se há impressoras instaladas no sistema.";
+                                                font-size: 11px;
+                                                color: Theme.text-secondary;
+                                                horizontal-alignment: center;
+                                                wrap: word-wrap;
+                                            }
+                                        }
+                                    }
+                                }
+                                if root.picker-open && root.available-list.length > 0: Rectangle {
+                                    height: 140px;
+                                    border-radius: 6px;
+                                    border-width: 1px;
+                                    border-color: Theme.card-border;
+                                    drop-shadow-blur: 12px;
+                                    drop-shadow-offset-y: 0px;
+                                    drop-shadow-color: Theme.card-shadow;
+                                    background: Theme.surface;
+                                    ScrollView { vertical-scrollbar-policy: ScrollBarPolicy.always-off; horizontal-scrollbar-policy: ScrollBarPolicy.always-off;
+                                        VerticalLayout {
+                                            alignment: start;
+                                            spacing: 0px;
+                                            for p in root.available-list: opt-row-ta := TouchArea {
+                                                height: 30px;
+                                                clicked => {
+                                                    root.printer-system-name = p;
+                                                    root.picker-open = false;
+                                                }
+                                                Rectangle {
+                                                    background: opt-row-ta.has-hover
+                                                        ? Theme.row-hover
+                                                        : (root.printer-system-name == p ? #FFF4E0 : transparent);
+                                                    HorizontalLayout {
+                                                        padding-left: 12px;
+                                                        padding-right: 12px;
+                                                        spacing: 6px;
+                                                        VerticalLayout {
+                                                            alignment: center;
+                                                            Text {
+                                                                text: root.printer-system-name == p ? "✓" : "";
+                                                                font-size: 12px;
+                                                                font-weight: 700;
+                                                                color: Theme.primary;
+                                                                width: 12px;
+                                                            }
+                                                        }
+                                                        Text {
+                                                            text: p;
+                                                            font-size: 12px;
+                                                            color: Theme.text-primary;
+                                                            vertical-alignment: center;
+                                                            horizontal-stretch: 1;
+                                                            overflow: elide;
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            // ── Papel ──
+                            VerticalLayout {
+                                spacing: 10px;
+                                Text { text: "Papel"; font-size: 11px; font-weight: 700; color: Theme.text-secondary; letter-spacing: 1px; }
+                                HorizontalLayout {
+                                    spacing: 8px;
+                                    for opt[oi] in [
+                                        { value: 58, label: "58 mm" },
+                                        { value: 80, label: "80 mm" },
+                                    ]: paper-ta := TouchArea {
+                                        clicked => { root.printer-paper-width = opt.value; }
+                                        Rectangle {
+                                            height: 34px;
+                                            border-radius: 6px;
+                                            border-width: 1px;
+                                            border-color: root.printer-paper-width == opt.value ? Theme.primary : Theme.border;
+                                            background: root.printer-paper-width == opt.value ? Theme.sidebar-sel-bg : Theme.surface;
+                                            HorizontalLayout {
+                                                alignment: center;
+                                                VerticalLayout {
+                                                    alignment: center;
+                                                    Text {
+                                                        text: opt.label;
+                                                        font-size: 12px; font-weight: 600;
+                                                        color: root.printer-paper-width == opt.value ? white : Theme.text-primary;
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            // ── Padrão (toggle) ──
+                            // Espaçador extra antes do toggle "Padrão":
+                            // o `spacing: 14px` do VerticalLayout body
+                            // sozinho parecia colado visualmente com os
+                            // botões de Papel (área clicável grande
+                            // logo abaixo). Mais 6 px dão respiro
+                            // suficiente sem afetar as outras seções.
+                            Rectangle { height: 6px; }
+                            default-ta := TouchArea {
+                                clicked => { root.printer-is-default = !root.printer-is-default; }
+                                Rectangle {
+                                    height: 42px;
+                                    border-radius: 6px;
+                                    border-width: 1px;
+                                    border-color: default-ta.has-hover ? Theme.primary : Theme.border;
+                                    background: Theme.surface;
+                                    HorizontalLayout {
+                                        padding-left: 12px; padding-right: 12px;
+                                        spacing: 10px;
+                                        VerticalLayout {
+                                            alignment: center;
+                                            Rectangle {
+                                                width: 18px; height: 18px;
+                                                border-radius: 3px;
+                                                border-width: 1px;
+                                                border-color: root.printer-is-default ? Theme.primary : Theme.border;
+                                                background: root.printer-is-default ? Theme.sidebar-sel-bg : Theme.surface;
+                                                if root.printer-is-default: AssetIcon { width: parent.width; height: parent.height; icon-size: 11px; icon-color: white; source: @image-url("../assets/icons/1.2/confirmar.svg"); }
+                                            }
+                                        }
+                                        VerticalLayout {
+                                            horizontal-stretch: 1; spacing: 1px;
+                                            alignment: center;
+                                            Text {
+                                                text: "Definir como padrão";
+                                                font-size: 12px; font-weight: 600;
+                                                color: Theme.text-primary;
+                                            }
+                                            Text {
+                                                text: "As demais impressoras desse tipo perderão o padrão.";
+                                                font-size: 10px; color: Theme.text-secondary;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            // ── Categorias (multi-select) ──
+                            // Lista de categorias da empresa. Operador marca
+                            // quais esta impressora atende. Vazio = "catch-all"
+                            // (recebe todos os itens da cozinha).
+                            //
+                            // Só aparece quando o `kind == "kitchen"`:
+                            // categorias só fazem sentido para roteamento
+                            // de cozinha (comanda do cliente e NFC-e
+                            // imprimem tudo, sem divisão). Também requer
+                            // que existam categorias cadastradas na empresa.
+                            if root.printer-kind == "kitchen" && root.categories.length > 0: VerticalLayout {
+                                spacing: 10px;
+                                HorizontalLayout {
+                                    spacing: 8px;
+                                    Text {
+                                        text: "Categorias";
+                                        font-size: 11px; font-weight: 700;
+                                        color: Theme.text-secondary;
+                                        letter-spacing: 1px;
+                                        horizontal-stretch: 1;
+                                    }
+                                    Text {
+                                        text: "Roteamento por categoria";
+                                        font-size: 9px;
+                                        color: Theme.text-secondary;
+                                        vertical-alignment: center;
+                                    }
+                                }
+                                // Caixa rolável quando há muitas categorias.
+                                // Altura calibrada pra 4 categorias visíveis;
+                                // ScrollView abre quando passa disso.
+                                Rectangle {
+                                    height: 160px;
+                                    border-radius: 6px;
+                                    border-width: 1px;
+                                    border-color: Theme.card-border;
+                                    drop-shadow-blur: 12px;
+                                    drop-shadow-offset-y: 0px;
+                                    drop-shadow-color: Theme.card-shadow;
+                                    background: Theme.surface;
+                                    ScrollView { vertical-scrollbar-policy: ScrollBarPolicy.always-off; horizontal-scrollbar-policy: ScrollBarPolicy.always-off;
+                                        VerticalLayout {
+                                            alignment: start;
+                                            spacing: 0px;
+                                            for cat[ci] in root.categories: cat-row-ta := TouchArea {
+                                                height: 34px;
+                                                clicked => {
+                                                    root.categories[ci].selected = !cat.selected;
+                                                }
+                                                Rectangle {
+                                                    background: cat-row-ta.has-hover ? Theme.row-hover : transparent;
+                                                    HorizontalLayout {
+                                                        padding-left: 12px; padding-right: 12px;
+                                                        spacing: 10px;
+                                                        VerticalLayout {
+                                                            alignment: center;
+                                                            Rectangle {
+                                                                width: 16px; height: 16px;
+                                                                border-radius: 3px;
+                                                                border-width: 1px;
+                                                                border-color: cat.selected ? Theme.primary : Theme.border;
+                                                                background: cat.selected ? Theme.sidebar-sel-bg : Theme.surface;
+                                                                if cat.selected: AssetIcon { width: parent.width; height: parent.height; icon-size: 10px; icon-color: white; source: @image-url("../assets/icons/1.2/confirmar.svg"); }
+                                                            }
+                                                        }
+                                                        Text {
+                                                            text: cat.name;
+                                                            font-size: 12px;
+                                                            color: Theme.text-primary;
+                                                            vertical-alignment: center;
+                                                            horizontal-stretch: 1;
+                                                            overflow: elide;
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                                Text {
+                                    text: "Deixe vazio para receber itens de TODAS as categorias.";
+                                    font-size: 10px;
+                                    color: Theme.text-secondary;
+                                    wrap: word-wrap;
+                                }
+                            }
+                        }
+                    }
+
+                    // Footer
+                    Rectangle {
+                        background: Theme.surface;
+                        VerticalLayout {
+                            padding-left: 18px; padding-right: 18px;
+                            padding-top: 10px; padding-bottom: 14px;
+                            spacing: 8px;
+
+                            // Mensagem de erro (validação do service)
+                            if root.printer-error != "": Text {
+                                text: root.printer-error;
+                                font-size: 11px;
+                                color: Theme.danger;
+                                wrap: word-wrap;
+                            }
+
+                            HorizontalLayout {
+                                spacing: 8px;
+                                // Teste de impressão — útil para validar o cadastro
+                                // sem precisar receber um pedido real. Funciona
+                                // mesmo sem ter salvado (envia direto via Rust
+                                // usando os campos atuais).
+                                OutlineBtn {
+                                    label: "Imprimir página de teste";
+                                    horizontal-stretch: 1; height: 32px;
+                                    clicked => { root.test-print(); }
+                                }
+                                ActionBtn {
+                                    label: root.editing-id != "" ? "Salvar" : "Adicionar";
+                                    bg-color: Theme.sidebar-sel-bg;
+                                    horizontal-stretch: 1; height: 32px;
+                                    clicked => { root.save(); }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

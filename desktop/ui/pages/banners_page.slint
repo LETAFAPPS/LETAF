@@ -1,0 +1,180 @@
+import { ScrollView } from "std-widgets.slint";
+import { Theme } from "../theme.slint";
+import { BannerData } from "../types.slint";
+import { Card } from "../components/cards.slint";
+import { OutlineBtn, DeleteBtn, EditBtn } from "../components/buttons.slint";
+import { EmptyState } from "../components/empty_state.slint";
+
+// ── Página de Banners ─────────────────────────────────────────────
+//
+// Regras aplicadas (AI_RULES.md §3, §5, §8):
+// - Apenas lista + botão "+ Novo Banner". Form acontece no `BannerModal`.
+// - Cada banner em um Card próprio (igual aos cards de produto), com
+//   miniatura 3:1 à esquerda, título + alvo no meio, toggle/edit/delete
+//   alinhados verticalmente à direita.
+export component BannersPage inherits Rectangle {
+    in property <[BannerData]> banners;
+    in property <int> banners-active-count;
+    in property <int> banners-inactive-count;
+
+    callback request-new();
+    callback request-edit(BannerData);
+    callback toggle-banner-active(string);
+    callback delete-banner(string);
+
+    // Fundo cinza (igual às outras telas): os cards flutuam sobre o bg,
+    // sem parecer um card grande atrás das informações.
+    background: Theme.bg;
+
+    VerticalLayout {
+        padding: 18px;
+        spacing: 14px;
+        // Alinhamento padrão (stretch): header e linha ficam no
+        // tamanho preferido e TODA a sobra vertical vai para o
+        // ScrollView (único filho com `vertical-stretch: 1`),
+        // mesmo padrão das telas de Produtos/Clientes. Não usar
+        // `alignment: start` aqui — isso anularia o stretch do
+        // ScrollView e a lista voltaria a ser cortada.
+
+        // Cabeçalho da página (título + contador + linha), mesmo
+        // padrão da tela de Produtos.
+        HorizontalLayout {
+            min-width: 0;
+            spacing: 12px;
+            VerticalLayout {
+                horizontal-stretch: 1;
+                min-width: 0;
+                spacing: 2px;
+                alignment: start;
+                Text {
+                    text: "Lista de Banners";
+                    font-size: 22px; font-weight: 700;
+                    color: Theme.text-primary;
+                    overflow: elide;
+                }
+                Text {
+                    text: root.banners-active-count + " ativos · " + root.banners-inactive-count + " inativos";
+                    font-size: 12px;
+                    color: Theme.text-secondary;
+                    overflow: elide;
+                }
+            }
+            VerticalLayout {
+                alignment: center;
+                OutlineBtn {
+                    label: "+ Novo Banner";
+                    accent: true;
+                    btn-color: Theme.sidebar-sel-bg;
+                    width: 140px;
+                    clicked => { root.request-new(); }
+                }
+            }
+        }
+
+        Rectangle { height: 1px; background: Theme.border; }
+
+        // Lista rolável — absorve a sobra vertical (vertical-stretch).
+        ScrollView { vertical-scrollbar-policy: ScrollBarPolicy.always-off; horizontal-scrollbar-policy: ScrollBarPolicy.always-off;
+            vertical-stretch: 1;
+            VerticalLayout {
+                alignment: start;
+                spacing: 14px;
+                // Folga p/ o ScrollView não recortar a sombra dos cards
+                // (laterais e topo do 1º card).
+                padding-left: 12px; padding-right: 12px;
+                padding-top: 12px; padding-bottom: 12px;
+
+                if root.banners.length == 0: Card {
+                    VerticalLayout {
+                        padding: 24px;
+                        EmptyState {
+                            source: @image-url("../assets/empty/empty-banners.svg");
+                            title: "Nenhum banner";
+                            subtitle: "Adicione o primeiro para divulgar";
+                        }
+                    }
+                }
+
+                // Lista — cada banner em um Card individual.
+                // Altura fixa (miniatura 54px + padding 12×2 ≈ 78px):
+                // dentro do ScrollView o Card colapsa sem altura explícita.
+                for b in root.banners: Card {
+            height: 80px;
+            VerticalLayout {
+                padding: 12px;
+                HorizontalLayout {
+                    spacing: 14px;
+
+                    // Miniatura 3:1 da imagem do banner.
+                    Rectangle {
+                        width: 162px;
+                        height: 54px;
+                        border-radius: 6px;
+                        clip: true;
+                        background: #f3f4f6;
+                        Image {
+                            source: b.image;
+                            width: parent.width;
+                            height: parent.height;
+                            image-fit: cover;
+                        }
+                    }
+
+                    // Título + alvo (produto ou URL)
+                    VerticalLayout {
+                        alignment: center;
+                        spacing: 4px;
+                        horizontal-stretch: 1;
+                        Text {
+                            text: b.title;
+                            font-size: 14px; font-weight: 700;
+                            color: Theme.text-primary;
+                            overflow: elide;
+                        }
+                        Text {
+                            text: b.item-type == "product" ? ("Produto: " + b.item-name) : ("URL: " + b.item-url);
+                            font-size: 11px;
+                            color: Theme.text-secondary;
+                            overflow: elide;
+                        }
+                    }
+
+                    // Toggle Ativo/Inativo (mesmo padrão dos Adicionais).
+                    VerticalLayout {
+                        alignment: center;
+                        TouchArea {
+                            width: 70px;
+                            height: 28px;
+                            clicked => { root.toggle-banner-active(b.id); }
+                            Rectangle {
+                                border-radius: 4px;
+                                border-width: 1px;
+                                border-color: b.active ? #66BB6A : Theme.border;
+                                background: b.active ? #E8F5E9 : Theme.surface;
+                                Text {
+                                    text: b.active ? "Ativo" : "Inativo";
+                                    font-size: 11px; font-weight: 600;
+                                    color: b.active ? #2E7D32 : Theme.text-secondary;
+                                    horizontal-alignment: center; vertical-alignment: center;
+                                    width: parent.width; height: parent.height;
+                                }
+                            }
+                        }
+                    }
+
+                    // Botões Editar / Excluir centralizados verticalmente.
+                    VerticalLayout {
+                        alignment: center;
+                        EditBtn { clicked => { root.request-edit(b); } }
+                    }
+                    VerticalLayout {
+                        alignment: center;
+                        DeleteBtn { clicked => { root.delete-banner(b.id); } }
+                    }
+                }
+                }
+            }
+        }
+    }
+}
+}

@@ -1,0 +1,850 @@
+import { Theme } from "../theme.slint";
+import { ProductData, CategoryData, SubcategoryData, CustomerData, OrderData, OrderItemData, BusinessHoursData } from "../types.slint";
+import { DeleteBtn, EditBtn, ToggleActiveBtn, ToggleWebVisibleBtn, AdvanceOrderBtn } from "buttons.slint";
+import { IconGlyph } from "../icon_glyph.slint";
+
+// ── Componente: notificação toast ─────────────────────────────────────────
+
+export component Toast inherits Rectangle {
+    in property <string> message;
+    in property <string> toast-type: "success";
+    out property <length> hint-width: layout.preferred-width;
+
+    property <color> toast-bg:
+        toast-type == "error" ? Theme.danger :
+        toast-type == "warning" ? #EF6C00 :
+        toast-type == "info"  ? Theme.primary-dark : #2E7D32;
+
+    background: toast-bg;
+    border-radius: 10px;
+    drop-shadow-blur: 12px;
+    drop-shadow-offset-y: 4px;
+    drop-shadow-color: #00000040;
+
+    layout := HorizontalLayout {
+        padding-left: 14px;
+        padding-right: 14px;
+        spacing: 8px;
+        alignment: center;
+
+        // Sem ícone — apenas o texto da notificação.
+        Text {
+            text: message;
+            font-size: 13px;
+            font-weight: 500;
+            color: white;
+            vertical-alignment: center;
+            overflow: elide;
+            max-width: 240px;
+        }
+    }
+}
+
+// ── Componente: container card (caixas com sombra e borda) ─────────────────
+
+export component Card inherits Rectangle {
+    border-radius: 10px;
+    border-width: 1px;
+    border-color: Theme.card-border;
+    drop-shadow-blur: 12px;
+    drop-shadow-offset-y: 0px;
+    drop-shadow-color: Theme.card-shadow;
+    background: Theme.surface;
+}
+
+// ── Componente: card de produto (grade de Produtos) ────────────────────────
+// ProductCard reescrito: layout 100% estrutural via VerticalLayout aninhados,
+// sem posicionamento absoluto, sem auto-referências de width↔height.
+// Alturas internas fixas; a imagem usa min() apenas para limitar em cards estreitos.
+
+export component ProductCard inherits Rectangle {
+    in property <ProductData> product;
+    callback toggle-active();
+    callback toggle-web-visible();
+    callback edit-product();
+    callback delete-product();
+
+    // Altura da área da imagem: limitada a 220px (cap), mas nunca maior que a largura - padding.
+    // Usado apenas como height explícito — a largura efetiva vem do layout pai.
+    property <length> img-box-size: min(root.width - 24px, 220px);
+
+    background: product.active ? Theme.surface : Theme.bg;
+    border-radius: 8px;
+    border-width: 1px;
+    border-color: Theme.card-border;
+    drop-shadow-blur: 8px;
+    drop-shadow-offset-y: 2px;
+    drop-shadow-color: Theme.card-shadow;
+
+    card-touch := TouchArea {
+        mouse-cursor: default;
+    }
+    Rectangle {
+        border-radius: parent.border-radius;
+        background: card-touch.has-hover ? #00000008 : transparent;
+    }
+
+    VerticalLayout {
+        padding: 12px;
+        spacing: 8px;
+
+        // ───── Área da imagem (quadrado 1:1, centralizado) ─────
+        HorizontalLayout {
+            alignment: center;
+            height: root.img-box-size;
+            Rectangle {
+                width: root.img-box-size;
+                height: root.img-box-size;
+                border-radius: 8px;
+                // Sem border: o fundo já delimita a área da imagem.
+                //
+                // Regras aplicadas (AI_RULES.md §8):
+                // - Se a heurística detectou cor uniforme nos cantos da imagem
+                //   (`has-cover-color`), o card pinta com a cor amostrada
+                //   (Soda branca continua branca no dark mode).
+                // - Senão, cai no fundo do tema (igual ao placeholder), que
+                //   serve para PNGs transparentes aparecerem coerentes.
+                background: product.has-cover-color
+                    ? product.cover-color-value
+                    : (Theme.dark-mode ? #3A3A3A : white);
+                clip: true;
+                if product.product-image.width > 0: Image {
+                    width: parent.width;
+                    height: parent.height;
+                    source: product.product-image;
+                    image-fit: cover;
+                }
+                if product.product-image.width == 0: Text {
+                    text: "📷";
+                    font-size: 36px;
+                    color: #BDBDBD;
+                    width: parent.width;
+                    height: parent.height;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+            }
+        }
+
+        // ───── Informações textuais (cresce com vertical-stretch) ─────
+        VerticalLayout {
+            vertical-stretch: 1;
+            spacing: 3px;
+
+            Text {
+                text: product.name;
+                font-size: 14px;
+                font-weight: 700;
+                color: product.active ? Theme.text-primary : Theme.text-secondary;
+                horizontal-alignment: center;
+                overflow: elide;
+            }
+            if product.price != "": Text {
+                text: "R$ " + product.price;
+                font-size: 13px;
+                font-weight: 600;
+                color: product.active ? #2E7D32 : Theme.text-secondary;
+                horizontal-alignment: center;
+            }
+            // Cor do estoque (texto): azul (ok), laranja (low), vermelho (out).
+            // Quando o produto está inativo, mantém cor secundária para não
+            // competir visualmente com o estado de inatividade.
+            //
+            // 3 estados mutuamente exclusivos:
+            // - ilimitado → ícone ∞ grande (sem unidade);
+            // - sem estoque → texto "Sem Estoque" em vermelho claro;
+            // - com estoque → quantidade + unidade.
+            if product.unlimited-stock: Text {
+                // `font-size: 15px` para o ∞ destacar visualmente.
+                // `height: 14px` força mesma altura de linha do texto
+                // normal (11px) para não empurrar os botões abaixo.
+                text: "∞";
+                font-size: 15px;
+                font-weight: 700;
+                color: !product.active ? Theme.text-secondary : #1565C0;
+                horizontal-alignment: center;
+                height: 14px;
+            }
+            if !product.unlimited-stock && product.stock-status == "out": Text {
+                text: "Sem Estoque";
+                font-size: 11px;
+                font-weight: 600;
+                color: !product.active ? Theme.text-secondary : #EF5350;
+                horizontal-alignment: center;
+            }
+            if !product.unlimited-stock && product.stock-status != "out": HorizontalLayout {
+                alignment: center;
+                spacing: 4px;
+                Text {
+                    text: product.stock-quantity;
+                    font-size: 11px;
+                    font-weight: 600;
+                    color: !product.active
+                        ? Theme.text-secondary
+                        : (product.stock-status == "low" ? #EF6C00 : #1565C0);
+                }
+                if product.unit != "": Text {
+                    text: product.unit;
+                    font-size: 11px;
+                    font-weight: 600;
+                    color: !product.active
+                        ? Theme.text-secondary
+                        : (product.stock-status == "low" ? #EF6C00 : #1565C0);
+                }
+            }
+            if product.barcode != "": Text {
+                text: product.barcode;
+                font-size: 10px;
+                color: Theme.text-secondary;
+                horizontal-alignment: center;
+                overflow: elide;
+            }
+            Rectangle { vertical-stretch: 1; }
+        }
+
+        // ───── Divisor ─────
+        Rectangle { height: 1px; background: Theme.border; }
+
+        // ───── Barra de botões ─────
+        HorizontalLayout {
+            alignment: center;
+            spacing: 10px;
+            height: 32px;
+            VerticalLayout {
+                alignment: center;
+                ToggleActiveBtn { active: product.active; clicked => { root.toggle-active(); } }
+            }
+            VerticalLayout {
+                alignment: center;
+                ToggleWebVisibleBtn { is-visible: product.web-visible; clicked => { root.toggle-web-visible(); } }
+            }
+            VerticalLayout {
+                alignment: center;
+                EditBtn { clicked => { root.edit-product(); } }
+            }
+            VerticalLayout {
+                alignment: center;
+                DeleteBtn { clicked => { root.delete-product(); } }
+            }
+        }
+    }
+}
+
+// ── Componente: card de categoria (grade de Categorias) ──────────────────────
+
+export component CategoryCard inherits Rectangle {
+    in property <CategoryData> category;
+    callback edit-category();
+    callback delete-category();
+    callback move-up();
+    callback move-down();
+
+    background: Theme.surface;
+    border-radius: 8px;
+    border-width: 1px;
+    border-color: Theme.card-border;
+    drop-shadow-blur: 8px;
+    drop-shadow-offset-y: 2px;
+    drop-shadow-color: Theme.card-shadow;
+    height: 120px;
+
+    card-touch := TouchArea {
+        x: 0; y: 0;
+        width: parent.width;
+        height: parent.height;
+        mouse-cursor: default;
+    }
+    Rectangle {
+        border-radius: parent.border-radius;
+        background: card-touch.has-hover ? #00000008 : transparent;
+    }
+
+    // Indicador no canto superior esquerdo: bolinha laranja simples.
+    // Sinaliza apenas que existe um ícone cadastrado — qual ícone é,
+    // o operador descobre ao editar a categoria.
+    if category.icon-name != "": Rectangle {
+        x: 8px;
+        y: 8px;
+        width: 10px;
+        height: 10px;
+        border-radius: 5px;
+        background: Theme.primary;
+    }
+
+    VerticalLayout {
+        padding: 10px;
+        spacing: 4px;
+        Text {
+            text: category.name;
+            font-size: 14px;
+            font-weight: 700;
+            color: Theme.text-primary;
+            horizontal-alignment: center;
+            overflow: elide;
+        }
+        if category.description != "": Text {
+            text: category.description;
+            font-size: 11px;
+            color: Theme.text-secondary;
+            horizontal-alignment: center;
+            overflow: elide;
+        }
+        Rectangle { vertical-stretch: 1; }
+        Rectangle { height: 1px; background: Theme.border; }
+        HorizontalLayout {
+            alignment: center;
+            spacing: 6px;
+            height: 26px;
+            VerticalLayout {
+                alignment: center;
+                TouchArea {
+                    width: 20px; height: 20px;
+                    clicked => { root.move-up(); }
+                    Rectangle {
+                        border-radius: 4px;
+                        background: parent.has-hover ? Theme.row-hover : transparent;
+                        Text {
+                            text: "\u{25C4}";
+                            font-size: 9px;
+                            color: Theme.text-secondary;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+            }
+            VerticalLayout {
+                alignment: center;
+                TouchArea {
+                    width: 20px; height: 20px;
+                    clicked => { root.move-down(); }
+                    Rectangle {
+                        border-radius: 4px;
+                        background: parent.has-hover ? Theme.row-hover : transparent;
+                        Text {
+                            text: "\u{25BA}";
+                            font-size: 9px;
+                            color: Theme.text-secondary;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+            }
+            VerticalLayout {
+                alignment: center;
+                EditBtn { clicked => { root.edit-category(); } }
+            }
+            VerticalLayout {
+                alignment: center;
+                DeleteBtn { clicked => { root.delete-category(); } }
+            }
+        }
+    }
+}
+
+// ── Componente: card de subcategoria (grade de Subcategorias) ────────────────
+
+export component SubcategoryCard inherits Rectangle {
+    in property <SubcategoryData> subcategory;
+    callback edit-subcategory();
+    callback delete-subcategory();
+    callback move-up();
+    callback move-down();
+
+    background: Theme.surface;
+    border-radius: 8px;
+    border-width: 1px;
+    border-color: Theme.card-border;
+    drop-shadow-blur: 8px;
+    drop-shadow-offset-y: 2px;
+    drop-shadow-color: Theme.card-shadow;
+    height: 120px;
+
+    card-touch := TouchArea {
+        x: 0; y: 0;
+        width: parent.width;
+        height: parent.height;
+        mouse-cursor: default;
+    }
+    Rectangle {
+        border-radius: parent.border-radius;
+        background: card-touch.has-hover ? #00000008 : transparent;
+    }
+
+    VerticalLayout {
+        padding: 10px;
+        spacing: 4px;
+
+        Text {
+            text: subcategory.name;
+            font-size: 14px;
+            font-weight: 700;
+            color: Theme.text-primary;
+            horizontal-alignment: center;
+            overflow: elide;
+        }
+        if subcategory.category-name != "": Text {
+            text: subcategory.category-name;
+            font-size: 11px;
+            color: Theme.text-secondary;
+            horizontal-alignment: center;
+            overflow: elide;
+        }
+        Rectangle { vertical-stretch: 1; }
+        Rectangle { height: 1px; background: Theme.border; }
+        HorizontalLayout {
+            alignment: center;
+            spacing: 6px;
+            height: 26px;
+            VerticalLayout {
+                alignment: center;
+                TouchArea {
+                    width: 20px; height: 20px;
+                    clicked => { root.move-up(); }
+                    Rectangle {
+                        border-radius: 4px;
+                        background: parent.has-hover ? Theme.row-hover : transparent;
+                        Text {
+                            text: "\u{25C4}";
+                            font-size: 9px;
+                            color: Theme.text-secondary;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+            }
+            VerticalLayout {
+                alignment: center;
+                TouchArea {
+                    width: 20px; height: 20px;
+                    clicked => { root.move-down(); }
+                    Rectangle {
+                        border-radius: 4px;
+                        background: parent.has-hover ? Theme.row-hover : transparent;
+                        Text {
+                            text: "\u{25BA}";
+                            font-size: 9px;
+                            color: Theme.text-secondary;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+            }
+            VerticalLayout {
+                alignment: center;
+                EditBtn { clicked => { root.edit-subcategory(); } }
+            }
+            VerticalLayout {
+                alignment: center;
+                DeleteBtn { clicked => { root.delete-subcategory(); } }
+            }
+        }
+    }
+}
+
+// ── Componente: card de cliente (grade de Clientes) ────────────────────────
+
+export component CustomerCard inherits Rectangle {
+    in property <CustomerData> customer;
+    callback edit-customer();
+    callback delete-customer();
+
+    background: Theme.surface;
+    border-radius: 8px;
+    border-width: 1px;
+    border-color: Theme.card-border;
+    drop-shadow-blur: 8px;
+    drop-shadow-offset-y: 2px;
+    drop-shadow-color: Theme.card-shadow;
+    height: 185px;
+
+    card-touch := TouchArea {
+        x: 0; y: 0;
+        width: parent.width;
+        height: parent.height;
+        mouse-cursor: default;
+    }
+    Rectangle {
+        border-radius: parent.border-radius;
+        background: card-touch.has-hover ? #00000008 : transparent;
+    }
+
+    VerticalLayout {
+        padding: 10px;
+        spacing: 4px;
+
+        // Avatar: foto de perfil ou inicial como placeholder
+        HorizontalLayout {
+            alignment: center;
+            Rectangle {
+                width: 40px;
+                height: 40px;
+                border-radius: 4px;
+                background: #e5e7eb;
+                clip: true;
+                if customer.profile-picture.width == 0: Text {
+                    text: customer.avatar-initial;
+                    font-size: 16px;
+                    font-weight: 700;
+                    color: #374151;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+                if customer.profile-picture.width > 0: Image {
+                    source: customer.profile-picture;
+                    image-fit: cover;
+                    width: 40px;
+                    height: 40px;
+                }
+            }
+        }
+
+        Text {
+            text: customer.name;
+            font-size: 13px;
+            font-weight: 700;
+            color: Theme.text-primary;
+            horizontal-alignment: center;
+            overflow: elide;
+        }
+        Text {
+            text: customer.email;
+            font-size: 11px;
+            color: Theme.text-secondary;
+            horizontal-alignment: center;
+            overflow: elide;
+        }
+        Text {
+            text: customer.phone;
+            font-size: 11px;
+            color: Theme.text-secondary;
+            horizontal-alignment: center;
+        }
+        if customer.document != "": Text {
+            text: customer.document;
+            font-size: 11px;
+            color: Theme.text-secondary;
+            horizontal-alignment: center;
+        }
+        Rectangle { vertical-stretch: 1; }
+        Rectangle { height: 1px; background: Theme.border; }
+        HorizontalLayout {
+            alignment: center;
+            spacing: 8px;
+            height: 26px;
+            VerticalLayout {
+                alignment: center;
+                EditBtn { clicked => { root.edit-customer(); } }
+            }
+            VerticalLayout {
+                alignment: center;
+                DeleteBtn { clicked => { root.delete-customer(); } }
+            }
+        }
+    }
+}
+
+// ── Componente: card de item de pedido (detalhe) ────────────────────────────
+
+export component OrderItemCard inherits Rectangle {
+    in property <OrderItemData> item;
+
+    border-radius: 8px;
+    border-width: 1px;
+    border-color: Theme.card-border;
+    drop-shadow-blur: 12px;
+    drop-shadow-offset-y: 0px;
+    drop-shadow-color: Theme.card-shadow;
+    background: Theme.bg;
+
+    HorizontalLayout {
+        padding: 10px;
+        spacing: 4px;
+        alignment: start;
+
+        VerticalLayout {
+            alignment: center;
+            Text {
+                text: item.qty-label;
+                font-size: 12px; font-weight: 700;
+                color: Theme.text-secondary;
+                horizontal-alignment: center;
+                width: 24px;
+            }
+        }
+
+        VerticalLayout {
+            alignment: center;
+            Rectangle {
+                width: 48px; height: 48px;
+                border-radius: 6px;
+                clip: true;
+                background: Theme.border;
+                if item.product-image.width > 0: Image {
+                    width: 48px; height: 48px;
+                    source: item.product-image;
+                    image-fit: ImageFit.cover;
+                }
+                if item.product-image.width == 0: Text {
+                    text: "?";
+                    font-size: 18px;
+                    color: Theme.text-secondary;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+            }
+        }
+
+        VerticalLayout {
+            alignment: center;
+            horizontal-stretch: 1;
+            spacing: 3px;
+            Text {
+                text: item.product-name;
+                font-size: 13px; font-weight: 600;
+                color: Theme.text-primary;
+                overflow: elide;
+                horizontal-alignment: left;
+                horizontal-stretch: 1;
+            }
+            // Resumo de Variações + Adicionais (snapshot `addons_json`).
+            // Já vem formatado do back ("Calabresa, Bacon, Borda Recheada").
+            // String vazia ⇒ item sem extras ⇒ oculta a linha (não ocupa espaço).
+            // `wrap: word-wrap` permite múltiplas linhas em itens com muitos
+            // adicionais — preferimos quebrar a elide, pois é informação útil
+            // para o atendente confirmar o que vai sair na cozinha.
+            if item.addons-summary != "": Text {
+                text: item.addons-summary;
+                font-size: 11px;
+                color: Theme.text-secondary;
+                horizontal-alignment: left;
+                wrap: word-wrap;
+            }
+            Text {
+                text: item.price;
+                font-size: 12px;
+                color: Theme.text-secondary;
+                horizontal-alignment: left;
+            }
+        }
+    }
+}
+
+// ── Componente: card de pedido (usado na grade de Pedidos) ───────────────────
+//
+// Regras aplicadas (AI_RULES.md §3, §8, §14):
+// - Componente isolado, sem lógica de negócio
+// - Card inteiro é clicável (open-detail) via TouchArea de fundo
+// - Botões de ação têm z-order maior → interceptam cliques antes do card
+// - Sem resumo de itens (exibido apenas no detalhe)
+
+export component OrderCard inherits Rectangle {
+    in property <OrderData> order;
+    callback open-detail();
+    callback advance-order();
+
+    background: Theme.surface;
+    border-radius: 8px;
+    border-width: 1px;
+    border-color: Theme.card-border;
+    height: 176px;
+
+    property <color> status-bg: transparent;
+    property <color> status-fg:
+        order.status == "delivered"  ? #2E7D32 :
+        order.status == "ready"      ? #81C784 :
+        order.status == "preparing"  ? #FF9E40 :
+        order.status == "confirmed"  ? #42A5F5 :
+        order.status == "cancelled"  ? #EF5350 :
+                                       #C9A227;
+
+    property <bool> is-pdv: order.payment-method != "";
+    property <color> dtype-bg: transparent;
+    // PDV = verde; senão Retirada (laranja) ou Entrega (azul).
+    property <color> dtype-fg: is-pdv ? #2E7D32
+        : (order.delivery-type == "pickup" ? #E65100 : #1565C0);
+    property <string> dtype-text: is-pdv ? "PDV"
+        : (order.delivery-type == "pickup" ? "Retirada" : "Entrega");
+
+    card-touch := TouchArea {
+        x: 0; y: 0;
+        width: parent.width;
+        height: parent.height;
+        mouse-cursor: pointer;
+        clicked => { open-detail(); }
+    }
+    Rectangle {
+        border-radius: parent.border-radius;
+        background: card-touch.has-hover ? #00000008 : transparent;
+    }
+
+    VerticalLayout {
+        padding: 10px;
+        spacing: 5px;
+
+        // ── Número + badge de entrega/retirada ──
+        HorizontalLayout {
+            Text {
+                text: "#" + order.number;
+                font-size: 14px;
+                font-weight: 700;
+                color: Theme.text-primary;
+                horizontal-stretch: 1;
+                vertical-alignment: center;
+            }
+            Rectangle {
+                height: 20px;
+                width: 72px;
+                border-radius: 10px;
+                background: dtype-bg;
+                HorizontalLayout {
+                    alignment: center;
+                    Text {
+                        text: dtype-text;
+                        font-size: 13px;
+                        font-weight: 700;
+                        color: dtype-fg;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+        }
+
+        // ── Nome do cliente (centralizado, acima da data) ──
+        Text {
+            text: order.customer-name;
+            font-size: 12px;
+            font-weight: 600;
+            color: Theme.text-primary;
+            horizontal-alignment: center;
+            overflow: elide;
+        }
+
+        // ── Data + hora (centralizados) ──
+        VerticalLayout {
+            spacing: 1px;
+            Text {
+                text: order.order-date;
+                font-size: 11px;
+                color: Theme.text-secondary;
+                horizontal-alignment: center;
+            }
+            Text {
+                text: order.order-time;
+                font-size: 10px;
+                color: Theme.text-secondary;
+                horizontal-alignment: center;
+            }
+        }
+
+        // Empurra o rodapé para a base do card.
+        Rectangle { vertical-stretch: 1; background: transparent; }
+
+        // ── Valor (acima da linha, centralizado) ──
+        Text {
+            text: order.total;
+            font-size: 15px;
+            font-weight: 800;
+            color: #2E7D32;
+            horizontal-alignment: center;
+        }
+
+        // ── Divisor (espessura padrão 1px) ──
+        Rectangle { height: 1px; background: Theme.border; }
+
+        // ── Ação (botão de avançar) — oculto em estados finais
+        // (Entregue/Cancelado), que não avançam mais. ──
+        HorizontalLayout {
+            alignment: end;
+            height: 36px;
+            if order.status != "cancelled" && order.status != "delivered": AdvanceOrderBtn {
+                status-color: status-fg;
+                clicked => { advance-order(); }
+            }
+        }
+    }
+}
+
+// ── Componente: card de horário de funcionamento (grade de Configurações) ──────
+
+export component BusinessHoursCard inherits Rectangle {
+    in property <BusinessHoursData> bh;
+    callback edit-bh();
+
+    background: Theme.surface;
+    border-radius: 8px;
+    border-width: 1px;
+    border-color: bh.is-open ? Theme.primary : Theme.border;
+    drop-shadow-blur: 8px;
+    drop-shadow-offset-y: 2px;
+    drop-shadow-color: Theme.card-shadow;
+    height: 170px;
+    min-width: 0;
+    preferred-width: 0;
+
+    card-touch := TouchArea {
+        x: 0; y: 0;
+        width: parent.width;
+        height: parent.height;
+        mouse-cursor: default;
+    }
+    Rectangle {
+        border-radius: parent.border-radius;
+        background: card-touch.has-hover ? #00000008 : transparent;
+    }
+
+    VerticalLayout {
+        padding: 10px;
+        spacing: 6px;
+
+        Text {
+            text: bh.day-name;
+            font-size: 11px;
+            font-weight: 700;
+            color: Theme.text-primary;
+            horizontal-alignment: center;
+            overflow: elide;
+        }
+
+        HorizontalLayout {
+            alignment: center;
+            height: 22px;
+            Rectangle {
+                width: 62px; height: 20px;
+                border-radius: 10px;
+                background: bh.is-open ? Theme.sidebar-sel-bg : #BDBDBD;
+                Text {
+                    text: bh.is-open ? "Aberto" : "Fechado";
+                    font-size: 10px; font-weight: 700;
+                    color: white;
+                    horizontal-alignment: center; vertical-alignment: center;
+                }
+            }
+        }
+
+        Text {
+            text: bh.is-open ? bh.open-time : "";
+            font-size: 12px; font-weight: 600;
+            color: Theme.text-primary;
+            horizontal-alignment: center;
+        }
+        Text {
+            text: bh.is-open ? bh.close-time : "—";
+            font-size: 12px;
+            color: bh.is-open ? Theme.text-secondary : Theme.text-secondary;
+            horizontal-alignment: center;
+        }
+
+        Rectangle { vertical-stretch: 1; }
+        Rectangle { height: 1px; background: Theme.border; }
+
+        HorizontalLayout {
+            alignment: center;
+            height: 28px;
+            EditBtn { clicked => { root.edit-bh(); } }
+        }
+    }
+}

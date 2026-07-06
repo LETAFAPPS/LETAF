@@ -1,0 +1,128 @@
+// Painel do administrador — Administradores (gestão dos super admins).
+// UI sem lógica (§1/§3): CRUD delegado ao Rust (rotas /admin/admins/*).
+// A troca de email/senha é a "gestão de login" pedida.
+import { Theme } from "../theme.slint";
+import { AdminUserRow } from "../types.slint";
+import { FormField, PasswordField } from "../components/form_fields.slint";
+import { ActionBtn, OutlineBtn } from "../components/buttons.slint";
+import { EmptyState } from "../components/empty_state.slint";
+
+export component AdminAdminsPage inherits VerticalLayout {
+    in property <[AdminUserRow]> users;
+    in-out property <string> form-id;
+    in-out property <string> form-name;
+    in-out property <string> form-email;
+    in-out property <string> form-password;
+    callback new-user();
+    callback edit-user(string);
+    callback save-user(string, string, string, string);
+    callback delete-user(string);
+    spacing: 12px;
+
+    Text {
+        text: "Administradores";
+        font-size: 20px; font-weight: 800; color: Theme.text-primary;
+    }
+    Text {
+        text: "Gerencie os acessos de super admin (login e senha).";
+        font-size: 13px; color: Theme.text-secondary;
+    }
+
+    HorizontalLayout {
+        vertical-stretch: 1;
+        spacing: 16px;
+
+        // ── Lista ──
+        Rectangle {
+            horizontal-stretch: 1;
+            background: Theme.surface;
+            border-radius: 12px;
+            border-width: 1px;
+            border-color: Theme.card-border;
+            drop-shadow-blur: 12px;
+            drop-shadow-offset-y: 0px;
+            drop-shadow-color: Theme.card-shadow;
+            VerticalLayout {
+                padding: 8px;
+                if root.users.length == 0: EmptyState {
+                    source: @image-url("../assets/empty/empty-employees.svg");
+                    title: "Nenhum administrador";
+                    art-size: 130px;
+                }
+                for u in root.users: Rectangle {
+                    height: 60px;
+                    Rectangle { x: 0; y: parent.height - 1px; width: parent.width; height: 1px; background: Theme.border; }
+                    HorizontalLayout {
+                        padding: 10px;
+                        spacing: 10px;
+                        VerticalLayout {
+                            horizontal-stretch: 1;
+                            alignment: center;
+                            spacing: 2px;
+                            Text { text: u.name; font-size: 14px; font-weight: 700; color: Theme.text-primary; overflow: elide; }
+                            Text { text: u.email; font-size: 12px; color: Theme.text-secondary; overflow: elide; }
+                        }
+                        VerticalLayout {
+                            alignment: center;
+                            OutlineBtn { label: "Editar"; clicked => { root.edit-user(u.id); } }
+                        }
+                        VerticalLayout {
+                            alignment: center;
+                            OutlineBtn { label: "Excluir"; btn-color: #C62828; clicked => { root.delete-user(u.id); } }
+                        }
+                    }
+                }
+            }
+        }
+
+        // ── Formulário ──
+        Rectangle {
+            width: 340px;
+            background: Theme.surface;
+            border-radius: 12px;
+            border-width: 1px;
+            border-color: Theme.card-border;
+            drop-shadow-blur: 12px;
+            drop-shadow-offset-y: 0px;
+            drop-shadow-color: Theme.card-shadow;
+            VerticalLayout {
+                padding: 18px;
+                spacing: 12px;
+                alignment: start;
+                Text {
+                    text: root.form-id == "" ? "Novo administrador" : "Editar administrador";
+                    font-size: 15px; font-weight: 700; color: Theme.text-primary;
+                }
+                FormField {
+                    label: "Nome";
+                    value <=> root.form-name;
+                    placeholder: "Nome do administrador";
+                }
+                FormField {
+                    label: "E-mail";
+                    value <=> root.form-email;
+                    placeholder: "email@dominio.com";
+                }
+                PasswordField {
+                    label: "Senha";
+                    value <=> root.form-password;
+                    placeholder: root.form-id == "" ? "Defina uma senha" : "Deixe em branco para manter";
+                }
+                HorizontalLayout {
+                    spacing: 10px;
+                    padding-top: 4px;
+                    OutlineBtn {
+                        label: "Novo";
+                        clicked => { root.new-user(); }
+                    }
+                    ActionBtn {
+                        label: "Salvar";
+                        clicked => {
+                            root.save-user(root.form-id, root.form-name, root.form-email, root.form-password);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

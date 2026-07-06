@@ -1,0 +1,58 @@
+// Painel do administrador — visão geral (KPIs cross-tenant).
+// UI sem lógica (§1/§3): os números vêm prontos do Rust (ui/admin),
+// que os busca online em GET /admin/overview.
+import { Theme } from "../theme.slint";
+
+component KpiCard inherits Rectangle {
+    in property <string> label;
+    in property <int> value;
+    in property <string> icon;
+    horizontal-stretch: 1;
+    height: 108px;
+    background: Theme.surface;
+    border-radius: 12px;
+    border-width: 1px;
+    border-color: Theme.card-border;
+    drop-shadow-blur: 12px;
+    drop-shadow-offset-y: 0px;
+    drop-shadow-color: Theme.card-shadow;
+    VerticalLayout {
+        padding: 18px;
+        spacing: 6px;
+        alignment: center;
+        Text {
+            text: root.value;
+            font-size: 30px; font-weight: 800;
+            color: Theme.text-primary;
+        }
+        Text {
+            text: root.label;
+            font-size: 13px; color: Theme.text-secondary;
+        }
+    }
+}
+
+export component AdminOverviewPage inherits VerticalLayout {
+    in property <int> companies;
+    in property <int> active-subs;
+    in property <int> admins;
+    spacing: 8px;
+
+    Text {
+        text: "Painel da plataforma";
+        font-size: 20px; font-weight: 800; color: Theme.text-primary;
+    }
+    Text {
+        text: "Visão geral de todas as empresas do sistema.";
+        font-size: 13px; color: Theme.text-secondary;
+    }
+    HorizontalLayout {
+        padding-top: 12px;
+        spacing: 16px;
+        KpiCard { label: "Empresas"; value: root.companies; }
+        KpiCard { label: "Assinaturas ativas"; value: root.active-subs; }
+        KpiCard { label: "Administradores"; value: root.admins; }
+    }
+    // Empurra os cards para o topo.
+    Rectangle { vertical-stretch: 1; }
+}

@@ -1,0 +1,112 @@
+import { Theme } from "../theme.slint";
+import { Card } from "../components/cards.slint";
+import { ActionBtn, OutlineBtn } from "../components/buttons.slint";
+
+// ── Modal: cancelamento de pedido ─────────────────────────────────────────────
+// Regras aplicadas (AI_RULES.md §6, §11):
+// - Cancelar exige motivo (campo obrigatório)
+// - Motivo é persistido para auditoria
+
+export component CancelOrderModal inherits Rectangle {
+    in-out property <string> cancel-target-id;
+    in-out property <string> cancel-target-label;
+    in-out property <string> cancel-reason;
+    in-out property <string> cancel-error;
+
+    callback close();
+    callback cancel-order(string, string);
+
+    background: #00000060;
+
+    TouchArea { clicked => { root.close(); } }
+
+    VerticalLayout {
+        alignment: center;
+        HorizontalLayout {
+            alignment: center;
+            Card {
+                width: 460px;
+                TouchArea { }
+
+                VerticalLayout {
+                    padding: 24px;
+                    spacing: 14px;
+
+                    Text {
+                        text: "Cancelar Pedido";
+                        font-size: 18px; font-weight: 700;
+                        color: Theme.text-primary;
+                    }
+
+                    Rectangle { height: 1px; background: Theme.border; }
+
+                    Text {
+                        text: root.cancel-target-label;
+                        font-size: 13px;
+                        color: Theme.text-secondary;
+                        wrap: word-wrap;
+                    }
+
+                    Text {
+                        text: "Informe o motivo do cancelamento:";
+                        font-size: 12px; font-weight: 500;
+                        color: Theme.text-secondary;
+                    }
+
+                    Rectangle {
+                        height: 90px;
+                        border-radius: 6px;
+                        border-width: 1px;
+                        border-color: reason-input.has-focus ? Theme.primary : Theme.border;
+                        background: Theme.surface;
+                        HorizontalLayout {
+                            padding: 8px;
+                            reason-input := TextInput {
+                                text <=> root.cancel-reason;
+                                font-size: 13px;
+                                color: Theme.text-primary;
+                                single-line: false;
+                                wrap: word-wrap;
+                                horizontal-alignment: left;
+                                vertical-alignment: top;
+                            }
+                        }
+                        if root.cancel-reason == "": Text {
+                            text: "Ex: Cliente desistiu, produto indisponível…";
+                            font-size: 13px; color: #BDBDBD;
+                            x: 10px; y: 8px;
+                            width: parent.width - 20px;
+                        }
+                    }
+
+                    if root.cancel-error != "": Text {
+                        text: root.cancel-error;
+                        font-size: 12px; color: Theme.danger; wrap: word-wrap;
+                    }
+
+                    Rectangle { height: 4px; }
+
+                    HorizontalLayout {
+                        alignment: end;
+                        spacing: 10px;
+                        OutlineBtn { label: "Voltar"; width: 110px; clicked => { root.close(); } }
+                        ActionBtn {
+                            label: "Confirmar Cancelamento";
+                            bg-color: root.cancel-reason != "" ? Theme.danger : Theme.text-secondary;
+                            text-color: white;
+                            width: 220px;
+                            clicked => {
+                                if root.cancel-reason == "" {
+                                    root.cancel-error = "O motivo é obrigatório.";
+                                } else {
+                                    root.cancel-order(root.cancel-target-id, root.cancel-reason);
+                                    root.close();
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

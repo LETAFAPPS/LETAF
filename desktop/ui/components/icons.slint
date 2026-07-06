@@ -1,0 +1,133 @@
+// Ícones reutilizáveis desenhados via `Path` (SVG-like) — independentes
+// de glyphs de emoji da fonte, que renderizam inconsistente entre
+// sistemas. Tamanho e cor são `in` properties para permitir tematização.
+//
+// Regras aplicadas (AI_RULES.md §3, §8):
+// - Componente sem lógica de negócio.
+// - Cada ícone é stateless (apenas renderiza).
+
+import { Theme } from "../theme.slint";
+
+// ── Ícone de arquivo (SVG da pasta assets/icons) ───────────────────────
+// Renderiza um SVG da pasta de ícones, colorizável por tema. O caller
+// passa `source: @image-url("../assets/icons/1.2/<nome>.svg")` (o caminho é
+// resolvido na localização do caller). Preenche o pai e centraliza o
+// glifo em `icon-size`, então pode substituir um `Text` de glifo
+// centralizado sem mexer no layout ao redor.
+export component AssetIcon inherits Rectangle {
+    in property <image> source;
+    in property <length> icon-size: 16px;
+    in property <color> icon-color: Theme.text-secondary;
+    Image {
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+        width: root.icon-size;
+        height: root.icon-size;
+        source: root.source;
+        colorize: root.icon-color;
+        image-fit: contain;
+    }
+}
+
+// ── Lupa ───────────────────────────────────────────────────────────────
+// Círculo de raio ~4 centralizado em (5,5) + alça diagonal (8.5,8.5)→(13,13).
+export component SearchIcon inherits Path {
+    in property <length> icon-size: 14px;
+    in property <color> icon-color: Theme.text-secondary;
+    in property <length> icon-stroke: 1.5px;
+
+    width: root.icon-size;
+    height: root.icon-size;
+    viewbox-width: 14;
+    viewbox-height: 14;
+    stroke: root.icon-color;
+    stroke-width: root.icon-stroke;
+    fill: transparent;
+    commands: "M 1 5 A 4 4 0 1 0 9 5 A 4 4 0 1 0 1 5 Z M 8.5 8.5 L 13 13";
+}
+
+// ── Filtro (três linhas horizontais decrescentes) ──────────────────────
+// Estilo "sliders": três traços paralelos cujas extremidades reduzem do
+// topo para a base, sugerindo um filtro sendo aplicado.
+export component FilterIcon inherits Path {
+    in property <length> icon-size: 14px;
+    in property <color> icon-color: Theme.text-secondary;
+    in property <length> icon-stroke: 1.5px;
+
+    width: root.icon-size;
+    height: root.icon-size;
+    viewbox-width: 14;
+    viewbox-height: 14;
+    stroke: root.icon-color;
+    stroke-width: root.icon-stroke;
+    fill: transparent;
+    commands: "M 1 3 L 13 3 M 3 7 L 11 7 M 5 11 L 9 11";
+}
+
+// ── Câmera (placeholder de imagem de produto) ──────────────────────────
+// Câmera estilizada (corpo retangular + lente circular + visor topo) —
+// usada no quadrado do master-detail de Produtos quando o item ainda
+// não tem imagem. Emoji "📷" desalinhava (glifo não senta no centro da
+// caixa), então adotamos Path com centralização geométrica garantida.
+export component CameraIcon inherits Path {
+    in property <length> icon-size: 32px;
+    in property <color> icon-color: Theme.text-secondary;
+
+    width: root.icon-size;
+    height: root.icon-size;
+    viewbox-width: 24;
+    viewbox-height: 24;
+    fill: root.icon-color;
+    stroke: transparent;
+    commands: "M 9 3 L 7.17 5 L 4 5 C 2.9 5 2 5.9 2 7 L 2 19 C 2 20.1 2.9 21 4 21 L 20 21 C 21.1 21 22 20.1 22 19 L 22 7 C 22 5.9 21.1 5 20 5 L 16.83 5 L 15 3 L 9 3 Z M 12 8 C 14.76 8 17 10.24 17 13 C 17 15.76 14.76 18 12 18 C 9.24 18 7 15.76 7 13 C 7 10.24 9.24 8 12 8 Z M 12 10 C 10.34 10 9 11.34 9 13 C 9 14.66 10.34 16 12 16 C 13.66 16 15 14.66 15 13 C 15 11.34 13.66 10 12 10 Z";
+}
+
+// ── Lápis (editar) ─────────────────────────────────────────────────────
+// Símbolo de edição: lápis em ângulo. Stroke fino.
+export component EditIcon inherits Path {
+    in property <length> icon-size: 14px;
+    in property <color> icon-color: Theme.text-secondary;
+    in property <length> icon-stroke: 1.5px;
+
+    width: root.icon-size;
+    height: root.icon-size;
+    viewbox-width: 14;
+    viewbox-height: 14;
+    stroke: root.icon-color;
+    stroke-width: root.icon-stroke;
+    fill: transparent;
+    commands: "M 1.5 12.5 L 1.5 10.5 L 9 3 L 11 5 L 3.5 12.5 Z M 9 3 L 11 1 L 13 3 L 11 5";
+}
+
+// ── Mais (+) ───────────────────────────────────────────────────────────
+// Cruz simples para botões de adicionar.
+export component PlusIcon inherits Path {
+    in property <length> icon-size: 14px;
+    in property <color> icon-color: white;
+    in property <length> icon-stroke: 2px;
+
+    width: root.icon-size;
+    height: root.icon-size;
+    viewbox-width: 14;
+    viewbox-height: 14;
+    stroke: root.icon-color;
+    stroke-width: root.icon-stroke;
+    fill: transparent;
+    commands: "M 7 2 L 7 12 M 2 7 L 12 7";
+}
+
+// ── Pessoa (placeholder de avatar) ─────────────────────────────────────
+// Silhueta de usuário (cabeça + ombros), preenchida. Usada quando o
+// cliente não tem foto de perfil.
+export component PersonIcon inherits Path {
+    in property <length> icon-size: 24px;
+    in property <color> icon-color: Theme.text-secondary;
+
+    width: root.icon-size;
+    height: root.icon-size;
+    viewbox-width: 24;
+    viewbox-height: 24;
+    fill: root.icon-color;
+    stroke: transparent;
+    commands: "M 12 12 C 14.21 12 16 10.21 16 8 C 16 5.79 14.21 4 12 4 C 9.79 4 8 5.79 8 8 C 8 10.21 9.79 12 12 12 Z M 12 14 C 9.33 14 4 15.34 4 18 L 4 20 L 20 20 L 20 18 C 20 15.34 14.67 14 12 14 Z";
+}

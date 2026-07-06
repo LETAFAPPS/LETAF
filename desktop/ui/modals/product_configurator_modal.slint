@@ -1,0 +1,333 @@
+import { ScrollView } from "std-widgets.slint";
+import { AssetIcon } from "../components/icons.slint";
+import { Theme } from "../theme.slint";
+import { ConfigVariation, ConfigOption, ConfigAddonGroup, ConfigAddon } from "../types.slint";
+import { Card } from "../components/cards.slint";
+import { ActionBtn } from "../components/buttons.slint";
+
+// ── Modal: Configurador de produto ───────────────────────────────────
+//
+// Aberto SOBRE o EditOrderModal (z-order maior em main.slint) quando o
+// operador escolhe um produto com variações/adicionais OU clica em
+// "Editar item" numa linha já presente. Antes vivia dentro do body do
+// EditOrderModal, mas em telas pequenas competia com itens +
+// Observações pelo viewport e os botões Cancelar/Adicionar acabavam
+// cortados; promover a modal próprio dá altura independente e scroll
+// dedicado para a lista de opções.
+//
+// Toda a lógica continua em Rust, expondo as MESMAS propriedades e
+// callbacks que antes ficavam no EditOrderModal — pass-through puro
+// do MainWindow. O EditOrderModal por trás continua aberto e visível
+// (background semitransparente é só do EditOrderModal); este modal
+// adiciona um overlay próprio mais escuro para reforçar o foco.
+
+export component ProductConfiguratorModal inherits Rectangle {
+    in property <string> config-product-id;
+    in property <string> config-product-name;
+    in property <int>    config-qty;
+    in property <[ConfigVariation]> config-variations;
+    in property <[ConfigAddonGroup]> config-addon-groups;
+    in property <string> config-final-display;
+    in property <string> config-error;
+    /// -1 = adicionando novo produto; >=0 = editando item existente.
+    /// Apenas afeta o label do botão e header (UX).
+    in property <int>    config-edit-idx: -1;
+
+    callback config-toggle-variation(int, int);
+    callback config-toggle-addon(int, int);
+    callback config-inc-qty();
+    callback config-dec-qty();
+    callback config-confirm();
+    callback config-cancel();
+
+    background: #00000080;
+
+    // Clique fora do painel cancela (mesma UX do EditOrderModal).
+    TouchArea { clicked => { root.config-cancel(); } }
+
+    VerticalLayout {
+        alignment: center;
+        HorizontalLayout {
+            alignment: center;
+            Card {
+                width: 480px;
+                // Altura adaptativa: até 80% da janela, mas no máximo
+                // 640px. O body scrolla quando o produto tem muitas
+                // variações/adicionais — nunca corta header/footer.
+                height: min(root.height * 80%, 640px);
+                // Recorta pelo border-radius do Card; sem isso, os
+                // Rectangles de header/footer ocultam os cantos.
+
+                // Absorve cliques internos para não fechar.
+                TouchArea { }
+
+                VerticalLayout {
+                    padding: 0px;
+                    spacing: 0px;
+
+                    // ── Header fixo ──
+                    Rectangle {
+                        background: Theme.surface;
+                        VerticalLayout {
+                            padding-left: 22px; padding-right: 22px;
+                            padding-top: 18px; padding-bottom: 14px;
+                            HorizontalLayout {
+                                spacing: 8px;
+                                VerticalLayout {
+                                    horizontal-stretch: 1; spacing: 2px;
+                                    Text {
+                                        text: root.config-edit-idx >= 0 ? "Editar item" : "Configurar";
+                                        font-size: 10px; font-weight: 700;
+                                        color: Theme.primary; letter-spacing: 1px;
+                                    }
+                                    Text {
+                                        text: root.config-product-name;
+                                        font-size: 16px; font-weight: 700;
+                                        color: Theme.text-primary;
+                                        overflow: elide;
+                                    }
+                                }
+                                cfg-close-ta := TouchArea {
+                                    width: 28px; height: 28px;
+                                    clicked => { root.config-cancel(); }
+                                    Rectangle {
+                                        border-radius: 4px;
+                                        background: cfg-close-ta.has-hover ? Theme.row-hover : transparent;
+                                        // Centralização via layout aninhado — mais
+                                        // robusto que horizontal/vertical-alignment
+                                        // em glifos com baseline atípica.
+                                        HorizontalLayout {
+                                            alignment: center;
+                                            VerticalLayout {
+                                                alignment: center;
+                                                AssetIcon { width: 14px; height: 14px; icon-size: 14px; icon-color: Theme.text-secondary; source: @image-url("../assets/icons/1.2/fechar.svg"); }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // ── Body scrollável (variações + adicionais) ──
+                    // Padrão: Rectangle (com background) ENVOLVE o
+                    // ScrollView, e o ScrollView envolve diretamente o
+                    // VerticalLayout. A ordem inversa (ScrollView >
+                    // Rectangle > VerticalLayout) deixava o Rectangle
+                    // sem altura natural definida em algumas telas, e
+                    // itens no final da lista (último sabor / última
+                    // borda) sumiam dentro do scroll sem barra de
+                    // rolagem aparecer.
+                    Rectangle {
+                        background: Theme.bg;
+                        vertical-stretch: 1;
+                        ScrollView { vertical-scrollbar-policy: ScrollBarPolicy.always-off; horizontal-scrollbar-policy: ScrollBarPolicy.always-off;
+                            VerticalLayout {
+                                alignment: start;
+                                padding: 20px;
+                                spacing: 14px;
+
+                                // ── Variações ──
+                                // Cada grupo (Sabor, Tamanho, etc.) vira um
+                                // "card" próprio com border + background
+                                // surface: separa visualmente um grupo do
+                                // outro e do fundo bg do scroll.
+                                for v[vidx] in root.config-variations: Rectangle {
+                                    border-radius: 8px;
+                                    border-width: 1px;
+                                    border-color: Theme.card-border;
+                                    drop-shadow-blur: 12px;
+                                    drop-shadow-offset-y: 0px;
+                                    drop-shadow-color: Theme.card-shadow;
+                                    background: Theme.surface;
+                                    VerticalLayout {
+                                        padding: 10px;
+                                        spacing: 4px;
+                                        HorizontalLayout {
+                                            spacing: 8px;
+                                            Text { text: v.title; font-size: 12px; font-weight: 700; color: Theme.text-primary; horizontal-stretch: 1; }
+                                            if v.hint != "": Text { text: v.hint; font-size: 10px; color: Theme.text-secondary; vertical-alignment: center; }
+                                        }
+                                        for o[oidx] in v.options: opt-row-ta := TouchArea {
+                                            height: 32px;
+                                            clicked => { root.config-toggle-variation(vidx, oidx); }
+                                            Rectangle {
+                                                border-radius: 4px;
+                                                background: opt-row-ta.has-hover ? Theme.row-hover : transparent;
+                                                HorizontalLayout {
+                                                    padding-left: 6px; padding-right: 6px;
+                                                    spacing: 8px;
+                                                    VerticalLayout {
+                                                        alignment: center;
+                                                        Rectangle {
+                                                            width: 16px; height: 16px;
+                                                            border-radius: v.selection == "single" ? 8px : 3px;
+                                                            border-width: 1px;
+                                                            border-color: o.selected ? Theme.primary : Theme.border;
+                                                            background: o.selected ? Theme.sidebar-sel-bg : Theme.surface;
+                                                            if o.selected: AssetIcon { width: parent.width; height: parent.height; icon-size: 10px; icon-color: white; source: @image-url("../assets/icons/1.2/confirmar.svg"); }
+                                                        }
+                                                    }
+                                                    Text { text: o.name; font-size: 12px; color: Theme.text-primary; horizontal-stretch: 1; vertical-alignment: center; overflow: elide; }
+                                                    Text { text: o.price-display; font-size: 11px; font-weight: 600; color: Theme.primary; vertical-alignment: center; }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+
+                                // ── Adicionais (mesma estrutura "card" das variações) ──
+                                for g[gidx] in root.config-addon-groups: Rectangle {
+                                    border-radius: 8px;
+                                    border-width: 1px;
+                                    border-color: Theme.card-border;
+                                    drop-shadow-blur: 12px;
+                                    drop-shadow-offset-y: 0px;
+                                    drop-shadow-color: Theme.card-shadow;
+                                    background: Theme.surface;
+                                    VerticalLayout {
+                                        padding: 10px;
+                                        spacing: 4px;
+                                        HorizontalLayout {
+                                            spacing: 8px;
+                                            Text { text: g.name; font-size: 12px; font-weight: 700; color: Theme.text-primary; horizontal-stretch: 1; }
+                                            if g.hint != "": Text { text: g.hint; font-size: 10px; color: Theme.text-secondary; vertical-alignment: center; }
+                                        }
+                                        for a[aidx] in g.addons: addon-row-ta := TouchArea {
+                                            height: 32px;
+                                            clicked => { root.config-toggle-addon(gidx, aidx); }
+                                            Rectangle {
+                                                border-radius: 4px;
+                                                background: addon-row-ta.has-hover ? Theme.row-hover : transparent;
+                                                HorizontalLayout {
+                                                    padding-left: 6px; padding-right: 6px;
+                                                    spacing: 8px;
+                                                    VerticalLayout {
+                                                        alignment: center;
+                                                        Rectangle {
+                                                            width: 16px; height: 16px;
+                                                            border-radius: g.selection == "single" ? 8px : 3px;
+                                                            border-width: 1px;
+                                                            border-color: a.selected ? Theme.primary : Theme.border;
+                                                            background: a.selected ? Theme.sidebar-sel-bg : Theme.surface;
+                                                            if a.selected: AssetIcon { width: parent.width; height: parent.height; icon-size: 10px; icon-color: white; source: @image-url("../assets/icons/1.2/confirmar.svg"); }
+                                                        }
+                                                    }
+                                                    Text { text: a.name; font-size: 12px; color: Theme.text-primary; horizontal-stretch: 1; vertical-alignment: center; overflow: elide; }
+                                                    Text { text: a.price-display; font-size: 11px; font-weight: 600; color: Theme.primary; vertical-alignment: center; }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // ── Footer fixo: qty + total + erro + botões ──
+                    // Padding/spacing reduzidos para que a linha "qty/total"
+                    // fique visualmente colada ao botão Adicionar/Atualizar.
+                    // Antes sobrava muito espaço vertical no footer, dando
+                    // a sensação de que os controles estavam desconectados
+                    // da ação principal.
+                    Rectangle {
+                        background: Theme.surface;
+                        VerticalLayout {
+                            padding-left: 14px; padding-right: 14px;
+                            padding-top: 10px; padding-bottom: 12px;
+                            spacing: 8px;
+
+                            HorizontalLayout {
+                                spacing: 10px;
+                                HorizontalLayout {
+                                    spacing: 6px;
+                                    cfg-dec-ta := TouchArea {
+                                        width: 32px; height: 32px;
+                                        clicked => { root.config-dec-qty(); }
+                                        Rectangle {
+                                            border-radius: 4px; border-width: 1px;
+                                            border-color: cfg-dec-ta.has-hover ? Theme.primary : Theme.border;
+                                            background: cfg-dec-ta.has-hover ? Theme.row-hover : Theme.surface;
+                                            HorizontalLayout {
+                                                alignment: center;
+                                                VerticalLayout {
+                                                    alignment: center;
+                                                    Text { text: "−"; font-size: 14px; font-weight: 700; color: Theme.text-primary; }
+                                                }
+                                            }
+                                        }
+                                    }
+                                    Rectangle {
+                                        width: 40px; height: 32px;
+                                        border-radius: 4px; border-width: 1px; border-color: Theme.card-border;
+                                        drop-shadow-blur: 12px;
+                                        drop-shadow-offset-y: 0px;
+                                        drop-shadow-color: Theme.card-shadow;
+                                        background: Theme.surface;
+                                        HorizontalLayout {
+                                            alignment: center;
+                                            VerticalLayout {
+                                                alignment: center;
+                                                Text { text: root.config-qty; font-size: 13px; font-weight: 600; color: Theme.text-primary; }
+                                            }
+                                        }
+                                    }
+                                    cfg-inc-ta := TouchArea {
+                                        width: 32px; height: 32px;
+                                        clicked => { root.config-inc-qty(); }
+                                        Rectangle {
+                                            border-radius: 4px; border-width: 1px;
+                                            border-color: cfg-inc-ta.has-hover ? Theme.primary : Theme.border;
+                                            background: cfg-inc-ta.has-hover ? Theme.row-hover : Theme.surface;
+                                            HorizontalLayout {
+                                                alignment: center;
+                                                VerticalLayout {
+                                                    alignment: center;
+                                                    Text { text: "+"; font-size: 14px; font-weight: 700; color: Theme.text-primary; }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                                VerticalLayout {
+                                    horizontal-stretch: 1;
+                                    alignment: center;
+                                    Text {
+                                        text: "Total: " + root.config-final-display;
+                                        font-size: 14px; font-weight: 700;
+                                        color: Theme.primary;
+                                        horizontal-alignment: right;
+                                    }
+                                }
+                            }
+
+                            // Erro de validação fica no footer do CONFIGURADOR
+                            // (não no EditOrderModal mais), porque agora o
+                            // configurador é o modal "ativo". Evita também
+                            // que a mensagem suma quando o operador clicar
+                            // em "Salvar Alterações" antes de configurar.
+                            if root.config-error != "": Text {
+                                text: root.config-error;
+                                font-size: 11px;
+                                color: Theme.danger;
+                                wrap: word-wrap;
+                                horizontal-alignment: left;
+                            }
+
+                            // Botão único: o "Cancelar" foi removido por
+                            // redundância — o ✕ do header e o clique no
+                            // overlay já cancelam. Largura total reforça
+                            // que esta é a ação principal.
+                            ActionBtn {
+                                label: root.config-edit-idx >= 0 ? "Atualizar" : "Adicionar";
+                                bg-color: Theme.sidebar-sel-bg;
+                                horizontal-stretch: 1; height: 32px;
+                                clicked => { root.config-confirm(); }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

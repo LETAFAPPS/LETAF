@@ -1,0 +1,790 @@
+import { ScrollView } from "std-widgets.slint";
+import { Theme } from "../theme.slint";
+import { ProductData, CategoryData, SubcategoryData, BusinessHoursData, DiscountTierData, AddonGroupData, VariationData, CategoryFilterEntry, SubcategoryFilterEntry } from "../types.slint";
+import { ActionBtn, OutlineBtn } from "../components/buttons.slint";
+import { SearchIcon, CameraIcon, AssetIcon } from "../components/icons.slint";
+import { EmptyState } from "../components/empty_state.slint";
+import { ProductFormPage } from "product_form_page.slint";
+
+// ── Tela de Produtos (master-detail, editor inline) ──────────────────────────
+//
+// Mesmo padrão das telas Categorias/Clientes: lista mestra à esquerda
+// (240 px, estilo `sidebar-bg-light`), detalhe à direita responsivo
+// (Flickable + breakpoint `narrow`). A diferença é que aqui o detalhe
+// *é* o editor: o `ProductFormPage` é embutido com `embedded: true`
+// (oculta o seu próprio cabeçalho) e a barra de ações Duplicar /
+// Excluir / Salvar fica no topo do detalhe. UI sem lógica (§1/§14):
+// rótulos formatados vêm prontos do Rust.
+
+// Cartão de métrica no topo do detalhe.
+component StatCard inherits Rectangle {
+    in property <string> label;
+    in property <string> value;
+    in property <string> hint;
+    in property <color> value-color: Theme.text-primary;
+    border-radius: 12px;
+    border-width: 1px;
+    border-color: Theme.card-border;
+    drop-shadow-blur: 12px;
+    drop-shadow-offset-y: 0px;
+    drop-shadow-color: Theme.card-shadow;
+    background: Theme.surface;
+    VerticalLayout {
+        padding: 16px;
+        spacing: 6px;
+        Text { text: root.label; font-size: Theme.fs-eyebrow; font-weight: Theme.fw-strong; letter-spacing: 1px; color: Theme.text-secondary; overflow: elide; }
+        Text { text: root.value; font-size: 24px; font-weight: 800; color: root.value-color; overflow: elide; }
+        Text { text: root.hint; font-size: Theme.fs-meta; color: Theme.text-secondary; overflow: elide; }
+    }
+}
+
+// Pílula "Ativo / Inativo" — mesmo padrão visual da tela de Banners
+// (TouchArea 70×28 com borda/fundo verde quando ativo, cinza quando
+// inativo). Reaproveita o que o operador já reconhece — sem switches
+// deslizantes específicos da tela de Produtos.
+component ActivePill inherits TouchArea {
+    in property <bool> active: false;
+    callback toggled();
+    width: 70px;
+    height: 28px;
+    clicked => { root.toggled(); }
+    Rectangle {
+        border-radius: 4px;
+        border-width: 1px;
+        border-color: root.active ? #66BB6A : Theme.border;
+        background: root.active ? #E8F5E9 : Theme.surface;
+        Text {
+            text: root.active ? "Ativo" : "Inativo";
+            font-size: 11px; font-weight: 600;
+            color: root.active ? #2E7D32 : Theme.text-secondary;
+            horizontal-alignment: center; vertical-alignment: center;
+            width: parent.width; height: parent.height;
+        }
+    }
+}
+
+// Linha de Disponibilidade: rótulo + dica à esquerda, pílula à direita.
+// Usada para "Visível PDV / Cardápio" e "Visível Cardápio Web".
+component AvailabilityRow inherits Rectangle {
+    in property <string> title;
+    in property <string> on-hint;
+    in property <string> off-hint;
+    in property <bool> value: false;
+    callback toggled();
+    horizontal-stretch: 1;
+    height: 56px;
+    border-radius: 10px;
+    border-width: 1px;
+    border-color: Theme.card-border;
+    drop-shadow-blur: 12px;
+    drop-shadow-offset-y: 0px;
+    drop-shadow-color: Theme.card-shadow;
+    background: Theme.surface;
+    HorizontalLayout {
+        padding-left: 14px; padding-right: 14px;
+        spacing: 12px;
+        VerticalLayout {
+            horizontal-stretch: 1;
+            alignment: center;
+            spacing: 2px;
+            Text { text: root.title; font-size: 13px; font-weight: 600; color: Theme.text-primary; overflow: elide; }
+            Text {
+                text: root.value ? root.on-hint : root.off-hint;
+                font-size: 11px;
+                color: Theme.text-secondary;
+                overflow: elide;
+            }
+        }
+        VerticalLayout {
+            alignment: center;
+            ActivePill {
+                active: root.value;
+                toggled => { root.toggled(); }
+            }
+        }
+    }
+}
+
+// Linha de produto na lista mestra (lado esquerdo).
+component ProductRow inherits TouchArea {
+    in property <ProductData> data;
+    in property <bool> selected: false;
+    callback open();
+
+    height: 60px;
+    clicked => { root.open(); }
+    Rectangle {
+        border-radius: 10px;
+        background: root.selected ? Theme.accent.transparentize(0.90)
+            : (root.has-hover ? #00000008 : transparent);
+        border-width: root.selected ? 1px : 0px;
+        border-color: Theme.accent;
+        HorizontalLayout {
+            padding-left: 14px;
+            padding-right: 12px;
+            spacing: 10px;
+            VerticalLayout {
+                alignment: center;
+                Rectangle {
+                    width: 40px; height: 40px;
+                    border-radius: 8px;
+                    background: root.data.has-cover-color ? root.data.cover-color-value : Theme.row-alt;
+                    clip: true;
+                    if root.data.product-image.width > 0: Image {
+                        source: root.data.product-image;
+                        image-fit: cover;
+                        width: parent.width; height: parent.height;
+                    }
+                    // Placeholder (sem foto e sem cor de capa).
+                    if root.data.product-image.width <= 0 && !root.data.has-cover-color: AssetIcon {
+                        width: 100%; height: 100%; icon-size: 20px;
+                        icon-color: Theme.text-secondary;
+                        source: @image-url("../assets/icons/1.2/products.svg");
+                    }
+                }
+            }
+            VerticalLayout {
+                horizontal-stretch: 1;
+                alignment: center;
+                spacing: 2px;
+                Text {
+                    text: root.data.name;
+                    font-size: 13px; font-weight: 600;
+                    color: root.selected ? Theme.primary : Theme.text-primary;
+                    overflow: elide;
+                }
+                Text {
+                    text: root.data.price-display;
+                    font-size: 11px; color: Theme.text-secondary;
+                    overflow: elide;
+                }
+            }
+            VerticalLayout {
+                alignment: center;
+                spacing: 3px;
+                // Situação do estoque (derivada de stock-status no core),
+                // encostada à direita da lista: Em Estoque verde / Esgotado
+                // vermelho / Estoque Baixo laranja / Ilimitado cinza.
+                Text {
+                    text: root.data.stock-status-label;
+                    font-size: 11px; font-weight: 600;
+                    horizontal-alignment: right;
+                    color: root.data.stock-status == "out" ? #C62828
+                        : (root.data.stock-status == "low" ? #FF9E40
+                        : (root.data.stock-status == "ok" ? #2E7D32
+                        : Theme.text-secondary));
+                }
+                if !root.data.active: Rectangle {
+                    width: 7px; height: 7px;
+                    border-radius: 3.5px;
+                    background: #BDBDBD;
+                }
+            }
+        }
+    }
+}
+
+export component ProductsPage inherits Rectangle {
+    // ── Lista mestra ───────────────────────────────────
+    in property <[ProductData]> products;
+    in property <int> products-active-count;
+    in property <int> products-inactive-count;
+    in property <int> products-per-page: 20;
+    in property <[CategoryFilterEntry]>    filter-cats;
+    in property <[SubcategoryFilterEntry]> filter-subs;
+    in property <string> filter-status;
+    in property <string> filter-stock;
+    in property <int>    filter-active-count;
+
+    // ── Seleção e snapshot ─────────────────────────────
+    in property <string> selected-product-id;
+    in property <ProductData> detail-product;
+
+    // ── Estado do form (todas in-out, pass-through ao ProductFormPage) ──
+    in-out property <string> editing-id;
+    in-out property <string> product-name;
+    in-out property <string> product-description;
+    in-out property <string> product-price;
+    in-out property <string> product-cost-price;
+    in-out property <string> product-stock-quantity;
+    in-out property <string> product-min-stock;
+    in property <string> product-margin-display;
+    in-out property <bool>   product-unlimited-stock;
+    in-out property <bool>   product-availability-enabled;
+    in-out property <[BusinessHoursData]> product-availability;
+    in-out property <string> product-discount-kind: "none";
+    in-out property <string> product-discount-value;
+    in-out property <string> product-discount-min-qty;
+    in-out property <[DiscountTierData]> product-discount-tiers;
+    in-out property <string> product-barcode;
+    in-out property <string> product-unit;
+    in-out property <string> product-balance-mode: "price";
+    in-out property <string> product-image-data;
+    in-out property <bool>   product-image-loading: false;
+    in-out property <string> product-category-id;
+    in-out property <string> product-category-name;
+    in-out property <bool>   product-category-open;
+    in-out property <string> product-subcategory-id;
+    in-out property <string> product-subcategory-name;
+    in-out property <bool>   product-subcategory-open;
+    in-out property <string> product-error-name;
+    in-out property <string> product-error-price;
+    in-out property <string> product-error-stock;
+    in-out property <string> product-save-error;
+    in property <[CategoryData]> categories;
+    in property <[SubcategoryData]> subcategories;
+    in property <[AddonGroupData]> addon-groups;
+    in-out property <[VariationData]> variations;
+
+    // ── Callbacks ──────────────────────────────────────
+    callback request-new();
+    callback request-duplicate(ProductData);
+    callback request-delete(string, string, string);
+    callback toggle-product-active(string);
+    callback toggle-product-web-visible(string);
+    callback toggle-category-filter(string);
+    callback toggle-subcategory-filter(string);
+    callback set-status-filter(string);
+    callback set-stock-filter(string);
+    callback reset-product-filters();
+    callback search-changed(string);
+    callback select-product(string);
+
+    // Pass-through ao ProductFormPage embutido.
+    callback add-product();
+    callback update-product();
+    callback pick-product-image();
+    callback add-discount-tier();
+    callback remove-discount-tier(int);
+    callback toggle-addon-group(string);
+    callback add-variation();
+    callback remove-variation(int);
+    callback add-variation-option(int);
+    callback remove-variation-option(int, int);
+    callback apply-time-mask(string) -> string;
+
+    property <bool> narrow: detail-rect.width < 780px;
+
+    background: Theme.bg;
+
+    // Auto-foco na busca ao entrar na tela.
+    property <bool> focus-pending: true;
+    Timer {
+        interval: 1ms;
+        running: root.focus-pending;
+        triggered => {
+            root.focus-pending = false;
+            search-input.focus();
+        }
+    }
+
+    HorizontalLayout {
+        // Folga entre o menu e o detalhe: deixa a sombra do menu aparecer.
+        spacing: 8px;
+
+        // ═══ MASTER: lista de produtos à esquerda ═══
+        // Card completo: quinas arredondadas, borda e sombra iguais aos
+        // demais cards, com espaçamento das paredes (via padding do wrapper).
+        // Largura igual à do menu principal (sidebar expandida = 248px).
+        Rectangle {
+            width: 248px;
+            background: Theme.surface;
+            border-radius: 12px;
+            border-width: 1px;
+            border-color: Theme.card-border;
+            drop-shadow-blur: 12px;
+            drop-shadow-offset-y: 0px;
+            drop-shadow-color: Theme.card-shadow;
+            VerticalLayout {
+                padding: 16px;
+                spacing: 12px;
+
+                HorizontalLayout {
+                    spacing: 8px;
+                    VerticalLayout {
+                        horizontal-stretch: 1;
+                        spacing: 2px;
+                        Text { text: "Produtos"; font-size: 22px; font-weight: 700; color: Theme.text-primary; overflow: elide; }
+                        Text {
+                            text: root.products-active-count + " ativos · " + root.products-inactive-count + " inativos";
+                            font-size: 11px; color: Theme.text-secondary; overflow: elide;
+                        }
+                    }
+                    VerticalLayout {
+                        alignment: center;
+                        new-ta := TouchArea {
+                            width: 34px; height: 34px;
+                            clicked => { root.request-new(); }
+                            Rectangle {
+                                border-radius: 8px;
+                                // Estilo outline (Relatórios): contorno + ícone na cor de destaque.
+                                border-width: 1px;
+                                border-color: Theme.sidebar-sel-bg;
+                                background: new-ta.has-hover ? Theme.row-hover : transparent;
+                                AssetIcon {
+                                    width: 100%; height: 100%; icon-size: 16px;
+                                    icon-color: Theme.sidebar-sel-bg;
+                                    source: @image-url("../assets/icons/1.2/adicionar.svg");
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Barra de busca — ícone à esquerda + TextInput; o
+                // placeholder fica em coordenadas absolutas dentro do
+                // mesmo Rectangle (evita colidir com o cursor, que era
+                // o bug visível no HorizontalLayout anterior).
+                Rectangle {
+                    height: 36px;
+                    border-radius: 8px;
+                    border-width: 1px;
+                    border-color: search-input.has-focus ? Theme.primary : Theme.border;
+                    background: Theme.bg;
+                    Rectangle {
+                        x: 10px; y: 0; width: 16px; height: parent.height;
+                        VerticalLayout {
+                            alignment: center;
+                            SearchIcon { icon-size: 14px; icon-color: Theme.text-secondary; }
+                        }
+                    }
+                    search-input := TextInput {
+                        x: 32px; y: 0;
+                        width: parent.width - 42px;
+                        height: parent.height;
+                        font-size: 13px;
+                        color: Theme.text-primary;
+                        vertical-alignment: center;
+                        single-line: true;
+                        edited => { root.search-changed(self.text); }
+                    }
+                    if search-input.text == "" && !search-input.has-focus: Text {
+                        x: 32px; y: 0;
+                        height: parent.height;
+                        text: "Buscar produto…";
+                        font-size: 13px;
+                        color: Theme.text-secondary;
+                        vertical-alignment: center;
+                    }
+                }
+
+                ScrollView { vertical-scrollbar-policy: ScrollBarPolicy.always-off; horizontal-scrollbar-policy: ScrollBarPolicy.always-off;
+                    vertical-stretch: 1;
+                    VerticalLayout {
+                        alignment: start;
+                        spacing: 2px;
+                        if root.products.length == 0: EmptyState {
+                            source: @image-url("../assets/empty/empty-products.svg");
+                            title: "Nenhum produto";
+                            subtitle: "Cadastre o primeiro para começar";
+                            art-size: 140px;
+                        }
+                        for p in root.products: ProductRow {
+                            data: p;
+                            selected: p.id == root.selected-product-id;
+                            open => { root.select-product(p.id); }
+                        }
+                    }
+                }
+            }
+        }
+
+        // ═══ DETALHE: à direita ═══
+        detail-rect := Rectangle {
+            horizontal-stretch: 1;
+            background: Theme.bg;
+
+            if root.selected-product-id == "": VerticalLayout {
+                x: 0; y: 0;
+                width: detail-rect.width;
+                height: detail-rect.height;
+                alignment: center;
+                spacing: 12px;
+                Text {
+                    text: "Selecione um produto à esquerda para ver os detalhes.";
+                    font-size: 14px; color: Theme.text-secondary;
+                    horizontal-alignment: center;
+                }
+                HorizontalLayout {
+                    alignment: center;
+                    ActionBtn {
+                        label: "+ Novo produto"; width: 180px; height: 32px;
+                        bg-color: Theme.sidebar-sel-bg;
+                        clicked => { root.request-new(); }
+                    }
+                }
+            }
+
+            // Quando há produto selecionado, o detalhe é dividido em
+            // duas faixas: cabeçalho fixo (imagem + nome + sync + ações)
+            // que NUNCA rola, e área scrollável abaixo com cards de
+            // métrica, disponibilidade e o formulário inline.
+            if root.selected-product-id != "": Rectangle {
+                x: 0; y: 0;
+                width: detail-rect.width;
+                height: detail-rect.height;
+                VerticalLayout {
+                    spacing: 0;
+
+                    // ─── Cabeçalho FIXO ─────────────────────────────
+                    Rectangle {
+                        background: Theme.bg;
+                        // Separador 1 px no rodapé do header, dando a
+                        // pista visual de que abaixo é uma região
+                        // independente que rola.
+                        Rectangle {
+                            x: 0; width: parent.width;
+                            y: parent.height - 1px; height: 1px;
+                            background: Theme.border;
+                        }
+                        VerticalLayout {
+                            padding-left: 28px; padding-right: 28px;
+                            padding-top: 24px; padding-bottom: 18px;
+                            spacing: 12px;
+                            HorizontalLayout {
+                                spacing: 18px;
+                                // Imagem do produto — clicar abre o
+                                // picker (mesmo callback do card
+                                // "Imagem" do form). Atualiza em
+                                // tempo real (o Rust decodifica o
+                                // base64 já no callback e seta
+                                // `detail-product.product-image`).
+                                img-ta := TouchArea {
+                                    width: root.narrow ? 72px : 96px;
+                                    height: root.narrow ? 72px : 96px;
+                                    enabled: !root.product-image-loading;
+                                    clicked => { root.pick-product-image(); }
+                                    Rectangle {
+                                        // Preenche o TouchArea — sem isso, o
+                                        // Rectangle ficaria 0×0 e os filhos
+                                        // colariam no canto superior esquerdo.
+                                        width: parent.width;
+                                        height: parent.height;
+                                        border-radius: 16px;
+                                        background: root.detail-product.has-cover-color
+                                            ? root.detail-product.cover-color-value
+                                            : Theme.row-alt;
+                                        border-width: 1px;
+                                        border-color: img-ta.has-hover ? Theme.primary : Theme.border;
+                                        clip: true;
+                                        if root.detail-product.product-image.width > 0: Image {
+                                            source: root.detail-product.product-image;
+                                            image-fit: cover;
+                                            width: parent.width; height: parent.height;
+                                        }
+                                        // Placeholder: `Path` (SVG) com
+                                        // dimensão fixa, centralizado via x/y
+                                        // absoluto. Emoji "📷" desalinhava
+                                        // (glifo não senta no centro da caixa
+                                        // de texto, e nenhum alignment do
+                                        // Slint corrige isso); Path é
+                                        // geometricamente determinístico.
+                                        CameraIcon {
+                                            icon-size: 36px;
+                                            x: (parent.width - self.width) / 2;
+                                            y: (parent.height - self.height) / 2;
+                                            visible: root.detail-product.product-image.width == 0
+                                                && !root.product-image-loading;
+                                            icon-color: Theme.text-secondary;
+                                        }
+                                        if root.product-image-loading: AssetIcon {
+                                            x: 0; y: 0;
+                                            width: parent.width;
+                                            height: parent.height;
+                                            icon-size: 26px;
+                                            icon-color: #E65100;
+                                            source: @image-url("../assets/icons/1.2/atualizar.svg");
+                                        }
+                                    }
+                                }
+                                VerticalLayout {
+                                    horizontal-stretch: 1;
+                                    alignment: center;
+                                    spacing: 6px;
+                                    Text {
+                                        text: root.editing-id == ""
+                                            ? (root.product-name != "" ? root.product-name : "Novo Produto")
+                                            : root.detail-product.name;
+                                        font-size: root.narrow ? 22px : 28px;
+                                        font-weight: 800;
+                                        color: Theme.text-primary;
+                                        overflow: elide;
+                                    }
+                                    HorizontalLayout {
+                                        alignment: start;
+                                        spacing: 6px;
+                                        VerticalLayout {
+                                            alignment: center;
+                                            Rectangle {
+                                                width: 8px; height: 8px;
+                                                border-radius: 4px;
+                                                background: root.editing-id == ""
+                                                    ? #BDBDBD
+                                                    : (root.detail-product.synced ? #2E7D32 : #EF6C00);
+                                            }
+                                        }
+                                        Text {
+                                            text: root.editing-id == ""
+                                                ? "Não Salvo"
+                                                : root.detail-product.sync-label;
+                                            font-size: 12px;
+                                            color: Theme.text-secondary;
+                                            vertical-alignment: center;
+                                        }
+                                    }
+                                }
+                                if !root.narrow: VerticalLayout {
+                                    alignment: center;
+                                    HorizontalLayout {
+                                        spacing: 10px;
+                                        if root.editing-id != "": OutlineBtn {
+                                            label: "Duplicar"; width: 110px; height: 32px;
+                                            clicked => { root.request-duplicate(root.detail-product); }
+                                        }
+                                        if root.editing-id != "": OutlineBtn {
+                                            label: "Excluir"; width: 110px; height: 32px;
+                                            btn-color: #EF5350;
+                                            icon: @image-url("../assets/icons/1.2/fechar.svg");
+                                            clicked => { root.request-delete(root.detail-product.id, root.detail-product.name, "product"); }
+                                        }
+                                        ActionBtn {
+                                            label: root.editing-id == "" ? "Criar Produto" : "Salvar Alterações";
+                                            bg-color: root.product-image-loading ? #BDBDBD : Theme.sidebar-sel-bg;
+                                            width: 170px; height: 32px;
+                                            enabled: !root.product-image-loading;
+                                            clicked => {
+                                                root.product-save-error = "";
+                                                root.product-category-open = false;
+                                                root.product-subcategory-open = false;
+                                                if root.editing-id != "" { root.update-product(); }
+                                                else { root.add-product(); }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            if root.narrow: HorizontalLayout {
+                                spacing: 8px;
+                                if root.editing-id != "": OutlineBtn {
+                                    label: "Duplicar"; horizontal-stretch: 1; height: 32px;
+                                    clicked => { root.request-duplicate(root.detail-product); }
+                                }
+                                if root.editing-id != "": OutlineBtn {
+                                    label: "Excluir"; horizontal-stretch: 1; height: 32px;
+                                    btn-color: #EF5350;
+                                    icon: @image-url("../assets/icons/1.2/fechar.svg");
+                                    clicked => { root.request-delete(root.detail-product.id, root.detail-product.name, "product"); }
+                                }
+                                ActionBtn {
+                                    label: root.editing-id == "" ? "Criar" : "Salvar";
+                                    bg-color: root.product-image-loading ? #BDBDBD : Theme.sidebar-sel-bg;
+                                    horizontal-stretch: 1; height: 32px;
+                                    enabled: !root.product-image-loading;
+                                    clicked => {
+                                        root.product-save-error = "";
+                                        if root.editing-id != "" { root.update-product(); }
+                                        else { root.add-product(); }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // ─── Conteúdo SCROLLÁVEL ────────────────────────
+                    Flickable {
+                        vertical-stretch: 1;
+                        viewport-width: self.width;
+                        viewport-height: scroll-content.preferred-height;
+                        scroll-content := VerticalLayout {
+                            width: parent.width;
+                            padding-left: 28px; padding-right: 28px;
+                            padding-top: 18px; padding-bottom: 28px;
+                            spacing: 18px;
+                            alignment: start;
+
+                    // ── 3 métricas (Preço · Margem · Estoque) ─────
+                    // `preferred-width: 0px` força a divisão IGUAL do
+                    // espaço disponível pelos 3 cards (sem
+                    // `horizontal-stretch` sozinho o conteúdo de cada
+                    // um dita a largura natural — Margem ficaria
+                    // maior que Estoque por causa do hint "Lucro R$
+                    // x,xx / un").
+                    if root.editing-id != "": HorizontalLayout {
+                        spacing: 14px;
+                        StatCard {
+                            horizontal-stretch: 1;
+                            preferred-width: 0px;
+                            min-width: 0px;
+                            label: "PREÇO DE VENDA";
+                            value: root.detail-product.price-display;
+                            hint: root.detail-product.cost-price-display != ""
+                                ? "Custo " + root.detail-product.cost-price-display
+                                : "Sem custo cadastrado";
+                            value-color: Theme.primary;
+                        }
+                        StatCard {
+                            horizontal-stretch: 1;
+                            preferred-width: 0px;
+                            min-width: 0px;
+                            label: "MARGEM";
+                            value: root.detail-product.margin-pct-display;
+                            hint: root.detail-product.margin-amount-display != ""
+                                ? "Lucro " + root.detail-product.margin-amount-display + " / un"
+                                : "Informe custo e preço";
+                            value-color: #2E7D32;
+                        }
+                        StatCard {
+                            horizontal-stretch: 1;
+                            preferred-width: 0px;
+                            min-width: 0px;
+                            label: "ESTOQUE";
+                            value: root.detail-product.stock-quantity;
+                            hint: root.detail-product.stock-status-label
+                                + (root.detail-product.min-stock-display != ""
+                                    ? " · mín. " + root.detail-product.min-stock-display
+                                    : "");
+                            value-color: root.detail-product.stock-status == "out"
+                                ? #EF5350
+                                : (root.detail-product.stock-status == "low" ? #FF9E40 : Theme.text-primary);
+                        }
+                    }
+
+                    // ── Sugestão de compra ───
+                    if root.editing-id != "" && root.detail-product.purchase-suggestion != "": Rectangle {
+                        height: 56px;
+                        border-radius: 10px;
+                        background: Theme.primary.transparentize(0.90);
+                        border-width: 1px;
+                        border-color: Theme.primary.transparentize(0.55);
+                        HorizontalLayout {
+                            padding-left: 16px; padding-right: 16px;
+                            spacing: 12px;
+                            VerticalLayout {
+                                alignment: center;
+                                AssetIcon {
+                                    width: 24px; height: 24px; icon-size: 22px;
+                                    icon-color: Theme.primary;
+                                    source: @image-url("../assets/icons/1.2/compras-fornecedores.svg");
+                                }
+                            }
+                            VerticalLayout {
+                                horizontal-stretch: 1;
+                                alignment: center;
+                                spacing: 2px;
+                                Text {
+                                    text: "Sugestão de compra";
+                                    font-size: 11px; font-weight: 700;
+                                    color: Theme.primary;
+                                    letter-spacing: 1px;
+                                }
+                                Text {
+                                    text: root.detail-product.purchase-suggestion
+                                        + " para repor ao mínimo configurado.";
+                                    font-size: 13px; color: Theme.primary;
+                                    overflow: elide;
+                                }
+                            }
+                        }
+                    }
+
+                    // ── Disponibilidade (Ativo / Visível na Web) ─────
+                    if root.editing-id != "": Rectangle {
+                        border-radius: 12px;
+                        border-width: 1px;
+                        border-color: Theme.card-border;
+                        drop-shadow-blur: 12px;
+                        drop-shadow-offset-y: 0px;
+                        drop-shadow-color: Theme.card-shadow;
+                        background: Theme.surface;
+                        VerticalLayout {
+                            padding: 18px;
+                            spacing: 12px;
+                            HorizontalLayout {
+                                spacing: 8px;
+                                VerticalLayout {
+                                    horizontal-stretch: 1;
+                                    spacing: 2px;
+                                    Text { text: "Disponibilidade"; font-size: 14px; font-weight: 700; color: Theme.text-primary; }
+                                    Text { text: "Controle por canal de venda."; font-size: 12px; color: Theme.text-secondary; }
+                                }
+                            }
+                            HorizontalLayout {
+                                spacing: 12px;
+                                AvailabilityRow {
+                                    title: "Visível PDV / Cardápio";
+                                    value: root.detail-product.active;
+                                    on-hint: "Vendendo em todos os canais.";
+                                    off-hint: "Oculto PDV / Cardápio.";
+                                    toggled => { root.toggle-product-active(root.detail-product.id); }
+                                }
+                                AvailabilityRow {
+                                    title: "Visível Cardápio";
+                                    value: root.detail-product.web-visible;
+                                    on-hint: "Aparece no cardápio online.";
+                                    off-hint: "Somente PDV - Oculto Cardápio.";
+                                    toggled => { root.toggle-product-web-visible(root.detail-product.id); }
+                                }
+                            }
+                        }
+                    }
+
+                    // ── Formulário (cards completos sem chrome próprio) ──
+                    ProductFormPage {
+                        embedded: true;
+                        editing-id <=> root.editing-id;
+                        product-name <=> root.product-name;
+                        product-description <=> root.product-description;
+                        product-price <=> root.product-price;
+                        product-cost-price <=> root.product-cost-price;
+                        product-stock-quantity <=> root.product-stock-quantity;
+                        product-min-stock <=> root.product-min-stock;
+                        product-margin-display: root.product-margin-display;
+                        product-unlimited-stock <=> root.product-unlimited-stock;
+                        product-availability-enabled <=> root.product-availability-enabled;
+                        product-availability <=> root.product-availability;
+                        product-discount-kind <=> root.product-discount-kind;
+                        product-discount-value <=> root.product-discount-value;
+                        product-discount-min-qty <=> root.product-discount-min-qty;
+                        product-discount-tiers <=> root.product-discount-tiers;
+                        product-barcode <=> root.product-barcode;
+                        product-unit <=> root.product-unit;
+                        product-balance-mode <=> root.product-balance-mode;
+                        product-image-data <=> root.product-image-data;
+                        product-image-loading <=> root.product-image-loading;
+                        product-category-id <=> root.product-category-id;
+                        product-category-name <=> root.product-category-name;
+                        product-category-open <=> root.product-category-open;
+                        product-subcategory-id <=> root.product-subcategory-id;
+                        product-subcategory-name <=> root.product-subcategory-name;
+                        product-subcategory-open <=> root.product-subcategory-open;
+                        product-error-name <=> root.product-error-name;
+                        product-error-price <=> root.product-error-price;
+                        product-error-stock <=> root.product-error-stock;
+                        product-save-error <=> root.product-save-error;
+                        categories: root.categories;
+                        subcategories: root.subcategories;
+                        addon-groups: root.addon-groups;
+                        variations <=> root.variations;
+                        // Botões internos ficam ocultos (embedded:true); os
+                        // callbacks abaixo só são úteis se o caller embutir
+                        // a barra de ação própria — fazemos isso no topo.
+                        request-back => { /* no-op em master-detail */ }
+                        add-product => { root.add-product(); }
+                        update-product => { root.update-product(); }
+                        pick-product-image => { root.pick-product-image(); }
+                        add-discount-tier => { root.add-discount-tier(); }
+                        remove-discount-tier(idx) => { root.remove-discount-tier(idx); }
+                        toggle-addon-group(id) => { root.toggle-addon-group(id); }
+                        add-variation => { root.add-variation(); }
+                        remove-variation(idx) => { root.remove-variation(idx); }
+                        add-variation-option(idx) => { root.add-variation-option(idx); }
+                        remove-variation-option(vidx, oidx) => { root.remove-variation-option(vidx, oidx); }
+                        apply-time-mask(t) => { root.apply-time-mask(t) }
+                    }
+                        }   // scroll-content VerticalLayout
+                    }       // Flickable
+                }           // outer VerticalLayout (header + flickable)
+            }               // wrapper Rectangle (if selected != "")
+        }                   // detail-rect Rectangle
+    }                       // HorizontalLayout (master | divider | detail)
+}                           // ProductsPage Rectangle

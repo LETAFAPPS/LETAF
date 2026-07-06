@@ -1,0 +1,591 @@
+import { ScrollView } from "std-widgets.slint";
+import { Theme } from "../theme.slint";
+import { CustomerData, CustomerOrderRow, CustomerAddressRow, WalletSummary, WalletMovementRow } from "../types.slint";
+import { ActionBtn, OutlineBtn } from "../components/buttons.slint";
+import { SearchIcon, PersonIcon, AssetIcon } from "../components/icons.slint";
+import { EmptyState } from "../components/empty_state.slint";
+import { PaginationBar } from "../components/pagination.slint";
+import { WalletCard } from "../components/wallet_card.slint";
+
+// ── Tela de Clientes (master-detail, Fase 9) ─────────────────────────────────
+// Regras (AI_RULES.md §1, §3, §8):
+// - UI sem lógica: métricas (LTV, ticket, status, VIP, recência) vêm
+//   prontas do Rust em CustomerData/CustomerOrderRow.
+// - Sem botão "Mensagem" (pedido do usuário).
+// - Cidade/UF não existem no Customer do desktop → omitidas.
+
+// Cartão de métrica do topo do detalhe.
+component StatCard inherits Rectangle {
+    in property <string> label;
+    in property <string> value;
+    in property <string> hint;
+    in property <color> value-color: Theme.text-primary;
+    border-radius: 12px;
+    border-width: 1px;
+    border-color: Theme.card-border;
+    drop-shadow-blur: 12px;
+    drop-shadow-offset-y: 0px;
+    drop-shadow-color: Theme.card-shadow;
+    background: Theme.surface;
+    VerticalLayout {
+        padding: 16px;
+        spacing: 6px;
+        Text { text: root.label; font-size: Theme.fs-eyebrow; font-weight: Theme.fw-strong; letter-spacing: 1px; color: Theme.text-secondary; overflow: elide; }
+        Text { text: root.value; font-size: 24px; font-weight: 800; color: root.value-color; overflow: elide; }
+        Text { text: root.hint; font-size: Theme.fs-meta; color: Theme.text-secondary; overflow: elide; }
+    }
+}
+
+// Cartão "Pedidos Recentes" — paginação interna (self-contained) para
+// poder ser reposicionado (lado a lado ou empilhado) sem duplicar a
+// lista/paginação na tela responsiva.
+component OrdersCard inherits Rectangle {
+    in property <[CustomerOrderRow]> orders;
+    in property <string> reset-key;       // troca → volta p/ página 1
+    callback open-order(string);
+
+    property <int> page: 1;
+    property <int> total-pages:
+        root.orders.length == 0 ? 0 : (root.orders.length + 4) / 5;
+    property <int> eff-page:
+        root.total-pages == 0 ? 1
+        : (root.page > root.total-pages ? root.total-pages
+            : (root.page < 1 ? 1 : root.page));
+    property <int> win-start: (root.eff-page - 1) * 5;
+    property <string> rk: root.reset-key;
+    changed rk => { root.page = 1; }
+
+    function order-color(s: string) -> color {
+        return s == "delivered"  ? #2E7D32
+            : (s == "ready"      ? #81C784
+            : (s == "preparing"  ? #FF9E40
+            : (s == "confirmed"  ? #42A5F5
+            : (s == "cancelled"  ? #EF5350
+            : #e8731c))));
+    }
+
+    border-radius: 12px; border-width: 1px; border-color: Theme.card-border;
+    drop-shadow-blur: 12px;
+    drop-shadow-offset-y: 0px;
+    drop-shadow-color: Theme.card-shadow;
+    background: Theme.surface;
+    VerticalLayout {
+        padding: 18px;
+        spacing: 8px;
+        alignment: start;
+        Text { text: "Pedidos Recentes"; font-size: Theme.fs-section; font-weight: Theme.fw-strong; color: Theme.text-primary; }
+        // SEM `width: 100%`: num VerticalLayout o filho já ocupa a
+        // largura toda e `horizontal-alignment: center` centraliza. O
+        // `width: 100%` inflava a largura preferida do card só quando
+        // NÃO havia pedidos (com pedidos, as linhas têm largura
+        // delimitada), empurrando a coluna InfoPanel para fora da tela.
+        if root.orders.length == 0: EmptyState {
+            source: @image-url("../assets/empty/empty-orders.svg");
+            title: "Nenhum pedido";
+            art-size: 120px;
+        }
+        for o[i] in root.orders: Rectangle {
+            height: (i >= root.win-start && i < root.win-start + 5) ? 46px : 0px;
+            visible: i >= root.win-start && i < root.win-start + 5;
+            Rectangle { x: 0; y: parent.height - 1px; width: parent.width; height: 1px; background: Theme.border; }
+            HorizontalLayout {
+                spacing: 12px;
+                Text { text: o.number; font-size: 13px; font-weight: 600; color: Theme.text-secondary; vertical-alignment: center; width: 56px; }
+                Text { text: o.date; font-size: 12px; color: Theme.text-secondary; vertical-alignment: center; horizontal-stretch: 1; overflow: elide; }
+                VerticalLayout {
+                    alignment: center;
+                    Rectangle {
+                        width: 82px; height: 22px; border-radius: 6px;
+                        background: Theme.row-alt;
+                        Text { text: o.status-label; font-size: 11px; font-weight: 600; color: root.order-color(o.status); horizontal-alignment: center; vertical-alignment: center; width: parent.width; height: parent.height; }
+                    }
+                }
+                Text { text: o.total; font-size: 13px; font-weight: 700; color: Theme.text-primary; vertical-alignment: center; width: 78px; horizontal-alignment: right; }
+                VerticalLayout {
+                    alignment: center;
+                    eye-ta := TouchArea {
+                        width: 30px; height: 30px;
+                        clicked => { root.open-order(o.id); }
+                        Rectangle {
+                            border-radius: 6px;
+                            border-width: 1px;
+                            border-color: eye-ta.has-hover ? Theme.primary : Theme.border;
+                            background: eye-ta.has-hover ? Theme.row-hover : transparent;
+                            Path {
+                                x: (parent.width - 16px) / 2;
+                                y: (parent.height - 14px) / 2;
+                                width: 16px; height: 14px;
+                                viewbox-width: 24; viewbox-height: 24;
+                                fill: eye-ta.has-hover ? Theme.primary : Theme.text-secondary;
+                                commands: "M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5C21.27 7.61 17 4.5 12 4.5zm0 12c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z";
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        if root.total-pages > 1: PaginationBar {
+            total-pages: root.total-pages;
+            effective-page: root.eff-page;
+            change-page(p) => { root.page = p; }
+        }
+    }
+}
+
+// Coluna lateral: Identificação + Endereços + Observação Interna.
+// Componente para ser reusado lado a lado (telas largas) ou empilhado
+// abaixo dos pedidos (telas estreitas) sem duplicar markup.
+// inherits Rectangle (não VerticalLayout): num HorizontalLayout pai, o
+// min/max-width definido externamente num componente que herda layout é
+// IGNORADO (o layout usa o tamanho derivado dos filhos), então a coluna
+// de 340px nunca era reservada e o OrdersCard (stretch) tomava tudo. Um
+// Rectangle HONRA min/max-width como restrição de layout.
+component InfoPanel inherits Rectangle {
+    in property <CustomerData> c;
+    in property <[CustomerAddressRow]> addresses;
+    callback edit();
+
+    VerticalLayout {
+        spacing: 14px;
+
+        Rectangle {
+            border-radius: 12px; border-width: 1px; border-color: Theme.card-border;
+            drop-shadow-blur: 12px;
+            drop-shadow-offset-y: 0px;
+            drop-shadow-color: Theme.card-shadow;
+            background: Theme.surface;
+            VerticalLayout {
+                padding: 18px;
+                spacing: 10px;
+                Text { text: "Identificação"; font-size: Theme.fs-section; font-weight: Theme.fw-strong; color: Theme.text-primary; }
+                for kv in [
+                    { k: "Documento", v: root.c.document },
+                    { k: "Email",     v: root.c.email },
+                    { k: "Telefone",  v: root.c.phone },
+                    { k: "Cadastrado", v: root.c.created-at },
+                ]: HorizontalLayout {
+                    spacing: 8px;
+                    Text { text: kv.k; font-size: 12px; color: Theme.text-secondary; }
+                    Text { text: kv.v != "" ? kv.v : "—"; font-size: 12px; color: Theme.text-primary; horizontal-stretch: 1; horizontal-alignment: right; overflow: elide; }
+                }
+            }
+        }
+
+        Rectangle {
+            border-radius: 12px; border-width: 1px; border-color: Theme.card-border;
+            drop-shadow-blur: 12px;
+            drop-shadow-offset-y: 0px;
+            drop-shadow-color: Theme.card-shadow;
+            background: Theme.surface;
+            VerticalLayout {
+                padding: 18px;
+                spacing: 10px;
+                Text { text: "Endereços"; font-size: Theme.fs-section; font-weight: Theme.fw-strong; color: Theme.text-primary; }
+                if root.addresses.length == 0: EmptyState {
+                    source: @image-url("../assets/empty/empty-addresses.svg");
+                    title: "Nenhum endereço";
+                    art-size: 110px;
+                }
+                for a in root.addresses: VerticalLayout {
+                    spacing: 2px;
+                    Text { text: a.label; font-size: 12px; font-weight: 600; color: Theme.text-primary; }
+                    Text { text: a.line; font-size: 12px; color: Theme.text-secondary; wrap: word-wrap; }
+                }
+            }
+        }
+
+        Rectangle {
+            border-radius: 12px; border-width: 1px; border-color: Theme.card-border;
+            drop-shadow-blur: 12px;
+            drop-shadow-offset-y: 0px;
+            drop-shadow-color: Theme.card-shadow;
+            background: Theme.surface;
+            VerticalLayout {
+                padding: 18px;
+                spacing: 10px;
+                Text { text: "Observação Interna"; font-size: Theme.fs-section; font-weight: Theme.fw-strong; color: Theme.text-primary; }
+                Rectangle {
+                    border-radius: 8px;
+                    background: Theme.row-alt;
+                    VerticalLayout {
+                        padding: 12px;
+                        Text {
+                            text: root.c.notes != "" ? root.c.notes : "Sem observações.";
+                            font-size: 12px;
+                            color: root.c.notes != "" ? Theme.text-primary : Theme.text-secondary;
+                            wrap: word-wrap;
+                        }
+                    }
+                }
+                OutlineBtn {
+                    label: "Editar observação";
+                    icon: @image-url("../assets/icons/1.2/editar.svg");
+                    height: 32px;
+                    clicked => { root.edit(); }
+                }
+            }
+        }
+    }
+}
+
+export component CustomersPage inherits Rectangle {
+    in property <[CustomerData]> customers;
+    in property <string> selected-customer-id;
+    in property <CustomerData> detail-customer;
+    in property <[CustomerOrderRow]> detail-recent-orders;
+    in property <[CustomerAddressRow]> detail-addresses;
+    // Carteira
+    in property <WalletSummary> wallet-summary;
+    in property <[WalletMovementRow]> wallet-movements;
+
+    callback request-new();
+    callback request-edit(CustomerData);
+    callback request-delete(string, string, string);
+    callback search-changed(string);
+    callback select-customer(string);
+    callback new-order(string);
+    callback open-order(string);
+    // Carteira
+    callback wallet-open-deposit();
+    callback wallet-open-withdraw();
+    callback wallet-open-adjust();
+    callback wallet-open-limit();
+    callback wallet-open-wallet();
+
+    background: Theme.bg;
+
+    // Breakpoint responsivo: abaixo desta largura útil do painel de
+    // detalhe, pedidos e a coluna de informações empilham (1 coluna) e
+    // os cartões de métrica vão para 2x2 — nada é cortado.
+    property <bool> narrow: detail-rect.width < 780px;
+
+    // Foca a busca ao abrir a tela (agiliza a pesquisa).
+    property <bool> focus-pending: true;
+    Timer {
+        interval: 1ms;
+        running: root.focus-pending;
+        triggered => { root.focus-pending = false; search-input.focus(); }
+    }
+
+    // Cor de status reutilizada na lista mestre.
+    function status-color(s: string) -> color {
+        return s == "ativo" ? #16A34A : (s == "atrasado" ? #F59E0B : #9CA3AF);
+    }
+
+    HorizontalLayout {
+        // Folga entre o menu e o detalhe: deixa a sombra do card aparecer.
+        spacing: 8px;
+
+        // ═══ MASTER: lista à esquerda ═══
+        // Card completo (igual à tela de Produtos): quinas arredondadas,
+        // borda e sombra dos demais cards. Largura igual à do menu
+        // principal (sidebar expandida = 248px).
+        Rectangle {
+            width: 248px;
+            background: Theme.surface;
+            border-radius: 12px;
+            border-width: 1px;
+            border-color: Theme.card-border;
+            drop-shadow-blur: 12px;
+            drop-shadow-offset-y: 0px;
+            drop-shadow-color: Theme.card-shadow;
+            VerticalLayout {
+                padding: 18px;
+                spacing: 12px;
+
+                HorizontalLayout {
+                    spacing: 8px;
+                    VerticalLayout {
+                        horizontal-stretch: 1;
+                        spacing: 2px;
+                        Text { text: "Clientes"; font-size: 22px; font-weight: 700; color: Theme.text-primary; overflow: elide; }
+                        Text { text: root.customers.length + " Cadastrados"; font-size: 12px; color: Theme.text-secondary; overflow: elide; }
+                    }
+                    VerticalLayout {
+                        alignment: center;
+                        new-ta := TouchArea {
+                            width: 34px; height: 34px;
+                            clicked => { root.request-new(); }
+                            Rectangle {
+                                border-radius: 8px;
+                                // Estilo outline (Relatórios): contorno + ícone de destaque.
+                                border-width: 1px;
+                                border-color: Theme.sidebar-sel-bg;
+                                background: new-ta.has-hover ? Theme.row-hover : transparent;
+                                AssetIcon {
+                                    width: parent.width; height: parent.height;
+                                    icon-size: 16px;
+                                    icon-color: Theme.sidebar-sel-bg;
+                                    source: @image-url("../assets/icons/1.2/adicionar.svg");
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Busca
+                Rectangle {
+                    height: 36px;
+                    border-radius: 8px;
+                    border-width: 1px;
+                    border-color: search-input.has-focus ? Theme.primary : Theme.border;
+                    background: Theme.bg;
+                    HorizontalLayout {
+                        padding-left: 12px; padding-right: 12px; spacing: 8px;
+                        VerticalLayout {
+                            alignment: center; width: 16px;
+                            SearchIcon {
+                                icon-size: 14px;
+                                icon-color: search-input.has-focus ? Theme.primary : Theme.text-secondary;
+                                icon-stroke: 1.6px;
+                            }
+                        }
+                        Rectangle {
+                            horizontal-stretch: 1;
+                            search-input := TextInput {
+                                x: 0; y: 0; width: parent.width; height: parent.height;
+                                font-size: 13px; color: Theme.text-primary;
+                                vertical-alignment: center; single-line: true;
+                                edited => { root.search-changed(self.text); }
+                            }
+                            if search-input.text == "": Text {
+                                x: 0; y: 0; width: parent.width; height: parent.height;
+                                text: "Buscar..."; font-size: 13px; color: Theme.text-secondary; vertical-alignment: center;
+                            }
+                        }
+                    }
+                }
+
+                ScrollView { vertical-scrollbar-policy: ScrollBarPolicy.always-off; horizontal-scrollbar-policy: ScrollBarPolicy.always-off;
+                    vertical-stretch: 1;
+                    VerticalLayout {
+                        alignment: start;
+                        spacing: 4px;
+                        if root.customers.length == 0: EmptyState {
+                            art-size: 116px;
+                            source: @image-url("../assets/empty/empty-customers.svg");
+                            title: "Nenhum cliente";
+                            subtitle: "Os clientes cadastrados aparecerão aqui";
+                        }
+                        for c in root.customers: row-ta := TouchArea {
+                            property <bool> sel: c.id == root.selected-customer-id;
+                            height: 64px;
+                            clicked => { root.select-customer(c.id); }
+                            Rectangle {
+                                border-radius: 10px;
+                                background: row-ta.sel ? Theme.accent.transparentize(0.90)
+                                    : (row-ta.has-hover ? #00000008 : transparent);
+                                border-width: row-ta.sel ? 1px : 0px;
+                                border-color: Theme.accent;
+                                HorizontalLayout {
+                                    padding-left: 12px; padding-right: 10px;
+                                    spacing: 10px;
+                                    VerticalLayout {
+                                        alignment: center;
+                                        Rectangle {
+                                            width: 34px; height: 34px;
+                                            border-radius: 9px;
+                                            background: #E5E7EB;
+                                            clip: true;
+                                            if c.profile-picture.width == 0: PersonIcon {
+                                                icon-size: 22px;
+                                                icon-color: #9CA3AF;
+                                                x: (parent.width - self.width) / 2;
+                                                y: (parent.height - self.height) / 2;
+                                            }
+                                            if c.profile-picture.width > 0: Image {
+                                                source: c.profile-picture; image-fit: cover;
+                                                width: parent.width; height: parent.height;
+                                            }
+                                        }
+                                    }
+                                    VerticalLayout {
+                                        horizontal-stretch: 1;
+                                        alignment: center;
+                                        spacing: 3px;
+                                        Text { text: c.name; font-size: 13px; font-weight: Theme.fw-strong; color: row-ta.sel ? Theme.primary : Theme.text-primary; overflow: elide; }
+                                        HorizontalLayout {
+                                            spacing: 6px;
+                                            VerticalLayout {
+                                                alignment: center;
+                                                Rectangle { width: 6px; height: 6px; border-radius: 3px; background: root.status-color(c.status); }
+                                            }
+                                            Text { text: c.status-label; font-size: 11px; color: Theme.text-secondary; }
+                                        }
+                                    }
+                                    VerticalLayout {
+                                        alignment: center;
+                                        Text { text: c.last-order; font-size: 11px; color: Theme.text-secondary; }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // ═══ DETAIL: à direita ═══
+        detail-rect := Rectangle {
+            horizontal-stretch: 1;
+            background: Theme.bg;
+
+            if root.selected-customer-id == "": VerticalLayout {
+                x: 0; y: 0;
+                width: detail-rect.width;
+                height: detail-rect.height;
+                alignment: center;
+                Text {
+                    text: "Selecione um cliente à esquerda para ver os detalhes.";
+                    font-size: 14px; color: Theme.text-secondary;
+                    horizontal-alignment: center;
+                }
+            }
+
+            if root.selected-customer-id != "": Flickable {
+                // Flickable em vez de ScrollView: definir `viewport-width:
+                // self.width` é a forma canônica e à prova de quirks de
+                // forçar o conteúdo à largura do painel e DESLIGAR a
+                // rolagem horizontal (o ScrollView padrão ignorava o
+                // width do filho e o transbordava à direita). Rola só na
+                // vertical via viewport-height = altura do conteúdo.
+                x: 0; y: 0;
+                width: detail-rect.width;
+                height: detail-rect.height;
+                viewport-width: self.width;
+                viewport-height: det-content.preferred-height;
+                det-content := VerticalLayout {
+                    width: parent.width;
+                    padding: 28px;
+                    spacing: 18px;
+                    alignment: start;
+
+                    // Cabeçalho do cliente — em telas estreitas os botões
+                    // descem para uma 2ª linha (não espremem o nome).
+                    VerticalLayout {
+                        spacing: 12px;
+                        HorizontalLayout {
+                            spacing: 16px;
+                            Rectangle {
+                                width: 64px; height: 64px; border-radius: 16px;
+                                background: #E5E7EB; clip: true;
+                                if root.detail-customer.profile-picture.width == 0: PersonIcon {
+                                    icon-size: 40px;
+                                    icon-color: #9CA3AF;
+                                    x: (parent.width - self.width) / 2;
+                                    y: (parent.height - self.height) / 2;
+                                }
+                                if root.detail-customer.profile-picture.width > 0: Image {
+                                    source: root.detail-customer.profile-picture; image-fit: cover;
+                                    width: parent.width; height: parent.height;
+                                }
+                            }
+                            VerticalLayout {
+                                horizontal-stretch: 1;
+                                alignment: center;
+                                Text {
+                                    text: root.detail-customer.name;
+                                    font-size: root.narrow ? 22px : 26px;
+                                    font-weight: 800; color: Theme.text-primary;
+                                    vertical-alignment: center; overflow: elide;
+                                }
+                            }
+                            if !root.narrow: HorizontalLayout {
+                                spacing: 10px;
+                                VerticalLayout {
+                                    alignment: center;
+                                    HorizontalLayout {
+                                        spacing: 10px;
+                                        OutlineBtn { label: "Editar"; icon: @image-url("../assets/icons/1.2/editar.svg"); width: 110px; height: 32px; clicked => { root.request-edit(root.detail-customer); } }
+                                        OutlineBtn { label: "+ Novo pedido"; accent: true; btn-color: Theme.sidebar-sel-bg; width: 140px; height: 32px; clicked => { root.new-order(root.detail-customer.id); } }
+                                    }
+                                }
+                            }
+                        }
+                        if root.narrow: HorizontalLayout {
+                            spacing: 10px;
+                            OutlineBtn { label: "Editar"; icon: @image-url("../assets/icons/1.2/editar.svg"); horizontal-stretch: 1; height: 32px; clicked => { root.request-edit(root.detail-customer); } }
+                            OutlineBtn { label: "+ Novo pedido"; accent: true; btn-color: Theme.sidebar-sel-bg; horizontal-stretch: 1; height: 32px; clicked => { root.new-order(root.detail-customer.id); } }
+                        }
+                    }
+
+                    // Cartões de métrica: 4 numa linha (largo) ou 2x2 (estreito).
+                    if !root.narrow: HorizontalLayout {
+                        spacing: 14px;
+                        StatCard { label: "LTV"; value: root.detail-customer.ltv; hint: root.detail-customer.ltv-pct; value-color: Theme.primary; }
+                        StatCard { label: "PEDIDOS"; value: "\{root.detail-customer.order-count}"; hint: "Válidos"; }
+                        StatCard { label: "TICKET MÉDIO"; value: root.detail-customer.avg-ticket; hint: "Média Histórica"; }
+                        StatCard { label: "ÚLTIMO PEDIDO"; value: root.detail-customer.last-order; hint: root.detail-customer.last-order-rel; value-color: #16A34A; }
+                    }
+                    if root.narrow: VerticalLayout {
+                        spacing: 14px;
+                        HorizontalLayout {
+                            spacing: 14px;
+                            StatCard { label: "LTV"; value: root.detail-customer.ltv; hint: root.detail-customer.ltv-pct; value-color: Theme.primary; }
+                            StatCard { label: "PEDIDOS"; value: "\{root.detail-customer.order-count}"; hint: "Válidos"; }
+                        }
+                        HorizontalLayout {
+                            spacing: 14px;
+                            StatCard { label: "TICKET MÉDIO"; value: root.detail-customer.avg-ticket; hint: "Média Histórica"; }
+                            StatCard { label: "ÚLTIMO PEDIDO"; value: root.detail-customer.last-order; hint: root.detail-customer.last-order-rel; value-color: #16A34A; }
+                        }
+                    }
+
+                    // Carteira do cliente — saldo + ações + histórico
+                    WalletCard {
+                        summary: root.wallet-summary;
+                        movements: root.wallet-movements;
+                        open-deposit => { root.wallet-open-deposit(); }
+                        open-withdraw => { root.wallet-open-withdraw(); }
+                        open-adjust => { root.wallet-open-adjust(); }
+                        open-limit => { root.wallet-open-limit(); }
+                        open-wallet => { root.wallet-open-wallet(); }
+                    }
+
+                    // Pedidos + informações: lado a lado (largo) ou
+                    // empilhados em 1 coluna (estreito) — nada é cortado.
+                    if !root.narrow: HorizontalLayout {
+                        spacing: 14px;
+                        // Padrão comprovado do orders_page: AMBAS as
+                        // colunas usam horizontal-stretch (proporcional
+                        // 2:1). Coluna fixa (min/max-width) ao lado de
+                        // stretch transbordava neste contexto aninhado;
+                        // duas colunas flexíveis encolhem e nunca saem
+                        // da tela.
+                        // Pedidos Recentes ADAPTATIVO: envolto em VBox
+                        // alinhado ao topo → altura própria, não acompanha
+                        // a coluna de informações ao lado.
+                        VerticalLayout {
+                            horizontal-stretch: 2;
+                            alignment: start;
+                            OrdersCard {
+                                orders: root.detail-recent-orders;
+                                reset-key: root.selected-customer-id;
+                                open-order(id) => { root.open-order(id); }
+                            }
+                        }
+                        InfoPanel {
+                            horizontal-stretch: 1;
+                            c: root.detail-customer;
+                            addresses: root.detail-addresses;
+                            edit() => { root.request-edit(root.detail-customer); }
+                        }
+                    }
+                    if root.narrow: VerticalLayout {
+                        spacing: 14px;
+                        OrdersCard {
+                            orders: root.detail-recent-orders;
+                            reset-key: root.selected-customer-id;
+                            open-order(id) => { root.open-order(id); }
+                        }
+                        InfoPanel {
+                            c: root.detail-customer;
+                            addresses: root.detail-addresses;
+                            edit() => { root.request-edit(root.detail-customer); }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

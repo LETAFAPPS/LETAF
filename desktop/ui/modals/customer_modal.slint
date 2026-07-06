@@ -1,0 +1,241 @@
+import { Theme } from "../theme.slint";
+import { AssetIcon } from "../components/icons.slint";
+import { CustomerAddressRow } from "../types.slint";
+import { Card } from "../components/cards.slint";
+import { FormField } from "../components/form_fields.slint";
+import { ActionBtn, OutlineBtn } from "../components/buttons.slint";
+
+// ── Modal: formulário de cliente ──────────────────────────────────────────────
+
+export component CustomerModal inherits Rectangle {
+    in-out property <string> editing-id;
+    in-out property <string> customer-name;
+    in-out property <string> customer-email;
+    in-out property <string> customer-phone;
+    in-out property <string> customer-document;
+    in-out property <string> customer-notes;
+    in-out property <image> customer-profile-picture;
+    in-out property <string> customer-avatar-initial: "?";
+    in-out property <string> customer-error-name;
+    in-out property <string> customer-error-email;
+    in-out property <string> customer-error-phone;
+    in-out property <string> customer-error-document;
+    // Endereços (compartilhados web ↔ desktop). Só geríveis ao editar
+    // um cliente já salvo (precisam de customer_id).
+    in property <[CustomerAddressRow]> customer-addresses;
+    in-out property <string> addr-label: "Casa";
+    in-out property <string> addr-street;
+    in-out property <string> addr-number;
+    in-out property <string> addr-custom-label;
+    in-out property <string> addr-neighborhood;
+    in-out property <string> addr-apartment;
+
+    callback close();
+    callback add-customer();
+    callback update-customer();
+    callback add-customer-address();
+    callback delete-customer-address(string);
+    callback format-customer-phone(string) -> string;
+    callback format-customer-document(string) -> string;
+
+    background: #00000060;
+
+    TouchArea { clicked => { root.close(); } }
+
+    VerticalLayout {
+        alignment: center;
+        HorizontalLayout {
+            alignment: center;
+            Card {
+                width: 460px;
+                TouchArea { }
+
+                VerticalLayout {
+                    padding: 24px;
+                    spacing: 12px;
+
+                    HorizontalLayout {
+                        Text {
+                            text: root.editing-id != "" ? "Editar Cliente" : "Novo Cliente";
+                            font-size: 18px; font-weight: 700;
+                            color: Theme.text-primary;
+                            horizontal-stretch: 1; vertical-alignment: center;
+                        }
+                        TouchArea {
+                            width: 28px; height: 28px;
+                            clicked => { root.close(); }
+                            property <bool> hov: self.has-hover;
+                            Rectangle {
+                                border-radius: 6px;
+                                background: parent.hov ? #f0f0f0 : transparent;
+                                AssetIcon { width: 16px; height: 16px; icon-size: 16px; icon-color: Theme.text-secondary; source: @image-url("../assets/icons/1.2/fechar.svg"); }
+                            }
+                        }
+                    }
+
+                    Rectangle { height: 1px; background: Theme.border; }
+
+                    // Avatar placeholder com inicial do nome
+                    HorizontalLayout {
+                        alignment: center;
+                        padding-bottom: 4px;
+                        Rectangle {
+                            width: 56px;
+                            height: 56px;
+                            border-radius: 6px;
+                            background: #e5e7eb;
+                            clip: true;
+                            if root.customer-profile-picture.width == 0: Text {
+                                text: root.customer-avatar-initial;
+                                font-size: 22px;
+                                font-weight: 700;
+                                color: #374151;
+                                horizontal-alignment: center;
+                                vertical-alignment: center;
+                            }
+                            if root.customer-profile-picture.width > 0: Image {
+                                source: root.customer-profile-picture;
+                                image-fit: cover;
+                                width: 56px;
+                                height: 56px;
+                            }
+                        }
+                    }
+
+                    VerticalLayout {
+                        FormField { label: "Nome"; value <=> root.customer-name; placeholder: "Nome completo"; }
+                        if root.customer-error-name != "": Text { text: root.customer-error-name; font-size: 11px; color: Theme.danger; }
+                    }
+                    HorizontalLayout {
+                        spacing: 12px;
+                        VerticalLayout {
+                            horizontal-stretch: 1;
+                            FormField { label: "Email"; value <=> root.customer-email; placeholder: "email@exemplo.com"; }
+                            if root.customer-error-email != "": Text { text: root.customer-error-email; font-size: 11px; color: Theme.danger; }
+                        }
+                        VerticalLayout {
+                            horizontal-stretch: 1;
+                            FormField {
+                                label: "Telefone";
+                                value <=> root.customer-phone;
+                                placeholder: "(00) 00000-0000";
+                                force-end-cursor: true;
+                                edited(t) => { root.customer-phone = root.format-customer-phone(t); }
+                            }
+                            if root.customer-error-phone != "": Text { text: root.customer-error-phone; font-size: 11px; color: Theme.danger; }
+                        }
+                    }
+                    VerticalLayout {
+                        FormField {
+                            label: "CPF/CNPJ";
+                            value <=> root.customer-document;
+                            placeholder: "CPF: 000.000.000-00 | CNPJ: 00.000.000/0000-00";
+                            force-end-cursor: true;
+                            edited(t) => { root.customer-document = root.format-customer-document(t); }
+                        }
+                        if root.customer-error-document != "": Text { text: root.customer-error-document; font-size: 11px; color: Theme.danger; }
+                    }
+                    VerticalLayout {
+                        FormField {
+                            label: "Observação Interna";
+                            value <=> root.customer-notes;
+                            placeholder: "Ex.: Prefere pagamento PIX. Sem cebola.";
+                        }
+                    }
+
+                    // ── Endereços ───────────────────────────────────
+                    Rectangle { height: 1px; background: Theme.border; }
+                    Text { text: "Endereços"; font-size: 13px; font-weight: 600; color: Theme.text-primary; }
+
+                    if root.editing-id == "": Text {
+                        text: "Salve o cliente para adicionar endereços.";
+                        font-size: 11px; color: Theme.text-secondary;
+                    }
+
+                    if root.editing-id != "": VerticalLayout {
+                        spacing: 8px;
+
+                        for a in root.customer-addresses: HorizontalLayout {
+                            spacing: 8px;
+                            VerticalLayout {
+                                horizontal-stretch: 1;
+                                Text { text: a.label; font-size: 12px; font-weight: 600; color: Theme.text-primary; }
+                                Text { text: a.line; font-size: 11px; color: Theme.text-secondary; overflow: elide; }
+                            }
+                            VerticalLayout {
+                                alignment: center;
+                                del-ta := TouchArea {
+                                    width: 26px; height: 26px;
+                                    clicked => { root.delete-customer-address(a.id); }
+                                    Rectangle {
+                                        x: 0; y: 0;
+                                        width: parent.width;
+                                        height: parent.height;
+                                        border-radius: 6px;
+                                        background: del-ta.has-hover ? Theme.danger : transparent;
+                                        AssetIcon { width: parent.width; height: parent.height; icon-size: 12px; icon-color: del-ta.has-hover ? white : Theme.danger; source: @image-url("../assets/icons/1.2/fechar.svg"); }
+                                    }
+                                }
+                            }
+                        }
+
+                        // Tipo do endereço (allowlist do core).
+                        HorizontalLayout {
+                            spacing: 8px;
+                            for opt in ["Casa", "Trabalho", "Outros"]: ta := TouchArea {
+                                height: 28px;
+                                clicked => { root.addr-label = opt; }
+                                Rectangle {
+                                    border-radius: 6px;
+                                    border-width: 1px;
+                                    border-color: root.addr-label == opt ? Theme.primary : Theme.border;
+                                    background: root.addr-label == opt ? Theme.sidebar-sel-bg : Theme.surface;
+                                    HorizontalLayout {
+                                        padding-left: 12px; padding-right: 12px;
+                                        Text {
+                                            text: opt; font-size: 12px;
+                                            font-weight: root.addr-label == opt ? 700 : 500;
+                                            color: root.addr-label == opt ? white : Theme.text-primary;
+                                            vertical-alignment: center;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        if root.addr-label == "Outros": FormField {
+                            label: "Nome do tipo";
+                            value <=> root.addr-custom-label;
+                            placeholder: "Ex.: Prédio, Sítio, Chácara";
+                        }
+                        HorizontalLayout {
+                            spacing: 10px;
+                            VerticalLayout { horizontal-stretch: 1; FormField { label: "Rua"; value <=> root.addr-street; placeholder: "Av. Exemplo"; } }
+                            VerticalLayout { width: 110px; FormField { label: "Número"; value <=> root.addr-number; placeholder: "123"; } }
+                        }
+                        HorizontalLayout {
+                            spacing: 10px;
+                            VerticalLayout { horizontal-stretch: 1; FormField { label: "Bairro"; value <=> root.addr-neighborhood; placeholder: "Centro"; } }
+                            VerticalLayout { width: 140px; FormField { label: "Compl./Ap."; value <=> root.addr-apartment; placeholder: "opcional"; } }
+                        }
+                        HorizontalLayout {
+                            alignment: start;
+                            OutlineBtn { label: "+ Adicionar endereço"; width: 200px; clicked => { root.add-customer-address(); } }
+                        }
+                    }
+
+                    Rectangle { height: 4px; }
+
+                    HorizontalLayout {
+                        alignment: end;
+                        spacing: 10px;
+                        OutlineBtn { label: "Cancelar"; width: 110px; clicked => { root.close(); } }
+                        ActionBtn {
+                            label: "Salvar Cliente"; bg-color: Theme.sidebar-sel-bg; width: 150px;
+                            clicked => { if root.editing-id != "" { root.update-customer(); } else { root.add-customer(); } }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

@@ -1,0 +1,591 @@
+import { ScrollView } from "std-widgets.slint";
+import { Theme } from "../theme.slint";
+import { CollabPermRow, CollabRoleRow, CollabEmployeeRow } from "../types.slint";
+import { FormField, PasswordField } from "../components/form_fields.slint";
+import { ActionBtn, OutlineBtn } from "../components/buttons.slint";
+import { AssetIcon } from "../components/icons.slint";
+import { EmptyState } from "../components/empty_state.slint";
+
+// ── Tela de Colaboradores (RBAC) ─────────────────────────────────────────────
+// Duas abas: Funções (cargo + permissões por tela) e Funcionários (login +
+// Função atribuída). UI sem lógica (§1/§3): listas/perms vêm prontas do Rust;
+// toda autoridade vive no backend (§11). Visual no design system (accent
+// laranja/verde por tema), fiel ao mockup.
+
+// Card-base dos painéis.
+component Panel inherits Rectangle {
+    border-radius: 14px;
+    border-width: 1px;
+    border-color: Theme.card-border;
+    drop-shadow-blur: 12px;
+    drop-shadow-offset-y: 0px;
+    drop-shadow-color: Theme.card-shadow;
+    background: Theme.surface;
+}
+
+// Caixa de ícone (escudo da função / pessoa do funcionário).
+component IconSquare inherits Rectangle {
+    in property <image> icon;
+    in property <length> box: 40px;
+    in property <bool> accent-bg: false;
+    width: root.box; height: root.box;
+    border-radius: 11px;
+    background: root.accent-bg ? Theme.accent.transparentize(0.85) : Theme.icon-box-bg;
+    AssetIcon {
+        width: 100%; height: 100%;
+        icon-size: root.box * 0.46;
+        icon-color: root.accent-bg ? Theme.accent : Theme.icon-box-fg;
+        source: root.icon;
+    }
+}
+
+// Botão-ícone quadrado (editar / excluir).
+component IconBtnSq inherits TouchArea {
+    in property <image> icon;
+    in property <bool> danger: false;
+    width: 30px; height: 30px;
+    Rectangle {
+        border-radius: 8px;
+        border-width: 1px;
+        border-color: root.has-hover ? (root.danger ? Theme.danger : Theme.accent) : Theme.border;
+        background: root.has-hover ? (root.danger ? #FFEBEE : Theme.row-hover) : Theme.surface;
+        AssetIcon {
+            width: 100%; height: 100%;
+            icon-size: 13px;
+            icon-color: root.has-hover ? (root.danger ? Theme.danger : Theme.accent) : Theme.text-secondary;
+            source: root.icon;
+        }
+    }
+}
+
+// Pílula de tag (chips de permissão / badge de função).
+component Tag inherits Rectangle {
+    in property <string> text;
+    in property <bool> accent: false;
+    height: 22px;
+    width: tag-t.preferred-width + 16px;
+    border-radius: 6px;
+    background: root.accent ? Theme.accent.transparentize(0.86) : Theme.row-alt;
+    tag-t := Text {
+        text: root.text;
+        font-size: 10px; font-weight: 700;
+        color: root.accent ? Theme.accent : Theme.text-secondary;
+        width: parent.width; height: parent.height;
+        horizontal-alignment: center; vertical-alignment: center;
+    }
+}
+
+// Botão de adicionar (topo da lista) — largura total, contorno.
+component AddBtn inherits TouchArea {
+    in property <string> label;
+    height: 46px;
+    Rectangle {
+        border-radius: 10px;
+        border-width: 1px;
+        border-color: root.has-hover ? Theme.accent : Theme.border;
+        background: root.has-hover ? Theme.row-hover : Theme.surface;
+        HorizontalLayout {
+            alignment: center; spacing: 8px;
+            AssetIcon {
+                width: 16px; height: parent.height; icon-size: 15px;
+                icon-color: root.has-hover ? Theme.accent : Theme.text-secondary;
+                source: @image-url("../assets/icons/1.2/adicionar.svg");
+            }
+            Text {
+                text: root.label;
+                font-size: 13px; font-weight: 600;
+                color: root.has-hover ? Theme.accent : Theme.text-secondary;
+                vertical-alignment: center;
+            }
+        }
+    }
+}
+
+// Botão "Marcar tudo" (contorno + check).
+component MarkAllBtn inherits TouchArea {
+    width: 128px; height: 36px;
+    Rectangle {
+        border-radius: 8px;
+        border-width: 1px;
+        border-color: root.has-hover ? Theme.accent : Theme.border;
+        background: root.has-hover ? Theme.row-hover : Theme.surface;
+        HorizontalLayout {
+            alignment: center; spacing: 8px;
+            AssetIcon {
+                width: 16px; height: parent.height; icon-size: 14px;
+                icon-color: root.has-hover ? Theme.accent : Theme.text-secondary;
+                source: @image-url("../assets/icons/1.2/confirmar.svg");
+            }
+            Text {
+                text: "Marcar tudo";
+                font-size: 12px; font-weight: 600;
+                color: root.has-hover ? Theme.accent : Theme.text-primary;
+                vertical-alignment: center;
+            }
+        }
+    }
+}
+
+// Interruptor (switch) — accent ligado / cinza desligado.
+component Toggle inherits TouchArea {
+    in property <bool> on;
+    callback changed(bool);
+    width: 42px; height: 24px;
+    clicked => { root.changed(!root.on); }
+    Rectangle {
+        border-radius: 12px;
+        background: root.on ? Theme.accent : Theme.border;
+        Rectangle {
+            width: 18px; height: 18px; border-radius: 9px;
+            y: (parent.height - self.height) / 2;
+            x: root.on ? parent.width - self.width - 3px : 3px;
+            background: white;
+        }
+    }
+}
+
+// Card de uma permissão na grade (nome/descrição + toggle Ver [+ Editar]).
+component PermCard inherits Rectangle {
+    in property <CollabPermRow> data;
+    callback toggle(bool, bool);   // is-edit, on
+    border-radius: 10px;
+    border-width: 1px;
+    border-color: Theme.card-border;
+    drop-shadow-blur: 12px;
+    drop-shadow-offset-y: 0px;
+    drop-shadow-color: Theme.card-shadow;
+    background: Theme.surface;
+    HorizontalLayout {
+        padding-left: 14px; padding-right: 12px; spacing: 8px;
+        VerticalLayout {
+            horizontal-stretch: 1;
+            alignment: center;
+            spacing: 2px;
+            Text { text: root.data.label; font-size: 13px; font-weight: 700; color: Theme.text-primary; overflow: elide; }
+            Text { text: root.data.sub-label; font-size: 10px; color: Theme.text-secondary; overflow: elide; }
+        }
+        VerticalLayout {
+            alignment: center;
+            spacing: 3px;
+            Toggle { on: root.data.view-on; changed(v) => { root.toggle(false, v); } }
+            Text { text: "Ver"; font-size: 9px; color: Theme.text-secondary; horizontal-alignment: center; }
+        }
+        if root.data.has-edit: VerticalLayout {
+            alignment: center;
+            spacing: 3px;
+            Toggle { on: root.data.edit-on; changed(v) => { root.toggle(true, v); } }
+            Text { text: "Editar"; font-size: 9px; color: Theme.text-secondary; horizontal-alignment: center; }
+        }
+    }
+}
+
+// Seletor de Função (dropdown no estilo do design system, em vez do
+// ComboBox nativo de fundo escuro).
+component RoleSelect inherits Rectangle {
+    in property <[string]> options;
+    in-out property <int> current-index;
+    height: 40px;
+    border-radius: 8px;
+    border-width: 1px;
+    border-color: sel-ta.has-hover ? Theme.accent : Theme.border;
+    background: Theme.surface;
+    sel-ta := TouchArea {
+        clicked => { pop.show(); }
+        HorizontalLayout {
+            padding-left: 12px; padding-right: 12px; spacing: 8px;
+            AssetIcon {
+                width: 16px; height: parent.height; icon-size: 15px;
+                icon-color: Theme.icon-box-fg;
+                source: @image-url("../assets/icons/1.2/seguranca.svg");
+            }
+            Text {
+                horizontal-stretch: 1;
+                text: root.options[root.current-index];
+                font-size: 13px; color: Theme.text-primary;
+                vertical-alignment: center; overflow: elide;
+            }
+            Text { text: "▾"; font-size: 12px; color: Theme.text-secondary; vertical-alignment: center; }
+        }
+    }
+    pop := PopupWindow {
+        x: 0; y: root.height + 4px;
+        width: root.width;
+        Rectangle {
+            background: Theme.surface;
+            border-radius: 8px;
+            border-width: 1px; border-color: Theme.card-border;
+            drop-shadow-blur: 12px; drop-shadow-color: #00000030;
+            VerticalLayout {
+                padding: 4px;
+                for opt[i] in root.options: opt-ta := TouchArea {
+                    height: 36px;
+                    clicked => { root.current-index = i; }
+                    Rectangle {
+                        border-radius: 6px;
+                        background: opt-ta.has-hover ? Theme.row-hover
+                            : (i == root.current-index ? Theme.accent.transparentize(0.90) : transparent);
+                        HorizontalLayout {
+                            padding-left: 10px; padding-right: 10px;
+                            Text {
+                                text: opt;
+                                font-size: 13px;
+                                font-weight: i == root.current-index ? 700 : 500;
+                                color: i == root.current-index ? Theme.accent : Theme.text-primary;
+                                vertical-alignment: center; horizontal-stretch: 1;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+export component CollaboratorsPage inherits Rectangle {
+    // ── Dados (Rust → UI) ──
+    in property <[CollabRoleRow]> roles;
+    in property <[CollabEmployeeRow]> employees;
+    in property <[CollabPermRow]> perm-rows;
+    in property <[string]> role-combo;
+    in property <int> perm-active;
+    in property <int> perm-total;
+
+    // ── Estado de formulário (two-way) ──
+    in-out property <string> editing-role-id;
+    in-out property <string> role-name;
+    in-out property <string> emp-id;
+    in-out property <string> emp-name;
+    in-out property <string> emp-email;
+    in-out property <string> emp-password;
+    in-out property <int> emp-role-index;
+
+    // ── Callbacks ──
+    callback refresh();
+    callback new-role();
+    callback edit-role(string);
+    callback save-role(string, string);
+    callback toggle-perm(string, bool, bool);
+    callback mark-all-perms();
+    callback new-employee();
+    callback edit-employee(string);
+    callback save-employee(string, string, string, string, int);
+    // Exclusão (função/funcionário) via modal de confirmação global.
+    callback request-delete(string, string, string);   // id, nome, tipo
+
+    background: Theme.bg;
+    property <string> tab: "roles";
+
+    VerticalLayout {
+        padding: 24px;
+        spacing: 18px;
+
+        // ── Cabeçalho + segmentado de abas ──
+        HorizontalLayout {
+            spacing: 12px;
+            VerticalLayout {
+                horizontal-stretch: 1;
+                alignment: center;
+                spacing: 2px;
+                Text { text: "Colaboradores"; font-size: 24px; font-weight: 800; color: Theme.text-primary; }
+                Text { text: "Funções (permissões) e funcionários com login"; font-size: 13px; color: Theme.text-secondary; }
+            }
+            VerticalLayout {
+                alignment: center;
+                Rectangle {
+                    height: 40px;
+                    border-radius: 10px;
+                    border-width: 1px; border-color: Theme.card-border;
+                    drop-shadow-blur: 12px;
+                    drop-shadow-offset-y: 0px;
+                    drop-shadow-color: Theme.card-shadow;
+                    background: Theme.surface;
+                    HorizontalLayout {
+                        padding: 4px; spacing: 4px;
+                        roles-ta := TouchArea {
+                            width: 120px;
+                            clicked => { root.tab = "roles"; }
+                            Rectangle {
+                                border-radius: 7px;
+                                background: root.tab == "roles" ? Theme.primary
+                                    : (roles-ta.has-hover ? Theme.row-hover : transparent);
+                                Text {
+                                    width: parent.width; height: parent.height;
+                                    text: "Funções";
+                                    font-size: 12px; font-weight: 700;
+                                    color: root.tab == "roles" ? white : Theme.text-primary;
+                                    horizontal-alignment: center; vertical-alignment: center;
+                                }
+                            }
+                        }
+                        emps-ta := TouchArea {
+                            width: 130px;
+                            clicked => { root.tab = "employees"; }
+                            Rectangle {
+                                border-radius: 7px;
+                                background: root.tab == "employees" ? Theme.primary
+                                    : (emps-ta.has-hover ? Theme.row-hover : transparent);
+                                Text {
+                                    width: parent.width; height: parent.height;
+                                    text: "Funcionários";
+                                    font-size: 12px; font-weight: 700;
+                                    color: root.tab == "employees" ? white : Theme.text-primary;
+                                    horizontal-alignment: center; vertical-alignment: center;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // ═══════════ ABA FUNÇÕES ═══════════
+        if root.tab == "roles": HorizontalLayout {
+            spacing: 18px;
+            vertical-stretch: 1;
+
+            // ── Lista de funções ──
+            VerticalLayout {
+                width: 360px;
+                spacing: 12px;
+                AddBtn { label: "Nova função"; clicked => { root.new-role(); } }
+                if root.roles.length == 0: EmptyState {
+                    source: @image-url("../assets/empty/empty-roles.svg");
+                    title: "Nenhuma função";
+                    subtitle: "Crie funções para organizar acessos";
+                    art-size: 130px;
+                }
+                ScrollView { vertical-scrollbar-policy: ScrollBarPolicy.always-off; horizontal-scrollbar-policy: ScrollBarPolicy.always-off;
+                    vertical-stretch: 1;
+                    VerticalLayout {
+                        alignment: start;
+                        spacing: 12px;
+                        for r in root.roles: role-ta := TouchArea {
+                            height: 138px;
+                            clicked => { root.edit-role(r.id); }
+                            Rectangle {
+                                border-radius: 12px;
+                                border-width: 1px;
+                                border-color: r.id == root.editing-role-id ? Theme.accent : Theme.border;
+                                background: r.id == root.editing-role-id ? Theme.accent.transparentize(0.92)
+                                    : (role-ta.has-hover ? Theme.row-hover : Theme.surface);
+                                VerticalLayout {
+                                    padding: 14px; spacing: 10px;
+                                    HorizontalLayout {
+                                        spacing: 8px;
+                                        IconSquare {
+                                            box: 38px;
+                                            accent-bg: r.id == root.editing-role-id;
+                                            icon: @image-url("../assets/icons/1.2/seguranca.svg");
+                                        }
+                                        Rectangle { horizontal-stretch: 1; }
+                                        IconBtnSq { icon: @image-url("../assets/icons/1.2/editar.svg"); clicked => { root.edit-role(r.id); } }
+                                        IconBtnSq { icon: @image-url("../assets/icons/1.2/lixeira.svg"); danger: true; clicked => { root.request-delete(r.id, r.name, "job-role"); } }
+                                    }
+                                    VerticalLayout {
+                                        spacing: 2px;
+                                        Text { text: r.name; font-size: 15px; font-weight: 700; color: Theme.text-primary; overflow: elide; }
+                                        Text { text: r.perm-summary; font-size: 11px; color: Theme.text-secondary; }
+                                    }
+                                    HorizontalLayout {
+                                        spacing: 6px;
+                                        for chip in r.perm-chips: Tag { text: chip; }
+                                        Rectangle { horizontal-stretch: 1; }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // ── Editor de função ──
+            Panel {
+                horizontal-stretch: 1;
+                VerticalLayout {
+                    padding: 24px;
+                    spacing: 18px;
+                    // Cabeçalho do editor.
+                    HorizontalLayout {
+                        spacing: 12px;
+                        IconSquare { box: 40px; accent-bg: true; icon: @image-url("../assets/icons/1.2/seguranca.svg"); }
+                        VerticalLayout {
+                            horizontal-stretch: 1;
+                            alignment: center;
+                            spacing: 2px;
+                            Text {
+                                text: root.editing-role-id == "" ? "Nova função"
+                                    : (root.role-name != "" ? root.role-name : "Função");
+                                font-size: 16px; font-weight: 700; color: Theme.text-primary;
+                            }
+                            Text {
+                                text: root.perm-active + " de " + root.perm-total + " permissões ativas";
+                                font-size: 12px; color: Theme.text-secondary;
+                            }
+                        }
+                        VerticalLayout {
+                            alignment: center;
+                            MarkAllBtn { clicked => { root.mark-all-perms(); } }
+                        }
+                    }
+                    FormField {
+                        label: "Nome da função";
+                        placeholder: "Ex.: Caixa, Garçom, Gerente";
+                        value <=> root.role-name;
+                    }
+                    // Grade 3 colunas de permissões (5 linhas).
+                    Rectangle {
+                        property <length> gap: 10px;
+                        property <length> col-w: (self.width - 2 * self.gap) / 3;
+                        property <length> card-h: 78px;
+                        height: 5 * self.card-h + 4 * self.gap;
+                        background: transparent;
+                        for p[i] in root.perm-rows: PermCard {
+                            property <float> rr: Math.floor(i / 3);
+                            x: (i - self.rr * 3) * (parent.col-w + parent.gap);
+                            y: self.rr * (parent.card-h + parent.gap);
+                            width: parent.col-w; height: parent.card-h;
+                            data: p;
+                            toggle(e, on) => { root.toggle-perm(p.key, e, on); }
+                        }
+                    }
+                    Rectangle { vertical-stretch: 1; background: transparent; }
+                    // Rodapé.
+                    HorizontalLayout {
+                        alignment: end;
+                        spacing: 10px;
+                        OutlineBtn { label: "Cancelar"; width: 100px; height: 40px; clicked => { root.new-role(); } }
+                        ActionBtn {
+                            label: "Salvar Função"; bg-color: Theme.sidebar-sel-bg; width: 144px; height: 40px;
+                            icon: @image-url("../assets/icons/1.2/confirmar.svg");
+                            clicked => { root.save-role(root.editing-role-id, root.role-name); }
+                        }
+                    }
+                }
+            }
+        }
+
+        // ═══════════ ABA FUNCIONÁRIOS ═══════════
+        if root.tab == "employees": HorizontalLayout {
+            spacing: 18px;
+            vertical-stretch: 1;
+
+            // ── Lista de funcionários ──
+            VerticalLayout {
+                width: 360px;
+                spacing: 12px;
+                AddBtn { label: "Novo funcionário"; clicked => { root.new-employee(); } }
+                if root.employees.length == 0: EmptyState {
+                    source: @image-url("../assets/empty/empty-employees.svg");
+                    title: "Nenhum colaborador";
+                    subtitle: "Cadastre a equipe do seu negócio";
+                    art-size: 130px;
+                }
+                ScrollView { vertical-scrollbar-policy: ScrollBarPolicy.always-off; horizontal-scrollbar-policy: ScrollBarPolicy.always-off;
+                    vertical-stretch: 1;
+                    VerticalLayout {
+                        alignment: start;
+                        spacing: 12px;
+                        for e in root.employees: emp-ta := TouchArea {
+                            height: 138px;
+                            clicked => { if !e.is-admin { root.edit-employee(e.id); } }
+                            Rectangle {
+                                border-radius: 12px;
+                                border-width: 1px;
+                                border-color: e.id == root.emp-id ? Theme.accent : Theme.border;
+                                background: e.id == root.emp-id ? Theme.accent.transparentize(0.92)
+                                    : (emp-ta.has-hover ? Theme.row-hover : Theme.surface);
+                                VerticalLayout {
+                                    padding: 14px; spacing: 8px;
+                                    HorizontalLayout {
+                                        spacing: 8px;
+                                        // Avatar circular com a inicial.
+                                        Rectangle {
+                                            width: 40px; height: 40px;
+                                            border-radius: 20px;
+                                            background: e.is-admin ? Theme.accent : e.avatar-color.transparentize(0.85);
+                                            Text {
+                                                width: 100%; height: 100%;
+                                                text: e.initial;
+                                                font-size: 16px; font-weight: 800;
+                                                color: e.is-admin ? white : e.avatar-color;
+                                                horizontal-alignment: center; vertical-alignment: center;
+                                            }
+                                        }
+                                        Rectangle { horizontal-stretch: 1; }
+                                        if !e.is-admin: IconBtnSq { icon: @image-url("../assets/icons/1.2/editar.svg"); clicked => { root.edit-employee(e.id); } }
+                                        if !e.is-admin: IconBtnSq { icon: @image-url("../assets/icons/1.2/lixeira.svg"); danger: true; clicked => { root.request-delete(e.id, e.name, "employee"); } }
+                                    }
+                                    VerticalLayout {
+                                        spacing: 2px;
+                                        Text { text: e.name; font-size: 15px; font-weight: 700; color: Theme.text-primary; overflow: elide; }
+                                        Text { text: e.email; font-size: 11px; color: Theme.text-secondary; overflow: elide; }
+                                    }
+                                    HorizontalLayout {
+                                        Tag { accent: true; text: e.is-admin ? e.role-label : e.job-role-name; }
+                                        Rectangle { horizontal-stretch: 1; }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // ── Editor de funcionário ──
+            Panel {
+                horizontal-stretch: 1;
+                VerticalLayout {
+                    padding: 24px;
+                    spacing: 16px;
+                    HorizontalLayout {
+                        spacing: 12px;
+                        IconSquare { box: 40px; accent-bg: true; icon: @image-url("../assets/icons/1.2/user.svg"); }
+                        VerticalLayout {
+                            alignment: center;
+                            spacing: 2px;
+                            Text {
+                                text: root.emp-id == "" ? "Novo funcionário" : "Editar funcionário";
+                                font-size: 16px; font-weight: 700; color: Theme.text-primary;
+                            }
+                            Text { text: "Preencha os dados e salve"; font-size: 12px; color: Theme.text-secondary; }
+                        }
+                    }
+                    FormField { label: "NOME COMPLETO"; placeholder: "Nome completo"; value <=> root.emp-name; }
+                    HorizontalLayout {
+                        spacing: 14px;
+                        FormField {
+                            horizontal-stretch: 1;
+                            label: "E-MAIL (LOGIN)"; placeholder: "email@empresa.com";
+                            value <=> root.emp-email;
+                            enabled: root.emp-id == "";
+                        }
+                        PasswordField {
+                            horizontal-stretch: 1;
+                            label: "SENHA"; placeholder: "••••••••";
+                            value <=> root.emp-password;
+                        }
+                    }
+                    VerticalLayout {
+                        spacing: 4px;
+                        Text { text: "FUNÇÃO"; font-size: 12px; font-weight: 500; color: Theme.text-secondary; }
+                        RoleSelect {
+                            options: root.role-combo;
+                            current-index <=> root.emp-role-index;
+                        }
+                    }
+                    Rectangle { vertical-stretch: 1; background: transparent; }
+                    HorizontalLayout {
+                        alignment: end;
+                        spacing: 10px;
+                        OutlineBtn { label: "Cancelar"; width: 100px; height: 40px; clicked => { root.new-employee(); } }
+                        ActionBtn {
+                            label: "Salvar Funcionário"; bg-color: Theme.sidebar-sel-bg; width: 164px; height: 40px;
+                            icon: @image-url("../assets/icons/1.2/confirmar.svg");
+                            clicked => { root.save-employee(root.emp-id, root.emp-name, root.emp-email, root.emp-password, root.emp-role-index); }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

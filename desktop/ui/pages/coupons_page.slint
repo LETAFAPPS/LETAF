@@ -1,0 +1,181 @@
+import { ScrollView } from "std-widgets.slint";
+import { Theme } from "../theme.slint";
+import { CouponData } from "../types.slint";
+import { Card } from "../components/cards.slint";
+import { OutlineBtn, DeleteBtn, EditBtn } from "../components/buttons.slint";
+import { EmptyState } from "../components/empty_state.slint";
+
+// ── Página de Cupons (Fase 8) ─────────────────────────────────────
+//
+// Regras aplicadas (AI_RULES.md §1, §3, §8):
+// - Apenas lista + botão "+ Novo Cupom". Form acontece no `CouponModal`.
+// - Sem lógica de negócio: a UI só dispara callbacks.
+// - Mesma estrutura visual da tela de Banners (cards numa lista
+//   rolável; ScrollView absorve a sobra vertical — não usar
+//   `alignment: start` no layout externo).
+export component CouponsPage inherits Rectangle {
+    in property <[CouponData]> coupons;
+    in property <int> coupons-active-count;
+    in property <int> coupons-inactive-count;
+
+    callback request-new();
+    callback request-edit(CouponData);
+    callback toggle-coupon-active(string);
+    callback delete-coupon(string);
+
+    // Fundo cinza (igual às outras telas): os cards flutuam sobre o bg,
+    // sem parecer um card grande atrás das informações.
+    background: Theme.bg;
+
+    VerticalLayout {
+        padding: 18px;
+        spacing: 14px;
+
+        // Cabeçalho (título + contador + linha), padrão de Produtos.
+        HorizontalLayout {
+            min-width: 0;
+            spacing: 12px;
+            VerticalLayout {
+                horizontal-stretch: 1;
+                min-width: 0;
+                spacing: 2px;
+                alignment: start;
+                Text {
+                    text: "Lista de Cupons";
+                    font-size: 22px; font-weight: 700;
+                    color: Theme.text-primary;
+                    overflow: elide;
+                }
+                Text {
+                    text: root.coupons-active-count + " ativos · " + root.coupons-inactive-count + " inativos";
+                    font-size: 12px;
+                    color: Theme.text-secondary;
+                    overflow: elide;
+                }
+            }
+            VerticalLayout {
+                alignment: center;
+                OutlineBtn {
+                    label: "+ Novo Cupom";
+                    accent: true;
+                    btn-color: Theme.sidebar-sel-bg;
+                    width: 140px;
+                    clicked => { root.request-new(); }
+                }
+            }
+        }
+
+        Rectangle { height: 1px; background: Theme.border; }
+
+        // Lista rolável — absorve a sobra vertical (vertical-stretch).
+        ScrollView { vertical-scrollbar-policy: ScrollBarPolicy.always-off; horizontal-scrollbar-policy: ScrollBarPolicy.always-off;
+            vertical-stretch: 1;
+            VerticalLayout {
+                alignment: start;
+                spacing: 14px;
+                // Folga p/ o ScrollView não recortar a sombra dos cards
+                // (laterais e topo do 1º card).
+                padding-left: 12px; padding-right: 12px;
+                padding-top: 12px; padding-bottom: 12px;
+
+                if root.coupons.length == 0: Card {
+                    VerticalLayout {
+                        padding: 24px;
+                        EmptyState {
+                            source: @image-url("../assets/empty/empty-coupons.svg");
+                            title: "Nenhum cupom";
+                            subtitle: "Crie cupons de desconto";
+                        }
+                    }
+                }
+
+                // Altura fixa (conteúdo ≈ 78px): dentro do ScrollView o
+                // Card colapsa sem altura explícita.
+                for c in root.coupons: Card {
+                    height: 88px;
+                    VerticalLayout {
+                        padding: 12px;
+                        HorizontalLayout {
+                            spacing: 14px;
+
+                            // Selo do código.
+                            VerticalLayout {
+                                alignment: center;
+                                Rectangle {
+                                    width: 130px;
+                                    height: 40px;
+                                    border-radius: 6px;
+                                    border-width: 1px;
+                                    border-color: Theme.primary;
+                                    background: #FFF7ED;
+                                    Text {
+                                        text: c.code;
+                                        font-size: 14px; font-weight: 700;
+                                        color: Theme.primary;
+                                        horizontal-alignment: center;
+                                        vertical-alignment: center;
+                                        width: parent.width; height: parent.height;
+                                        overflow: elide;
+                                    }
+                                }
+                            }
+
+                            // Título + tipo + resumo do desconto.
+                            VerticalLayout {
+                                alignment: center;
+                                spacing: 3px;
+                                horizontal-stretch: 1;
+                                Text {
+                                    text: c.title;
+                                    font-size: 14px; font-weight: 700;
+                                    color: Theme.text-primary;
+                                    overflow: elide;
+                                }
+                                Text {
+                                    text: c.coupon-type-label + " · " + c.discount-summary
+                                        + (c.valid-until != "" ? "  ·  até " + c.valid-until : "");
+                                    font-size: 11px;
+                                    color: Theme.text-secondary;
+                                    overflow: elide;
+                                }
+                            }
+
+                            // Toggle Ativo/Inativo (padrão dos Adicionais).
+                            VerticalLayout {
+                                alignment: center;
+                                TouchArea {
+                                    width: 70px;
+                                    height: 28px;
+                                    clicked => { root.toggle-coupon-active(c.id); }
+                                    Rectangle {
+                                        border-radius: 4px;
+                                        border-width: 1px;
+                                        border-color: c.active ? #66BB6A : Theme.border;
+                                        background: c.active ? #E8F5E9 : Theme.surface;
+                                        Text {
+                                            text: c.active ? "Ativo" : "Inativo";
+                                            font-size: 11px; font-weight: 600;
+                                            color: c.active ? #2E7D32 : Theme.text-secondary;
+                                            horizontal-alignment: center; vertical-alignment: center;
+                                            width: parent.width; height: parent.height;
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Editar / Excluir centralizados.
+                            VerticalLayout {
+                                alignment: center;
+                                EditBtn { clicked => { root.request-edit(c); } }
+                            }
+                            VerticalLayout {
+                                alignment: center;
+                                DeleteBtn { clicked => { root.delete-coupon(c.id); } }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

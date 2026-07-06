@@ -1,0 +1,34 @@
+[workspace]
+members = [
+    "core",
+    "server",
+    "desktop",
+    "web",
+]
+resolver = "2"
+
+# Otimizações de release para todos os crates do workspace
+# (AI_RULES.md §13 — otimização baseada em medição).
+# - `lto = "thin"`: melhor inlining cross-crate sem custo extremo de build.
+# - `codegen-units = 1`: maior fatia de inlining, build mais lento mas
+#   binário menor/rápido — apropriado para release.
+# - `strip = "symbols"`: remove símbolos de debug do binário final.
+# - `panic = "abort"`: panic não desenrola a stack — binário menor,
+#   sem custo de unwinding tables. Compatível com axum + tokio (não
+#   dependemos de `catch_unwind` em produção).
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = "symbols"
+panic = "abort"
+opt-level = 3
+
+# Perfil do bundle WASM do cardápio Leptos (web) — otimiza tamanho.
+# Profiles só valem na raiz do workspace; referenciado por
+# `lib-profile-release` em web/Cargo.toml ([package.metadata.leptos]).
+[profile.wasm-release]
+inherits = "release"
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
