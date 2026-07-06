@@ -75,8 +75,8 @@ pub trait SubscriptionRepository: Send + Sync {
         company_id: Uuid,
     ) -> Result<Vec<Subscription>, CoreError>;
     async fn find_unsynced_invoices(&self, company_id: Uuid) -> Result<Vec<Invoice>, CoreError>;
-    async fn mark_subscription_synced(&self, company_id: Uuid, id: Uuid) -> Result<(), CoreError>;
-    async fn mark_invoice_synced(&self, company_id: Uuid, id: Uuid) -> Result<(), CoreError>;
+    async fn mark_subscription_synced(&self, company_id: Uuid, id: Uuid, updated_at: chrono::NaiveDateTime) -> Result<(), CoreError>;
+    async fn mark_invoice_synced(&self, company_id: Uuid, id: Uuid, updated_at: chrono::NaiveDateTime) -> Result<(), CoreError>;
 
     /// §7.7 — last-write-wins via `updated_at`.
     async fn sync_upsert_subscription(&self, s: &Subscription) -> Result<(), CoreError>;

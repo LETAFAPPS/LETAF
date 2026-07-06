@@ -9,11 +9,12 @@
 //! mudou → 0 linhas afetadas → o registro fica `synced=false` e é reenviado no
 //! próximo ciclo (evita perda silenciosa da versão nova).
 //!
-//! ✅ Aplicado: subsistema PADRÃO (produtos, pedidos, clientes, categorias,
-//! subcategorias, adicionais, grupos, banners, cupons, financeiro, categorias
-//! financeiras, cargos, usuários, formas de pagamento, endereços, horários).
-//! ⏳ Pendente (mesmos moldes, próximos commits): caixa, carteira, assinaturas.
-//! `company` fica de fora (registro único do tenant, race negligenciável).
+//! ✅ Aplicado a TODOS os subsistemas: padrão (produtos, pedidos, clientes,
+//! categorias, subcategorias, adicionais, grupos, banners, cupons, financeiro,
+//! categorias financeiras, cargos, usuários, formas de pagamento, endereços,
+//! horários), caixa (sessões+movimentos), carteira (contas+movimentos) e
+//! assinaturas (assinaturas+faturas). `company` fica de fora de propósito
+//! (registro único do tenant, race negligenciável).
 
 use letaf_core::auth::model::SyncUserPayload;
 use letaf_core::error::CoreError;
@@ -358,7 +359,7 @@ impl SyncWorker {
                 if let Err(e) = self
                     .state
                     .subscription_service
-                    .mark_subscription_synced(self.state.company_id(), item.base.id)
+                    .mark_subscription_synced(self.state.company_id(), item.base.id, item.base.updated_at)
                     .await
                 {
                     tracing::warn!("mark_synced subscription {}: {e}", item.base.id);
@@ -382,7 +383,7 @@ impl SyncWorker {
                 if let Err(e) = self
                     .state
                     .subscription_service
-                    .mark_invoice_synced(self.state.company_id(), item.base.id)
+                    .mark_invoice_synced(self.state.company_id(), item.base.id, item.base.updated_at)
                     .await
                 {
                     tracing::warn!("mark_synced subscription_invoice {}: {e}", item.base.id);

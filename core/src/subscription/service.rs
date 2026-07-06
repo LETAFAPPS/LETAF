@@ -848,16 +848,18 @@ impl SubscriptionService {
         &self,
         company_id: Uuid,
         id: Uuid,
+        updated_at: chrono::NaiveDateTime,
     ) -> Result<(), CoreError> {
-        self.repo.mark_subscription_synced(company_id, id).await
+        self.repo.mark_subscription_synced(company_id, id, updated_at).await
     }
 
     pub async fn mark_invoice_synced(
         &self,
         company_id: Uuid,
         id: Uuid,
+        updated_at: chrono::NaiveDateTime,
     ) -> Result<(), CoreError> {
-        self.repo.mark_invoice_synced(company_id, id).await
+        self.repo.mark_invoice_synced(company_id, id, updated_at).await
     }
 
     pub async fn sync_upsert_subscription(

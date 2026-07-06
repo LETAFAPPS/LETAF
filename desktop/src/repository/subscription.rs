@@ -456,10 +456,12 @@ impl SubscriptionRepository for SqliteSubscriptionRepository {
         &self,
         company_id: Uuid,
         id: Uuid,
+        updated_at: chrono::NaiveDateTime,
     ) -> Result<(), CoreError> {
-        sqlx::query("UPDATE subscriptions SET synced = 1 WHERE company_id = ?1 AND id = ?2")
+        sqlx::query("UPDATE subscriptions SET synced = 1 WHERE company_id = ?1 AND id = ?2 AND updated_at = ?3")
             .bind(company_id.to_string())
             .bind(id.to_string())
+            .bind(ts(updated_at))
             .execute(&self.pool)
             .await
             .map_err(map_db)?;
@@ -470,12 +472,14 @@ impl SubscriptionRepository for SqliteSubscriptionRepository {
         &self,
         company_id: Uuid,
         id: Uuid,
+        updated_at: chrono::NaiveDateTime,
     ) -> Result<(), CoreError> {
         sqlx::query(
-            "UPDATE subscription_invoices SET synced = 1 WHERE company_id = ?1 AND id = ?2",
+            "UPDATE subscription_invoices SET synced = 1 WHERE company_id = ?1 AND id = ?2 AND updated_at = ?3",
         )
         .bind(company_id.to_string())
         .bind(id.to_string())
+            .bind(ts(updated_at))
         .execute(&self.pool)
         .await
         .map_err(map_db)?;
