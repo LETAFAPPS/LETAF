@@ -37,7 +37,7 @@ pub trait CashSessionRepository: Send + Sync {
 
     // ── Sync ──
     async fn find_unsynced(&self, company_id: Uuid) -> Result<Vec<CashSession>, CoreError>;
-    async fn mark_synced(&self, company_id: Uuid, id: Uuid) -> Result<(), CoreError>;
+    async fn mark_synced(&self, company_id: Uuid, id: Uuid, updated_at: chrono::NaiveDateTime) -> Result<(), CoreError>;
     async fn find_updated_since(
         &self,
         company_id: Uuid,
@@ -72,7 +72,7 @@ pub trait CashMovementRepository: Send + Sync {
 
     // ── Sync ──
     async fn find_unsynced(&self, company_id: Uuid) -> Result<Vec<CashMovement>, CoreError>;
-    async fn mark_synced(&self, company_id: Uuid, id: Uuid) -> Result<(), CoreError>;
+    async fn mark_synced(&self, company_id: Uuid, id: Uuid, updated_at: chrono::NaiveDateTime) -> Result<(), CoreError>;
     async fn find_updated_since(
         &self,
         company_id: Uuid,

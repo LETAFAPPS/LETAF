@@ -263,7 +263,7 @@ impl SyncWorker {
         let items = self.state.cash_service.find_unsynced_sessions(cid).await?;
         for item in &items {
             if self.send_one(token, "/sync/cash-sessions", item.base.id, item).await {
-                if let Err(e) = self.state.cash_service.mark_session_synced(cid, item.base.id).await {
+                if let Err(e) = self.state.cash_service.mark_session_synced(cid, item.base.id, item.base.updated_at).await {
                     tracing::warn!("mark_synced cash_session {}: {e}", item.base.id);
                 }
             }
@@ -277,7 +277,7 @@ impl SyncWorker {
         let items = self.state.cash_service.find_unsynced_movements(cid).await?;
         for item in &items {
             if self.send_one(token, "/sync/cash-movements", item.base.id, item).await {
-                if let Err(e) = self.state.cash_service.mark_movement_synced(cid, item.base.id).await {
+                if let Err(e) = self.state.cash_service.mark_movement_synced(cid, item.base.id, item.base.updated_at).await {
                     tracing::warn!("mark_synced cash_movement {}: {e}", item.base.id);
                 }
             }

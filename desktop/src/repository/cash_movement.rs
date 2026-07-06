@@ -136,10 +136,11 @@ impl CashMovementRepository for SqliteCashMovementRepository {
         rows.into_iter().map(CashMovement::try_from).collect()
     }
 
-    async fn mark_synced(&self, company_id: Uuid, id: Uuid) -> Result<(), CoreError> {
-        sqlx::query("UPDATE cash_movements SET synced = 1 WHERE company_id = ? AND id = ?")
+    async fn mark_synced(&self, company_id: Uuid, id: Uuid, updated_at: chrono::NaiveDateTime) -> Result<(), CoreError> {
+        sqlx::query("UPDATE cash_movements SET synced = 1 WHERE company_id = ? AND id = ? AND updated_at = ?")
             .bind(company_id.to_string())
             .bind(id.to_string())
+            .bind(ts(updated_at))
             .execute(&self.pool)
             .await
             .map_err(map_db)?;

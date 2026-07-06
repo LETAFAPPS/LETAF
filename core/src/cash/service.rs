@@ -263,8 +263,9 @@ impl CashService {
         &self,
         company_id: Uuid,
         id: Uuid,
+        updated_at: chrono::NaiveDateTime,
     ) -> Result<(), CoreError> {
-        self.sessions.mark_synced(company_id, id).await
+        self.sessions.mark_synced(company_id, id, updated_at).await
     }
     pub async fn find_sessions_updated_since(
         &self,
@@ -295,8 +296,9 @@ impl CashService {
         &self,
         company_id: Uuid,
         id: Uuid,
+        updated_at: chrono::NaiveDateTime,
     ) -> Result<(), CoreError> {
-        self.movements.mark_synced(company_id, id).await
+        self.movements.mark_synced(company_id, id, updated_at).await
     }
     pub async fn find_movements_updated_since(
         &self,
