@@ -35,5 +35,10 @@ pub fn from_db_f64(v: f64) -> Decimal {
 /// Converte um valor em reais (`Decimal`) para centavos inteiros (`i64`) —
 /// formato exigido pelas APIs de pagamento (Efi). Arredonda para o centavo.
 pub fn to_cents(reais: Decimal) -> i64 {
-    (reais * dec!(100)).round().to_i64().unwrap_or(0)
+    // Half-up (away-from-zero), consistente com `round2` — evita divergência
+    // no meio-centavo entre exibição/persistência e o valor enviado à API.
+    (reais * dec!(100))
+        .round_dp_with_strategy(0, rust_decimal::RoundingStrategy::MidpointAwayFromZero)
+        .to_i64()
+        .unwrap_or(0)
 }
