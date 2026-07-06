@@ -4,6 +4,7 @@ use uuid::Uuid;
 
 use super::model::{BalanceMode, Product};
 use super::repository::ProductRepository;
+use super::stock_movement::StockMovement;
 use crate::error::CoreError;
 
 /// Service para o domínio Product.
@@ -130,6 +131,7 @@ impl ProductService {
         Self::validate_variations(&variations)?;
         let mut product = self.repo.find_by_id(company_id, id).await?
             .ok_or_else(|| CoreError::NotFound("Product not found".into()))?;
+        let old_stock = product.stock_quantity;
 
         product.name = name;
         product.description = description;
@@ -154,7 +156,20 @@ impl ProductService {
         product.base.updated_at = chrono::Utc::now().naive_utc();
         product.base.synced = false;
 
+        // Estoque NÃO sincroniza por LWW (§7): mudanças de estoque na edição
+        // viram delta no ledger. O `update` mantém o estoque atual e a
+        // diferença (se houver) é aplicada via `try_adjust_stock`, que grava
+        // o StockMovement atomicamente. Produto ilimitado não tem delta.
+        let target_stock = product.stock_quantity;
+        let stock_delta = if unlimited_stock { 0.0 } else { target_stock - old_stock };
+        if stock_delta.abs() > f64::EPSILON {
+            product.stock_quantity = old_stock; // o update não altera o estoque
+        }
         self.repo.update(&product).await?;
+        if stock_delta.abs() > f64::EPSILON {
+            self.repo.try_adjust_stock(company_id, id, stock_delta).await?;
+            product.stock_quantity = target_stock; // reflete no retorno
+        }
         // Reescreve as associações N:M com a lista atual (lista vazia
         // limpa todas) — mesmo padrão de outras coleções gerenciadas
         // pelo produto.
@@ -459,6 +474,46 @@ impl ProductService {
         since: chrono::NaiveDateTime,
     ) -> Result<Vec<Product>, CoreError> {
         self.repo.find_updated_since(company_id, since).await
+    }
+
+    // ── Movimentos de estoque (ledger — §7) ──
+    /// Movimentos pendentes de push.
+    pub async fn find_unsynced_stock_movements(
+        &self,
+        company_id: Uuid,
+    ) -> Result<Vec<StockMovement>, CoreError> {
+        self.repo.find_unsynced_stock_movements(company_id).await
+    }
+
+    /// Marca movimento como sincronizado (condicional ao updated_at — §7.6).
+    pub async fn mark_stock_movement_synced(
+        &self,
+        company_id: Uuid,
+        id: Uuid,
+        updated_at: chrono::NaiveDateTime,
+    ) -> Result<(), CoreError> {
+        self.repo.mark_stock_movement_synced(company_id, id, updated_at).await
+    }
+
+    /// Aplica um movimento recebido de forma idempotente (valida o tenant).
+    pub async fn apply_stock_movement(
+        &self,
+        company_id: Uuid,
+        movement: StockMovement,
+    ) -> Result<(), CoreError> {
+        if movement.base.company_id != company_id {
+            return Err(CoreError::Validation("Company mismatch".into()));
+        }
+        self.repo.apply_stock_movement(&movement).await
+    }
+
+    /// Movimentos alterados após `since` (pull servidor→desktop).
+    pub async fn find_stock_movements_updated_since(
+        &self,
+        company_id: Uuid,
+        since: chrono::NaiveDateTime,
+    ) -> Result<Vec<StockMovement>, CoreError> {
+        self.repo.find_stock_movements_updated_since(company_id, since).await
     }
 
     /// Retorna apenas produtos ativos para exibição no catálogo público.

@@ -203,6 +203,11 @@ impl SyncWorker {
         if let Err(e) = self.sync_products(token).await {
             tracing::warn!("Product sync error: {e}");
         }
+        // Movimentos de estoque depois dos produtos: o servidor aplica o
+        // delta ao produto (ledger idempotente, substitui o LWW do estoque).
+        if let Err(e) = self.sync_stock_movements(token).await {
+            tracing::warn!("StockMovement sync error: {e}");
+        }
         if let Err(e) = self.sync_orders(token).await {
             tracing::warn!("Order sync error: {e}");
         }

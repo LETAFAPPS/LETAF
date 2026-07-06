@@ -39,6 +39,23 @@ impl SyncWorker {
         Ok(())
     }
 
+    /// Push de movimentos de estoque pendentes (ledger idempotente — §7).
+    /// Depois de produtos: o servidor aplica `stock_quantity += delta` uma
+    /// única vez por movimento, sem LWW sobre o valor absoluto (overselling).
+    pub(super) async fn sync_stock_movements(&self, token: &str) -> Result<(), CoreError> {
+        let cid = self.state.company_id();
+        let items = self.state.product_service.find_unsynced_stock_movements(cid).await?;
+        for item in &items {
+            if self.send_one(token, "/sync/stock-movements", item.base.id, item).await {
+                if let Err(e) = self.state.product_service
+                    .mark_stock_movement_synced(cid, item.base.id, item.base.updated_at).await {
+                    tracing::warn!("mark_synced stock_movement {}: {e}", item.base.id);
+                }
+            }
+        }
+        Ok(())
+    }
+
     /// Sincroniza usuários pendentes com o servidor.
     ///
     /// Usa SyncUserPayload para incluir password_hash na serialização

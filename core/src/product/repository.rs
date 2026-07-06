@@ -3,6 +3,7 @@ use chrono::NaiveDateTime;
 use uuid::Uuid;
 
 use super::model::Product;
+use super::stock_movement::StockMovement;
 use crate::error::CoreError;
 
 /// Trait de acesso a dados para Product.
@@ -77,6 +78,35 @@ pub trait ProductRepository: Send + Sync {
         product_id: Uuid,
         delta: f64,
     ) -> Result<StockAdjustResult, CoreError>;
+
+    // ── Movimentos de estoque (ledger append-only — AI_RULES §6, §7) ──
+    /// Movimentos ainda não sincronizados (push desktop→servidor).
+    async fn find_unsynced_stock_movements(
+        &self,
+        company_id: Uuid,
+    ) -> Result<Vec<StockMovement>, CoreError>;
+
+    /// Marca um movimento como sincronizado, condicional ao `updated_at`
+    /// empurrado (mesma proteção de §7.6 das demais entidades).
+    async fn mark_stock_movement_synced(
+        &self,
+        company_id: Uuid,
+        id: Uuid,
+        updated_at: NaiveDateTime,
+    ) -> Result<(), CoreError>;
+
+    /// Aplica um movimento recebido de forma IDEMPOTENTE: insere-o (no-op se
+    /// o `id` já existe) e, apenas na primeira vez, aplica `stock_quantity +=
+    /// delta` ao produto na MESMA transação. Como deltas são comutativos, o
+    /// estoque converge sem overselling — ao contrário do LWW sobre o absoluto.
+    async fn apply_stock_movement(&self, movement: &StockMovement) -> Result<(), CoreError>;
+
+    /// Movimentos alterados após `since` (pull servidor→desktop).
+    async fn find_stock_movements_updated_since(
+        &self,
+        company_id: Uuid,
+        since: NaiveDateTime,
+    ) -> Result<Vec<StockMovement>, CoreError>;
 }
 
 /// Resultado da tentativa atômica de ajuste de estoque.

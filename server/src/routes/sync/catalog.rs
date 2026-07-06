@@ -10,6 +10,7 @@ use letaf_core::category::model::Category;
 use letaf_core::job_role::model::JobRole;
 use letaf_core::subcategory::model::Subcategory;
 use letaf_core::product::model::Product;
+use letaf_core::product::stock_movement::StockMovement;
 
 use crate::context::AppState;
 use crate::error::ServerError;
@@ -45,6 +46,36 @@ pub(crate) async fn pull_products(
         .find_updated_since(auth.0.company_id, params.since)
         .await?;
 
+    Ok(Json(items))
+}
+
+/// POST /sync/stock-movements — ingest de movimento de estoque (idempotente).
+/// Aplica `stock_quantity += delta` uma única vez por id, substituindo o LWW
+/// sobre o valor absoluto (evita overselling em vendas offline concorrentes).
+pub(crate) async fn sync_stock_movement(
+    State(state): State<AppState>,
+    auth: AuthClaims,
+    Json(movement): Json<StockMovement>,
+) -> Result<Json<Value>, ServerError> {
+    auth.verify_any_role(ROLES_OPERATORS)?;
+    state
+        .product_service
+        .apply_stock_movement(auth.0.company_id, movement)
+        .await?;
+    Ok(Json(json!({ "synced": true })))
+}
+
+/// GET /sync/pull/stock-movements?since=<timestamp>
+pub(crate) async fn pull_stock_movements(
+    State(state): State<AppState>,
+    auth: AuthClaims,
+    Query(params): Query<PullQuery>,
+) -> Result<Json<Vec<StockMovement>>, ServerError> {
+    auth.verify_any_role(ROLES_OPERATORS)?;
+    let items = state
+        .product_service
+        .find_stock_movements_updated_since(auth.0.company_id, params.since)
+        .await?;
     Ok(Json(items))
 }
 

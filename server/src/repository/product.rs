@@ -8,8 +8,43 @@ use letaf_core::entity::BaseFields;
 use letaf_core::error::CoreError;
 use letaf_core::product::model::{BalanceMode, Product};
 use letaf_core::product::repository::{ProductRepository, StockAdjustResult};
+use letaf_core::product::stock_movement::StockMovement;
 
-use super::helpers::map_db;
+use super::helpers::{insert_stock_movement, map_db};
+
+/// Row intermediário sqlx → StockMovement (tipos nativos do Postgres).
+#[derive(FromRow)]
+struct StockMovementRow {
+    id: Uuid,
+    company_id: Uuid,
+    product_id: Uuid,
+    delta: f64,
+    reason: String,
+    order_id: Option<Uuid>,
+    created_at: NaiveDateTime,
+    updated_at: NaiveDateTime,
+    deleted_at: Option<NaiveDateTime>,
+    synced: bool,
+}
+
+impl From<StockMovementRow> for StockMovement {
+    fn from(r: StockMovementRow) -> Self {
+        Self {
+            base: BaseFields {
+                id: r.id,
+                company_id: r.company_id,
+                created_at: r.created_at,
+                updated_at: r.updated_at,
+                deleted_at: r.deleted_at,
+                synced: r.synced,
+            },
+            product_id: r.product_id,
+            delta: r.delta,
+            reason: r.reason,
+            order_id: r.order_id,
+        }
+    }
+}
 
 /// Row intermediário para mapeamento sqlx → domínio.
 ///
@@ -429,6 +464,7 @@ impl ProductRepository for PgProductRepository {
         delta: f64,
     ) -> Result<StockAdjustResult, CoreError> {
         let now = chrono::Utc::now().naive_utc();
+        let mut tx = self.pool.begin().await.map_err(map_db)?;
         let rows_affected = sqlx::query(
             "UPDATE products
                 SET stock_quantity = stock_quantity + $1,
@@ -444,13 +480,19 @@ impl ProductRepository for PgProductRepository {
         .bind(now)
         .bind(company_id)
         .bind(product_id)
-        .execute(&self.pool)
+        .execute(&mut *tx)
         .await
         .map_err(map_db)?
         .rows_affected();
         if rows_affected == 1 {
+            // Ledger append-only na MESMA transação (§7): propaga o delta
+            // aos desktops via pull idempotente.
+            insert_stock_movement(&mut tx, company_id, product_id, delta, "adjust", None, now)
+                .await?;
+            tx.commit().await.map_err(map_db)?;
             return Ok(StockAdjustResult::Adjusted);
         }
+        tx.rollback().await.map_err(map_db)?;
         // Distingue entre Unlimited, Insufficient e NotFound.
         let row: Option<(bool, f64, Option<chrono::NaiveDateTime>)> = sqlx::query_as(
             "SELECT unlimited_stock, stock_quantity, deleted_at FROM products
@@ -480,7 +522,9 @@ impl ProductRepository for PgProductRepository {
                  subcategory_id = EXCLUDED.subcategory_id,
                  price = EXCLUDED.price,
                  cost_price = EXCLUDED.cost_price,
-                 stock_quantity = EXCLUDED.stock_quantity,
+                 -- stock_quantity NÃO é sobrescrito no conflito: o estoque
+                 -- evolui só pelo ledger (apply_stock_movement), evitando LWW
+                 -- sobre o valor absoluto (overselling). §7.
                  unlimited_stock = EXCLUDED.unlimited_stock,
                  barcode = EXCLUDED.barcode,
                  unit = EXCLUDED.unit,
@@ -534,5 +578,97 @@ impl ProductRepository for PgProductRepository {
         .map_err(map_db)?;
 
         Ok(())
+    }
+
+    async fn find_unsynced_stock_movements(
+        &self,
+        company_id: Uuid,
+    ) -> Result<Vec<StockMovement>, CoreError> {
+        let rows = sqlx::query_as::<_, StockMovementRow>(
+            "SELECT id, company_id, product_id, delta, reason, order_id, created_at, updated_at, deleted_at, synced
+             FROM stock_movements WHERE company_id = $1 AND synced = false ORDER BY created_at ASC",
+        )
+        .bind(company_id)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(map_db)?;
+        Ok(rows.into_iter().map(StockMovement::from).collect())
+    }
+
+    async fn mark_stock_movement_synced(
+        &self,
+        company_id: Uuid,
+        id: Uuid,
+        updated_at: NaiveDateTime,
+    ) -> Result<(), CoreError> {
+        sqlx::query(
+            "UPDATE stock_movements SET synced = true
+             WHERE company_id = $1 AND id = $2 AND updated_at = $3",
+        )
+        .bind(company_id)
+        .bind(id)
+        .bind(updated_at)
+        .execute(&self.pool)
+        .await
+        .map_err(map_db)?;
+        Ok(())
+    }
+
+    async fn apply_stock_movement(&self, m: &StockMovement) -> Result<(), CoreError> {
+        let mut tx = self.pool.begin().await.map_err(map_db)?;
+        // `ON CONFLICT DO NOTHING` garante idempotência: id repetido não
+        // reinsere e o delta NÃO é reaplicado. Movimento aplicado = synced.
+        let inserted = sqlx::query(
+            "INSERT INTO stock_movements
+                (id, company_id, product_id, delta, reason, order_id, created_at, updated_at, deleted_at, synced)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, true)
+             ON CONFLICT (id) DO NOTHING",
+        )
+        .bind(m.base.id)
+        .bind(m.base.company_id)
+        .bind(m.product_id)
+        .bind(m.delta)
+        .bind(&m.reason)
+        .bind(m.order_id)
+        .bind(m.base.created_at)
+        .bind(m.base.updated_at)
+        .bind(m.base.deleted_at)
+        .execute(&mut *tx)
+        .await
+        .map_err(map_db)?
+        .rows_affected();
+        if inserted == 1 {
+            // Aplica o delta ao materializado só na 1ª vez. Não toca
+            // updated_at/synced do produto (mudança veio do sync).
+            sqlx::query(
+                "UPDATE products SET stock_quantity = stock_quantity + $1
+                 WHERE company_id = $2 AND id = $3 AND unlimited_stock = false",
+            )
+            .bind(m.delta)
+            .bind(m.base.company_id)
+            .bind(m.product_id)
+            .execute(&mut *tx)
+            .await
+            .map_err(map_db)?;
+        }
+        tx.commit().await.map_err(map_db)?;
+        Ok(())
+    }
+
+    async fn find_stock_movements_updated_since(
+        &self,
+        company_id: Uuid,
+        since: NaiveDateTime,
+    ) -> Result<Vec<StockMovement>, CoreError> {
+        let rows = sqlx::query_as::<_, StockMovementRow>(
+            "SELECT id, company_id, product_id, delta, reason, order_id, created_at, updated_at, deleted_at, synced
+             FROM stock_movements WHERE company_id = $1 AND updated_at > $2 ORDER BY updated_at ASC",
+        )
+        .bind(company_id)
+        .bind(since)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(map_db)?;
+        Ok(rows.into_iter().map(StockMovement::from).collect())
     }
 }

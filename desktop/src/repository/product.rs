@@ -7,6 +7,7 @@ use letaf_core::entity::BaseFields;
 use letaf_core::error::CoreError;
 use letaf_core::product::model::{BalanceMode, Product};
 use letaf_core::product::repository::{ProductRepository, StockAdjustResult};
+use letaf_core::product::stock_movement::StockMovement;
 
 use super::helpers::{insert_stock_movement, map_db, parse_timestamp, parse_uuid, ts};
 
@@ -83,6 +84,40 @@ impl TryFrom<ProductRow> for Product {
             discount_tiers: r.discount_tiers,
             addon_group_ids: Vec::new(),
             variations: r.variations,
+        })
+    }
+}
+
+#[derive(FromRow)]
+struct StockMovementRow {
+    id: String,
+    company_id: String,
+    product_id: String,
+    delta: f64,
+    reason: String,
+    order_id: Option<String>,
+    created_at: String,
+    updated_at: String,
+    deleted_at: Option<String>,
+    synced: bool,
+}
+
+impl TryFrom<StockMovementRow> for StockMovement {
+    type Error = CoreError;
+    fn try_from(r: StockMovementRow) -> Result<Self, Self::Error> {
+        Ok(Self {
+            base: BaseFields {
+                id: parse_uuid(&r.id)?,
+                company_id: parse_uuid(&r.company_id)?,
+                created_at: parse_timestamp(&r.created_at)?,
+                updated_at: parse_timestamp(&r.updated_at)?,
+                deleted_at: r.deleted_at.as_deref().map(parse_timestamp).transpose()?,
+                synced: r.synced,
+            },
+            product_id: parse_uuid(&r.product_id)?,
+            delta: r.delta,
+            reason: r.reason,
+            order_id: r.order_id.as_deref().map(parse_uuid).transpose()?,
         })
     }
 }
@@ -493,7 +528,14 @@ impl ProductRepository for SqliteProductRepository {
                  subcategory_id = excluded.subcategory_id,
                  price = excluded.price,
                  cost_price = excluded.cost_price,
-                 stock_quantity = excluded.stock_quantity,
+                 -- Estoque: só aceita o absoluto do servidor quando o registro
+                 -- local está sincronizado (synced=1). Se há venda/ajuste local
+                 -- pendente (synced=0), preserva o valor local — o servidor
+                 -- converge depois que o movimento pendente for empurrado e
+                 -- aplicado lá. Evita o overselling do LWW sobre o absoluto (§7).
+                 stock_quantity = CASE WHEN products.synced = 1
+                                       THEN excluded.stock_quantity
+                                       ELSE products.stock_quantity END,
                  unlimited_stock = excluded.unlimited_stock,
                  barcode = excluded.barcode,
                  unit = excluded.unit,
@@ -547,5 +589,97 @@ impl ProductRepository for SqliteProductRepository {
         .map_err(map_db)?;
 
         Ok(())
+    }
+
+    async fn find_unsynced_stock_movements(
+        &self,
+        company_id: Uuid,
+    ) -> Result<Vec<StockMovement>, CoreError> {
+        let rows = sqlx::query_as::<_, StockMovementRow>(
+            "SELECT id, company_id, product_id, delta, reason, order_id, created_at, updated_at, deleted_at, synced
+             FROM stock_movements WHERE company_id = ?1 AND synced = 0 ORDER BY created_at ASC",
+        )
+        .bind(company_id.to_string())
+        .fetch_all(&self.pool)
+        .await
+        .map_err(map_db)?;
+        rows.into_iter().map(StockMovement::try_from).collect()
+    }
+
+    async fn mark_stock_movement_synced(
+        &self,
+        company_id: Uuid,
+        id: Uuid,
+        updated_at: chrono::NaiveDateTime,
+    ) -> Result<(), CoreError> {
+        sqlx::query(
+            "UPDATE stock_movements SET synced = 1
+             WHERE company_id = ?1 AND id = ?2 AND updated_at = ?3",
+        )
+        .bind(company_id.to_string())
+        .bind(id.to_string())
+        .bind(ts(updated_at))
+        .execute(&self.pool)
+        .await
+        .map_err(map_db)?;
+        Ok(())
+    }
+
+    async fn apply_stock_movement(&self, m: &StockMovement) -> Result<(), CoreError> {
+        let mut tx = self.pool.begin().await.map_err(map_db)?;
+        // `INSERT OR IGNORE` garante idempotência: se o id já existe, não
+        // reinsere e o delta NÃO é reaplicado. Movimento aplicado = synced.
+        let inserted = sqlx::query(
+            "INSERT OR IGNORE INTO stock_movements
+                (id, company_id, product_id, delta, reason, order_id, created_at, updated_at, deleted_at, synced)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, 1)",
+        )
+        .bind(m.base.id.to_string())
+        .bind(m.base.company_id.to_string())
+        .bind(m.product_id.to_string())
+        .bind(m.delta)
+        .bind(&m.reason)
+        .bind(m.order_id.map(|o| o.to_string()))
+        .bind(ts(m.base.created_at))
+        .bind(ts(m.base.updated_at))
+        .bind(m.base.deleted_at.map(ts))
+        .execute(&mut *tx)
+        .await
+        .map_err(map_db)?
+        .rows_affected();
+        if inserted == 1 {
+            // Aplica o delta ao materializado só na 1ª vez. Não toca
+            // updated_at/synced do produto (a mudança veio do sync, não
+            // deve reempurrar o produto). Ilimitado não decrementa.
+            sqlx::query(
+                "UPDATE products SET stock_quantity = stock_quantity + ?1
+                 WHERE company_id = ?2 AND id = ?3 AND unlimited_stock = 0",
+            )
+            .bind(m.delta)
+            .bind(m.base.company_id.to_string())
+            .bind(m.product_id.to_string())
+            .execute(&mut *tx)
+            .await
+            .map_err(map_db)?;
+        }
+        tx.commit().await.map_err(map_db)?;
+        Ok(())
+    }
+
+    async fn find_stock_movements_updated_since(
+        &self,
+        company_id: Uuid,
+        since: chrono::NaiveDateTime,
+    ) -> Result<Vec<StockMovement>, CoreError> {
+        let rows = sqlx::query_as::<_, StockMovementRow>(
+            "SELECT id, company_id, product_id, delta, reason, order_id, created_at, updated_at, deleted_at, synced
+             FROM stock_movements WHERE company_id = ?1 AND updated_at > ?2 ORDER BY updated_at ASC",
+        )
+        .bind(company_id.to_string())
+        .bind(ts(since))
+        .fetch_all(&self.pool)
+        .await
+        .map_err(map_db)?;
+        rows.into_iter().map(StockMovement::try_from).collect()
     }
 }

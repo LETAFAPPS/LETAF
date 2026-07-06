@@ -10,7 +10,7 @@ use letaf_core::error::CoreError;
 use letaf_core::order::model::{DeliveryType, Order, OrderItem, OrderStatus};
 use letaf_core::order::repository::OrderRepository;
 
-use super::helpers::map_db;
+use super::helpers::{insert_stock_movement, map_db};
 
 /// Converte sentinela `Uuid::nil()` (= sem cliente, vinda do desktop)
 /// em `None` para o bind do Postgres — evita FK violation em
@@ -242,6 +242,19 @@ impl OrderRepository for PgOrderRepository {
                         )));
                     }
                 }
+            } else {
+                // Decremento efetivado → registra o delta no ledger (§7), na
+                // MESMA transação, para propagar aos desktops via pull.
+                insert_stock_movement(
+                    &mut tx,
+                    order.base.company_id,
+                    *product_id,
+                    -*qty,
+                    "sale",
+                    Some(order.base.id),
+                    now,
+                )
+                .await?;
             }
         }
 
