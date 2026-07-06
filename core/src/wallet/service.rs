@@ -234,8 +234,9 @@ impl WalletService {
         &self,
         company_id: Uuid,
         id: Uuid,
+        updated_at: chrono::NaiveDateTime,
     ) -> Result<(), CoreError> {
-        self.repo.mark_account_synced(company_id, id).await
+        self.repo.mark_account_synced(company_id, id, updated_at).await
     }
 
     pub async fn find_accounts_updated_since(
@@ -271,8 +272,9 @@ impl WalletService {
         &self,
         company_id: Uuid,
         id: Uuid,
+        updated_at: chrono::NaiveDateTime,
     ) -> Result<(), CoreError> {
-        self.repo.mark_movement_synced(company_id, id).await
+        self.repo.mark_movement_synced(company_id, id, updated_at).await
     }
 
     pub async fn find_movements_updated_since(

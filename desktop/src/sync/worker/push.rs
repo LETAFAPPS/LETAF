@@ -322,7 +322,7 @@ impl SyncWorker {
         for item in &items {
             if self.send_one(token, "/sync/wallet-accounts", item.base.id, item).await {
                 if let Err(e) = self.state.wallet_service
-                    .mark_account_synced(cid, item.base.id).await
+                    .mark_account_synced(cid, item.base.id, item.base.updated_at).await
                 {
                     tracing::warn!("mark_synced wallet_account {}: {e}", item.base.id);
                 }
@@ -338,7 +338,7 @@ impl SyncWorker {
         for item in &items {
             if self.send_one(token, "/sync/wallet-movements", item.base.id, item).await {
                 if let Err(e) = self.state.wallet_service
-                    .mark_movement_synced(cid, item.base.id).await
+                    .mark_movement_synced(cid, item.base.id, item.base.updated_at).await
                 {
                     tracing::warn!("mark_synced wallet_movement {}: {e}", item.base.id);
                 }

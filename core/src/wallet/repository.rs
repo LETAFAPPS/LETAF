@@ -70,7 +70,7 @@ pub trait WalletRepository: Send + Sync {
         &self,
         company_id: Uuid,
     ) -> Result<Vec<WalletAccount>, CoreError>;
-    async fn mark_account_synced(&self, company_id: Uuid, id: Uuid) -> Result<(), CoreError>;
+    async fn mark_account_synced(&self, company_id: Uuid, id: Uuid, updated_at: chrono::NaiveDateTime) -> Result<(), CoreError>;
     async fn find_accounts_updated_since(
         &self,
         company_id: Uuid,
@@ -84,7 +84,7 @@ pub trait WalletRepository: Send + Sync {
         &self,
         company_id: Uuid,
     ) -> Result<Vec<WalletMovement>, CoreError>;
-    async fn mark_movement_synced(&self, company_id: Uuid, id: Uuid) -> Result<(), CoreError>;
+    async fn mark_movement_synced(&self, company_id: Uuid, id: Uuid, updated_at: chrono::NaiveDateTime) -> Result<(), CoreError>;
     async fn find_movements_updated_since(
         &self,
         company_id: Uuid,
