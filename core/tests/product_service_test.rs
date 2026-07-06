@@ -10,6 +10,7 @@ use letaf_core::error::CoreError;
 use letaf_core::product::model::Product;
 use letaf_core::product::repository::{ProductRepository, StockAdjustResult};
 use letaf_core::product::service::ProductService;
+use letaf_core::product::stock_movement::StockMovement;
 
 /// Mock in-memory do ProductRepository para testes unitários.
 ///
@@ -72,7 +73,7 @@ impl ProductRepository for MockProductRepo {
         Ok(items.iter().filter(|p| p.base.company_id == company_id && !p.base.synced).cloned().collect())
     }
 
-    async fn mark_synced(&self, company_id: Uuid, id: Uuid) -> Result<(), CoreError> {
+    async fn mark_synced(&self, company_id: Uuid, id: Uuid, _updated_at: NaiveDateTime) -> Result<(), CoreError> {
         let mut items = self.items.lock().unwrap();
         if let Some(p) = items.iter_mut().find(|p| p.base.id == id && p.base.company_id == company_id) {
             p.base.synced = true;
@@ -150,6 +151,25 @@ impl ProductRepository for MockProductRepo {
             p.addon_group_ids = group_ids.to_vec();
         }
         Ok(())
+    }
+
+    // Ledger de estoque — stubs suficientes para os testes do service.
+    async fn find_unsynced_stock_movements(&self, _company_id: Uuid) -> Result<Vec<StockMovement>, CoreError> {
+        Ok(Vec::new())
+    }
+    async fn mark_stock_movement_synced(&self, _company_id: Uuid, _id: Uuid, _updated_at: NaiveDateTime) -> Result<(), CoreError> {
+        Ok(())
+    }
+    async fn apply_stock_movement(&self, movement: &StockMovement) -> Result<(), CoreError> {
+        // Aplica o delta ao produto (comportamento mínimo p/ eventuais testes).
+        let mut items = self.items.lock().unwrap();
+        if let Some(p) = items.iter_mut().find(|p| p.base.id == movement.product_id && !p.unlimited_stock) {
+            p.stock_quantity += movement.delta;
+        }
+        Ok(())
+    }
+    async fn find_stock_movements_updated_since(&self, _company_id: Uuid, _since: NaiveDateTime) -> Result<Vec<StockMovement>, CoreError> {
+        Ok(Vec::new())
     }
 }
 
@@ -288,7 +308,7 @@ async fn product_created_as_unsynced() {
 async fn mark_synced_works() {
     let (svc, cid) = make_service();
     let p = svc.create(cid, "X".into(), None, None, None, None, None, 0.0, 0.0, false, None, "un".into(), letaf_core::product::model::BalanceMode::Weight, None, None, None, None, None, None, None, Vec::new(), None).await.unwrap();
-    svc.mark_synced(cid, p.base.id).await.unwrap();
+    svc.mark_synced(cid, p.base.id, p.base.updated_at).await.unwrap();
     let unsynced = svc.find_unsynced(cid).await.unwrap();
     assert!(unsynced.is_empty());
 }

@@ -65,7 +65,7 @@ impl CustomerRepository for MockCustomerRepo {
         Ok(items.iter().filter(|c| c.base.company_id == company_id && !c.base.synced).cloned().collect())
     }
 
-    async fn mark_synced(&self, company_id: Uuid, id: Uuid) -> Result<(), CoreError> {
+    async fn mark_synced(&self, company_id: Uuid, id: Uuid, _updated_at: NaiveDateTime) -> Result<(), CoreError> {
         let mut items = self.items.lock().unwrap();
         if let Some(c) = items.iter_mut().find(|c| c.base.id == id && c.base.company_id == company_id) {
             c.base.synced = true;

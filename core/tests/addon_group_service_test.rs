@@ -53,7 +53,7 @@ impl AddonGroupRepository for MockRepo {
         Ok(())
     }
     async fn find_unsynced(&self, _cid: Uuid) -> Result<Vec<AddonGroup>, CoreError> { Ok(Vec::new()) }
-    async fn mark_synced(&self, _cid: Uuid, _id: Uuid) -> Result<(), CoreError> { Ok(()) }
+    async fn mark_synced(&self, _cid: Uuid, _id: Uuid, _updated_at: NaiveDateTime) -> Result<(), CoreError> { Ok(()) }
     async fn sync_upsert(&self, _g: &AddonGroup) -> Result<(), CoreError> { Ok(()) }
     async fn find_updated_since(&self, _cid: Uuid, _since: NaiveDateTime) -> Result<Vec<AddonGroup>, CoreError> { Ok(Vec::new()) }
 }
