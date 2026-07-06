@@ -1,16 +1,19 @@
 //! Push de entidades pendentes (synced=false) ao servidor.
 //! `impl SyncWorker` separado por responsabilidade (AI_RULES §8).
 //!
-//! ⚠️ PENDÊNCIA CONHECIDA (perda de dados — auditoria): o padrão
-//! `find_unsynced → send_one → mark_synced(company_id, id)` marca `synced=true`
-//! de forma INCONDICIONAL. Se o operador editar o MESMO registro (nova
-//! `updated_at`, `synced=false`) enquanto o push HTTP está em voo, a nova
-//! versão é marcada como sincronizada sem nunca ter sido enviada → o servidor
-//! fica com a versão antiga e a nova nunca mais é empurrada (divergência
-//! silenciosa, viola §7.6). Correção correta: `mark_synced` condicional ao
-//! `updated_at` empurrado (`WHERE id=? AND company_id=? AND updated_at=? AND
-//! synced=false`) — mudança sistêmica no trait de ~19 entidades (core +
-//! desktop + server), a ser feita com controle de versão/checkpoints.
+//! Marcação de `synced` CONDICIONAL ao `updated_at` (AI_RULES §7.6): após o
+//! push HTTP, `mark_synced(company_id, id, updated_at)` só marca `synced=true`
+//! se a linha ainda tiver o `updated_at` que foi enviado
+//! (`WHERE company_id=? AND id=? AND updated_at=?`). Assim, se o operador
+//! editar o MESMO registro enquanto o push está em voo, o `updated_at` já
+//! mudou → 0 linhas afetadas → o registro fica `synced=false` e é reenviado no
+//! próximo ciclo (evita perda silenciosa da versão nova).
+//!
+//! ✅ Aplicado: subsistema PADRÃO (produtos, pedidos, clientes, categorias,
+//! subcategorias, adicionais, grupos, banners, cupons, financeiro, categorias
+//! financeiras, cargos, usuários, formas de pagamento, endereços, horários).
+//! ⏳ Pendente (mesmos moldes, próximos commits): caixa, carteira, assinaturas.
+//! `company` fica de fora (registro único do tenant, race negligenciável).
 
 use letaf_core::auth::model::SyncUserPayload;
 use letaf_core::error::CoreError;
@@ -27,7 +30,7 @@ impl SyncWorker {
         for item in &items {
             if self.send_one(token, "/sync/products", item.base.id, item).await {
                 if let Err(e) = self.state.product_service
-                    .mark_synced(self.state.company_id(), item.base.id).await {
+                    .mark_synced(self.state.company_id(), item.base.id, item.base.updated_at).await {
                     tracing::warn!("mark_synced product {}: {e}", item.base.id);
                 }
             }
@@ -46,7 +49,7 @@ impl SyncWorker {
         for item in &items {
             if self.send_one(token, "/sync/job-roles", item.base.id, item).await {
                 if let Err(e) = self.state.job_role_service
-                    .mark_synced(self.state.company_id(), item.base.id).await {
+                    .mark_synced(self.state.company_id(), item.base.id, item.base.updated_at).await {
                     tracing::warn!("mark_synced job_role {}: {e}", item.base.id);
                 }
             }
@@ -62,7 +65,7 @@ impl SyncWorker {
             let payload = SyncUserPayload::from(item);
             if self.send_one(token, "/sync/users", item.base.id, &payload).await {
                 if let Err(e) = self.state.auth_service
-                    .mark_synced(self.state.company_id(), item.base.id).await {
+                    .mark_synced(self.state.company_id(), item.base.id, item.base.updated_at).await {
                     tracing::warn!("mark_synced user {}: {e}", item.base.id);
                 }
             }
@@ -93,7 +96,7 @@ impl SyncWorker {
         for item in &items {
             if self.send_one(token, "/sync/customers", item.base.id, item).await {
                 if let Err(e) = self.state.customer_service
-                    .mark_synced(self.state.company_id(), item.base.id).await {
+                    .mark_synced(self.state.company_id(), item.base.id, item.base.updated_at).await {
                     tracing::warn!("mark_synced customer {}: {e}", item.base.id);
                 }
             }
@@ -109,7 +112,7 @@ impl SyncWorker {
         for item in &items {
             if self.send_one(token, "/sync/categories", item.base.id, item).await {
                 if let Err(e) = self.state.category_service
-                    .mark_synced(self.state.company_id(), item.base.id).await {
+                    .mark_synced(self.state.company_id(), item.base.id, item.base.updated_at).await {
                     tracing::warn!("mark_synced category {}: {e}", item.base.id);
                 }
             }
@@ -125,7 +128,7 @@ impl SyncWorker {
         for item in &items {
             if self.send_one(token, "/sync/subcategories", item.base.id, item).await {
                 if let Err(e) = self.state.subcategory_service
-                    .mark_synced(self.state.company_id(), item.base.id).await {
+                    .mark_synced(self.state.company_id(), item.base.id, item.base.updated_at).await {
                     tracing::warn!("mark_synced subcategory {}: {e}", item.base.id);
                 }
             }
@@ -140,7 +143,7 @@ impl SyncWorker {
         for item in &items {
             if self.send_one(token, "/sync/business-hours", item.base.id, item).await {
                 if let Err(e) = self.state.business_hours_service
-                    .mark_synced(self.state.company_id(), item.base.id).await {
+                    .mark_synced(self.state.company_id(), item.base.id, item.base.updated_at).await {
                     tracing::warn!("mark_synced business_hours {}: {e}", item.base.id);
                 }
             }
@@ -160,7 +163,7 @@ impl SyncWorker {
         for item in &items {
             if self.send_one(token, "/sync/orders", item.base.id, item).await {
                 if let Err(e) = self.state.order_service
-                    .mark_synced(self.state.company_id(), item.base.id).await {
+                    .mark_synced(self.state.company_id(), item.base.id, item.base.updated_at).await {
                     tracing::warn!("mark_synced order {}: {e}", item.base.id);
                 }
             }
@@ -177,7 +180,7 @@ impl SyncWorker {
         for item in &items {
             if self.send_one(token, "/sync/addon-groups", item.base.id, item).await {
                 if let Err(e) = self.state.addon_group_service
-                    .mark_synced(self.state.company_id(), item.base.id).await {
+                    .mark_synced(self.state.company_id(), item.base.id, item.base.updated_at).await {
                     tracing::warn!("mark_synced addon_group {}: {e}", item.base.id);
                 }
             }
@@ -192,7 +195,7 @@ impl SyncWorker {
         for item in &items {
             if self.send_one(token, "/sync/addons", item.base.id, item).await {
                 if let Err(e) = self.state.addon_service
-                    .mark_synced(self.state.company_id(), item.base.id).await {
+                    .mark_synced(self.state.company_id(), item.base.id, item.base.updated_at).await {
                     tracing::warn!("mark_synced addon {}: {e}", item.base.id);
                 }
             }
@@ -210,7 +213,7 @@ impl SyncWorker {
         for item in &items {
             if self.send_one(token, "/sync/banners", item.base.id, item).await {
                 if let Err(e) = self.state.banner_service
-                    .mark_synced(self.state.company_id(), item.base.id).await {
+                    .mark_synced(self.state.company_id(), item.base.id, item.base.updated_at).await {
                     tracing::warn!("mark_synced banner {}: {e}", item.base.id);
                 }
             }
@@ -227,7 +230,7 @@ impl SyncWorker {
         for item in &items {
             if self.send_one(token, "/sync/coupons", item.base.id, item).await {
                 if let Err(e) = self.state.coupon_service
-                    .mark_synced(self.state.company_id(), item.base.id).await {
+                    .mark_synced(self.state.company_id(), item.base.id, item.base.updated_at).await {
                     tracing::warn!("mark_synced coupon {}: {e}", item.base.id);
                 }
             }
@@ -244,7 +247,7 @@ impl SyncWorker {
         for item in &items {
             if self.send_one(token, "/sync/customer-addresses", item.base.id, item).await {
                 if let Err(e) = self.state.customer_address_service
-                    .mark_synced(self.state.company_id(), item.base.id).await {
+                    .mark_synced(self.state.company_id(), item.base.id, item.base.updated_at).await {
                     tracing::warn!("mark_synced customer_address {}: {e}", item.base.id);
                 }
             }
@@ -289,7 +292,7 @@ impl SyncWorker {
         for item in &items {
             if self.send_one(token, "/sync/finance-categories", item.base.id, item).await {
                 if let Err(e) = self.state.finance_category_service
-                    .mark_synced(cid, item.base.id).await
+                    .mark_synced(cid, item.base.id, item.base.updated_at).await
                 {
                     tracing::warn!("mark_synced finance_category {}: {e}", item.base.id);
                 }
@@ -304,7 +307,7 @@ impl SyncWorker {
         let items = self.state.finance_service.find_unsynced(cid).await?;
         for item in &items {
             if self.send_one(token, "/sync/finance-entries", item.base.id, item).await {
-                if let Err(e) = self.state.finance_service.mark_synced(cid, item.base.id).await {
+                if let Err(e) = self.state.finance_service.mark_synced(cid, item.base.id, item.base.updated_at).await {
                     tracing::warn!("mark_synced finance_entry {}: {e}", item.base.id);
                 }
             }
@@ -403,7 +406,7 @@ impl SyncWorker {
                 if let Err(e) = self
                     .state
                     .payment_method_service
-                    .mark_synced(self.state.company_id(), item.base.id)
+                    .mark_synced(self.state.company_id(), item.base.id, item.base.updated_at)
                     .await
                 {
                     tracing::warn!("mark_synced payment_method {}: {e}", item.base.id);

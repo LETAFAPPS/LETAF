@@ -201,10 +201,11 @@ impl UserRepository for SqliteUserRepository {
         rows.into_iter().map(User::try_from).collect()
     }
 
-    async fn mark_synced(&self, company_id: Uuid, id: Uuid) -> Result<(), CoreError> {
-        sqlx::query("UPDATE users SET synced = true WHERE company_id = ?1 AND id = ?2")
+    async fn mark_synced(&self, company_id: Uuid, id: Uuid, updated_at: chrono::NaiveDateTime) -> Result<(), CoreError> {
+        sqlx::query("UPDATE users SET synced = true WHERE company_id = ?1 AND id = ?2 AND updated_at = ?3")
             .bind(company_id.to_string())
             .bind(id.to_string())
+            .bind(ts(updated_at))
             .execute(&self.pool)
             .await
             .map_err(map_db)?;

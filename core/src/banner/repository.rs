@@ -24,7 +24,7 @@ pub trait BannerRepository: Send + Sync {
     async fn set_active(&self, company_id: Uuid, id: Uuid, active: bool) -> Result<(), CoreError>;
 
     async fn find_unsynced(&self, company_id: Uuid) -> Result<Vec<Banner>, CoreError>;
-    async fn mark_synced(&self, company_id: Uuid, id: Uuid) -> Result<(), CoreError>;
+    async fn mark_synced(&self, company_id: Uuid, id: Uuid, updated_at: chrono::NaiveDateTime) -> Result<(), CoreError>;
     async fn sync_upsert(&self, banner: &Banner) -> Result<(), CoreError>;
     async fn find_updated_since(
         &self,

@@ -45,7 +45,7 @@ pub trait CustomerAddressRepository: Send + Sync {
 
     // ── Sincronização offline-first (§7) ────────────────────────
     async fn find_unsynced(&self, company_id: Uuid) -> Result<Vec<CustomerAddress>, CoreError>;
-    async fn mark_synced(&self, company_id: Uuid, id: Uuid) -> Result<(), CoreError>;
+    async fn mark_synced(&self, company_id: Uuid, id: Uuid, updated_at: chrono::NaiveDateTime) -> Result<(), CoreError>;
     async fn sync_upsert(&self, address: &CustomerAddress) -> Result<(), CoreError>;
     async fn find_updated_since(
         &self,

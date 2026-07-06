@@ -21,7 +21,7 @@ pub trait AddonRepository: Send + Sync {
     async fn update(&self, addon: &Addon) -> Result<(), CoreError>;
     async fn soft_delete(&self, company_id: Uuid, id: Uuid) -> Result<(), CoreError>;
     async fn find_unsynced(&self, company_id: Uuid) -> Result<Vec<Addon>, CoreError>;
-    async fn mark_synced(&self, company_id: Uuid, id: Uuid) -> Result<(), CoreError>;
+    async fn mark_synced(&self, company_id: Uuid, id: Uuid, updated_at: chrono::NaiveDateTime) -> Result<(), CoreError>;
     async fn sync_upsert(&self, addon: &Addon) -> Result<(), CoreError>;
     async fn find_updated_since(&self, company_id: Uuid, since: NaiveDateTime) -> Result<Vec<Addon>, CoreError>;
 }

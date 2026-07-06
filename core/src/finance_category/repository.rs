@@ -34,7 +34,7 @@ pub trait FinanceCategoryRepository: Send + Sync {
 
     // ── Sync ──
     async fn find_unsynced(&self, company_id: Uuid) -> Result<Vec<FinanceCategory>, CoreError>;
-    async fn mark_synced(&self, company_id: Uuid, id: Uuid) -> Result<(), CoreError>;
+    async fn mark_synced(&self, company_id: Uuid, id: Uuid, updated_at: chrono::NaiveDateTime) -> Result<(), CoreError>;
     async fn find_updated_since(
         &self,
         company_id: Uuid,

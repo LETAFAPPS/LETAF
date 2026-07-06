@@ -206,9 +206,10 @@ impl CustomerAddressRepository for PgCustomerAddressRepository {
         Ok(rows.into_iter().map(CustomerAddress::from).collect())
     }
 
-    async fn mark_synced(&self, company_id: Uuid, id: Uuid) -> Result<(), CoreError> {
-        sqlx::query("UPDATE customer_addresses SET synced = true WHERE company_id = $1 AND id = $2")
+    async fn mark_synced(&self, company_id: Uuid, id: Uuid, updated_at: chrono::NaiveDateTime) -> Result<(), CoreError> {
+        sqlx::query("UPDATE customer_addresses SET synced = true WHERE company_id = $1 AND id = $2 AND updated_at = $3")
             .bind(company_id).bind(id)
+        .bind(updated_at)
             .execute(&self.pool).await.map_err(map_db)?;
         Ok(())
     }

@@ -373,11 +373,12 @@ impl OrderRepository for SqliteOrderRepository {
         Ok(orders)
     }
 
-    async fn mark_synced(&self, company_id: Uuid, id: Uuid) -> Result<(), CoreError> {
+    async fn mark_synced(&self, company_id: Uuid, id: Uuid, updated_at: chrono::NaiveDateTime) -> Result<(), CoreError> {
         let mut tx = self.pool.begin().await.map_err(map_db)?;
-        sqlx::query("UPDATE orders SET synced = true WHERE company_id = ?1 AND id = ?2")
+        sqlx::query("UPDATE orders SET synced = true WHERE company_id = ?1 AND id = ?2 AND updated_at = ?3")
             .bind(company_id.to_string())
             .bind(id.to_string())
+            .bind(ts(updated_at))
             .execute(&mut *tx)
             .await
             .map_err(map_db)?;

@@ -202,8 +202,8 @@ impl CustomerService {
     }
 
     /// Marca cliente como sincronizado (§7).
-    pub async fn mark_synced(&self, company_id: Uuid, id: Uuid) -> Result<(), CoreError> {
-        self.repo.mark_synced(company_id, id).await
+    pub async fn mark_synced(&self, company_id: Uuid, id: Uuid, updated_at: chrono::NaiveDateTime) -> Result<(), CoreError> {
+        self.repo.mark_synced(company_id, id, updated_at).await
     }
 
     /// Busca clientes atualizados após o timestamp (§7 — sync pull).
