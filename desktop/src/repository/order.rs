@@ -10,7 +10,7 @@ use letaf_core::error::CoreError;
 use letaf_core::order::model::{DeliveryType, Order, OrderItem, OrderStatus};
 use letaf_core::order::repository::OrderRepository;
 
-use super::helpers::{map_db, parse_timestamp, parse_uuid, ts};
+use super::helpers::{insert_stock_movement, map_db, parse_timestamp, parse_uuid, ts};
 
 /// Implementação SQLite do `OrderRepository`.
 ///
@@ -156,6 +156,19 @@ impl OrderRepository for SqliteOrderRepository {
                         )));
                     }
                 }
+            } else {
+                // Decremento efetivado → registra o delta no ledger (§7), na
+                // MESMA transação, base do sync idempotente de estoque.
+                insert_stock_movement(
+                    &mut tx,
+                    order.base.company_id,
+                    *product_id,
+                    -*qty,
+                    "sale",
+                    Some(order.base.id),
+                    &now,
+                )
+                .await?;
             }
         }
 

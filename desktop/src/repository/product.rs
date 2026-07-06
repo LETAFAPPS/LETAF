@@ -8,7 +8,7 @@ use letaf_core::error::CoreError;
 use letaf_core::product::model::{BalanceMode, Product};
 use letaf_core::product::repository::{ProductRepository, StockAdjustResult};
 
-use super::helpers::{map_db, parse_timestamp, parse_uuid, ts};
+use super::helpers::{insert_stock_movement, map_db, parse_timestamp, parse_uuid, ts};
 
 #[derive(FromRow)]
 struct ProductRow {
@@ -437,6 +437,7 @@ impl ProductRepository for SqliteProductRepository {
         delta: f64,
     ) -> Result<StockAdjustResult, CoreError> {
         let now = ts(chrono::Utc::now().naive_utc());
+        let mut tx = self.pool.begin().await.map_err(map_db)?;
         let result = sqlx::query(
             "UPDATE products
                 SET stock_quantity = stock_quantity + ?1,
@@ -452,12 +453,18 @@ impl ProductRepository for SqliteProductRepository {
         .bind(&now)
         .bind(company_id.to_string())
         .bind(product_id.to_string())
-        .execute(&self.pool)
+        .execute(&mut *tx)
         .await
         .map_err(map_db)?;
         if result.rows_affected() == 1 {
+            // Ledger append-only: registra o delta na MESMA transação (§7),
+            // base do sync idempotente que substitui o LWW sobre o absoluto.
+            insert_stock_movement(&mut tx, company_id, product_id, delta, "adjust", None, &now)
+                .await?;
+            tx.commit().await.map_err(map_db)?;
             return Ok(StockAdjustResult::Adjusted);
         }
+        tx.rollback().await.map_err(map_db)?;
         let row: Option<(bool, f64, Option<String>)> = sqlx::query_as(
             "SELECT unlimited_stock, stock_quantity, deleted_at FROM products
               WHERE company_id = ?1 AND id = ?2",
