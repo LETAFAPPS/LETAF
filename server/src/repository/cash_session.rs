@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use rust_decimal::Decimal;
 use chrono::NaiveDateTime;
 use sqlx::prelude::FromRow;
 use sqlx::PgPool;
@@ -19,8 +20,8 @@ struct CashSessionRow {
     operator_name: String,
     opened_at: NaiveDateTime,
     closed_at: Option<NaiveDateTime>,
-    initial_change: f64,
-    counted_cash: Option<f64>,
+    initial_change: Decimal,
+    counted_cash: Option<Decimal>,
     status: String,
     open_notes: Option<String>,
     close_notes: Option<String>,

@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use rust_decimal::prelude::ToPrimitive;
 
 use slint::{ComponentHandle, ModelRc, SharedString, VecModel};
 use tokio::sync::Notify;
@@ -131,7 +132,7 @@ pub(crate) fn addon_to_ui(a: &Addon) -> AddonData {
         id: SharedString::from(a.base.id.to_string()),
         group_id: SharedString::from(a.group_id.to_string()),
         name: SharedString::from(a.name.as_str()),
-        price: SharedString::from(format_price(a.price)),
+        price: SharedString::from(format_price(a.price.to_f64().unwrap_or(0.0))),
         sort_order: a.sort_order,
         active: a.active,
     }

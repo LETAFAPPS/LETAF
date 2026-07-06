@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use rust_decimal::prelude::ToPrimitive;
 
 use chrono::{Datelike, Duration, Local, NaiveDate, NaiveDateTime};
 use slint::{ComponentHandle, ModelRc, SharedString, VecModel};
@@ -217,9 +218,9 @@ pub(crate) fn to_coupon_data(c: &Coupon) -> CouponData {
         coupon_type_label: SharedString::from(type_label(&c.coupon_type)),
         discount_kind: SharedString::from(c.discount_kind.as_str()),
         discount_summary: SharedString::from(discount_summary(c)),
-        discount_value: num_str(c.discount_value),
-        min_order_value: num_str(c.min_order_value),
-        max_discount: num_str(c.max_discount),
+        discount_value: num_str(c.discount_value.to_f64().unwrap_or(0.0)),
+        min_order_value: num_str(c.min_order_value.to_f64().unwrap_or(0.0)),
+        max_discount: num_str(c.max_discount.to_f64().unwrap_or(0.0)),
         per_user_limit: int_str(c.per_user_limit),
         usage_limit: int_str(c.usage_limit),
         valid_from: date_str(c.valid_from),

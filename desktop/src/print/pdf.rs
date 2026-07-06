@@ -11,6 +11,7 @@
 //! para baixo.
 
 use letaf_core::order::model::{DeliveryType, Order, OrderItem};
+use rust_decimal::prelude::ToPrimitive;
 use printpdf::{BuiltinFont, IndirectFontRef, Line, Mm, PdfDocument, PdfLayerReference, Point};
 
 use crate::format::{format_order_date, format_order_time};
@@ -260,7 +261,7 @@ fn render_item(ctx: &mut Ctx, it: &OrderItem, show_prices: bool) {
 }
 
 fn render_totals(ctx: &mut Ctx, order: &Order) {
-    let subtotal: f64 = order.items.iter().map(|i| i.subtotal).sum();
+    let subtotal = order.items.iter().map(|i| i.subtotal).sum::<rust_decimal::Decimal>().to_f64().unwrap_or(0.0);
     write_pair(ctx, "Subtotal", &format!("R$ {:.2}", subtotal),
         ctx.style.body_pt, ctx.font);
     advance(ctx, ctx.style.line_height_mm);

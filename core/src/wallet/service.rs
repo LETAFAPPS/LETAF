@@ -1,4 +1,6 @@
 use std::sync::Arc;
+use rust_decimal::Decimal;
+use rust_decimal_macros::dec;
 
 use chrono::Utc;
 use uuid::Uuid;
@@ -6,7 +8,7 @@ use uuid::Uuid;
 use super::model::{WalletAccount, WalletMovement, WalletMovementKind};
 use super::repository::WalletRepository;
 use crate::error::CoreError;
-use crate::util::round_2;
+use crate::money::round2;
 
 /// Serviço da carteira do cliente.
 ///
@@ -30,7 +32,7 @@ impl WalletService {
         &self,
         company_id: Uuid,
         customer_id: Uuid,
-        credit_limit: f64,
+        credit_limit: Decimal,
     ) -> Result<WalletAccount, CoreError> {
         validate_credit_limit(credit_limit)?;
         if let Some(existing) = self
@@ -51,7 +53,7 @@ impl WalletService {
         &self,
         company_id: Uuid,
         account_id: Uuid,
-        new_limit: f64,
+        new_limit: Decimal,
     ) -> Result<WalletAccount, CoreError> {
         validate_credit_limit(new_limit)?;
         let mut account = self.must_load_account(company_id, account_id).await?;
@@ -67,7 +69,7 @@ impl WalletService {
         &self,
         company_id: Uuid,
         account_id: Uuid,
-        amount: f64,
+        amount: Decimal,
         notes: Option<String>,
     ) -> Result<(WalletAccount, WalletMovement), CoreError> {
         validate_positive_amount(amount)?;
@@ -87,7 +89,7 @@ impl WalletService {
         &self,
         company_id: Uuid,
         account_id: Uuid,
-        amount: f64,
+        amount: Decimal,
         notes: Option<String>,
     ) -> Result<(WalletAccount, WalletMovement), CoreError> {
         validate_positive_amount(amount)?;
@@ -108,7 +110,7 @@ impl WalletService {
         &self,
         company_id: Uuid,
         account_id: Uuid,
-        amount: f64,
+        amount: Decimal,
         order_id: Uuid,
     ) -> Result<(WalletAccount, WalletMovement), CoreError> {
         validate_positive_amount(amount)?;
@@ -128,7 +130,7 @@ impl WalletService {
         &self,
         company_id: Uuid,
         account_id: Uuid,
-        amount: f64,
+        amount: Decimal,
         order_id: Uuid,
     ) -> Result<(WalletAccount, WalletMovement), CoreError> {
         validate_positive_amount(amount)?;
@@ -149,10 +151,10 @@ impl WalletService {
         &self,
         company_id: Uuid,
         account_id: Uuid,
-        amount: f64,
+        amount: Decimal,
         notes: String,
     ) -> Result<(WalletAccount, WalletMovement), CoreError> {
-        if !amount.is_finite() || amount.abs() < 0.005 {
+        if amount.abs() < dec!(0.005) {
             return Err(CoreError::Validation(
                 "Ajuste deve ter valor diferente de zero".into(),
             ));
@@ -165,7 +167,7 @@ impl WalletService {
         // ManualAdjust não passa por `apply` porque `amount` pode
         // ser negativo (o sinal vai no próprio amount, não no kind).
         let mut account = self.must_load_account(company_id, account_id).await?;
-        let new_balance = round_2(account.balance + amount);
+        let new_balance = round2(account.balance + amount);
         ensure_within_floor(&account, new_balance)?;
         account.balance = new_balance;
         let now = Utc::now().naive_utc();
@@ -309,13 +311,13 @@ impl WalletService {
         company_id: Uuid,
         account_id: Uuid,
         kind: WalletMovementKind,
-        amount: f64,
+        amount: Decimal,
         order_id: Option<Uuid>,
         notes: Option<String>,
     ) -> Result<(WalletAccount, WalletMovement), CoreError> {
         let mut account = self.must_load_account(company_id, account_id).await?;
         let delta = amount * kind.sign();
-        let new_balance = round_2(account.balance + delta);
+        let new_balance = round2(account.balance + delta);
         ensure_within_floor(&account, new_balance)?;
         account.balance = new_balance;
         let now = Utc::now().naive_utc();
@@ -348,8 +350,8 @@ impl WalletService {
 
 // ── Validações puras ─────────────────────────────────────────────
 
-fn validate_positive_amount(amount: f64) -> Result<(), CoreError> {
-    if !amount.is_finite() || amount <= 0.0 {
+fn validate_positive_amount(amount: Decimal) -> Result<(), CoreError> {
+    if amount <= Decimal::ZERO {
         return Err(CoreError::Validation(
             "Valor deve ser maior que zero".into(),
         ));
@@ -357,8 +359,8 @@ fn validate_positive_amount(amount: f64) -> Result<(), CoreError> {
     Ok(())
 }
 
-fn validate_credit_limit(limit: f64) -> Result<(), CoreError> {
-    if !limit.is_finite() || limit < 0.0 {
+fn validate_credit_limit(limit: Decimal) -> Result<(), CoreError> {
+    if limit < Decimal::ZERO {
         return Err(CoreError::Validation(
             "Limite de fiado deve ser zero ou positivo".into(),
         ));
@@ -366,11 +368,11 @@ fn validate_credit_limit(limit: f64) -> Result<(), CoreError> {
     Ok(())
 }
 
-fn ensure_within_floor(account: &WalletAccount, new_balance: f64) -> Result<(), CoreError> {
-    if new_balance < account.floor() - 0.005 {
+fn ensure_within_floor(account: &WalletAccount, new_balance: Decimal) -> Result<(), CoreError> {
+    if new_balance < account.floor() - dec!(0.005) {
         return Err(CoreError::Validation(format!(
-            "Saldo insuficiente — limite de fiado é R$ {:.2}",
-            account.credit_limit
+            "Saldo insuficiente — limite de fiado é R$ {}",
+            crate::money::round2(account.credit_limit)
         )));
     }
     Ok(())

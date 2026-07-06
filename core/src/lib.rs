@@ -29,6 +29,7 @@ pub mod finance_category;
 #[cfg(feature = "password-hashing")]
 pub mod hashing;
 pub mod job_role;
+pub mod money;
 pub mod order;
 pub mod password_reset;
 pub mod plan;

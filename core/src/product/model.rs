@@ -1,4 +1,7 @@
 use std::fmt;
+use rust_decimal::prelude::ToPrimitive;
+use rust_decimal_macros::dec;
+use rust_decimal::Decimal;
 
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -71,8 +74,8 @@ pub struct Product {
     pub description: Option<String>,
     pub category_id: Option<Uuid>,
     pub subcategory_id: Option<Uuid>,
-    pub price: Option<f64>,
-    pub cost_price: Option<f64>,
+    pub price: Option<Decimal>,
+    pub cost_price: Option<Decimal>,
     pub stock_quantity: f64,
     /// Estoque mínimo desejado. Quando `0 < stock_quantity <= min_stock`
     /// o produto entra em "estoque baixo"; abaixo disso a UI sugere a
@@ -128,7 +131,7 @@ pub struct Product {
     /// Valor do desconto. Em R$ para `fixed`/`bulk_fixed`; em % (0..100)
     /// para `percent`/`bulk_percent`. `None` quando `discount_kind` é `None`.
     #[serde(default)]
-    pub discount_value: Option<f64>,
+    pub discount_value: Option<Decimal>,
     /// Quantidade mínima para aplicar descontos `bulk_*` quando há um único
     /// tier legado. `None` quando irrelevante ou quando `discount_tiers` é
     /// usado (modo multi-tier).
@@ -183,8 +186,8 @@ impl Product {
         description: Option<String>,
         category_id: Option<Uuid>,
         subcategory_id: Option<Uuid>,
-        price: Option<f64>,
-        cost_price: Option<f64>,
+        price: Option<Decimal>,
+        cost_price: Option<Decimal>,
         stock_quantity: f64,
         min_stock: f64,
         unlimited_stock: bool,
@@ -195,7 +198,7 @@ impl Product {
         cover_color: Option<String>,
         availability_schedule: Option<String>,
         discount_kind: Option<String>,
-        discount_value: Option<f64>,
+        discount_value: Option<Decimal>,
         discount_min_qty: Option<f64>,
         discount_tiers: Option<String>,
     ) -> Self {
@@ -266,15 +269,15 @@ impl Product {
     pub fn margin_pct(&self) -> Option<f64> {
         let price = self.price?;
         let cost = self.cost_price?;
-        if price <= 0.0 {
+        if price <= Decimal::ZERO {
             return None;
         }
-        Some((price - cost) / price * 100.0)
+        ((price - cost) / price * dec!(100)).to_f64()
     }
 
     /// Lucro unitário absoluto (preço − custo). `None` se faltar dado.
     pub fn margin_amount(&self) -> Option<f64> {
-        Some(self.price? - self.cost_price?)
+        (self.price? - self.cost_price?).to_f64()
     }
 
     /// Classifica o estoque atual segundo `min_stock`/`unlimited_stock`.

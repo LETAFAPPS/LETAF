@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use rust_decimal::Decimal;
 use chrono::{NaiveDate, NaiveDateTime};
 use sqlx::prelude::FromRow;
 use sqlx::PgPool;
@@ -31,10 +32,10 @@ struct SubscriptionRow {
     pix_auto_status: Option<String>,
     plan_id: Option<Uuid>,
     plan_name: String,
-    plan_amount: f64,
+    plan_amount: Decimal,
     plan_period_months: i32,
     trial_days: i32,
-    plan_discount_monthly: f64,
+    plan_discount_monthly: Decimal,
     created_at: NaiveDateTime,
     updated_at: NaiveDateTime,
     deleted_at: Option<NaiveDateTime>,
@@ -82,7 +83,7 @@ struct InvoiceRow {
     subscription_id: Uuid,
     number: String,
     description: String,
-    amount: f64,
+    amount: Decimal,
     method_kind: String,
     method_label: String,
     status: String,

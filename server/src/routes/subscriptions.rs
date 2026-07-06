@@ -1,4 +1,5 @@
 use axum::extract::{Query, State};
+use rust_decimal::prelude::ToPrimitive;
 use axum::http::StatusCode;
 use axum::response::Html;
 use axum::{routing::get, routing::post, Json, Router};
@@ -237,7 +238,7 @@ async fn card_payment_page(
     let (plan_label, amount) = match state.subscription_service.find_current(company_id).await {
         Ok(Some(sub)) => {
             let p = state.subscription_service.plan_for(sub.plan_kind);
-            (p.label, p.total_per_charge)
+            (p.label, p.total_per_charge.to_f64().unwrap_or(0.0))
         }
         _ => ("Mensal".to_string(), 0.0),
     };

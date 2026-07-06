@@ -1,4 +1,5 @@
 use chrono::{NaiveDate, NaiveDateTime};
+use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -138,7 +139,7 @@ pub struct Subscription {
     pub plan_name: String,
     /// Valor cobrado por ciclo (R$) do plano do catálogo.
     #[serde(default)]
-    pub plan_amount: f64,
+    pub plan_amount: Decimal,
     /// Meses por cobrança do plano do catálogo.
     #[serde(default)]
     pub plan_period_months: i32,
@@ -149,7 +150,7 @@ pub struct Subscription {
     /// (definido pelo super admin). Abatido do valor cobrado por ciclo
     /// (`× meses`). `0` = sem desconto. Preservado ao trocar de plano.
     #[serde(default)]
-    pub plan_discount_monthly: f64,
+    pub plan_discount_monthly: Decimal,
 }
 
 impl Subscription {
@@ -167,10 +168,10 @@ impl Subscription {
             pix_auto_status: None,
             plan_id: None,
             plan_name: String::new(),
-            plan_amount: 0.0,
+            plan_amount: Decimal::ZERO,
             plan_period_months: 0,
             trial_days: 0,
-            plan_discount_monthly: 0.0,
+            plan_discount_monthly: Decimal::ZERO,
         }
     }
 
@@ -238,7 +239,7 @@ pub struct Invoice {
     pub subscription_id: Uuid,
     pub number: String,
     pub description: String,
-    pub amount: f64,
+    pub amount: Decimal,
     pub method_kind: String,
     pub method_label: String,
     pub status: InvoiceStatus,
@@ -252,7 +253,7 @@ impl Invoice {
         subscription_id: Uuid,
         number: String,
         description: String,
-        amount: f64,
+        amount: Decimal,
         method_kind: String,
         method_label: String,
         status: InvoiceStatus,
@@ -301,9 +302,9 @@ pub struct Plan {
     /// "Mensal" / "Semestral" / "Anual".
     pub label: String,
     /// Mensalidade efetiva (R$/mês).
-    pub monthly_price: f64,
+    pub monthly_price: Decimal,
     /// Valor cobrado por ciclo (mensalidade × meses).
-    pub total_per_charge: f64,
+    pub total_per_charge: Decimal,
     /// Texto de economia vs Mensal ("ECONOMIZE R$ 10/MÊS"); "" se
     /// não houver desconto.
     pub savings_label: String,

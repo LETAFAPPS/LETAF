@@ -1,4 +1,5 @@
 use std::fmt;
+use rust_decimal::Decimal;
 
 use chrono::{NaiveDate, NaiveDateTime};
 use serde::{Deserialize, Serialize};
@@ -185,7 +186,7 @@ pub struct FinanceEntry {
     pub party_name: String,
     pub party_type: PartyType,
     pub category_id: Option<Uuid>,
-    pub amount: f64,
+    pub amount: Decimal,
     pub due_date: NaiveDate,
     pub paid_at: Option<NaiveDateTime>,
     pub status: FinanceStatus,
@@ -208,7 +209,7 @@ impl FinanceEntry {
         company_id: Uuid,
         kind: FinanceKind,
         description: String,
-        amount: f64,
+        amount: Decimal,
         due_date: NaiveDate,
     ) -> Self {
         let base = BaseFields::new(company_id);

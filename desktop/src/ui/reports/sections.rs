@@ -9,7 +9,11 @@ use letaf_core::customer::model::Customer;
 use letaf_core::order::model::{DeliveryType, Order, OrderStatus};
 use letaf_core::product::model::Product;
 
-use crate::format::money_br;
+use rust_decimal::prelude::ToPrimitive;
+
+fn money_br(v: f64) -> String {
+    crate::format::money_br(letaf_core::money::from_db_f64(v))
+}
 use crate::{
     ReportHBar, ReportHourlyBar, ReportNewVsReturning,
 };
@@ -35,7 +39,7 @@ pub(crate) fn fill_financial(
     today: NaiveDate,
     granularity: Granularity,
 ) {
-    let revenue: f64 = valid.iter().map(|o| o.total).sum();
+    let revenue: f64 = valid.iter().map(|o| o.total.to_f64().unwrap_or(0.0)).sum();
     let cost: f64 = valid
         .iter()
         .flat_map(|o| &o.items)
@@ -43,7 +47,7 @@ pub(crate) fn fill_financial(
             product_by_id
                 .get(&it.product_id)
                 .and_then(|p| p.cost_price)
-                .map(|c| c * it.quantity)
+                .map(|c| c.to_f64().unwrap_or(0.0) * it.quantity)
                 .unwrap_or(0.0)
         })
         .sum();
@@ -57,7 +61,7 @@ pub(crate) fn fill_financial(
     let prev_revenue: f64 = in_window // ← in_window é só do período atual; preciso filtrar `all` orders.
         .iter()
         .filter(|_| false) // placeholder: usaremos comparação simples sem prev abaixo
-        .map(|o| o.total)
+.map(|o| o.total.to_f64().unwrap_or(0.0))
         .sum();
     let _ = (prev_start, prev_end, prev_revenue);
 
@@ -107,7 +111,7 @@ pub(crate) fn fill_financial(
     // Receita diária (gráfico) — tooltip sem prefixo "R$ " (estava
     // cortando dentro da pílula do candle).
     snap.daily_bars = build_daily(start, end, today, valid, granularity,
-        |o| o.total, money_plain,
+        |o| o.total.to_f64().unwrap_or(0.0), money_plain,
         Color::from_rgb_u8(0x66, 0xBB, 0x6A));
 
     // DRE simplificada — somente linhas com dados disponíveis no
@@ -123,7 +127,7 @@ pub(crate) fn fill_financial(
     let mut method_sum: HashMap<String, f64> = HashMap::new();
     for o in valid {
         let k = o.payment_method.clone().unwrap_or_else(|| "outros".into());
-        *method_sum.entry(k).or_default() += o.total;
+        *method_sum.entry(k).or_default() += o.total.to_f64().unwrap_or(0.0);
     }
     struct MethodDef {
         key: &'static str,
@@ -185,7 +189,7 @@ pub(crate) fn fill_orders(
         .count();
     let cancel_rate = if total > 0 { (cancel as f64 / total as f64) * 100.0 } else { 0.0 };
     let avg_ticket = if !valid.is_empty() {
-        valid.iter().map(|o| o.total).sum::<f64>() / valid.len() as f64
+        valid.iter().map(|o| o.total.to_f64().unwrap_or(0.0)).sum::<f64>() / valid.len() as f64
     } else {
         0.0
     };
@@ -310,10 +314,10 @@ pub(crate) fn fill_products(
     struct Agg { qty: f64, revenue: f64, cost: f64, name: String, category: String, swatch: Color }
     let mut by_pid: HashMap<Uuid, Agg> = HashMap::new();
     for o in valid {
-        let subtotal_order: f64 = o.items.iter().map(|i| i.unit_price * i.quantity).sum();
+        let subtotal_order: f64 = o.items.iter().map(|i| i.unit_price.to_f64().unwrap_or(0.0) * i.quantity).sum();
         for it in &o.items {
             let share = if subtotal_order > 0.0 {
-                (it.unit_price * it.quantity) / subtotal_order
+(it.unit_price.to_f64().unwrap_or(0.0) * it.quantity) / subtotal_order
             } else {
                 0.0
             };
@@ -329,9 +333,9 @@ pub(crate) fn fill_products(
                 Agg { qty: 0.0, revenue: 0.0, cost: 0.0, name, category: cat_name, swatch }
             });
             entry.qty += it.quantity;
-            entry.revenue += o.total * share;
+            entry.revenue += o.total.to_f64().unwrap_or(0.0) * share;
             if let Some(c) = product_by_id.get(&it.product_id).and_then(|p| p.cost_price) {
-                entry.cost += c * it.quantity;
+                entry.cost += c.to_f64().unwrap_or(0.0) * it.quantity;
             }
         }
     }
@@ -469,7 +473,7 @@ pub(crate) fn fill_customers(
         if o.base.deleted_at.is_some() || o.status == OrderStatus::Cancelled { continue; }
         if o.customer_id.is_nil() { continue; }
         let entry = ltv.entry(o.customer_id).or_insert((0.0, 0));
-        entry.0 += o.total;
+        entry.0 += o.total.to_f64().unwrap_or(0.0);
         entry.1 += 1;
     }
     let total_customers = ltv.len() as f64;

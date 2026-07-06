@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use rust_decimal::prelude::ToPrimitive;
 use sqlx::prelude::FromRow;
 use sqlx::SqlitePool;
 use uuid::Uuid;
@@ -65,8 +66,8 @@ impl TryFrom<ProductRow> for Product {
             description: r.description,
             category_id: r.category_id.as_deref().map(parse_uuid).transpose()?,
             subcategory_id: r.subcategory_id.as_deref().map(parse_uuid).transpose()?,
-            price: r.price,
-            cost_price: r.cost_price,
+            price: r.price.map(letaf_core::money::from_db_f64),
+            cost_price: r.cost_price.map(letaf_core::money::from_db_f64),
             stock_quantity: r.stock_quantity,
             min_stock: r.min_stock,
             unlimited_stock: r.unlimited_stock,
@@ -79,7 +80,7 @@ impl TryFrom<ProductRow> for Product {
             cover_color: r.cover_color,
             availability_schedule: r.availability_schedule,
             discount_kind: r.discount_kind,
-            discount_value: r.discount_value,
+            discount_value: r.discount_value.map(letaf_core::money::from_db_f64),
             discount_min_qty: r.discount_min_qty,
             discount_tiers: r.discount_tiers,
             addon_group_ids: Vec::new(),
@@ -235,8 +236,8 @@ impl ProductRepository for SqliteProductRepository {
         .bind(&product.description)
         .bind(product.category_id.map(|u| u.to_string()))
         .bind(product.subcategory_id.map(|u| u.to_string()))
-        .bind(product.price)
-        .bind(product.cost_price)
+        .bind(product.price.and_then(|d| d.to_f64()))
+        .bind(product.cost_price.and_then(|d| d.to_f64()))
         .bind(product.stock_quantity)
         .bind(product.unlimited_stock)
         .bind(&product.barcode)
@@ -252,7 +253,7 @@ impl ProductRepository for SqliteProductRepository {
         .bind(&product.cover_color)
         .bind(&product.availability_schedule)
         .bind(&product.discount_kind)
-        .bind(product.discount_value)
+        .bind(product.discount_value.and_then(|d| d.to_f64()))
         .bind(product.discount_min_qty)
         .bind(&product.discount_tiers)
         .bind(&product.variations)
@@ -274,8 +275,8 @@ impl ProductRepository for SqliteProductRepository {
         .bind(&product.description)
         .bind(product.category_id.map(|u| u.to_string()))
         .bind(product.subcategory_id.map(|u| u.to_string()))
-        .bind(product.price)
-        .bind(product.cost_price)
+        .bind(product.price.and_then(|d| d.to_f64()))
+        .bind(product.cost_price.and_then(|d| d.to_f64()))
         .bind(product.stock_quantity)
         .bind(product.unlimited_stock)
         .bind(&product.barcode)
@@ -287,7 +288,7 @@ impl ProductRepository for SqliteProductRepository {
         .bind(&product.cover_color)
         .bind(&product.availability_schedule)
         .bind(&product.discount_kind)
-        .bind(product.discount_value)
+        .bind(product.discount_value.and_then(|d| d.to_f64()))
         .bind(product.discount_min_qty)
         .bind(&product.discount_tiers)
         .bind(&product.variations)
@@ -562,8 +563,8 @@ impl ProductRepository for SqliteProductRepository {
         .bind(&product.description)
         .bind(product.category_id.map(|u| u.to_string()))
         .bind(product.subcategory_id.map(|u| u.to_string()))
-        .bind(product.price)
-        .bind(product.cost_price)
+        .bind(product.price.and_then(|d| d.to_f64()))
+        .bind(product.cost_price.and_then(|d| d.to_f64()))
         .bind(product.stock_quantity)
         .bind(product.unlimited_stock)
         .bind(&product.barcode)
@@ -579,7 +580,7 @@ impl ProductRepository for SqliteProductRepository {
         .bind(&product.cover_color)
         .bind(&product.availability_schedule)
         .bind(&product.discount_kind)
-        .bind(product.discount_value)
+        .bind(product.discount_value.and_then(|d| d.to_f64()))
         .bind(product.discount_min_qty)
         .bind(&product.discount_tiers)
         .bind(&product.variations)

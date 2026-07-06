@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use rust_decimal::Decimal;
 use serde_json::{json, Value};
 use uuid::Uuid;
 
@@ -275,8 +276,8 @@ fn parse_cobr_event(item: &Value) -> Option<PixAutoChargeEvent> {
         .get("valor")
         .and_then(|val| val.get("original").or(Some(val)))
         .and_then(|x| x.as_str())
-        .and_then(|s| s.parse::<f64>().ok())
-        .unwrap_or(0.0);
+        .and_then(|s| s.parse::<Decimal>().ok())
+        .unwrap_or(Decimal::ZERO);
     let paid_at = item
         .get("horario")
         .and_then(|x| x.as_str())

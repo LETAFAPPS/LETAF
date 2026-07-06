@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use rust_decimal::prelude::ToPrimitive;
 
 use slint::{Model, SharedString, VecModel};
 use uuid::Uuid;
@@ -58,18 +59,18 @@ fn format_qty_with_unit(qty: f64, unit: &str) -> String {
 
 /// Constrói o pacote de strings formatadas para a UI.
 pub(crate) fn make_product_display(p: &Product) -> ProductDisplay {
-    let price_raw = p.price.map(|v| format!("{v:.2}")).unwrap_or_default();
+    let price_raw = p.price.map(|v| format!("{:.2}", v.to_f64().unwrap_or(0.0))).unwrap_or_default();
     let price_display = match p.price {
         Some(v) => money_br(v),
         None => "Sem preço".to_string(),
     };
-    let cost_raw = p.cost_price.map(|v| format!("{v:.2}")).unwrap_or_default();
+    let cost_raw = p.cost_price.map(|v| format!("{:.2}", v.to_f64().unwrap_or(0.0))).unwrap_or_default();
     let cost_display = match p.cost_price {
         Some(v) => money_br(v),
         None => DASH.to_string(),
     };
     let margin_amount_display = match p.margin_amount() {
-        Some(v) => money_br(v),
+        Some(v) => money_br(letaf_core::money::from_db_f64(v)),
         None => DASH.to_string(),
     };
     let margin_pct_display = match p.margin_pct() {

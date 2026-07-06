@@ -5,6 +5,7 @@ use std::sync::Mutex;
 use async_trait::async_trait;
 use chrono::NaiveDateTime;
 use uuid::Uuid;
+use rust_decimal_macros::dec;
 
 use letaf_core::error::CoreError;
 use letaf_core::product::model::Product;
@@ -184,12 +185,12 @@ fn make_service() -> (ProductService, Uuid) {
 #[tokio::test]
 async fn create_product_ok() {
     let (svc, cid) = make_service();
-    let result = svc.create(cid, "Notebook".into(), Some("Desc".into()), None, None, Some(2999.90), None, 10.0, 0.0, false, Some("NB-001".into()), "un".into(), letaf_core::product::model::BalanceMode::Weight, None, None, None, None, None, None, None, Vec::new(), None).await;
+    let result = svc.create(cid, "Notebook".into(), Some("Desc".into()), None, None, Some(dec!(2999.90)), None, 10.0, 0.0, false, Some("NB-001".into()), "un".into(), letaf_core::product::model::BalanceMode::Weight, None, None, None, None, None, None, None, Vec::new(), None).await;
     assert!(result.is_ok());
     let p = result.unwrap();
     assert_eq!(p.name, "Notebook");
     assert_eq!(p.description.as_deref(), Some("Desc"));
-    assert_eq!(p.price, Some(2999.90));
+    assert_eq!(p.price, Some(dec!(2999.90)));
     assert_eq!(p.stock_quantity, 10.0);
     assert_eq!(p.barcode.as_deref(), Some("NB-001"));
     assert_eq!(p.unit, "un");
@@ -200,7 +201,7 @@ async fn create_product_ok() {
 #[tokio::test]
 async fn create_product_empty_name_fails() {
     let (svc, cid) = make_service();
-    let result = svc.create(cid, "".into(), None, None, None, Some(10.0), None, 0.0, 0.0, false, None, "un".into(), letaf_core::product::model::BalanceMode::Weight, None, None, None, None, None, None, None, Vec::new(), None).await;
+    let result = svc.create(cid, "".into(), None, None, None, Some(dec!(10.0)), None, 0.0, 0.0, false, None, "un".into(), letaf_core::product::model::BalanceMode::Weight, None, None, None, None, None, None, None, Vec::new(), None).await;
     assert!(result.is_err());
     assert_eq!(result.unwrap_err(), CoreError::Validation("Product name is required".into()));
 }
@@ -208,7 +209,7 @@ async fn create_product_empty_name_fails() {
 #[tokio::test]
 async fn create_product_negative_price_fails() {
     let (svc, cid) = make_service();
-    let result = svc.create(cid, "X".into(), None, None, None, Some(-1.0), None, 0.0, 0.0, false, None, "un".into(), letaf_core::product::model::BalanceMode::Weight, None, None, None, None, None, None, None, Vec::new(), None).await;
+    let result = svc.create(cid, "X".into(), None, None, None, Some(dec!(-1.0)), None, 0.0, 0.0, false, None, "un".into(), letaf_core::product::model::BalanceMode::Weight, None, None, None, None, None, None, None, Vec::new(), None).await;
     assert!(result.is_err());
     assert_eq!(result.unwrap_err(), CoreError::Validation("Price cannot be negative".into()));
 }
@@ -216,7 +217,7 @@ async fn create_product_negative_price_fails() {
 #[tokio::test]
 async fn create_product_negative_stock_fails() {
     let (svc, cid) = make_service();
-    let result = svc.create(cid, "X".into(), None, None, None, Some(10.0), None, -5.0, 0.0, false, None, "un".into(), letaf_core::product::model::BalanceMode::Weight, None, None, None, None, None, None, None, Vec::new(), None).await;
+    let result = svc.create(cid, "X".into(), None, None, None, Some(dec!(10.0)), None, -5.0, 0.0, false, None, "un".into(), letaf_core::product::model::BalanceMode::Weight, None, None, None, None, None, None, None, Vec::new(), None).await;
     assert!(result.is_err());
     assert_eq!(result.unwrap_err(), CoreError::Validation("Stock quantity cannot be negative".into()));
 }
@@ -226,13 +227,13 @@ async fn create_product_negative_stock_fails() {
 #[tokio::test]
 async fn update_product_ok() {
     let (svc, cid) = make_service();
-    let created = svc.create(cid, "Old".into(), None, None, None, Some(10.0), None, 1.0, 0.0, false, None, "un".into(), letaf_core::product::model::BalanceMode::Weight, None, None, None, None, None, None, None, Vec::new(), None).await.unwrap();
+    let created = svc.create(cid, "Old".into(), None, None, None, Some(dec!(10.0)), None, 1.0, 0.0, false, None, "un".into(), letaf_core::product::model::BalanceMode::Weight, None, None, None, None, None, None, None, Vec::new(), None).await.unwrap();
 
-    let updated = svc.update(cid, created.base.id, "New".into(), Some("Updated desc".into()), None, None, Some(20.0), None, 5.0, 0.0, false, Some("SKU-1".into()), "kg".into(), letaf_core::product::model::BalanceMode::Weight, None, None, None, None, None, None, None, Vec::new(), None).await.unwrap();
+    let updated = svc.update(cid, created.base.id, "New".into(), Some("Updated desc".into()), None, None, Some(dec!(20.0)), None, 5.0, 0.0, false, Some("SKU-1".into()), "kg".into(), letaf_core::product::model::BalanceMode::Weight, None, None, None, None, None, None, None, Vec::new(), None).await.unwrap();
 
     assert_eq!(updated.name, "New");
     assert_eq!(updated.description.as_deref(), Some("Updated desc"));
-    assert_eq!(updated.price, Some(20.0));
+    assert_eq!(updated.price, Some(dec!(20.0)));
     assert_eq!(updated.stock_quantity, 5.0);
     assert_eq!(updated.barcode.as_deref(), Some("SKU-1"));
     assert_eq!(updated.unit, "kg");
@@ -243,7 +244,7 @@ async fn update_product_ok() {
 #[tokio::test]
 async fn update_product_not_found_fails() {
     let (svc, cid) = make_service();
-    let result = svc.update(cid, Uuid::new_v4(), "X".into(), None, None, None, Some(1.0), None, 0.0, 0.0, false, None, "un".into(), letaf_core::product::model::BalanceMode::Weight, None, None, None, None, None, None, None, Vec::new(), None).await;
+    let result = svc.update(cid, Uuid::new_v4(), "X".into(), None, None, None, Some(dec!(1.0)), None, 0.0, 0.0, false, None, "un".into(), letaf_core::product::model::BalanceMode::Weight, None, None, None, None, None, None, None, Vec::new(), None).await;
     assert!(result.is_err());
     assert_eq!(result.unwrap_err(), CoreError::NotFound("Product not found".into()));
 }
@@ -251,8 +252,8 @@ async fn update_product_not_found_fails() {
 #[tokio::test]
 async fn update_product_empty_name_fails() {
     let (svc, cid) = make_service();
-    let created = svc.create(cid, "Test".into(), None, None, None, Some(10.0), None, 1.0, 0.0, false, None, "un".into(), letaf_core::product::model::BalanceMode::Weight, None, None, None, None, None, None, None, Vec::new(), None).await.unwrap();
-    let result = svc.update(cid, created.base.id, "".into(), None, None, None, Some(10.0), None, 1.0, 0.0, false, None, "un".into(), letaf_core::product::model::BalanceMode::Weight, None, None, None, None, None, None, None, Vec::new(), None).await;
+    let created = svc.create(cid, "Test".into(), None, None, None, Some(dec!(10.0)), None, 1.0, 0.0, false, None, "un".into(), letaf_core::product::model::BalanceMode::Weight, None, None, None, None, None, None, None, Vec::new(), None).await.unwrap();
+    let result = svc.update(cid, created.base.id, "".into(), None, None, None, Some(dec!(10.0)), None, 1.0, 0.0, false, None, "un".into(), letaf_core::product::model::BalanceMode::Weight, None, None, None, None, None, None, None, Vec::new(), None).await;
     assert_eq!(result.unwrap_err(), CoreError::Validation("Product name is required".into()));
 }
 
@@ -281,8 +282,8 @@ async fn product_isolation_between_companies() {
     let (svc, cid1) = make_service();
     let cid2 = Uuid::new_v4();
 
-    svc.create(cid1, "Company1 Product".into(), None, None, None, Some(10.0), None, 1.0, 0.0, false, None, "un".into(), letaf_core::product::model::BalanceMode::Weight, None, None, None, None, None, None, None, Vec::new(), None).await.unwrap();
-    svc.create(cid2, "Company2 Product".into(), None, None, None, Some(20.0), None, 2.0, 0.0, false, None, "un".into(), letaf_core::product::model::BalanceMode::Weight, None, None, None, None, None, None, None, Vec::new(), None).await.unwrap();
+    svc.create(cid1, "Company1 Product".into(), None, None, None, Some(dec!(10.0)), None, 1.0, 0.0, false, None, "un".into(), letaf_core::product::model::BalanceMode::Weight, None, None, None, None, None, None, None, Vec::new(), None).await.unwrap();
+    svc.create(cid2, "Company2 Product".into(), None, None, None, Some(dec!(20.0)), None, 2.0, 0.0, false, None, "un".into(), letaf_core::product::model::BalanceMode::Weight, None, None, None, None, None, None, None, Vec::new(), None).await.unwrap();
 
     let items_c1 = svc.find_all(cid1).await.unwrap();
     let items_c2 = svc.find_all(cid2).await.unwrap();

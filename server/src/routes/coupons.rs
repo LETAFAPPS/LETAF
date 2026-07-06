@@ -1,4 +1,5 @@
 use axum::extract::{Path, State};
+use rust_decimal::Decimal;
 use axum::http::StatusCode;
 use axum::routing::get;
 use axum::{Json, Router};
@@ -35,11 +36,11 @@ struct CouponBody {
     coupon_type: String,
     discount_kind: String,
     #[serde(default)]
-    discount_value: f64,
+    discount_value: Decimal,
     #[serde(default)]
-    min_order_value: f64,
+    min_order_value: Decimal,
     #[serde(default)]
-    max_discount: f64,
+    max_discount: Decimal,
     #[serde(default)]
     per_user_limit: i32,
     #[serde(default)]

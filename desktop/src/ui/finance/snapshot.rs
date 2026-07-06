@@ -1,5 +1,6 @@
 
 use chrono::{Datelike, Duration, Local, NaiveDate};
+use rust_decimal::prelude::ToPrimitive;
 use slint::{Color, ModelRc, SharedString, VecModel};
 use uuid::Uuid;
 
@@ -9,7 +10,9 @@ use letaf_core::finance::model::{
 use letaf_core::finance_category::model::FinanceCategory;
 use letaf_core::order::model::{Order, OrderStatus};
 
-use crate::format::money_br;
+fn money_br(v: f64) -> String {
+    crate::format::money_br(letaf_core::money::from_db_f64(v))
+}
 use crate::{
     FinanceCalendarCell, FinanceCashFlowPoint, FinanceCategoryOption, FinanceDayRow,
     FinanceEntryRow, FinanceKpi, FinanceTab, MainWindow,
@@ -139,18 +142,18 @@ pub(crate) fn build_snapshot(
         }
         match e.kind {
             FinanceKind::Receivable => {
-                to_receive += e.amount;
+                to_receive += e.amount.to_f64().unwrap_or(0.0);
                 count_receivable_open += 1;
-                total_receivable_open += e.amount;
+                total_receivable_open += e.amount.to_f64().unwrap_or(0.0);
             }
             FinanceKind::Payable => {
-                to_pay += e.amount;
+                to_pay += e.amount.to_f64().unwrap_or(0.0);
                 count_payable_open += 1;
-                total_payable_open += e.amount;
+                total_payable_open += e.amount.to_f64().unwrap_or(0.0);
             }
         }
         if e.is_overdue(today) {
-            overdue += e.amount;
+            overdue += e.amount.to_f64().unwrap_or(0.0);
             overdue_count += 1;
         }
     }
@@ -277,8 +280,8 @@ pub(crate) fn build_calendar(entries: &[FinanceEntry], today: NaiveDate, cal: &C
         let entry = by_day.entry(e.due_date).or_insert((0, 0.0, 0.0));
         entry.0 += 1;
         match e.kind {
-            FinanceKind::Receivable => entry.1 += e.amount,
-            FinanceKind::Payable => entry.2 += e.amount,
+            FinanceKind::Receivable => entry.1 += e.amount.to_f64().unwrap_or(0.0),
+            FinanceKind::Payable => entry.2 += e.amount.to_f64().unwrap_or(0.0),
         }
     }
 
@@ -348,12 +351,12 @@ pub(crate) fn build_calendar(entries: &[FinanceEntry], today: NaiveDate, cal: &C
         let inflow: f64 = day_entries
             .iter()
             .filter(|e| matches!(e.kind, FinanceKind::Receivable))
-            .map(|e| e.amount)
+            .map(|e| e.amount.to_f64().unwrap_or(0.0))
             .sum();
         let outflow: f64 = day_entries
             .iter()
             .filter(|e| matches!(e.kind, FinanceKind::Payable))
-            .map(|e| e.amount)
+            .map(|e| e.amount.to_f64().unwrap_or(0.0))
             .sum();
         let net = inflow - outflow;
         detail_summary = if day_entries.is_empty() {
@@ -368,8 +371,8 @@ pub(crate) fn build_calendar(entries: &[FinanceEntry], today: NaiveDate, cal: &C
                 FinanceKind::Payable => "neg",
             };
             let amount_display = match e.kind {
-                FinanceKind::Receivable => format!("+{}", money_br(e.amount)),
-                FinanceKind::Payable => format!("−{}", money_br(e.amount)),
+                FinanceKind::Receivable => format!("+{}", money_br(e.amount.to_f64().unwrap_or(0.0))),
+                FinanceKind::Payable => format!("−{}", money_br(e.amount.to_f64().unwrap_or(0.0))),
             };
             let is_overdue = e.is_overdue(today);
             let status_label = if is_overdue {
@@ -474,8 +477,8 @@ pub(crate) fn build_cash_flow(
             if let Some(paid) = e.paid_at {
                 if let Some(idx) = in_range(paid.date()) {
                     match e.kind {
-                        FinanceKind::Receivable => inflows[idx] += e.amount,
-                        FinanceKind::Payable => outflows[idx] += e.amount,
+                        FinanceKind::Receivable => inflows[idx] += e.amount.to_f64().unwrap_or(0.0),
+                        FinanceKind::Payable => outflows[idx] += e.amount.to_f64().unwrap_or(0.0),
                     }
                 }
             }
@@ -483,8 +486,8 @@ pub(crate) fn build_cash_flow(
             // Pendente/agendado → previsão na due_date.
             if let Some(idx) = in_range(e.due_date) {
                 match e.kind {
-                    FinanceKind::Receivable => inflows[idx] += e.amount,
-                    FinanceKind::Payable => outflows[idx] += e.amount,
+                    FinanceKind::Receivable => inflows[idx] += e.amount.to_f64().unwrap_or(0.0),
+                    FinanceKind::Payable => outflows[idx] += e.amount.to_f64().unwrap_or(0.0),
                 }
             }
         }
@@ -500,7 +503,7 @@ pub(crate) fn build_cash_flow(
         }
         let day = o.base.created_at.date();
         if let Some(idx) = in_range(day) {
-            inflows[idx] += o.total;
+            inflows[idx] += o.total.to_f64().unwrap_or(0.0);
         }
     }
 
@@ -594,8 +597,8 @@ pub(crate) fn build_entry_row(
     };
 
     let amount_display = match e.kind {
-        FinanceKind::Receivable => format!("+{}", money_br(e.amount)),
-        FinanceKind::Payable => format!("−{}", money_br(e.amount)),
+        FinanceKind::Receivable => format!("+{}", money_br(e.amount.to_f64().unwrap_or(0.0))),
+        FinanceKind::Payable => format!("−{}", money_br(e.amount.to_f64().unwrap_or(0.0))),
     };
 
     let (cat_name, cat_color) = e
@@ -649,7 +652,7 @@ pub(crate) fn build_entry_row(
         payment_method_label,
         action_label,
         installment_label,
-        amount: e.amount,
+        amount: e.amount.to_f64().unwrap_or(0.0),
         group_first: false,
         group_label: String::new(),
         group_meta: String::new(),

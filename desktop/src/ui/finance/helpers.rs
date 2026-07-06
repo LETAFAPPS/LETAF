@@ -3,7 +3,9 @@ use chrono::NaiveDate;
 use slint::{Color, SharedString};
 
 
-use crate::format::money_br;
+fn money_br(v: f64) -> String {
+    crate::format::money_br(letaf_core::money::from_db_f64(v))
+}
 use crate::{
     FinanceKpi, FinanceTab,
 };

@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use rust_decimal::Decimal;
 use chrono::NaiveDateTime;
 use sqlx::prelude::FromRow;
 use sqlx::PgPool;
@@ -19,7 +20,7 @@ struct PaymentChargeRow {
     gateway: String,
     method: String,
     txid: Option<String>,
-    amount: f64,
+    amount: Decimal,
     status: String,
     pix_copia_cola: Option<String>,
     qr_code_b64: Option<String>,

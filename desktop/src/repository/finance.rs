@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use rust_decimal::prelude::ToPrimitive;
 use chrono::{NaiveDate, NaiveDateTime, Utc};
 use sqlx::prelude::FromRow;
 use sqlx::{Sqlite, SqlitePool, Transaction};
@@ -58,7 +59,7 @@ impl TryFrom<FinanceEntryRow> for FinanceEntry {
             party_name: r.party_name,
             party_type: PartyType::from_str(&r.party_type),
             category_id: r.category_id.as_deref().map(parse_uuid).transpose()?,
-            amount: r.amount,
+            amount: letaf_core::money::from_db_f64(r.amount),
             due_date: parse_date(&r.due_date)?,
             paid_at: r.paid_at.as_deref().map(parse_timestamp).transpose()?,
             status: FinanceStatus::from_str(&r.status),
@@ -189,7 +190,7 @@ impl FinanceRepository for SqliteFinanceRepository {
         .bind(&e.party_name)
         .bind(e.party_type.to_string())
         .bind(e.category_id.map(|u| u.to_string()))
-        .bind(e.amount)
+        .bind(e.amount.to_f64().unwrap_or(0.0))
         .bind(date_str(e.due_date))
         .bind(e.paid_at.map(ts))
         .bind(e.status.to_string())
@@ -309,7 +310,7 @@ impl FinanceRepository for SqliteFinanceRepository {
         .bind(&e.party_name)
         .bind(e.party_type.to_string())
         .bind(e.category_id.map(|u| u.to_string()))
-        .bind(e.amount)
+        .bind(e.amount.to_f64().unwrap_or(0.0))
         .bind(date_str(e.due_date))
         .bind(e.paid_at.map(ts))
         .bind(e.status.to_string())
@@ -355,7 +356,7 @@ async fn insert_one(
     .bind(&e.party_name)
     .bind(e.party_type.to_string())
     .bind(e.category_id.map(|u| u.to_string()))
-    .bind(e.amount)
+    .bind(e.amount.to_f64().unwrap_or(0.0))
     .bind(date_str(e.due_date))
     .bind(e.paid_at.map(ts))
     .bind(e.status.to_string())

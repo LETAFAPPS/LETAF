@@ -56,7 +56,7 @@ impl PixAutoBillingService {
             .ok_or_else(|| CoreError::NotFound("Assinatura não encontrada".into()))?;
         let terms = self.subscriptions.terms(&sub);
         let input = PixAutoInput {
-            amount_cents: (terms.amount * 100.0).round() as i64,
+            amount_cents: crate::money::to_cents(terms.amount),
             interval_months: terms.months,
             plan_name: format!("LETAF · Plano {}", terms.name),
             description: format!("Assinatura LETAF · {}", terms.name),
@@ -125,7 +125,7 @@ impl PixAutoBillingService {
             return Ok(());
         };
         let terms = self.subscriptions.terms(sub);
-        let amount_cents = (terms.amount * 100.0).round() as i64;
+        let amount_cents = crate::money::to_cents(terms.amount);
         let description = format!("Assinatura LETAF · {}", terms.name);
         self.gateway
             .create_recurring_charge(

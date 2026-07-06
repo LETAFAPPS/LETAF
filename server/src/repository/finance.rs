@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use rust_decimal::Decimal;
 use chrono::{NaiveDate, NaiveDateTime, Utc};
 use sqlx::prelude::FromRow;
 use sqlx::{PgPool, Postgres, Transaction};
@@ -23,7 +24,7 @@ struct FinanceEntryRow {
     party_name: String,
     party_type: String,
     category_id: Option<Uuid>,
-    amount: f64,
+    amount: Decimal,
     due_date: NaiveDate,
     paid_at: Option<NaiveDateTime>,
     status: String,

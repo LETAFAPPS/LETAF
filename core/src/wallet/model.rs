@@ -1,4 +1,5 @@
 use std::fmt;
+use rust_decimal::Decimal;
 
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -51,14 +52,14 @@ impl WalletMovementKind {
 
     /// Sinal do movimento (multiplicador para somar no balance):
     /// `+1` para entrada de saldo, `-1` para saída.
-    pub fn sign(self) -> f64 {
+    pub fn sign(self) -> Decimal {
         match self {
-            Self::Deposit | Self::OrderRefund => 1.0,
-            Self::Withdraw | Self::OrderCharge => -1.0,
+            Self::Deposit | Self::OrderRefund => rust_decimal_macros::dec!(1),
+            Self::Withdraw | Self::OrderCharge => rust_decimal_macros::dec!(-1),
             // Ajustes manuais: assumimos +1 e o sinal real fica
             // codificado no `amount` (negativo permitido nesse caso).
             // Esta convenção é validada no service.
-            Self::ManualAdjust => 1.0,
+            Self::ManualAdjust => rust_decimal_macros::dec!(1),
         }
     }
 }
@@ -77,8 +78,8 @@ pub struct WalletAccount {
     #[serde(flatten)]
     pub base: BaseFields,
     pub customer_id: Uuid,
-    pub balance: f64,
-    pub credit_limit: f64,
+    pub balance: Decimal,
+    pub credit_limit: Decimal,
 }
 
 impl WalletAccount {
@@ -86,20 +87,20 @@ impl WalletAccount {
         Self {
             base: BaseFields::new(company_id),
             customer_id,
-            balance: 0.0,
-            credit_limit: 0.0,
+            balance: Decimal::ZERO,
+            credit_limit: Decimal::ZERO,
         }
     }
 
     /// Saldo mínimo permitido — service usa para validar saques.
     /// É `-credit_limit` (limite negativo permitido).
-    pub fn floor(&self) -> f64 {
+    pub fn floor(&self) -> Decimal {
         -self.credit_limit
     }
 
     /// `true` quando a conta está em fiado (saldo negativo).
     pub fn is_in_debt(&self) -> bool {
-        self.balance < 0.0
+        self.balance < Decimal::ZERO
     }
 }
 
@@ -117,8 +118,8 @@ pub struct WalletMovement {
     pub base: BaseFields,
     pub account_id: Uuid,
     pub kind: WalletMovementKind,
-    pub amount: f64,
-    pub balance_after: f64,
+    pub amount: Decimal,
+    pub balance_after: Decimal,
     pub related_order_id: Option<Uuid>,
     pub notes: Option<String>,
 }
@@ -128,8 +129,8 @@ impl WalletMovement {
         company_id: Uuid,
         account_id: Uuid,
         kind: WalletMovementKind,
-        amount: f64,
-        balance_after: f64,
+        amount: Decimal,
+        balance_after: Decimal,
     ) -> Self {
         Self {
             base: BaseFields::new(company_id),

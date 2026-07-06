@@ -8,7 +8,12 @@ use crate::context::DesktopState;
 use crate::MainWindow;
 
 use super::super::helpers::{show_toast, user_error};
-use crate::format::{money_br as fmt_brl, money_br_signed as fmt_brl_signed};
+/// Wrappers de exibição para os valores de FECHAMENTO de caixa, que são
+/// contados na UI em `f64` (contagem manual). Convertem para `Decimal`
+/// (round2) antes de formatar — dinheiro exato só é exigido nos cálculos
+/// do domínio; aqui é apresentação da conferência.
+fn fmt_brl(v: f64) -> String { crate::format::money_br(letaf_core::money::from_db_f64(v)) }
+fn fmt_brl_signed(v: f64) -> String { crate::format::money_br_signed(letaf_core::money::from_db_f64(v)) }
 use super::core::parse_amount;
 
 // ── Abrir caixa ──────────────────────────────────────────────────
@@ -49,7 +54,7 @@ pub(crate) fn setup_open_confirm(
             let cid = state.company_id();
             let result = state
                 .cash_service
-                .open_session(cid, operator_id, operator_name, amount, notes_opt)
+                .open_session(cid, operator_id, operator_name, letaf_core::money::from_db_f64(amount), notes_opt)
                 .await;
             let _ = slint::invoke_from_event_loop(move || {
                 let Some(ui) = ui_weak.upgrade() else { return };
@@ -105,7 +110,7 @@ pub(crate) fn setup_sangria_confirm(
             let cid = state.company_id();
             let result = state
                 .cash_service
-                .register_sangria(cid, session_id, amount, reason, detail_opt)
+                .register_sangria(cid, session_id, letaf_core::money::from_db_f64(amount), reason, detail_opt)
                 .await;
             let _ = slint::invoke_from_event_loop(move || {
                 let Some(ui) = ui_weak.upgrade() else { return };
@@ -161,7 +166,7 @@ pub(crate) fn setup_suprimento_confirm(
             let cid = state.company_id();
             let result = state
                 .cash_service
-                .register_suprimento(cid, session_id, amount, origin, detail_opt)
+                .register_suprimento(cid, session_id, letaf_core::money::from_db_f64(amount), origin, detail_opt)
                 .await;
             let _ = slint::invoke_from_event_loop(move || {
                 let Some(ui) = ui_weak.upgrade() else { return };
@@ -267,7 +272,7 @@ pub(crate) fn setup_close_confirm(
             let cid = state.company_id();
             let result = state
                 .cash_service
-                .close_session(cid, session_id, counted, notes_opt)
+                .close_session(cid, session_id, letaf_core::money::from_db_f64(counted), notes_opt)
                 .await;
             let _ = slint::invoke_from_event_loop(move || {
                 let Some(ui) = ui_weak.upgrade() else { return };

@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use rust_decimal::prelude::ToPrimitive;
 use chrono::NaiveDateTime;
 use sqlx::prelude::FromRow;
 use sqlx::SqlitePool;
@@ -41,7 +42,7 @@ impl TryFrom<AddonRow> for Addon {
             },
             group_id: parse_uuid(&r.group_id)?,
             name: r.name,
-            price: r.price,
+            price: letaf_core::money::from_db_f64(r.price),
             sort_order: r.sort_order,
             active: r.active,
         })
@@ -106,7 +107,7 @@ impl AddonRepository for SqliteAddonRepository {
         .bind(a.base.company_id.to_string())
         .bind(a.group_id.to_string())
         .bind(&a.name)
-        .bind(a.price)
+        .bind(a.price.to_f64().unwrap_or(0.0))
         .bind(a.sort_order)
         .bind(a.active)
         .bind(ts(a.base.created_at))
@@ -126,7 +127,7 @@ impl AddonRepository for SqliteAddonRepository {
         )
         .bind(a.group_id.to_string())
         .bind(&a.name)
-        .bind(a.price)
+        .bind(a.price.to_f64().unwrap_or(0.0))
         .bind(a.sort_order)
         .bind(a.active)
         .bind(ts(a.base.updated_at))
@@ -208,7 +209,7 @@ impl AddonRepository for SqliteAddonRepository {
         .bind(a.base.company_id.to_string())
         .bind(a.group_id.to_string())
         .bind(&a.name)
-        .bind(a.price)
+        .bind(a.price.to_f64().unwrap_or(0.0))
         .bind(a.sort_order)
         .bind(a.active)
         .bind(ts(a.base.created_at))

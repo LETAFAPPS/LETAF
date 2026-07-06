@@ -1,4 +1,5 @@
 use std::collections::{HashMap, HashSet};
+use rust_decimal::prelude::ToPrimitive;
 
 use slint::{Color, ModelRc, SharedString, VecModel};
 use uuid::Uuid;
@@ -64,7 +65,7 @@ pub(crate) fn product_color(hex: Option<&str>) -> (Color, bool) {
 /// Formata moeda em pt-BR: "R$ 2.530,00". Delega ao helper canônico
 /// (era cópia byte-a-byte de `crate::format::money_br` — AI_RULES §8).
 pub(crate) fn money_br(v: f64) -> String {
-    crate::format::money_br(v)
+    crate::format::money_br(letaf_core::money::from_db_f64(v))
 }
 
 /// Índice da categoria na ordem de exibição (para a cor estável).
@@ -146,7 +147,7 @@ pub(crate) fn apply_detail(ui: &MainWindow, cache: &CatCache) {
     let stock_value: f64 = prods
         .iter()
         .filter(|p| !p.unlimited_stock)
-        .map(|p| p.price.unwrap_or(0.0) * p.stock_quantity)
+        .map(|p| p.price.map(|d| d.to_f64().unwrap_or(0.0)).unwrap_or(0.0) * p.stock_quantity)
         .sum();
 
     let prod_rows: Vec<CatProduct> = prods
@@ -181,7 +182,7 @@ pub(crate) fn apply_detail(ui: &MainWindow, cache: &CatCache) {
                 has_image,
                 sub_name: SharedString::from(sub),
                 qty: SharedString::from(qty),
-                price: SharedString::from(money_br(p.price.unwrap_or(0.0))),
+                price: SharedString::from(money_br(p.price.map(|d| d.to_f64().unwrap_or(0.0)).unwrap_or(0.0))),
                 color,
                 has_color,
             }

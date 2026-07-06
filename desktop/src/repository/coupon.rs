@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use rust_decimal::prelude::ToPrimitive;
 use chrono::NaiveDateTime;
 use sqlx::prelude::FromRow;
 use sqlx::SqlitePool;
@@ -49,9 +50,9 @@ impl TryFrom<CouponRow> for Coupon {
             code: r.code,
             coupon_type: r.coupon_type,
             discount_kind: r.discount_kind,
-            discount_value: r.discount_value,
-            min_order_value: r.min_order_value,
-            max_discount: r.max_discount,
+            discount_value: letaf_core::money::from_db_f64(r.discount_value),
+            min_order_value: letaf_core::money::from_db_f64(r.min_order_value),
+            max_discount: letaf_core::money::from_db_f64(r.max_discount),
             per_user_limit: r.per_user_limit,
             usage_limit: r.usage_limit,
             valid_from: r.valid_from.as_deref().map(parse_timestamp).transpose()?,
@@ -120,9 +121,9 @@ impl CouponRepository for SqliteCouponRepository {
         .bind(&c.code)
         .bind(&c.coupon_type)
         .bind(&c.discount_kind)
-        .bind(c.discount_value)
-        .bind(c.min_order_value)
-        .bind(c.max_discount)
+        .bind(c.discount_value.to_f64().unwrap_or(0.0))
+        .bind(c.min_order_value.to_f64().unwrap_or(0.0))
+        .bind(c.max_discount.to_f64().unwrap_or(0.0))
         .bind(c.per_user_limit)
         .bind(c.usage_limit)
         .bind(c.valid_from.map(ts))
@@ -145,9 +146,9 @@ impl CouponRepository for SqliteCouponRepository {
         .bind(&c.code)
         .bind(&c.coupon_type)
         .bind(&c.discount_kind)
-        .bind(c.discount_value)
-        .bind(c.min_order_value)
-        .bind(c.max_discount)
+        .bind(c.discount_value.to_f64().unwrap_or(0.0))
+        .bind(c.min_order_value.to_f64().unwrap_or(0.0))
+        .bind(c.max_discount.to_f64().unwrap_or(0.0))
         .bind(c.per_user_limit)
         .bind(c.usage_limit)
         .bind(c.valid_from.map(ts))
@@ -238,9 +239,9 @@ impl CouponRepository for SqliteCouponRepository {
         .bind(&c.code)
         .bind(&c.coupon_type)
         .bind(&c.discount_kind)
-        .bind(c.discount_value)
-        .bind(c.min_order_value)
-        .bind(c.max_discount)
+        .bind(c.discount_value.to_f64().unwrap_or(0.0))
+        .bind(c.min_order_value.to_f64().unwrap_or(0.0))
+        .bind(c.max_discount.to_f64().unwrap_or(0.0))
         .bind(c.per_user_limit)
         .bind(c.usage_limit)
         .bind(c.valid_from.map(ts))

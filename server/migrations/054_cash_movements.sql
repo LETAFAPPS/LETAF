@@ -4,7 +4,7 @@ CREATE TABLE cash_movements (
     company_id UUID NOT NULL REFERENCES companies(id),
     session_id UUID NOT NULL REFERENCES cash_sessions(id),
     kind TEXT NOT NULL,
-    amount DOUBLE PRECISION NOT NULL,
+    amount NUMERIC(14, 2) NOT NULL,
     method TEXT,
     reason TEXT NOT NULL DEFAULT '',
     detail TEXT,

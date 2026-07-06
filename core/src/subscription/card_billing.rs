@@ -160,6 +160,6 @@ fn card_label(brand: &str, last4: &str) -> String {
 }
 
 /// Reais → centavos (o gateway trabalha em centavos inteiros).
-fn to_cents(reais: f64) -> i64 {
-    (reais * 100.0).round() as i64
+fn to_cents(reais: rust_decimal::Decimal) -> i64 {
+    crate::money::to_cents(reais)
 }

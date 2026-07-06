@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use rust_decimal::Decimal;
 use chrono::NaiveDateTime;
 use sqlx::prelude::FromRow;
 use sqlx::PgPool;
@@ -16,8 +17,8 @@ struct WalletAccountRow {
     id: Uuid,
     company_id: Uuid,
     customer_id: Uuid,
-    balance: f64,
-    credit_limit: f64,
+    balance: Decimal,
+    credit_limit: Decimal,
     created_at: NaiveDateTime,
     updated_at: NaiveDateTime,
     deleted_at: Option<NaiveDateTime>,
@@ -48,8 +49,8 @@ struct WalletMovementRow {
     company_id: Uuid,
     account_id: Uuid,
     kind: String,
-    amount: f64,
-    balance_after: f64,
+    amount: Decimal,
+    balance_after: Decimal,
     related_order_id: Option<Uuid>,
     notes: Option<String>,
     created_at: NaiveDateTime,

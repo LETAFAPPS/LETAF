@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use rust_decimal::prelude::ToPrimitive;
 use std::sync::{Arc, Mutex};
 
 use slint::{ComponentHandle, SharedPixelBuffer, SharedString};
@@ -328,7 +329,7 @@ pub(crate) fn add_to_cart_simple(pdv: &Arc<Mutex<PdvState>>, product_id: Uuid) {
         product_id,
         name: product.name,
         qty: 1.0,
-        unit_price: price,
+        unit_price: price.to_f64().unwrap_or(0.0),
         addons_summary: String::new(),
         addons_json: None,
     });

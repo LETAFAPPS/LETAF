@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use rust_decimal::Decimal;
 
 use uuid::Uuid;
 
@@ -42,7 +43,7 @@ impl AddonService {
         company_id: Uuid,
         group_id: Uuid,
         name: String,
-        price: f64,
+        price: Decimal,
     ) -> Result<Addon, CoreError> {
         Self::validate(&name, price)?;
         self.ensure_group_belongs_to_company(company_id, group_id).await?;
@@ -57,7 +58,7 @@ impl AddonService {
         id: Uuid,
         group_id: Uuid,
         name: String,
-        price: f64,
+        price: Decimal,
     ) -> Result<Addon, CoreError> {
         Self::validate(&name, price)?;
         self.ensure_group_belongs_to_company(company_id, group_id).await?;
@@ -130,11 +131,11 @@ impl AddonService {
         self.repo.sync_upsert(&addon).await
     }
 
-    fn validate(name: &str, price: f64) -> Result<(), CoreError> {
+    fn validate(name: &str, price: Decimal) -> Result<(), CoreError> {
         if name.trim().is_empty() {
             return Err(CoreError::Validation("Addon name is required".into()));
         }
-        if price < 0.0 {
+        if price < Decimal::ZERO {
             return Err(CoreError::Validation("Addon price cannot be negative".into()));
         }
         Ok(())

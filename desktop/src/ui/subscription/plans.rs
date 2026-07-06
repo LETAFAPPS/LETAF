@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use rust_decimal::prelude::ToPrimitive;
 
 use chrono::{Datelike, Local, NaiveDate};
 use serde::Deserialize;
@@ -219,7 +220,7 @@ async fn reapply(
             .iter()
             .find(|p| p.kind == PlanKind::Monthly)
             .map(|p| p.monthly_price)
-            .unwrap_or(0.0);
+            .unwrap_or(rust_decimal::Decimal::ZERO);
         plans
             .iter()
             .map(|p| plan_card(p, sub.plan_kind, monthly_baseline))
@@ -412,7 +413,7 @@ fn catalog_to_plan(p: &CatalogPlan) -> Option<letaf_core::plan::model::Plan> {
     Some(letaf_core::plan::model::Plan {
         id,
         name: p.name.clone(),
-        amount: p.amount,
+        amount: letaf_core::money::from_db_f64(p.amount),
         period_months: p.period_months,
         trial_days: p.trial_days,
         description: p.description.clone(),
@@ -428,13 +429,13 @@ fn catalog_to_plan(p: &CatalogPlan) -> Option<letaf_core::plan::model::Plan> {
 /// Monta o card a partir de um plano do catálogo (dinâmico).
 fn catalog_plan_card(p: &CatalogPlan, baseline_monthly: f64) -> PlanCardData {
     let cycle_display = if p.period_months > 1 {
-        format!("{} a cada {} meses", money_br(p.amount), p.period_months)
+        format!("{} a cada {} meses", money_br(letaf_core::money::from_db_f64(p.amount)), p.period_months)
     } else {
         "Cobrado Mensalmente".to_string()
     };
-    let savings = baseline_monthly - p.monthly_price;
+    let savings = baseline_monthly - p.monthly_price; // f64 (catalog admin)
     let savings_label = if savings > 0.5 {
-        format!("ECONOMIZE {}/MÊS", money_br(savings))
+        format!("ECONOMIZE {}/MÊS", money_br(letaf_core::money::from_db_f64(savings)))
     } else {
         String::new()
     };
@@ -448,7 +449,7 @@ fn catalog_plan_card(p: &CatalogPlan, baseline_monthly: f64) -> PlanCardData {
         kind: SharedString::from(p.id.clone()),
         label: SharedString::from(p.name.clone()),
         description: SharedString::from(p.description.clone()),
-        monthly_display: SharedString::from(money_br(p.monthly_price)),
+        monthly_display: SharedString::from(money_br(letaf_core::money::from_db_f64(p.monthly_price))),
         cycle_display: SharedString::from(cycle_display),
         savings_label: SharedString::from(savings_label),
         highlight_label: SharedString::from(p.highlight_label.clone()),
@@ -461,7 +462,7 @@ fn catalog_plan_card(p: &CatalogPlan, baseline_monthly: f64) -> PlanCardData {
 fn plan_card(
     plan: &letaf_core::subscription::model::Plan,
     current: PlanKind,
-    _monthly_baseline: f64,
+    _monthly_baseline: rust_decimal::Decimal,
 ) -> PlanCardData {
     let is_current = plan.kind == current;
     let cycle_display = match plan.kind {
@@ -786,7 +787,7 @@ fn catalog_plan_view(sub: &Subscription) -> Option<letaf_core::subscription::mod
         return None;
     }
     let months = sub.plan_period_months.max(1);
-    let monthly = sub.plan_amount / months as f64;
+    let monthly = sub.plan_amount / rust_decimal::Decimal::from(months);
     Some(letaf_core::subscription::model::Plan {
         kind: sub.plan_kind,
         label: sub.plan_name.clone(),
@@ -805,9 +806,9 @@ fn catalog_plan_view(sub: &Subscription) -> Option<letaf_core::subscription::mod
 fn plan_for(kind: PlanKind) -> letaf_core::subscription::model::Plan {
     // Espelho do catálogo do service. Centralizar no Rust handler é
     // ok porque o catálogo é pequeno e a UI já mostra a partir dele.
-    let monthly = 200.0_f64;
-    let semestral_monthly = 190.0_f64;
-    let annual_monthly = 180.0_f64;
+    let monthly = rust_decimal::Decimal::from(200);
+    let semestral_monthly = rust_decimal::Decimal::from(190);
+    let annual_monthly = rust_decimal::Decimal::from(180);
     use letaf_core::subscription::model::Plan;
     match kind {
         PlanKind::Monthly => Plan {
@@ -823,19 +824,19 @@ fn plan_for(kind: PlanKind) -> letaf_core::subscription::model::Plan {
             kind,
             label: "Semestral".into(),
             monthly_price: semestral_monthly,
-            total_per_charge: semestral_monthly * 6.0,
-            savings_label: format!("ECONOMIZE R$ {}/MÊS", (monthly - semestral_monthly) as i64),
+            total_per_charge: semestral_monthly * rust_decimal::Decimal::from(6),
+            savings_label: format!("ECONOMIZE R$ {}/MÊS", (monthly - semestral_monthly).to_i64().unwrap_or(0)),
             highlight_label: String::new(),
-            description: format!("Cobrado a cada 6 meses · R$ {}/mês", semestral_monthly as i64),
+            description: format!("Cobrado a cada 6 meses · R$ {}/mês", semestral_monthly.to_i64().unwrap_or(0)),
         },
         PlanKind::Annual => Plan {
             kind,
             label: "Anual".into(),
             monthly_price: annual_monthly,
-            total_per_charge: annual_monthly * 12.0,
-            savings_label: format!("ECONOMIZE R$ {}/MÊS", (monthly - annual_monthly) as i64),
+            total_per_charge: annual_monthly * rust_decimal::Decimal::from(12),
+            savings_label: format!("ECONOMIZE R$ {}/MÊS", (monthly - annual_monthly).to_i64().unwrap_or(0)),
             highlight_label: "MELHOR VALOR".into(),
-            description: format!("Cobrado 1× por ano · R$ {}/mês", annual_monthly as i64),
+            description: format!("Cobrado 1× por ano · R$ {}/mês", annual_monthly.to_i64().unwrap_or(0)),
         },
     }
 }

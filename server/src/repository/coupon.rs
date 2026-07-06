@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use rust_decimal::Decimal;
 use chrono::NaiveDateTime;
 use sqlx::prelude::FromRow;
 use sqlx::PgPool;
@@ -19,9 +20,9 @@ struct CouponRow {
     code: String,
     coupon_type: String,
     discount_kind: String,
-    discount_value: f64,
-    min_order_value: f64,
-    max_discount: f64,
+    discount_value: Decimal,
+    min_order_value: Decimal,
+    max_discount: Decimal,
     per_user_limit: i32,
     usage_limit: i32,
     valid_from: Option<NaiveDateTime>,

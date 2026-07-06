@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use rust_decimal::Decimal;
 use uuid::Uuid;
 
 use crate::entity::BaseFields;
@@ -20,7 +21,7 @@ pub struct Addon {
     pub name: String,
     /// Acréscimo em R$ somado ao preço base do produto. `0.0` é válido
     /// (ex.: "Sem cebola" gratuito).
-    pub price: f64,
+    pub price: Decimal,
     /// Ordem dentro do grupo (asc).
     #[serde(default)]
     pub sort_order: i32,
@@ -35,7 +36,7 @@ fn default_true() -> bool {
 }
 
 impl Addon {
-    pub fn new(company_id: Uuid, group_id: Uuid, name: String, price: f64) -> Self {
+    pub fn new(company_id: Uuid, group_id: Uuid, name: String, price: Decimal) -> Self {
         Self {
             base: BaseFields::new(company_id),
             group_id,

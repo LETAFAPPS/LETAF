@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use rust_decimal::Decimal;
 use chrono::NaiveDateTime;
 use std::collections::HashMap;
 use sqlx::prelude::FromRow;
@@ -29,10 +30,10 @@ struct OrderRow {
     customer_id: Option<Uuid>,
     number: i64,
     status: String,
-    total: f64,
+    total: Decimal,
     coupon_code: Option<String>,
-    discount_amount: f64,
-    additional_amount: f64,
+    discount_amount: Decimal,
+    additional_amount: Decimal,
     delivery_type: String,
     notes: Option<String>,
     cancellation_reason: Option<String>,
@@ -81,8 +82,8 @@ struct OrderItemRow {
     product_id: Uuid,
     product_name: String,
     quantity: f64,
-    unit_price: f64,
-    subtotal: f64,
+    unit_price: Decimal,
+    subtotal: Decimal,
     notes: Option<String>,
     addons_json: Option<String>,
     created_at: NaiveDateTime,

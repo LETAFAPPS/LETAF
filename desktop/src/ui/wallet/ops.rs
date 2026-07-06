@@ -31,7 +31,7 @@ pub(crate) fn setup_confirm_open(
         let sync_notify = sync_notify.clone();
         let handle_inner = handle.clone();
         handle.spawn(async move {
-            match state.wallet_service.open_account(cid, customer_id, 0.0).await {
+            match state.wallet_service.open_account(cid, customer_id, rust_decimal::Decimal::ZERO).await {
                 Ok(_) => {
                     sync_notify.notify_one();
                     let ui_weak_toast = ui_weak.clone();
@@ -143,7 +143,7 @@ pub(crate) fn setup_confirm_limit(
         handle.spawn(async move {
             match state
                 .wallet_service
-                .set_credit_limit(cid, account_id, limit)
+                .set_credit_limit(cid, account_id, letaf_core::money::from_db_f64(limit))
                 .await
             {
                 Ok(_) => {
@@ -215,17 +215,17 @@ pub(crate) fn confirm_op(
         let result = match op {
             OpKind::Deposit => state
                 .wallet_service
-                .deposit(cid, account_id, amount, notes_opt)
+                .deposit(cid, account_id, letaf_core::money::from_db_f64(amount), notes_opt)
                 .await
                 .map(|_| ()),
             OpKind::Withdraw => state
                 .wallet_service
-                .withdraw(cid, account_id, amount, notes_opt)
+                .withdraw(cid, account_id, letaf_core::money::from_db_f64(amount), notes_opt)
                 .await
                 .map(|_| ()),
             OpKind::Adjust => state
                 .wallet_service
-                .manual_adjust(cid, account_id, amount, notes_s)
+                .manual_adjust(cid, account_id, letaf_core::money::from_db_f64(amount), notes_s)
                 .await
                 .map(|_| ()),
         };

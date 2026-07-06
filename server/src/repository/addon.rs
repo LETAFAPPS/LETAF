@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use rust_decimal::Decimal;
 use chrono::NaiveDateTime;
 use sqlx::prelude::FromRow;
 use sqlx::PgPool;
@@ -17,7 +18,7 @@ struct AddonRow {
     company_id: Uuid,
     group_id: Uuid,
     name: String,
-    price: f64,
+    price: Decimal,
     sort_order: i32,
     active: bool,
     created_at: NaiveDateTime,

@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use rust_decimal::prelude::ToPrimitive;
 use chrono::NaiveDateTime;
 use std::collections::HashMap;
 use sqlx::prelude::FromRow;
@@ -307,7 +308,7 @@ impl OrderRepository for SqliteOrderRepository {
                     updated_at = ?4, synced = false
              WHERE company_id = ?5 AND id = ?6 AND deleted_at IS NULL",
         )
-        .bind(order.total)
+        .bind(order.total.to_f64().unwrap_or(0.0))
         .bind(order.notes.as_deref())
         .bind(order.delivery_type.to_string())
         .bind(&now)
@@ -483,7 +484,7 @@ async fn insert_order(tx: &mut Transaction<'_, Sqlite>, order: &Order) -> Result
     .bind(order.customer_id.to_string())
     .bind(order.number)
     .bind(order.status.to_string())
-    .bind(order.total)
+    .bind(order.total.to_f64().unwrap_or(0.0))
     .bind(order.delivery_type.to_string())
     .bind(&order.notes)
     .bind(&order.cancellation_reason)
@@ -492,8 +493,8 @@ async fn insert_order(tx: &mut Transaction<'_, Sqlite>, order: &Order) -> Result
     .bind(order.base.deleted_at.map(ts))
     .bind(order.base.synced)
     .bind(&order.coupon_code)
-    .bind(order.discount_amount)
-    .bind(order.additional_amount)
+    .bind(order.discount_amount.to_f64().unwrap_or(0.0))
+    .bind(order.additional_amount.to_f64().unwrap_or(0.0))
     .bind(&order.payment_method)
     .execute(&mut **tx)
     .await
@@ -512,8 +513,8 @@ async fn insert_item(tx: &mut Transaction<'_, Sqlite>, item: &OrderItem) -> Resu
     .bind(item.product_id.to_string())
     .bind(&item.product_name)
     .bind(item.quantity)
-    .bind(item.unit_price)
-    .bind(item.subtotal)
+    .bind(item.unit_price.to_f64().unwrap_or(0.0))
+    .bind(item.subtotal.to_f64().unwrap_or(0.0))
     .bind(&item.notes)
     .bind(&item.addons_json)
     .bind(ts(item.base.created_at))
@@ -550,7 +551,7 @@ async fn upsert_order(tx: &mut Transaction<'_, Sqlite>, order: &Order) -> Result
     .bind(order.customer_id.to_string())
     .bind(order.number)
     .bind(order.status.to_string())
-    .bind(order.total)
+    .bind(order.total.to_f64().unwrap_or(0.0))
     .bind(order.delivery_type.to_string())
     .bind(&order.notes)
     .bind(&order.cancellation_reason)
@@ -559,8 +560,8 @@ async fn upsert_order(tx: &mut Transaction<'_, Sqlite>, order: &Order) -> Result
     .bind(order.base.deleted_at.map(ts))
     .bind(order.base.synced)
     .bind(&order.coupon_code)
-    .bind(order.discount_amount)
-    .bind(order.additional_amount)
+    .bind(order.discount_amount.to_f64().unwrap_or(0.0))
+    .bind(order.additional_amount.to_f64().unwrap_or(0.0))
     .bind(&order.payment_method)
     .execute(&mut **tx)
     .await
@@ -610,10 +611,10 @@ impl TryFrom<OrderRow> for Order {
                 tracing::warn!("Status de pedido desconhecido no banco: {:?} (id={}); usando Pending", r.status, r.id);
                 OrderStatus::Pending
             }),
-            total: r.total,
+            total: letaf_core::money::from_db_f64(r.total),
             coupon_code: r.coupon_code,
-            discount_amount: r.discount_amount,
-            additional_amount: r.additional_amount,
+            discount_amount: letaf_core::money::from_db_f64(r.discount_amount),
+            additional_amount: letaf_core::money::from_db_f64(r.additional_amount),
             delivery_type: DeliveryType::from_str(&r.delivery_type),
             notes: r.notes,
             cancellation_reason: r.cancellation_reason,
@@ -658,8 +659,8 @@ impl TryFrom<OrderItemRow> for OrderItem {
             product_id: parse_uuid(&r.product_id)?,
             product_name: r.product_name,
             quantity: r.quantity,
-            unit_price: r.unit_price,
-            subtotal: r.subtotal,
+            unit_price: letaf_core::money::from_db_f64(r.unit_price),
+            subtotal: letaf_core::money::from_db_f64(r.subtotal),
             notes: r.notes,
             addons_json: r.addons_json,
         })

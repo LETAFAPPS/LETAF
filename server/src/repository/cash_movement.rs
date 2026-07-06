@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use rust_decimal::Decimal;
 use chrono::NaiveDateTime;
 use sqlx::prelude::FromRow;
 use sqlx::PgPool;
@@ -17,7 +18,7 @@ struct CashMovementRow {
     company_id: Uuid,
     session_id: Uuid,
     kind: String,
-    amount: f64,
+    amount: Decimal,
     method: Option<String>,
     reason: String,
     detail: Option<String>,

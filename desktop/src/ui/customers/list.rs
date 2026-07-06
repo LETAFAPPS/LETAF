@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use rust_decimal::prelude::ToPrimitive;
 use std::sync::Arc;
 
 use chrono::Utc;
@@ -91,7 +92,7 @@ pub(crate) fn build_decoded(
     let ltvs: Vec<(Uuid, f64)> = customers.iter().map(|c| {
         let ltv = by_cust.get(&c.base.id).map(|v| v.iter()
             .filter(|o| o.status != OrderStatus::Cancelled)
-            .map(|o| o.total).sum::<f64>()).unwrap_or(0.0);
+            .map(|o| o.total.to_f64().unwrap_or(0.0)).sum::<f64>()).unwrap_or(0.0);
         (c.base.id, ltv)
     }).collect();
     let total_customers = customers.len().max(1);
@@ -102,7 +103,7 @@ pub(crate) fn build_decoded(
         let active: Vec<&&Order> = list.iter()
             .filter(|o| o.status != OrderStatus::Cancelled).collect();
 
-        let ltv: f64 = active.iter().map(|o| o.total).sum();
+        let ltv: f64 = active.iter().map(|o| o.total.to_f64().unwrap_or(0.0)).sum();
         let count = active.len() as i32;
         let avg = if count > 0 { ltv / count as f64 } else { 0.0 };
 
@@ -131,7 +132,7 @@ pub(crate) fn build_decoded(
             date: SharedString::from(o.base.created_at.format("%d/%m").to_string()),
             status: SharedString::from(o.status.to_string()),
             status_label: SharedString::from(status_label_pt(&o.status)),
-            total: SharedString::from(money(o.total)),
+            total: SharedString::from(money(o.total.to_f64().unwrap_or(0.0))),
         }).collect();
 
         let addresses: Vec<AddressRow> = addrs.get(&c.base.id)

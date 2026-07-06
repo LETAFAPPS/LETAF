@@ -1,4 +1,5 @@
 use axum::extract::{Path, State};
+use rust_decimal::Decimal;
 use axum::http::StatusCode;
 use axum::{routing::get, routing::post, Json, Router};
 use serde::{Deserialize, Serialize};
@@ -34,7 +35,7 @@ pub fn routes() -> Router<AppState> {
 struct CreatePixChargeRequest {
     #[serde(default)]
     invoice_id: Option<Uuid>,
-    amount: f64,
+    amount: Decimal,
     description: String,
 }
 

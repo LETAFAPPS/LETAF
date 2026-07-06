@@ -1,4 +1,5 @@
 use std::fmt;
+use rust_decimal::Decimal;
 
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -110,7 +111,7 @@ pub struct Order {
     pub number: i64,
     pub status: OrderStatus,
     /// Total final = soma dos itens − `discount_amount`.
-    pub total: f64,
+    pub total: Decimal,
     /// Código do cupom aplicado (snapshot). `None` = sem cupom. É o
     /// registro de uso do cupom (sem entidade extra): os limites são
     /// contados a partir dos pedidos não-cancelados com este código
@@ -120,12 +121,12 @@ pub struct Order {
     /// Valor do desconto aplicado pelo cupom — calculado no servidor,
     /// nunca vindo do frontend (§11). `0.0` = sem desconto.
     #[serde(default)]
-    pub discount_amount: f64,
+    pub discount_amount: Decimal,
     /// Valor adicional/acréscimo aplicado no PDV (taxa, ajuste manual) —
     /// SOMA ao total. Calculado/validado no backend (§11), nunca confiado
     /// do frontend. `0.0` = sem adicional.
     #[serde(default)]
-    pub additional_amount: f64,
+    pub additional_amount: Decimal,
     /// Tipo de entrega escolhido pelo cliente: `delivery` ou `pickup`.
     ///
     /// Regras aplicadas (AI_RULES.md §6, §8):
@@ -157,7 +158,7 @@ impl Order {
     pub fn new(
         company_id: Uuid,
         customer_id: Uuid,
-        total: f64,
+        total: Decimal,
         delivery_type: DeliveryType,
         notes: Option<String>,
     ) -> Self {
@@ -168,8 +169,8 @@ impl Order {
             status: OrderStatus::Pending,
             total,
             coupon_code: None,
-            discount_amount: 0.0,
-            additional_amount: 0.0,
+            discount_amount: Decimal::ZERO,
+            additional_amount: Decimal::ZERO,
             delivery_type,
             notes,
             cancellation_reason: None,
@@ -197,8 +198,8 @@ pub struct OrderItem {
     pub product_id: Uuid,
     pub product_name: String,
     pub quantity: f64,
-    pub unit_price: f64,
-    pub subtotal: f64,
+    pub unit_price: Decimal,
+    pub subtotal: Decimal,
     pub notes: Option<String>,
     /// Snapshot dos adicionais selecionados no carrinho. JSON array
     /// `[{"name": "...", "price": f64}, ...]`. `None` = sem adicionais.
@@ -218,7 +219,7 @@ impl OrderItem {
         product_id: Uuid,
         product_name: String,
         quantity: f64,
-        unit_price: f64,
+        unit_price: Decimal,
         notes: Option<String>,
         addons_json: Option<String>,
     ) -> Self {
@@ -229,7 +230,7 @@ impl OrderItem {
             product_name,
             quantity,
             unit_price,
-            subtotal: quantity * unit_price,
+            subtotal: crate::money::round2(crate::money::qty(quantity) * unit_price),
             notes,
             addons_json,
         }

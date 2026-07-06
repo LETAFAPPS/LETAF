@@ -1,4 +1,5 @@
 use axum::extract::{Path, State};
+use rust_decimal::Decimal;
 use axum::http::StatusCode;
 use axum::{routing::get, Json, Router};
 use serde::Deserialize;
@@ -35,8 +36,8 @@ struct CreateProductRequest {
     description: Option<String>,
     category_id: Option<Uuid>,
     subcategory_id: Option<Uuid>,
-    price: Option<f64>,
-    cost_price: Option<f64>,
+    price: Option<Decimal>,
+    cost_price: Option<Decimal>,
     #[serde(default)]
     stock_quantity: f64,
     #[serde(default)]
@@ -57,7 +58,7 @@ struct CreateProductRequest {
     #[serde(default)]
     discount_kind: Option<String>,
     #[serde(default)]
-    discount_value: Option<f64>,
+    discount_value: Option<Decimal>,
     #[serde(default)]
     discount_min_qty: Option<f64>,
     #[serde(default)]
@@ -77,8 +78,8 @@ struct UpdateProductRequest {
     description: Option<String>,
     category_id: Option<Uuid>,
     subcategory_id: Option<Uuid>,
-    price: Option<f64>,
-    cost_price: Option<f64>,
+    price: Option<Decimal>,
+    cost_price: Option<Decimal>,
     #[serde(default)]
     stock_quantity: f64,
     #[serde(default)]
@@ -99,7 +100,7 @@ struct UpdateProductRequest {
     #[serde(default)]
     discount_kind: Option<String>,
     #[serde(default)]
-    discount_value: Option<f64>,
+    discount_value: Option<Decimal>,
     #[serde(default)]
     discount_min_qty: Option<f64>,
     #[serde(default)]

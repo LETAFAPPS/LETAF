@@ -1,4 +1,7 @@
 use axum::extract::{Path, State};
+use rust_decimal::Decimal;
+use rust_decimal::prelude::ToPrimitive;
+use letaf_core::money;
 use axum::http::StatusCode;
 use axum::{routing::{get, patch, post}, Json, Router};
 use serde::{Deserialize, Serialize};
@@ -52,7 +55,7 @@ struct OrderItemRequest {
     quantity: f64,
     /// Preço unitário JÁ INCLUINDO os adicionais escolhidos pelo
     /// cliente (a UI calcula). `addons_json` carrega o detalhamento.
-    unit_price: f64,
+    unit_price: Decimal,
     notes: Option<String>,
     /// Snapshot dos adicionais escolhidos (Fase 4): JSON
     /// `[{"name": "...", "price": f64}, ...]`. None quando sem
@@ -132,9 +135,9 @@ async fn create_order(
         .map(str::trim)
         .filter(|s| !s.is_empty())
     {
-        None => (None, 0.0),
+        None => (None, rust_decimal::Decimal::ZERO),
         Some(raw_code) => {
-            let subtotal: f64 = items.iter().map(|i| i.quantity * i.unit_price).sum();
+            let subtotal: Decimal = items.iter().map(|i| money::qty(i.quantity) * i.unit_price).sum();
             let mine = state.order_service
                 .find_by_customer(tenant.company_id, customer_id).await?;
             let norm = |c: &Option<String>| c.as_deref()
@@ -297,9 +300,9 @@ fn to_response(order: &letaf_core::order::model::Order) -> OrderResponse {
         id: order.base.id,
         number: order.number,
         status: order.status.to_string(),
-        total: order.total,
-        discount_amount: order.discount_amount,
-        additional_amount: order.additional_amount,
+        total: order.total.to_f64().unwrap_or(0.0),
+        discount_amount: order.discount_amount.to_f64().unwrap_or(0.0),
+        additional_amount: order.additional_amount.to_f64().unwrap_or(0.0),
         coupon_code: order.coupon_code.clone(),
         delivery_type: order.delivery_type.to_string(),
         notes: order.notes.clone(),
@@ -312,8 +315,8 @@ fn to_response(order: &letaf_core::order::model::Order) -> OrderResponse {
                 product_id: i.product_id,
                 product_name: i.product_name.clone(),
                 quantity: i.quantity,
-                unit_price: i.unit_price,
-                subtotal: i.subtotal,
+                unit_price: i.unit_price.to_f64().unwrap_or(0.0),
+                subtotal: i.subtotal.to_f64().unwrap_or(0.0),
             })
             .collect(),
     }

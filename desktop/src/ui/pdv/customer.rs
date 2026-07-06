@@ -1,4 +1,5 @@
 use std::sync::{Arc, Mutex};
+use rust_decimal::prelude::ToPrimitive;
 
 use slint::{ComponentHandle, ModelRc, SharedString, VecModel};
 use uuid::Uuid;
@@ -105,8 +106,8 @@ pub(crate) fn apply_wallet_to_ui(
         Some(a) => {
             let balance = a.balance;
             let available = a.balance + a.credit_limit;
-            let tone = if balance < -0.005 { "neg" }
-                else if balance > 0.005 { "pos" }
+            let tone = if balance < rust_decimal::Decimal::new(-5, 3) { "neg" }
+                else if balance > rust_decimal::Decimal::new(5, 3) { "pos" }
                 else { "neutral" };
             ui.set_pdv_wallet_has_account(true);
             ui.set_pdv_wallet_account_id(SharedString::from(a.base.id.to_string()));
@@ -119,14 +120,14 @@ pub(crate) fn apply_wallet_to_ui(
                 "Disponível: {}",
                 crate::format::money_br(available),
             )));
-            ui.set_pdv_wallet_available_amount(available as f32);
+            ui.set_pdv_wallet_available_amount(available.to_f64().unwrap_or(0.0) as f32);
         }
         None => {
             ui.set_pdv_wallet_has_account(false);
             ui.set_pdv_wallet_account_id(SharedString::default());
-            ui.set_pdv_wallet_balance_display(SharedString::from(crate::format::money_br(0.0)));
+            ui.set_pdv_wallet_balance_display(SharedString::from(crate::format::money_br(rust_decimal::Decimal::ZERO)));
             ui.set_pdv_wallet_balance_tone(SharedString::from("neutral"));
-            ui.set_pdv_wallet_credit_limit_display(SharedString::from(crate::format::money_br(0.0)));
+            ui.set_pdv_wallet_credit_limit_display(SharedString::from(crate::format::money_br(rust_decimal::Decimal::ZERO)));
             ui.set_pdv_wallet_available_display(SharedString::default());
             ui.set_pdv_wallet_available_amount(0.0);
             // Se a forma escolhida era "wallet" e o cliente saiu,
@@ -138,8 +139,8 @@ pub(crate) fn apply_wallet_to_ui(
     }
 }
 
-pub(crate) fn wallet_money_signed(v: f64) -> String {
-    if v >= 0.0 {
+pub(crate) fn wallet_money_signed(v: rust_decimal::Decimal) -> String {
+    if v >= rust_decimal::Decimal::ZERO {
         crate::format::money_br(v)
     } else {
         format!("R$ -{}", crate::format::money_br(-v).trim_start_matches("R$ "))

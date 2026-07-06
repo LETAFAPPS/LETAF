@@ -9,6 +9,7 @@ use crate::{
     CashMethodTotalRow, CashMovementRow, CashSessionRow, CashSummaryData, MainWindow,
 };
 
+use rust_decimal::prelude::ToPrimitive;
 use crate::format::{money_br as fmt_brl, money_br_signed as fmt_brl_signed};
 use super::super::helpers::half_donut_arc;
 use super::core::{fmt_duration, now_local, to_local};
@@ -52,16 +53,16 @@ pub(crate) fn apply_to_ui(
     let total_day = summary.sales_total;
     let cash_now = summary.cash_expected;
     let ticket_avg = if summary.sales_count > 0 {
-        summary.sales_total / (summary.sales_count as f64)
+        summary.sales_total / rust_decimal::Decimal::from(summary.sales_count)
     } else {
-        0.0
+        rust_decimal::Decimal::ZERO
     };
     let cash_count = summary
         .by_method
         .get("cash")
         .map(|m| m.count)
         .unwrap_or(0);
-    let total_expected = summary.by_method.values().map(|m| m.amount).sum::<f64>();
+    let total_expected = summary.by_method.values().map(|m| m.amount).sum::<rust_decimal::Decimal>();
 
     let s_data = CashSummaryData {
         open,
@@ -88,7 +89,7 @@ pub(crate) fn apply_to_ui(
         )),
         total_expected_display: SharedString::from(fmt_brl(total_expected)),
         session_id: SharedString::from(active.map(|s| s.base.id.to_string()).unwrap_or_default()),
-        suggested_change_display: SharedString::from(fmt_brl(suggested)),
+        suggested_change_display: SharedString::from(fmt_brl(letaf_core::money::from_db_f64(suggested))),
         last_closed_summary: SharedString::default(),
     };
     ui.set_cash_summary(s_data);
@@ -100,8 +101,8 @@ pub(crate) fn apply_to_ui(
     // campos abriam zerados independentemente da sessão atual.
     // - Dinheiro: saldo esperado da gaveta (cash_expected)
     // - Demais: total de vendas por método.
-    let by = |k: &str| -> f64 {
-        summary.by_method.get(k).map(|m| m.amount).unwrap_or(0.0)
+    let by = |k: &str| -> rust_decimal::Decimal {
+        summary.by_method.get(k).map(|m| m.amount).unwrap_or(rust_decimal::Decimal::ZERO)
     };
     let sys_cash_val = summary.cash_expected;
     let sys_pix_val = by("pix");
@@ -119,8 +120,8 @@ pub(crate) fn apply_to_ui(
     ui.set_cash_close_diff_credit(SharedString::from(fmt_brl_signed(-sys_credit_val)));
     ui.set_cash_close_diff_debit(SharedString::from(fmt_brl_signed(-sys_debit_val)));
     ui.set_cash_close_diff_total(SharedString::from(fmt_brl_signed(-sys_total_val)));
-    ui.set_cash_close_in_total(SharedString::from(fmt_brl(0.0)));
-    ui.set_cash_close_has_diff(sys_total_val.abs() > 0.005);
+    ui.set_cash_close_in_total(SharedString::from(fmt_brl(rust_decimal::Decimal::ZERO)));
+    ui.set_cash_close_has_diff(sys_total_val.abs() > rust_decimal::Decimal::new(5, 3));
 
     // Histórico
     let session_rows: Vec<CashSessionRow> = recent
@@ -211,7 +212,7 @@ pub(crate) fn apply_to_ui(
 
     // Totais por método — fatias encadeadas da meia-lua (gauge): cada
     // arco ocupa sua fração do total recebido.
-    let method_total: f64 = summary.by_method.values().map(|m| m.amount).sum();
+    let method_total = summary.by_method.values().map(|m| m.amount).sum::<rust_decimal::Decimal>();
     let methods = [
         ("cash", "Dinheiro", "money"),
         ("pix", "PIX", "pix"),
@@ -223,7 +224,7 @@ pub(crate) fn apply_to_ui(
         .iter()
         .map(|(key, label, ui_key)| {
             let totals = summary.by_method.get(*key).copied().unwrap_or_default();
-            let frac = if method_total > 0.0 { totals.amount / method_total } else { 0.0 };
+            let frac = if method_total > rust_decimal::Decimal::ZERO { (totals.amount / method_total).to_f64().unwrap_or(0.0) } else { 0.0 };
             let arc = half_donut_arc(acc, acc + frac);
             // Ponto médio do arco (viewbox 0..100 × 0..56, centro (50,50),
             // raio 40) → relativo 0..1 pra área de hover ligar gráfico↔ícone.
@@ -248,7 +249,7 @@ pub(crate) fn apply_to_ui(
 
     // Defaults dos campos do modal "Abrir caixa"
     ui.set_cash_open_operator(SharedString::from("Admin · Operador".to_string()));
-    ui.set_cash_open_suggested(SharedString::from(fmt_brl(suggested)));
+    ui.set_cash_open_suggested(SharedString::from(fmt_brl(letaf_core::money::from_db_f64(suggested))));
 }
 
 pub(crate) fn method_to_label(method: Option<&str>) -> String {

@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use rust_decimal::Decimal;
 use chrono::NaiveDateTime;
 use sqlx::prelude::FromRow;
 use sqlx::PgPool;
@@ -14,7 +15,7 @@ use super::helpers::map_db;
 struct PlanRow {
     id: Uuid,
     name: String,
-    amount: f64,
+    amount: Decimal,
     period_months: i32,
     trial_days: i32,
     description: String,

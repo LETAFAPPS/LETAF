@@ -1,4 +1,5 @@
 use std::sync::atomic::{AtomicBool, Ordering};
+use rust_decimal::prelude::ToPrimitive;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -102,7 +103,7 @@ pub(crate) fn setup_pix_modal(
 
             let body = CreateChargeRequest {
                 invoice_id: Some(invoice.base.id),
-                amount: invoice.amount,
+                amount: invoice.amount.to_f64().unwrap_or(0.0),
                 description: &format!("Fatura {} · LETAF", invoice.number),
             };
             let url = format!("{}/payments/pix/charge", server_url);

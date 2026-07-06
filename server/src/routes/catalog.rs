@@ -1,4 +1,6 @@
 use axum::extract::State;
+use rust_decimal::prelude::{FromPrimitive, ToPrimitive};
+use rust_decimal::Decimal;
 use axum::{routing::get, Json, Router};
 use serde::Serialize;
 use uuid::Uuid;
@@ -55,7 +57,7 @@ async fn validate_coupon(
     // Prévia: sem identidade do cliente, usamos contagens neutras
     // (0). first_purchase/limites são reavaliados na criação.
     match state.coupon_service
-        .evaluate(tenant.company_id, &q.code, q.subtotal, now, 0, 0, 0)
+        .evaluate(tenant.company_id, &q.code, Decimal::from_f64(q.subtotal).unwrap_or(Decimal::ZERO), now, 0, 0, 0)
         .await
     {
         Ok((coupon, discount)) => {
@@ -64,7 +66,7 @@ async fn validate_coupon(
                 valid: true,
                 code: coupon.code,
                 coupon_type: coupon.coupon_type,
-                discount,
+                discount: discount.to_f64().unwrap_or(0.0),
                 message: if is_free_shipping {
                     "Cupom de frete grátis aplicado".to_string()
                 } else {
@@ -256,7 +258,7 @@ async fn list_products(
     for a in &all_addons {
         if !a.active { continue; }
         addons_by_group.entry(a.group_id).or_default().push(CatalogAddon {
-            id: a.base.id, name: a.name.clone(), price: a.price,
+            id: a.base.id, name: a.name.clone(), price: a.price.to_f64().unwrap_or(0.0),
         });
     }
     let mut catalog: Vec<CatalogProduct> = Vec::with_capacity(products.len());
@@ -276,7 +278,7 @@ async fn list_products(
             id: p.base.id,
             name: p.name,
             description: p.description,
-            price: p.price,
+            price: p.price.and_then(|d| d.to_f64()),
             unit: p.unit,
             stock_quantity: p.stock_quantity,
             unlimited_stock: p.unlimited_stock,
@@ -286,7 +288,7 @@ async fn list_products(
             cover_color: p.cover_color,
             availability_schedule: p.availability_schedule,
             discount_kind: p.discount_kind,
-            discount_value: p.discount_value,
+            discount_value: p.discount_value.and_then(|d| d.to_f64()),
             discount_min_qty: p.discount_min_qty,
             discount_tiers: p.discount_tiers,
             addon_groups: groups,

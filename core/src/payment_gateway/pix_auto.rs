@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use rust_decimal::Decimal;
 
 use crate::error::CoreError;
 
@@ -60,7 +61,7 @@ pub struct PixAutoChargeEvent {
     /// Status normalizado da cobrança ("paid"/"unpaid"/"canceled"...).
     pub status: String,
     /// Valor da cobrança em reais.
-    pub amount: f64,
+    pub amount: Decimal,
     /// Quando foi liquidada (se paga).
     pub paid_at: Option<chrono::NaiveDateTime>,
 }

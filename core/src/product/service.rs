@@ -1,4 +1,6 @@
 use std::sync::Arc;
+use rust_decimal::Decimal;
+use rust_decimal_macros::dec;
 
 use uuid::Uuid;
 
@@ -53,8 +55,8 @@ impl ProductService {
         description: Option<String>,
         category_id: Option<Uuid>,
         subcategory_id: Option<Uuid>,
-        price: Option<f64>,
-        cost_price: Option<f64>,
+        price: Option<Decimal>,
+        cost_price: Option<Decimal>,
         stock_quantity: f64,
         min_stock: f64,
         unlimited_stock: bool,
@@ -65,7 +67,7 @@ impl ProductService {
         cover_color: Option<String>,
         availability_schedule: Option<String>,
         discount_kind: Option<String>,
-        discount_value: Option<f64>,
+        discount_value: Option<Decimal>,
         discount_min_qty: Option<f64>,
         discount_tiers: Option<String>,
         addon_group_ids: Vec<Uuid>,
@@ -108,8 +110,8 @@ impl ProductService {
         description: Option<String>,
         category_id: Option<Uuid>,
         subcategory_id: Option<Uuid>,
-        price: Option<f64>,
-        cost_price: Option<f64>,
+        price: Option<Decimal>,
+        cost_price: Option<Decimal>,
         stock_quantity: f64,
         min_stock: f64,
         unlimited_stock: bool,
@@ -120,7 +122,7 @@ impl ProductService {
         cover_color: Option<String>,
         availability_schedule: Option<String>,
         discount_kind: Option<String>,
-        discount_value: Option<f64>,
+        discount_value: Option<Decimal>,
         discount_min_qty: Option<f64>,
         discount_tiers: Option<String>,
         addon_group_ids: Vec<Uuid>,
@@ -185,8 +187,8 @@ impl ProductService {
     /// o caller é responsável por normalizar para 0.
     fn validate_product(
         name: &str,
-        price: Option<f64>,
-        cost_price: Option<f64>,
+        price: Option<Decimal>,
+        cost_price: Option<Decimal>,
         stock_quantity: f64,
         min_stock: f64,
         unlimited_stock: bool,
@@ -195,10 +197,10 @@ impl ProductService {
             return Err(CoreError::Validation("Product name is required".into()));
         }
         if let Some(p) = price {
-            if p < 0.0 { return Err(CoreError::Validation("Price cannot be negative".into())); }
+            if p < Decimal::ZERO { return Err(CoreError::Validation("Price cannot be negative".into())); }
         }
         if let Some(c) = cost_price {
-            if c < 0.0 { return Err(CoreError::Validation("Cost price cannot be negative".into())); }
+            if c < Decimal::ZERO { return Err(CoreError::Validation("Cost price cannot be negative".into())); }
         }
         if !unlimited_stock && stock_quantity < 0.0 {
             return Err(CoreError::Validation("Stock quantity cannot be negative".into()));
@@ -222,7 +224,7 @@ impl ProductService {
     ///   estritamente crescente, cada `value > 0` (em (0,100) para percent).
     fn validate_discount(
         kind: &Option<String>,
-        value: Option<f64>,
+        value: Option<Decimal>,
         min_qty: Option<f64>,
         tiers: &Option<String>,
     ) -> Result<(), CoreError> {
@@ -280,11 +282,11 @@ impl ProductService {
         }
     }
 
-    fn check_discount_value(v: f64, is_percent: bool) -> Result<(), CoreError> {
-        if v < 0.0 {
+    fn check_discount_value(v: Decimal, is_percent: bool) -> Result<(), CoreError> {
+        if v < Decimal::ZERO {
             return Err(CoreError::Validation("Discount value cannot be negative".into()));
         }
-        if is_percent && (v <= 0.0 || v >= 100.0) {
+        if is_percent && (v <= Decimal::ZERO || v >= dec!(100)) {
             return Err(CoreError::Validation(
                 "Percent discount must be in (0, 100)".into(),
             ));
@@ -314,7 +316,7 @@ impl ProductService {
             let q = obj.get("min_qty").and_then(|v| v.as_f64()).ok_or_else(|| {
                 CoreError::Validation(format!("discount_tiers[{idx}].min_qty missing"))
             })?;
-            let v = obj.get("value").and_then(|x| x.as_f64()).ok_or_else(|| {
+            let v = obj.get("value").and_then(|x| x.as_f64()).and_then(rust_decimal::prelude::FromPrimitive::from_f64).ok_or_else(|| {
                 CoreError::Validation(format!("discount_tiers[{idx}].value missing"))
             })?;
             if q <= 0.0 {

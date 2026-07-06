@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use rust_decimal::Decimal;
 
 use chrono::Utc;
 use uuid::Uuid;
@@ -11,7 +12,7 @@ use super::repository::PlanRepository;
 /// Dados de entrada para criar/atualizar um plano (sem metadados internos).
 pub struct PlanInput {
     pub name: String,
-    pub amount: f64,
+    pub amount: Decimal,
     pub period_months: i32,
     pub trial_days: i32,
     pub description: String,
@@ -71,7 +72,7 @@ fn build(id: Uuid, input: PlanInput) -> Result<Plan, CoreError> {
     if input.name.trim().is_empty() {
         return Err(CoreError::Validation("Informe o nome do plano".into()));
     }
-    if !input.amount.is_finite() || input.amount <= 0.0 {
+    if input.amount <= Decimal::ZERO {
         return Err(CoreError::Validation("O valor deve ser maior que zero".into()));
     }
     if input.period_months < 1 {

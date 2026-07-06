@@ -1,5 +1,6 @@
 
 use chrono::{NaiveDate, NaiveDateTime};
+use rust_decimal::prelude::ToPrimitive;
 use slint::SharedString;
 
 use letaf_core::coupon::model::Coupon;
@@ -205,13 +206,14 @@ pub(crate) fn discount_summary(c: &Coupon) -> String {
     if c.coupon_type == "free_shipping" {
         "Frete grátis".to_string()
     } else if c.discount_kind == "percent" {
-        if c.discount_value.fract() == 0.0 {
-            format!("{}%", c.discount_value as i64)
+        let dv = c.discount_value.to_f64().unwrap_or(0.0);
+        if dv.fract() == 0.0 {
+            format!("{}%", dv as i64)
         } else {
-            format!("{}%", c.discount_value)
+            format!("{dv}%")
         }
     } else {
-        format!("R$ {:.2}", c.discount_value)
+        format!("R$ {:.2}", c.discount_value.to_f64().unwrap_or(0.0))
     }
 }
 

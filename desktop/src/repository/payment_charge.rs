@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use rust_decimal::prelude::ToPrimitive;
 use sqlx::prelude::FromRow;
 use sqlx::SqlitePool;
 use uuid::Uuid;
@@ -48,7 +49,7 @@ impl TryFrom<PaymentChargeRow> for PaymentCharge {
             gateway: r.gateway,
             method: r.method,
             txid: r.txid,
-            amount: r.amount,
+            amount: letaf_core::money::from_db_f64(r.amount),
             status: ChargeStatus::from_str(&r.status),
             pix_copia_cola: r.pix_copia_cola,
             qr_code_b64: r.qr_code_b64,
@@ -124,7 +125,7 @@ impl PaymentChargeRepository for SqlitePaymentChargeRepository {
         .bind(&c.gateway)
         .bind(&c.method)
         .bind(&c.txid)
-        .bind(c.amount)
+        .bind(c.amount.to_f64().unwrap_or(0.0))
         .bind(c.status.as_str())
         .bind(&c.pix_copia_cola)
         .bind(&c.qr_code_b64)
@@ -154,7 +155,7 @@ impl PaymentChargeRepository for SqlitePaymentChargeRepository {
         .bind(&c.gateway)
         .bind(&c.method)
         .bind(&c.txid)
-        .bind(c.amount)
+        .bind(c.amount.to_f64().unwrap_or(0.0))
         .bind(c.status.as_str())
         .bind(&c.pix_copia_cola)
         .bind(&c.qr_code_b64)

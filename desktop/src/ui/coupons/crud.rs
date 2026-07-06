@@ -76,8 +76,8 @@ pub(crate) fn setup_add_coupon(
         handle.spawn(async move {
             let cid = state.company_id();
             match state.coupon_service.create(
-                cid, f.title, f.code, f.coupon_type, f.discount_kind, f.discount_value,
-                f.min_order_value, f.max_discount, f.per_user_limit, f.usage_limit,
+                cid, f.title, f.code, f.coupon_type, f.discount_kind, letaf_core::money::from_db_f64(f.discount_value),
+                letaf_core::money::from_db_f64(f.min_order_value), letaf_core::money::from_db_f64(f.max_discount), f.per_user_limit, f.usage_limit,
                 f.valid_from, f.valid_until,
             ).await {
                 Ok(_) => {
@@ -119,8 +119,8 @@ pub(crate) fn setup_update_coupon(
         handle.spawn(async move {
             let cid = state.company_id();
             match state.coupon_service.update(
-                cid, id, f.title, f.code, f.coupon_type, f.discount_kind, f.discount_value,
-                f.min_order_value, f.max_discount, f.per_user_limit, f.usage_limit,
+                cid, id, f.title, f.code, f.coupon_type, f.discount_kind, letaf_core::money::from_db_f64(f.discount_value),
+                letaf_core::money::from_db_f64(f.min_order_value), letaf_core::money::from_db_f64(f.max_discount), f.per_user_limit, f.usage_limit,
                 f.valid_from, f.valid_until,
             ).await {
                 Ok(_) => {

@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use rust_decimal::prelude::ToPrimitive;
 use chrono::NaiveDateTime;
 use sqlx::prelude::FromRow;
 use sqlx::SqlitePool;
@@ -46,8 +47,8 @@ impl TryFrom<CashSessionRow> for CashSession {
             operator_name: r.operator_name,
             opened_at: parse_timestamp(&r.opened_at)?,
             closed_at: r.closed_at.as_deref().map(parse_timestamp).transpose()?,
-            initial_change: r.initial_change,
-            counted_cash: r.counted_cash,
+            initial_change: letaf_core::money::from_db_f64(r.initial_change),
+            counted_cash: r.counted_cash.map(letaf_core::money::from_db_f64),
             status: SessionStatus::from_str(&r.status),
             open_notes: r.open_notes,
             close_notes: r.close_notes,
@@ -128,8 +129,8 @@ impl CashSessionRepository for SqliteCashSessionRepository {
         .bind(&s.operator_name)
         .bind(ts(s.opened_at))
         .bind(s.closed_at.map(ts))
-        .bind(s.initial_change)
-        .bind(s.counted_cash)
+        .bind(s.initial_change.to_f64().unwrap_or(0.0))
+        .bind(s.counted_cash.and_then(|d| d.to_f64()))
         .bind(s.status.to_string())
         .bind(&s.open_notes)
         .bind(&s.close_notes)
@@ -155,8 +156,8 @@ impl CashSessionRepository for SqliteCashSessionRepository {
         .bind(&s.operator_name)
         .bind(ts(s.opened_at))
         .bind(s.closed_at.map(ts))
-        .bind(s.initial_change)
-        .bind(s.counted_cash)
+        .bind(s.initial_change.to_f64().unwrap_or(0.0))
+        .bind(s.counted_cash.and_then(|d| d.to_f64()))
         .bind(s.status.to_string())
         .bind(&s.open_notes)
         .bind(&s.close_notes)
@@ -240,8 +241,8 @@ impl CashSessionRepository for SqliteCashSessionRepository {
         .bind(&s.operator_name)
         .bind(ts(s.opened_at))
         .bind(s.closed_at.map(ts))
-        .bind(s.initial_change)
-        .bind(s.counted_cash)
+        .bind(s.initial_change.to_f64().unwrap_or(0.0))
+        .bind(s.counted_cash.and_then(|d| d.to_f64()))
         .bind(s.status.to_string())
         .bind(&s.open_notes)
         .bind(&s.close_notes)

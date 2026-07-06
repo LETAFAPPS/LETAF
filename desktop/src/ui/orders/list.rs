@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use rust_decimal::prelude::ToPrimitive;
 use std::sync::Arc;
 
 use slint::{ComponentHandle, Model, ModelRc, SharedString, VecModel};
@@ -426,14 +427,14 @@ fn to_order_data(order: &Order, customers: &HashMap<Uuid, (String, String)>) -> 
     // - `delivery_fee` ainda não está no modelo (Fase 10) — exibimos
     //   "Grátis" para todas as entregas e "—" para retirada.
     // - `total` final já vem do servidor (= subtotal − discount).
-    let subtotal: f64 = order.items.iter().map(|i| i.subtotal).sum();
+    let subtotal: f64 = order.items.iter().map(|i| i.subtotal.to_f64().unwrap_or(0.0)).sum();
     let delivery_fee_display = if order.delivery_type == DeliveryType::Delivery {
         "Grátis".to_string()
     } else {
         "—".to_string()
     };
-    let discount_display = if order.discount_amount > 0.0 {
-        format!("− R$ {:.2}", order.discount_amount)
+    let discount_display = if order.discount_amount > rust_decimal::Decimal::ZERO {
+        format!("− R$ {:.2}", order.discount_amount.to_f64().unwrap_or(0.0))
     } else {
         "—".to_string()
     };

@@ -30,10 +30,11 @@ pub fn format_order_time(utc: NaiveDateTime) -> String {
 /// - negativo → `-R$ 5,00`
 ///
 /// Útil em colunas de movimentação/diferença onde o sinal é informação.
-pub fn money_br_signed(v: f64) -> String {
-    if v.abs() < 0.005 {
-        money_br(0.0)
-    } else if v > 0.0 {
+pub fn money_br_signed(v: rust_decimal::Decimal) -> String {
+    use rust_decimal::Decimal;
+    if v.abs() < Decimal::new(5, 3) {
+        money_br(Decimal::ZERO)
+    } else if v > Decimal::ZERO {
         format!("+{}", money_br(v))
     } else {
         money_br(v)
@@ -44,8 +45,8 @@ pub fn money_br_signed(v: f64) -> String {
 /// negativos). Centralizado aqui para que listagens, cards e relatórios
 /// usem a mesma máscara — qualquer divergência ficaria visível ao
 /// operador (AI_RULES.md §1, §8).
-pub fn money_br(v: f64) -> String {
-    let cents = (v * 100.0).round() as i64;
+pub fn money_br(v: rust_decimal::Decimal) -> String {
+    let cents = letaf_core::money::to_cents(v);
     let neg = cents < 0;
     let cents = cents.abs();
     let reais = cents / 100;

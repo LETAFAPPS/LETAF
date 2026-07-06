@@ -416,7 +416,7 @@ pub(crate) fn setup_save_modal(
                         party_name: party,
                         party_type,
                         category_id,
-                        amount,
+                        amount: letaf_core::money::from_db_f64(amount),
                         due_date,
                         payment_method: None,
                         notes: if notes.is_empty() { None } else { Some(notes) },
@@ -486,7 +486,7 @@ pub(crate) async fn update_existing(
     entry.party_name = party.trim().to_string();
     entry.party_type = party_type;
     entry.category_id = category_id;
-    entry.amount = amount;
+    entry.amount = letaf_core::money::from_db_f64(amount);
     entry.due_date = due_date;
     entry.notes = if notes.is_empty() { None } else { Some(notes) };
     entry.base.updated_at = chrono::Utc::now().naive_utc();

@@ -1,4 +1,5 @@
 use std::fmt;
+use rust_decimal::Decimal;
 
 use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
@@ -103,8 +104,8 @@ pub struct CashSession {
     pub operator_name: String,
     pub opened_at: NaiveDateTime,
     pub closed_at: Option<NaiveDateTime>,
-    pub initial_change: f64,
-    pub counted_cash: Option<f64>,
+    pub initial_change: Decimal,
+    pub counted_cash: Option<Decimal>,
     pub status: SessionStatus,
     pub open_notes: Option<String>,
     pub close_notes: Option<String>,
@@ -115,7 +116,7 @@ impl CashSession {
         company_id: Uuid,
         operator_id: Uuid,
         operator_name: String,
-        initial_change: f64,
+        initial_change: Decimal,
         open_notes: Option<String>,
     ) -> Self {
         let base = BaseFields::new(company_id);
@@ -147,7 +148,7 @@ pub struct CashMovement {
     pub base: BaseFields,
     pub session_id: Uuid,
     pub kind: MovementKind,
-    pub amount: f64,
+    pub amount: Decimal,
     pub method: Option<String>,
     pub reason: String,
     pub detail: Option<String>,
@@ -159,7 +160,7 @@ impl CashMovement {
         company_id: Uuid,
         session_id: Uuid,
         kind: MovementKind,
-        amount: f64,
+        amount: Decimal,
         method: Option<String>,
         reason: String,
         detail: Option<String>,
@@ -179,7 +180,7 @@ impl CashMovement {
 
     /// Valor com sinal aplicado pelo `kind` — usado em cálculos de
     /// saldo. Sangria é única saída no domínio atual.
-    pub fn effective_signed_amount(&self) -> f64 {
+    pub fn effective_signed_amount(&self) -> Decimal {
         match self.kind {
             MovementKind::Sangria => -self.amount,
             _ => self.amount,
@@ -195,22 +196,22 @@ impl CashMovement {
 /// - UI nunca faz essa agregação — recebe pronto.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct SessionSummary {
-    pub sales_total: f64,
+    pub sales_total: Decimal,
     pub sales_count: i64,
     /// Total por método de pagamento (somente vendas).
     /// Chaves: "cash", "credit", "debit", "pix".
     pub by_method: std::collections::BTreeMap<String, MethodTotals>,
-    pub sangria_total: f64,
+    pub sangria_total: Decimal,
     pub sangria_count: i64,
-    pub suprimento_total: f64,
+    pub suprimento_total: Decimal,
     pub suprimento_count: i64,
     /// Saldo em dinheiro esperado AGORA: initial_change + vendas em
     /// dinheiro + suprimentos − sangrias.
-    pub cash_expected: f64,
+    pub cash_expected: Decimal,
 }
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
 pub struct MethodTotals {
-    pub amount: f64,
+    pub amount: Decimal,
     pub count: i64,
 }

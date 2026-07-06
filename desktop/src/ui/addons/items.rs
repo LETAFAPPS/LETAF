@@ -41,11 +41,11 @@ pub(crate) fn setup_save_addon(
         handle.spawn(async move {
             let cid = state.company_id();
             let res = if id_str.is_empty() {
-                state.addon_service.create(cid, group_id, name.clone(), price).await.map(|_| ())
+                state.addon_service.create(cid, group_id, name.clone(), letaf_core::money::from_db_f64(price)).await.map(|_| ())
             } else {
                 match Uuid::parse_str(&id_str) {
                     Ok(id) => state.addon_service
-                        .update(cid, id, group_id, name.clone(), price).await
+                        .update(cid, id, group_id, name.clone(), letaf_core::money::from_db_f64(price)).await
                         .map(|_| ()),
                     Err(_) => Err(letaf_core::error::CoreError::Validation("Invalid id".into())),
                 }

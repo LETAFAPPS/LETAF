@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use rust_decimal::Decimal;
 
 use chrono::{Duration, NaiveDate, Utc};
 use uuid::Uuid;
@@ -9,7 +10,8 @@ use super::model::{
 use super::repository::FinanceRepository;
 use crate::entity::BaseFields;
 use crate::error::CoreError;
-use crate::util::{add_months, round_2};
+use crate::util::add_months;
+use crate::money::round2;
 
 /// Parâmetros para criação de um lançamento.
 ///
@@ -23,7 +25,7 @@ pub struct CreateFinanceParams {
     pub party_name: String,
     pub party_type: PartyType,
     pub category_id: Option<Uuid>,
-    pub amount: f64,
+    pub amount: Decimal,
     pub due_date: NaiveDate,
     pub payment_method: Option<String>,
     pub notes: Option<String>,
@@ -200,7 +202,7 @@ fn validate_params(p: &CreateFinanceParams) -> Result<(), CoreError> {
             "Descrição deve ter no máximo 200 caracteres".into(),
         ));
     }
-    if !p.amount.is_finite() || p.amount <= 0.0 {
+    if p.amount <= Decimal::ZERO {
         return Err(CoreError::Validation(
             "Valor deve ser maior que zero".into(),
         ));
@@ -234,8 +236,8 @@ fn build_entries(p: &CreateFinanceParams) -> Vec<FinanceEntry> {
         let n = p.installments;
         // Arredonda a parcela a 2 casas; a ÚLTIMA absorve o resto para a
         // soma bater com o total (ex.: 100,00/3 = 33,33 + 33,33 + 33,34).
-        let per = round_2(p.amount / n as f64);
-        let last = round_2(p.amount - per * (n - 1) as f64);
+        let per = round2(p.amount / rust_decimal::Decimal::from(n));
+        let last = round2(p.amount - per * rust_decimal::Decimal::from(n - 1));
         // Atualiza o head para refletir a 1ª parcela.
         if let Some(first) = out.first_mut() {
             first.amount = per;

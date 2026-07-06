@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use rust_decimal::prelude::ToPrimitive;
 use chrono::{NaiveDateTime, Utc};
 use sqlx::prelude::FromRow;
 use sqlx::SqlitePool;
@@ -39,8 +40,8 @@ impl TryFrom<WalletAccountRow> for WalletAccount {
                 synced: r.synced,
             },
             customer_id: parse_uuid(&r.customer_id)?,
-            balance: r.balance,
-            credit_limit: r.credit_limit,
+            balance: letaf_core::money::from_db_f64(r.balance),
+            credit_limit: letaf_core::money::from_db_f64(r.credit_limit),
         })
     }
 }
@@ -75,8 +76,8 @@ impl TryFrom<WalletMovementRow> for WalletMovement {
             },
             account_id: parse_uuid(&r.account_id)?,
             kind: WalletMovementKind::from_str(&r.kind),
-            amount: r.amount,
-            balance_after: r.balance_after,
+            amount: letaf_core::money::from_db_f64(r.amount),
+            balance_after: letaf_core::money::from_db_f64(r.balance_after),
             related_order_id: r.related_order_id.as_deref().map(parse_uuid).transpose()?,
             notes: r.notes,
         })
@@ -156,8 +157,8 @@ impl WalletRepository for SqliteWalletRepository {
         .bind(a.base.id.to_string())
         .bind(a.base.company_id.to_string())
         .bind(a.customer_id.to_string())
-        .bind(a.balance)
-        .bind(a.credit_limit)
+        .bind(a.balance.to_f64().unwrap_or(0.0))
+        .bind(a.credit_limit.to_f64().unwrap_or(0.0))
         .bind(ts(a.base.created_at))
         .bind(ts(a.base.updated_at))
         .bind(a.base.deleted_at.map(ts))
@@ -176,8 +177,8 @@ impl WalletRepository for SqliteWalletRepository {
              WHERE company_id = ? AND id = ?",
         )
         .bind(a.customer_id.to_string())
-        .bind(a.balance)
-        .bind(a.credit_limit)
+        .bind(a.balance.to_f64().unwrap_or(0.0))
+        .bind(a.credit_limit.to_f64().unwrap_or(0.0))
         .bind(ts(a.base.updated_at))
         .bind(a.base.deleted_at.map(ts))
         .bind(a.base.synced)
@@ -202,7 +203,7 @@ impl WalletRepository for SqliteWalletRepository {
                balance = ?, updated_at = ?, synced = ?
              WHERE company_id = ? AND id = ?",
         )
-        .bind(a.balance)
+        .bind(a.balance.to_f64().unwrap_or(0.0))
         .bind(ts(a.base.updated_at))
         .bind(a.base.synced)
         .bind(a.base.company_id.to_string())
@@ -221,8 +222,8 @@ impl WalletRepository for SqliteWalletRepository {
         .bind(m.base.company_id.to_string())
         .bind(m.account_id.to_string())
         .bind(m.kind.to_string())
-        .bind(m.amount)
-        .bind(m.balance_after)
+        .bind(m.amount.to_f64().unwrap_or(0.0))
+        .bind(m.balance_after.to_f64().unwrap_or(0.0))
         .bind(m.related_order_id.map(|u| u.to_string()))
         .bind(&m.notes)
         .bind(ts(m.base.created_at))
@@ -317,8 +318,8 @@ impl WalletRepository for SqliteWalletRepository {
         .bind(a.base.id.to_string())
         .bind(a.base.company_id.to_string())
         .bind(a.customer_id.to_string())
-        .bind(a.balance)
-        .bind(a.credit_limit)
+        .bind(a.balance.to_f64().unwrap_or(0.0))
+        .bind(a.credit_limit.to_f64().unwrap_or(0.0))
         .bind(ts(a.base.created_at))
         .bind(ts(a.base.updated_at))
         .bind(a.base.deleted_at.map(ts))
@@ -397,8 +398,8 @@ impl WalletRepository for SqliteWalletRepository {
         .bind(m.base.company_id.to_string())
         .bind(m.account_id.to_string())
         .bind(m.kind.to_string())
-        .bind(m.amount)
-        .bind(m.balance_after)
+        .bind(m.amount.to_f64().unwrap_or(0.0))
+        .bind(m.balance_after.to_f64().unwrap_or(0.0))
         .bind(m.related_order_id.map(|u| u.to_string()))
         .bind(&m.notes)
         .bind(ts(m.base.created_at))

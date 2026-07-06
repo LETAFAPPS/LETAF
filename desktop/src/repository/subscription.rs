@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use rust_decimal::prelude::ToPrimitive;
 use sqlx::prelude::FromRow;
 use sqlx::SqlitePool;
 use uuid::Uuid;
@@ -67,10 +68,10 @@ impl TryFrom<SubscriptionRow> for Subscription {
             pix_auto_status: r.pix_auto_status,
             plan_id: r.plan_id.as_deref().map(parse_uuid).transpose()?,
             plan_name: r.plan_name,
-            plan_amount: r.plan_amount,
+            plan_amount: letaf_core::money::from_db_f64(r.plan_amount),
             plan_period_months: r.plan_period_months as i32,
             trial_days: r.trial_days as i32,
-            plan_discount_monthly: r.plan_discount_monthly,
+            plan_discount_monthly: letaf_core::money::from_db_f64(r.plan_discount_monthly),
         })
     }
 }
@@ -110,7 +111,7 @@ impl TryFrom<InvoiceRow> for Invoice {
             subscription_id: parse_uuid(&r.subscription_id)?,
             number: r.number,
             description: r.description,
-            amount: r.amount,
+            amount: letaf_core::money::from_db_f64(r.amount),
             method_kind: r.method_kind,
             method_label: r.method_label,
             status: InvoiceStatus::from_str(&r.status),
@@ -190,10 +191,10 @@ impl SubscriptionRepository for SqliteSubscriptionRepository {
         .bind(&s.pix_auto_status)
         .bind(s.plan_id.map(|id| id.to_string()))
         .bind(&s.plan_name)
-        .bind(s.plan_amount)
+        .bind(s.plan_amount.to_f64().unwrap_or(0.0))
         .bind(s.plan_period_months as i64)
         .bind(s.trial_days as i64)
-        .bind(s.plan_discount_monthly)
+        .bind(s.plan_discount_monthly.to_f64().unwrap_or(0.0))
         .bind(ts(s.base.created_at))
         .bind(ts(s.base.updated_at))
         .bind(s.base.deleted_at.map(ts))
@@ -231,10 +232,10 @@ impl SubscriptionRepository for SqliteSubscriptionRepository {
         .bind(&s.pix_auto_status)
         .bind(s.plan_id.map(|id| id.to_string()))
         .bind(&s.plan_name)
-        .bind(s.plan_amount)
+        .bind(s.plan_amount.to_f64().unwrap_or(0.0))
         .bind(s.plan_period_months as i64)
         .bind(s.trial_days as i64)
-        .bind(s.plan_discount_monthly)
+        .bind(s.plan_discount_monthly.to_f64().unwrap_or(0.0))
         .bind(ts(s.base.updated_at))
         .bind(s.base.synced)
         .bind(s.base.company_id.to_string())
@@ -271,7 +272,7 @@ impl SubscriptionRepository for SqliteSubscriptionRepository {
         .bind(inv.subscription_id.to_string())
         .bind(&inv.number)
         .bind(&inv.description)
-        .bind(inv.amount)
+        .bind(inv.amount.to_f64().unwrap_or(0.0))
         .bind(&inv.method_kind)
         .bind(&inv.method_label)
         .bind(inv.status.as_str())
@@ -298,7 +299,7 @@ impl SubscriptionRepository for SqliteSubscriptionRepository {
         .bind(inv.subscription_id.to_string())
         .bind(&inv.number)
         .bind(&inv.description)
-        .bind(inv.amount)
+        .bind(inv.amount.to_f64().unwrap_or(0.0))
         .bind(&inv.method_kind)
         .bind(&inv.method_label)
         .bind(inv.status.as_str())
@@ -535,10 +536,10 @@ impl SubscriptionRepository for SqliteSubscriptionRepository {
         .bind(&s.pix_auto_status)
         .bind(s.plan_id.map(|id| id.to_string()))
         .bind(&s.plan_name)
-        .bind(s.plan_amount)
+        .bind(s.plan_amount.to_f64().unwrap_or(0.0))
         .bind(s.plan_period_months as i64)
         .bind(s.trial_days as i64)
-        .bind(s.plan_discount_monthly)
+        .bind(s.plan_discount_monthly.to_f64().unwrap_or(0.0))
         .bind(ts(s.base.created_at))
         .bind(ts(s.base.updated_at))
         .bind(s.base.deleted_at.map(ts))
@@ -576,7 +577,7 @@ impl SubscriptionRepository for SqliteSubscriptionRepository {
         .bind(inv.subscription_id.to_string())
         .bind(&inv.number)
         .bind(&inv.description)
-        .bind(inv.amount)
+        .bind(inv.amount.to_f64().unwrap_or(0.0))
         .bind(&inv.method_kind)
         .bind(&inv.method_label)
         .bind(inv.status.as_str())

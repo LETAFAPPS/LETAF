@@ -1,4 +1,5 @@
 use chrono::NaiveDateTime;
+use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -14,7 +15,7 @@ use uuid::Uuid;
 pub struct Plan {
     pub id: Uuid,
     pub name: String,
-    pub amount: f64,
+    pub amount: Decimal,
     pub period_months: i32,
     pub trial_days: i32,
     pub description: String,
@@ -29,9 +30,9 @@ pub struct Plan {
 
 impl Plan {
     /// Mensalidade efetiva (R$/mês) = valor por ciclo ÷ meses.
-    pub fn monthly_price(&self) -> f64 {
+    pub fn monthly_price(&self) -> Decimal {
         if self.period_months > 0 {
-            self.amount / self.period_months as f64
+            self.amount / Decimal::from(self.period_months)
         } else {
             self.amount
         }

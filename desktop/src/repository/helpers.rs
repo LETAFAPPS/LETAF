@@ -30,6 +30,7 @@ pub fn parse_uuid(s: &str) -> Result<Uuid, CoreError> {
     Uuid::parse_str(s).map_err(|e| CoreError::Repository(format!("Invalid UUID: {e}")))
 }
 
+
 /// Grava um movimento de estoque (ledger append-only) DENTRO de uma transação
 /// já aberta — usado por toda operação que altera `stock_quantity` para manter
 /// o delta e o valor materializado atômicos (AI_RULES §6, §7). `now` é o

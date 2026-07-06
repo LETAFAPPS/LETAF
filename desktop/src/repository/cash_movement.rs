@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use rust_decimal::prelude::ToPrimitive;
 use chrono::NaiveDateTime;
 use sqlx::prelude::FromRow;
 use sqlx::SqlitePool;
@@ -42,7 +43,7 @@ impl TryFrom<CashMovementRow> for CashMovement {
             },
             session_id: parse_uuid(&r.session_id)?,
             kind: MovementKind::from_str(&r.kind),
-            amount: r.amount,
+            amount: letaf_core::money::from_db_f64(r.amount),
             method: r.method,
             reason: r.reason,
             detail: r.detail,
@@ -108,7 +109,7 @@ impl CashMovementRepository for SqliteCashMovementRepository {
         .bind(m.base.company_id.to_string())
         .bind(m.session_id.to_string())
         .bind(m.kind.to_string())
-        .bind(m.amount)
+        .bind(m.amount.to_f64().unwrap_or(0.0))
         .bind(&m.method)
         .bind(&m.reason)
         .bind(&m.detail)
@@ -185,7 +186,7 @@ impl CashMovementRepository for SqliteCashMovementRepository {
         .bind(m.base.company_id.to_string())
         .bind(m.session_id.to_string())
         .bind(m.kind.to_string())
-        .bind(m.amount)
+        .bind(m.amount.to_f64().unwrap_or(0.0))
         .bind(&m.method)
         .bind(&m.reason)
         .bind(&m.detail)

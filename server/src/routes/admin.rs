@@ -11,6 +11,9 @@
 //!   escopado ao `company_id` do próprio super admin (vem do JWT).
 
 use axum::extract::{Path, State};
+use rust_decimal::prelude::FromPrimitive;
+use rust_decimal::prelude::ToPrimitive;
+use rust_decimal::Decimal;
 use axum::http::StatusCode;
 use axum::routing::{get, put};
 use axum::{Json, Router};
@@ -227,8 +230,8 @@ async fn create_company(
     //    a assinatura (seed) e grava o desconto — o billing (que usa
     //    `terms()`) passa a cobrar o valor com o abatimento. Best-effort:
     //    a empresa+admin já são válidos; erro aqui só é logado.
-    let discount = body.plan_discount.unwrap_or(0.0).max(0.0);
-    if discount > 0.0 {
+    let discount = rust_decimal::Decimal::from_f64(body.plan_discount.unwrap_or(0.0)).unwrap_or_default().max(rust_decimal::Decimal::ZERO);
+    if discount > rust_decimal::Decimal::ZERO {
         let today = chrono::Utc::now().date_naive();
         let _ = state.subscription_service.ensure_seed(company.id, today).await;
         if let Err(e) = state
@@ -445,11 +448,11 @@ pub(crate) struct PlanPayload {
 }
 
 pub(crate) fn plan_payload(p: Plan) -> PlanPayload {
-    let monthly_price = p.monthly_price();
+    let monthly_price = p.monthly_price().to_f64().unwrap_or(0.0);
     PlanPayload {
         id: p.id,
         name: p.name,
-        amount: p.amount,
+        amount: p.amount.to_f64().unwrap_or(0.0),
         period_months: p.period_months,
         trial_days: p.trial_days,
         description: p.description,
@@ -476,7 +479,7 @@ fn default_true() -> bool {
 #[derive(Deserialize)]
 struct PlanBody {
     name: String,
-    amount: f64,
+    amount: Decimal,
     period_months: i32,
     #[serde(default)]
     trial_days: i32,

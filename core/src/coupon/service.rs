@@ -1,4 +1,6 @@
 use std::sync::Arc;
+use rust_decimal_macros::dec;
+use rust_decimal::Decimal;
 
 use chrono::NaiveDateTime;
 use uuid::Uuid;
@@ -49,12 +51,12 @@ impl CouponService {
         &self,
         company_id: Uuid,
         code: &str,
-        subtotal: f64,
+        subtotal: Decimal,
         now: NaiveDateTime,
         customer_prior_orders: i64,
         total_uses: i64,
         user_uses: i64,
-    ) -> Result<(Coupon, f64), CoreError> {
+    ) -> Result<(Coupon, Decimal), CoreError> {
         let code = code.trim()
             .chars().filter(|c| !c.is_whitespace()).collect::<String>()
             .to_uppercase();
@@ -75,10 +77,10 @@ impl CouponService {
                 return Err(CoreError::Validation("Cupom expirado".into()));
             }
         }
-        if coupon.min_order_value > 0.0 && subtotal < coupon.min_order_value {
+        if coupon.min_order_value > Decimal::ZERO && subtotal < coupon.min_order_value {
             return Err(CoreError::Validation(format!(
-                "Pedido mínimo de R$ {:.2} para usar este cupom",
-                coupon.min_order_value
+                "Pedido mínimo de R$ {} para usar este cupom",
+                crate::money::round2(coupon.min_order_value)
             )));
         }
         if coupon.usage_limit > 0 && total_uses >= coupon.usage_limit as i64 {
@@ -105,9 +107,9 @@ impl CouponService {
         code: String,
         coupon_type: String,
         discount_kind: String,
-        discount_value: f64,
-        min_order_value: f64,
-        max_discount: f64,
+        discount_value: Decimal,
+        min_order_value: Decimal,
+        max_discount: Decimal,
         per_user_limit: i32,
         usage_limit: i32,
         valid_from: Option<NaiveDateTime>,
@@ -142,9 +144,9 @@ impl CouponService {
         code: String,
         coupon_type: String,
         discount_kind: String,
-        discount_value: f64,
-        min_order_value: f64,
-        max_discount: f64,
+        discount_value: Decimal,
+        min_order_value: Decimal,
+        max_discount: Decimal,
         per_user_limit: i32,
         usage_limit: i32,
         valid_from: Option<NaiveDateTime>,
@@ -245,9 +247,9 @@ fn validate(
     code: &str,
     coupon_type: &str,
     discount_kind: &str,
-    discount_value: f64,
-    min_order_value: f64,
-    max_discount: f64,
+    discount_value: Decimal,
+    min_order_value: Decimal,
+    max_discount: Decimal,
     per_user_limit: i32,
     usage_limit: i32,
     valid_from: Option<NaiveDateTime>,
@@ -274,17 +276,17 @@ fn validate(
     }
     // Frete grátis não exige valor de desconto.
     if coupon_type != "free_shipping" {
-        if discount_value <= 0.0 {
+        if discount_value <= Decimal::ZERO {
             return Err(CoreError::Validation("Valor do desconto deve ser maior que zero".into()));
         }
-        if discount_kind == "percent" && discount_value > 100.0 {
+        if discount_kind == "percent" && discount_value > dec!(100) {
             return Err(CoreError::Validation("Porcentagem não pode ser maior que 100".into()));
         }
     }
-    if min_order_value < 0.0 {
+    if min_order_value < Decimal::ZERO {
         return Err(CoreError::Validation("Valor mínimo de compra não pode ser negativo".into()));
     }
-    if max_discount < 0.0 {
+    if max_discount < Decimal::ZERO {
         return Err(CoreError::Validation("Desconto máximo não pode ser negativo".into()));
     }
     if per_user_limit < 0 {

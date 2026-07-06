@@ -1,4 +1,6 @@
 use std::sync::Arc;
+use rust_decimal::Decimal;
+use rust_decimal_macros::dec;
 
 use uuid::Uuid;
 
@@ -60,10 +62,10 @@ impl CashService {
         company_id: Uuid,
         operator_id: Uuid,
         operator_name: String,
-        initial_change: f64,
+        initial_change: Decimal,
         notes: Option<String>,
     ) -> Result<CashSession, CoreError> {
-        if initial_change < 0.0 {
+        if initial_change < Decimal::ZERO {
             return Err(CoreError::Validation(
                 "Troco inicial não pode ser negativo".into(),
             ));
@@ -83,7 +85,7 @@ impl CashService {
         self.sessions.create(&session).await?;
 
         // Lançamento Opening — saldo em dinheiro inicia com troco.
-        if initial_change > 0.0 {
+        if initial_change > Decimal::ZERO {
             let mv = CashMovement::new(
                 company_id,
                 session.base.id,
@@ -106,7 +108,7 @@ impl CashService {
         &self,
         company_id: Uuid,
         session_id: Uuid,
-        counted_cash: f64,
+        counted_cash: Decimal,
         notes: Option<String>,
     ) -> Result<CashSession, CoreError> {
         let mut session = self
@@ -117,7 +119,7 @@ impl CashService {
         if session.status == SessionStatus::Closed {
             return Err(CoreError::Validation("Sessão já foi fechada".into()));
         }
-        if counted_cash < 0.0 {
+        if counted_cash < Decimal::ZERO {
             return Err(CoreError::Validation(
                 "Valor contado não pode ser negativo".into(),
             ));
@@ -140,7 +142,7 @@ impl CashService {
         &self,
         company_id: Uuid,
         session_id: Uuid,
-        amount: f64,
+        amount: Decimal,
         reason: String,
         detail: Option<String>,
     ) -> Result<CashMovement, CoreError> {
@@ -171,7 +173,7 @@ impl CashService {
         &self,
         company_id: Uuid,
         session_id: Uuid,
-        amount: f64,
+        amount: Decimal,
         origin: String,
         detail: Option<String>,
     ) -> Result<CashMovement, CoreError> {
@@ -208,7 +210,7 @@ impl CashService {
         company_id: Uuid,
         session_id: Uuid,
         order_id: Uuid,
-        amount: f64,
+        amount: Decimal,
         method: String,
     ) -> Result<CashMovement, CoreError> {
         self.assert_session_open(company_id, session_id).await?;
@@ -339,8 +341,8 @@ impl CashService {
         Ok(())
     }
 
-    fn assert_positive_amount(&self, amount: f64) -> Result<(), CoreError> {
-        if !amount.is_finite() || amount <= 0.0 {
+    fn assert_positive_amount(&self, amount: Decimal) -> Result<(), CoreError> {
+        if amount <= Decimal::ZERO {
             return Err(CoreError::Validation("Valor deve ser positivo".into()));
         }
         Ok(())
@@ -350,7 +352,7 @@ impl CashService {
 /// Agrega uma lista de movimentos. Pura — testável sem repo.
 pub fn summarize(movements: &[CashMovement]) -> SessionSummary {
     let mut s = SessionSummary::default();
-    let mut cash_balance = 0.0;
+    let mut cash_balance = Decimal::ZERO;
     for mv in movements {
         match mv.kind {
             MovementKind::Opening => {
@@ -361,7 +363,7 @@ pub fn summarize(movements: &[CashMovement]) -> SessionSummary {
                 s.sales_count += 1;
                 let key = mv.method.clone().unwrap_or_else(|| "cash".into());
                 let entry = s.by_method.entry(key.clone()).or_insert(MethodTotals {
-                    amount: 0.0,
+                    amount: Decimal::ZERO,
                     count: 0,
                 });
                 entry.amount += mv.amount;
@@ -387,8 +389,8 @@ pub fn summarize(movements: &[CashMovement]) -> SessionSummary {
     for default_key in ["cash", "credit", "debit", "pix"] {
         s.by_method.entry(default_key.to_string()).or_default();
     }
-    s.cash_expected = if cash_balance.abs() < 0.005 {
-        0.0
+    s.cash_expected = if cash_balance.abs() < dec!(0.005) {
+        Decimal::ZERO
     } else {
         cash_balance
     };
@@ -399,10 +401,11 @@ pub fn summarize(movements: &[CashMovement]) -> SessionSummary {
 mod tests {
     use super::*;
     use crate::entity::BaseFields;
+    use rust_decimal_macros::dec;
 
     fn mv(
         kind: MovementKind,
-        amount: f64,
+        amount: Decimal,
         method: Option<&str>,
     ) -> CashMovement {
         CashMovement {
@@ -420,8 +423,8 @@ mod tests {
     #[test]
     fn summarize_empty() {
         let s = summarize(&[]);
-        assert_eq!(s.sales_total, 0.0);
-        assert_eq!(s.cash_expected, 0.0);
+        assert_eq!(s.sales_total, dec!(0));
+        assert_eq!(s.cash_expected, dec!(0));
         // garante chaves padrão
         assert!(s.by_method.contains_key("cash"));
         assert!(s.by_method.contains_key("pix"));
@@ -430,20 +433,20 @@ mod tests {
     #[test]
     fn summarize_basic_flow() {
         let movs = vec![
-            mv(MovementKind::Opening, 100.0, Some("cash")),
-            mv(MovementKind::Sale, 50.0, Some("cash")),
-            mv(MovementKind::Sale, 30.0, Some("pix")),
-            mv(MovementKind::Suprimento, 20.0, Some("cash")),
-            mv(MovementKind::Sangria, 40.0, Some("cash")),
+            mv(MovementKind::Opening, dec!(100), Some("cash")),
+            mv(MovementKind::Sale, dec!(50), Some("cash")),
+            mv(MovementKind::Sale, dec!(30), Some("pix")),
+            mv(MovementKind::Suprimento, dec!(20), Some("cash")),
+            mv(MovementKind::Sangria, dec!(40), Some("cash")),
         ];
         let s = summarize(&movs);
-        assert_eq!(s.sales_total, 80.0);
+        assert_eq!(s.sales_total, dec!(80));
         assert_eq!(s.sales_count, 2);
-        assert_eq!(s.sangria_total, 40.0);
-        assert_eq!(s.suprimento_total, 20.0);
+        assert_eq!(s.sangria_total, dec!(40));
+        assert_eq!(s.suprimento_total, dec!(20));
         // cash: 100 (opening) + 50 (sale cash) + 20 (suprimento) − 40 (sangria) = 130
-        assert_eq!(s.cash_expected, 130.0);
-        assert_eq!(s.by_method["cash"].amount, 50.0);
-        assert_eq!(s.by_method["pix"].amount, 30.0);
+        assert_eq!(s.cash_expected, dec!(130));
+        assert_eq!(s.by_method["cash"].amount, dec!(50));
+        assert_eq!(s.by_method["pix"].amount, dec!(30));
     }
 }

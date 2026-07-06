@@ -6,7 +6,14 @@ use slint::{Color, ModelRc, SharedString, VecModel};
 
 use letaf_core::order::model::{Order, OrderStatus};
 
-use crate::format::money_br;
+use rust_decimal::prelude::ToPrimitive;
+
+/// Wrapper de exibição do dashboard: os agregados analíticos são somados em
+/// `f64` (receita/ticket para gráficos) e formatados aqui, convertendo para
+/// `Decimal` (round2) só na apresentação. Dinheiro exato vive no domínio.
+fn money_br(v: f64) -> String {
+    crate::format::money_br(letaf_core::money::from_db_f64(v))
+}
 use crate::{
     DashboardBarPoint, DashboardComparePoint, DashboardKpi, DashboardLinePoint,
     DashboardPaymentSlice, DashboardTopProduct, MainWindow,
@@ -59,12 +66,12 @@ pub(crate) fn build_snapshot(
     let revenue_today: f64 = valid
         .iter()
         .filter(|o| o.base.created_at.date() == today)
-        .map(|o| o.total)
+        .map(|o| o.total.to_f64().unwrap_or(0.0))
         .sum();
     let revenue_baseline: f64 = valid
         .iter()
         .filter(|o| o.base.created_at.date() == same_day_last_week)
-        .map(|o| o.total)
+        .map(|o| o.total.to_f64().unwrap_or(0.0))
         .sum();
     let revenue_delta = pct_delta(revenue_today, revenue_baseline);
 
@@ -96,7 +103,7 @@ pub(crate) fn build_snapshot(
             d >= week_start && d < today
         })
         .collect();
-    let last7_revenue: f64 = last7.iter().map(|o| o.total).sum();
+    let last7_revenue: f64 = last7.iter().map(|o| o.total.to_f64().unwrap_or(0.0)).sum();
     let last7_avg = if !last7.is_empty() {
         last7_revenue / last7.len() as f64
     } else {
@@ -157,7 +164,7 @@ pub(crate) fn build_snapshot(
         let v: f64 = valid
             .iter()
             .filter(|o| o.base.created_at.date() == d)
-            .map(|o| o.total)
+            .map(|o| o.total.to_f64().unwrap_or(0.0))
             .sum();
         sales_bars.push((d, v));
     }
@@ -178,13 +185,13 @@ pub(crate) fn build_snapshot(
     // ── Comparativo (período atual vs anterior) ─────────────
     // Buckets conforme o filtro: hoje→horas, semana→dias, mês→dias.
     let day_rev = |d: NaiveDate| -> f64 {
-        valid.iter().filter(|o| o.base.created_at.date() == d).map(|o| o.total).sum()
+        valid.iter().filter(|o| o.base.created_at.date() == d).map(|o| o.total.to_f64().unwrap_or(0.0)).sum()
     };
     let hour_rev = |d: NaiveDate, h: u32| -> f64 {
         valid
             .iter()
             .filter(|o| o.base.created_at.date() == d && o.base.created_at.hour() == h)
-            .map(|o| o.total)
+            .map(|o| o.total.to_f64().unwrap_or(0.0))
             .sum()
     };
     let mut compare: Vec<(String, f64, f64)> = Vec::new();
@@ -251,7 +258,7 @@ pub(crate) fn build_snapshot(
                             && (dt.hour() as i64) >= h0
                             && (dt.hour() as i64) < h0 + 2
                     })
-                    .map(|o| o.total)
+                    .map(|o| o.total.to_f64().unwrap_or(0.0))
                     .sum()
             })
             .collect(),
@@ -269,7 +276,7 @@ pub(crate) fn build_snapshot(
                             let d = o.base.created_at.date();
                             d >= d0 && d < d1 && d <= today
                         })
-                        .map(|o| o.total)
+                        .map(|o| o.total.to_f64().unwrap_or(0.0))
                         .sum()
                 })
                 .collect()
@@ -278,7 +285,7 @@ pub(crate) fn build_snapshot(
             .map(|i| {
                 let d = monday_this_week + Duration::days(i);
                 series_labels.push(SharedString::from(weekday_short(d.weekday())));
-                valid.iter().filter(|o| o.base.created_at.date() == d).map(|o| o.total).sum()
+                valid.iter().filter(|o| o.base.created_at.date() == d).map(|o| o.total.to_f64().unwrap_or(0.0)).sum()
             })
             .collect(),
     };
@@ -308,7 +315,7 @@ pub(crate) fn build_snapshot(
     let week_revenue_val: f64 = valid
         .iter()
         .filter(|o| in_win(o.base.created_at.date()))
-        .map(|o| o.total)
+        .map(|o| o.total.to_f64().unwrap_or(0.0))
         .sum();
     let prev_rev: f64 = valid
         .iter()
@@ -316,7 +323,7 @@ pub(crate) fn build_snapshot(
             let d = o.base.created_at.date();
             d >= prev_start && d <= prev_end
         })
-        .map(|o| o.total)
+        .map(|o| o.total.to_f64().unwrap_or(0.0))
         .sum();
     let week_delta = pct_delta(week_revenue_val, prev_rev);
     let week_orders_count = valid.iter().filter(|o| in_win(o.base.created_at.date())).count();
@@ -331,7 +338,7 @@ pub(crate) fn build_snapshot(
     } else {
         let mut by_day: HashMap<NaiveDate, f64> = HashMap::new();
         for o in valid.iter().filter(|o| in_win(o.base.created_at.date())) {
-            *by_day.entry(o.base.created_at.date()).or_insert(0.0) += o.total;
+            *by_day.entry(o.base.created_at.date()).or_insert(0.0) += o.total.to_f64().unwrap_or(0.0);
         }
         by_day
             .into_iter()
@@ -364,7 +371,7 @@ pub(crate) fn build_snapshot(
     for o in valid.iter().filter(|o| in_win(o.base.created_at.date())) {
         for it in &o.items {
             let e = prod.entry(it.product_name.clone()).or_insert((0.0, 0.0));
-            e.0 += it.subtotal;
+            e.0 += it.subtotal.to_f64().unwrap_or(0.0);
             e.1 += it.quantity;
         }
     }
@@ -396,10 +403,10 @@ pub(crate) fn build_snapshot(
     let (mut pix, mut credit, mut debit, mut cash) = (0.0_f64, 0.0_f64, 0.0_f64, 0.0_f64);
     for o in valid.iter().filter(|o| in_win(o.base.created_at.date())) {
         match o.payment_method.as_deref() {
-            Some("pix") => pix += o.total,
-            Some("credit") => credit += o.total,
-            Some("debit") => debit += o.total,
-            Some("cash") => cash += o.total,
+            Some("pix") => pix += o.total.to_f64().unwrap_or(0.0),
+            Some("credit") => credit += o.total.to_f64().unwrap_or(0.0),
+            Some("debit") => debit += o.total.to_f64().unwrap_or(0.0),
+            Some("cash") => cash += o.total.to_f64().unwrap_or(0.0),
             _ => {} // carteira / sem método — fora do donut
         }
     }

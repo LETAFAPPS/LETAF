@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS addons (
     company_id  UUID NOT NULL REFERENCES companies(id),
     group_id    UUID NOT NULL REFERENCES addon_groups(id),
     name        TEXT NOT NULL,
-    price       DOUBLE PRECISION NOT NULL DEFAULT 0,
+    price NUMERIC(14, 2) NOT NULL DEFAULT 0,
     sort_order  INTEGER NOT NULL DEFAULT 0,
     active      BOOLEAN NOT NULL DEFAULT true,
     created_at  TIMESTAMP NOT NULL DEFAULT now(),

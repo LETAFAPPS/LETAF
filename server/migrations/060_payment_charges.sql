@@ -16,7 +16,7 @@ CREATE TABLE payment_charges (
     -- TXID retornado pelo gateway (PIX: 26 chars hex). NULL antes
     -- de criar a cobrança remota (rascunho).
     txid TEXT,
-    amount DOUBLE PRECISION NOT NULL,
+    amount NUMERIC(14, 2) NOT NULL,
     -- 'pending' | 'paid' | 'expired' | 'failed' | 'cancelled'
     status TEXT NOT NULL DEFAULT 'pending',
     -- Conteúdo do BR Code (string copiável). NULL antes de criar.

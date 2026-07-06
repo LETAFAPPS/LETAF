@@ -1,4 +1,5 @@
 use axum::extract::{Path, State};
+use rust_decimal::Decimal;
 use axum::http::StatusCode;
 use axum::routing::get;
 use axum::{Json, Router};
@@ -44,7 +45,7 @@ struct GroupBody {
 struct AddonBody {
     name: String,
     #[serde(default)]
-    price: f64,
+    price: Decimal,
 }
 
 async fn list_groups(
@@ -144,7 +145,7 @@ struct AddonUpdateBody {
     group_id: Uuid,
     name: String,
     #[serde(default)]
-    price: f64,
+    price: Decimal,
 }
 
 async fn get_addon(

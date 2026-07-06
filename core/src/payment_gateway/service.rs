@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use rust_decimal::Decimal;
 
 use uuid::Uuid;
 
@@ -39,10 +40,10 @@ impl PaymentService {
         &self,
         company_id: Uuid,
         invoice_id: Option<Uuid>,
-        amount: f64,
+        amount: Decimal,
         description: &str,
     ) -> Result<PaymentCharge, CoreError> {
-        if amount <= 0.0 {
+        if amount <= Decimal::ZERO {
             return Err(CoreError::Validation(
                 "Valor da cobrança deve ser positivo".into(),
             ));

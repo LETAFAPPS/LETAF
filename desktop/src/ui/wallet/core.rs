@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use rust_decimal::prelude::ToPrimitive;
 
 use chrono::Local;
 use uuid::Uuid;
@@ -107,9 +108,9 @@ pub(crate) async fn build_summary(state: &DesktopState, customer_id_s: &str) -> 
         return SummaryRaw {
             has_account: false,
             account_id: String::new(),
-            balance_display: money_br(0.0),
+            balance_display: money_br(rust_decimal::Decimal::ZERO),
             balance_tone: "neutral".into(),
-            credit_limit_display: money_br(0.0),
+            credit_limit_display: money_br(rust_decimal::Decimal::ZERO),
             status_label: String::new(),
             available_display: String::new(),
             movements_count: 0,
@@ -153,9 +154,9 @@ pub(crate) fn empty_summary() -> SummaryRaw {
     SummaryRaw {
         has_account: false,
         account_id: String::new(),
-        balance_display: money_br(0.0),
+        balance_display: money_br(rust_decimal::Decimal::ZERO),
         balance_tone: "neutral".into(),
-        credit_limit_display: money_br(0.0),
+        credit_limit_display: money_br(rust_decimal::Decimal::ZERO),
         status_label: String::new(),
         available_display: String::new(),
         movements_count: 0,
@@ -163,14 +164,14 @@ pub(crate) fn empty_summary() -> SummaryRaw {
 }
 
 pub(crate) fn status_label(a: &WalletAccount) -> String {
-    if a.balance >= 0.0 {
-        if a.credit_limit > 0.0 {
+    if a.balance >= rust_decimal::Decimal::ZERO {
+        if a.credit_limit > rust_decimal::Decimal::ZERO {
             format!("Em Dia · Limite {}", money_br(a.credit_limit))
         } else {
             "Em Dia · Sem fiado configurado".into()
         }
     } else {
-        let used = ((-a.balance / a.credit_limit.max(0.001)) * 100.0).round() as i64;
+        let used = ((-a.balance / a.credit_limit.max(rust_decimal::Decimal::new(1, 3))).to_f64().unwrap_or(0.0) * 100.0).round() as i64;
         format!("Em Fiado · Usando {}% do limite", used.clamp(0, 999))
     }
 }
@@ -217,7 +218,7 @@ pub(crate) fn format_amount(m: &WalletMovement) -> String {
 
 pub(crate) fn tone_of_movement(m: &WalletMovement) -> String {
     let signed = m.amount * m.kind.sign();
-    if signed >= 0.0 { "pos".into() } else { "neg".into() }
+    if signed >= rust_decimal::Decimal::ZERO { "pos".into() } else { "neg".into() }
 }
 
 pub(crate) fn format_time(m: &WalletMovement) -> String {
@@ -229,18 +230,18 @@ pub(crate) fn format_time(m: &WalletMovement) -> String {
     utc.with_timezone(&Local).format("%d/%m/%Y · %H:%M").to_string()
 }
 
-pub(crate) fn money_signed(v: f64) -> String {
-    if v >= 0.0 {
+pub(crate) fn money_signed(v: rust_decimal::Decimal) -> String {
+    if v >= rust_decimal::Decimal::ZERO {
         money_br(v)
     } else {
         format!("R$ -{}", money_br(-v).trim_start_matches("R$ "))
     }
 }
 
-pub(crate) fn tone(v: f64) -> String {
-    if v < -0.005 {
+pub(crate) fn tone(v: rust_decimal::Decimal) -> String {
+    if v < rust_decimal::Decimal::new(-5, 3) {
         "neg".into()
-    } else if v > 0.005 {
+    } else if v > rust_decimal::Decimal::new(5, 3) {
         "pos".into()
     } else {
         "neutral".into()

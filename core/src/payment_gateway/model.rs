@@ -1,4 +1,5 @@
 use chrono::NaiveDateTime;
+use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -60,7 +61,7 @@ pub struct PaymentCharge {
     pub method: String,
     /// TXID retornado pelo gateway. `None` antes da chamada remota.
     pub txid: Option<String>,
-    pub amount: f64,
+    pub amount: Decimal,
     pub status: ChargeStatus,
     pub pix_copia_cola: Option<String>,
     pub qr_code_b64: Option<String>,
@@ -70,7 +71,7 @@ pub struct PaymentCharge {
 }
 
 impl PaymentCharge {
-    pub fn new_pix(company_id: Uuid, invoice_id: Option<Uuid>, amount: f64) -> Self {
+    pub fn new_pix(company_id: Uuid, invoice_id: Option<Uuid>, amount: Decimal) -> Self {
         Self {
             base: BaseFields::new(company_id),
             invoice_id,

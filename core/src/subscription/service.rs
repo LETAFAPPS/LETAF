@@ -1,4 +1,7 @@
 use std::sync::Arc;
+use rust_decimal::prelude::ToPrimitive;
+use rust_decimal::Decimal;
+use rust_decimal_macros::dec;
 
 use chrono::{Datelike, NaiveDate};
 use uuid::Uuid;
@@ -38,12 +41,12 @@ pub struct SubscriptionService {
 pub struct PlanTerms {
     pub name: String,
     /// Valor cobrado por ciclo, JÁ com o desconto abatido.
-    pub amount: f64,
+    pub amount: Decimal,
     pub months: u32,
     /// Valor por ciclo ANTES do desconto (preço de tabela do plano).
-    pub gross_amount: f64,
+    pub gross_amount: Decimal,
     /// Desconto em R$ por mês concedido ao estabelecimento (0 = nenhum).
-    pub discount_monthly: f64,
+    pub discount_monthly: Decimal,
 }
 
 impl SubscriptionService {
@@ -55,9 +58,9 @@ impl SubscriptionService {
     /// Mantemos a função no service (não como `const`) porque os
     /// labels em pt-BR e os cálculos de economia dependem do contexto.
     pub fn available_plans(&self) -> Vec<Plan> {
-        let monthly = 200.0_f64;
-        let semestral_monthly = 190.0_f64;
-        let annual_monthly = 180.0_f64;
+        let monthly = dec!(200);
+        let semestral_monthly = dec!(190);
+        let annual_monthly = dec!(180);
         vec![
             Plan {
                 kind: PlanKind::Monthly,
@@ -72,28 +75,28 @@ impl SubscriptionService {
                 kind: PlanKind::Semestral,
                 label: "Semestral".into(),
                 monthly_price: semestral_monthly,
-                total_per_charge: semestral_monthly * 6.0,
+                total_per_charge: semestral_monthly * dec!(6),
                 savings_label: format!(
                     "ECONOMIZE R$ {}/MÊS",
-                    (monthly - semestral_monthly) as i64
+                    (monthly - semestral_monthly).trunc().to_i64().unwrap_or(0)
                 ),
                 highlight_label: String::new(),
                 description: format!(
                     "Cobrado a cada 6 meses · R$ {}/mês",
-                    semestral_monthly as i64
+                    semestral_monthly.trunc().to_i64().unwrap_or(0)
                 ),
             },
             Plan {
                 kind: PlanKind::Annual,
                 label: "Anual".into(),
                 monthly_price: annual_monthly,
-                total_per_charge: annual_monthly * 12.0,
+                total_per_charge: annual_monthly * dec!(12),
                 savings_label: format!(
                     "ECONOMIZE R$ {}/MÊS",
-                    (monthly - annual_monthly) as i64
+                    (monthly - annual_monthly).trunc().to_i64().unwrap_or(0)
                 ),
                 highlight_label: "MELHOR VALOR".into(),
-                description: format!("Cobrado 1× por ano · R$ {}/mês", annual_monthly as i64),
+                description: format!("Cobrado 1× por ano · R$ {}/mês", annual_monthly.trunc().to_i64().unwrap_or(0)),
             },
         ]
     }
@@ -121,8 +124,8 @@ impl SubscriptionService {
             (p.label, p.total_per_charge, p.kind.months_per_charge())
         };
         // Desconto por mês abatido do ciclo inteiro; nunca abaixo de zero.
-        let discount_monthly = sub.plan_discount_monthly.max(0.0);
-        let amount = (gross - discount_monthly * months as f64).max(0.0);
+        let discount_monthly = sub.plan_discount_monthly.max(Decimal::ZERO);
+        let amount = (gross - discount_monthly * Decimal::from(months)).max(Decimal::ZERO);
         PlanTerms {
             name,
             amount,
@@ -137,14 +140,14 @@ impl SubscriptionService {
     pub async fn set_plan_discount(
         &self,
         company_id: Uuid,
-        discount_monthly: f64,
+        discount_monthly: Decimal,
     ) -> Result<Subscription, CoreError> {
         let mut sub = self
             .repo
             .find_current(company_id)
             .await?
             .ok_or_else(|| CoreError::NotFound("Assinatura não encontrada".into()))?;
-        sub.plan_discount_monthly = discount_monthly.max(0.0);
+        sub.plan_discount_monthly = discount_monthly.max(Decimal::ZERO);
         sub.base.updated_at = chrono::Utc::now().naive_utc();
         sub.base.synced = false;
         self.repo.update_subscription(&sub).await?;
@@ -467,7 +470,7 @@ impl SubscriptionService {
         &self,
         sub: &Subscription,
         charge_status: &str,
-        amount: f64,
+        amount: Decimal,
         paid_at: Option<chrono::NaiveDateTime>,
         today: NaiveDate,
     ) -> Result<(), CoreError> {
@@ -482,7 +485,7 @@ impl SubscriptionService {
         &self,
         sub: &Subscription,
         charge_status: &str,
-        amount: f64,
+        amount: Decimal,
         paid_at: Option<chrono::NaiveDateTime>,
         today: NaiveDate,
         method_note: &str,
@@ -500,10 +503,10 @@ impl SubscriptionService {
                 let number =
                     generate_invoice_number(today, &self.repo, company_id).await?;
                 // "Consta" o desconto na descrição da fatura quando houver.
-                let desc = if terms.discount_monthly > 0.0 {
+                let desc = if terms.discount_monthly > Decimal::ZERO {
                     format!(
-                        "Assinatura · Plano {} ({method_note}) · desconto R$ {:.2}/mês",
-                        terms.name, terms.discount_monthly
+                        "Assinatura · Plano {} ({method_note}) · desconto R$ {}/mês",
+                        terms.name, crate::money::round2(terms.discount_monthly)
                     )
                 } else {
                     format!("Assinatura · Plano {} ({method_note})", terms.name)
@@ -631,7 +634,7 @@ impl SubscriptionService {
         &self,
         sub: &Subscription,
         charge_status: &str,
-        amount: f64,
+        amount: Decimal,
         paid_at: Option<chrono::NaiveDateTime>,
         today: NaiveDate,
     ) -> Result<(), CoreError> {

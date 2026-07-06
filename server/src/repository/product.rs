@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use rust_decimal::Decimal;
 use chrono::NaiveDateTime;
 use sqlx::prelude::FromRow;
 use sqlx::PgPool;
@@ -59,8 +60,8 @@ struct ProductRow {
     description: Option<String>,
     category_id: Option<Uuid>,
     subcategory_id: Option<Uuid>,
-    price: Option<f64>,
-    cost_price: Option<f64>,
+    price: Option<Decimal>,
+    cost_price: Option<Decimal>,
     stock_quantity: f64,
     min_stock: f64,
     unlimited_stock: bool,
@@ -77,7 +78,7 @@ struct ProductRow {
     cover_color: Option<String>,
     availability_schedule: Option<String>,
     discount_kind: Option<String>,
-    discount_value: Option<f64>,
+    discount_value: Option<Decimal>,
     discount_min_qty: Option<f64>,
     discount_tiers: Option<String>,
     variations: Option<String>,

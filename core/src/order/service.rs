@@ -1,6 +1,11 @@
 use std::sync::Arc;
+use rust_decimal::prelude::FromPrimitive;
+use rust_decimal::Decimal;
+use rust_decimal_macros::dec;
 
 use uuid::Uuid;
+
+use crate::money;
 
 use super::model::{DeliveryType, Order, OrderItem, OrderStatus};
 use super::repository::OrderRepository;
@@ -16,7 +21,7 @@ pub struct OrderItemInput {
     pub quantity: f64,
     /// Preço unitário JÁ COM addons somados (cliente calcula). O
     /// `addons_json` carrega o detalhamento para o operador no PDV.
-    pub unit_price: f64,
+    pub unit_price: Decimal,
     pub notes: Option<String>,
     pub addons_json: Option<String>,
 }
@@ -83,7 +88,7 @@ impl OrderService {
         delivery_type: DeliveryType,
         notes: Option<String>,
         coupon_code: Option<String>,
-        discount_amount: f64,
+        discount_amount: Decimal,
     ) -> Result<Order, CoreError> {
         validate_items(&items)?;
         self.verify_item_prices(company_id, &items).await?;
@@ -93,8 +98,8 @@ impl OrderService {
         // Desconto vem JÁ calculado/validado pelo caller (server),
         // que recomputa via CouponService — nunca confiamos no valor
         // do frontend (§11). Aqui só garantimos que não fica negativo.
-        let discount = discount_amount.max(0.0).min(items_total);
-        let total = (items_total - discount).max(0.0);
+        let discount = discount_amount.max(Decimal::ZERO).min(items_total);
+        let total = (items_total - discount).max(Decimal::ZERO);
         // Quantidade a decrementar por item (§4: aplicada na MESMA
         // transação do insert do pedido, dentro de `create_atomic`).
         let stock_deltas: Vec<(Uuid, f64)> =
@@ -150,8 +155,8 @@ impl OrderService {
         company_id: Uuid,
         customer_id: Uuid,
         items: Vec<OrderItemInput>,
-        discount_amount: f64,
-        additional_amount: f64,
+        discount_amount: Decimal,
+        additional_amount: Decimal,
         delivery_type: DeliveryType,
         payment_method: Option<String>,
         notes: Option<String>,
@@ -171,9 +176,9 @@ impl OrderService {
         let (final_items, items_total) = build_items(company_id, order_id, &items);
         // §11: backend recomputa. Desconto clampado a [0, itens];
         // adicional (acréscimo) não-negativo soma ao total.
-        let discount = discount_amount.max(0.0).min(items_total);
-        let additional = additional_amount.max(0.0);
-        let total = (items_total - discount + additional).max(0.0);
+        let discount = discount_amount.max(Decimal::ZERO).min(items_total);
+        let additional = additional_amount.max(Decimal::ZERO);
+        let total = (items_total - discount + additional).max(Decimal::ZERO);
         // Baixa de estoque na MESMA transação do insert (§4).
         let stock_deltas: Vec<(Uuid, f64)> =
             items.iter().map(|i| (i.product_id, i.quantity)).collect();
@@ -409,12 +414,12 @@ impl OrderService {
                 it.base.synced = false;
             }
             it.order_id = id;
-            it.subtotal = it.quantity * it.unit_price;
+            it.subtotal = money::round2(money::qty(it.quantity) * it.unit_price);
             finalized.push(it);
         }
-        let subtotal: f64 = finalized.iter().map(|i| i.subtotal).sum();
+        let subtotal: Decimal = finalized.iter().map(|i| i.subtotal).sum();
         // Preserva desconto E adicional ao recompor o total (§11).
-        let new_total = (subtotal - order.discount_amount + order.additional_amount).max(0.0);
+        let new_total = (subtotal - order.discount_amount + order.additional_amount).max(Decimal::ZERO);
 
         // Delta de estoque por produto = soma das qty ANTIGAS − soma das
         // qty NOVAS. Calculado antes de sobrescrever `order.items`.
@@ -576,10 +581,10 @@ impl OrderService {
             let base = crate::discount::effective_unit_price(product, item.quantity);
             let addons_total = self.addons_total(company_id, product, item.addons_json.as_deref()).await?;
             let expected = base + addons_total;
-            if (item.unit_price - expected).abs() > 0.01 {
+            if (item.unit_price - expected).abs() > dec!(0.01) {
                 return Err(CoreError::Validation(format!(
-                    "Price mismatch for product '{}': expected {:.2}, got {:.2}",
-                    product.name, expected, item.unit_price
+                    "Price mismatch for product '{}': expected {}, got {}",
+                    product.name, money::round2(expected), money::round2(item.unit_price)
                 )));
             }
         }
@@ -601,19 +606,19 @@ impl OrderService {
         company_id: Uuid,
         product: &crate::product::model::Product,
         addons_json: Option<&str>,
-    ) -> Result<f64, CoreError> {
+    ) -> Result<Decimal, CoreError> {
         let Some(svc) = self.addon_service.as_ref() else {
             return Ok(parse_addons_total(addons_json));
         };
-        let Some(s) = addons_json else { return Ok(0.0); };
+        let Some(s) = addons_json else { return Ok(Decimal::ZERO); };
         let trimmed = s.trim();
-        if trimmed.is_empty() { return Ok(0.0); }
+        if trimmed.is_empty() { return Ok(Decimal::ZERO); }
         let arr: serde_json::Value = serde_json::from_str(trimmed)
             .map_err(|_| CoreError::Validation("addons_json inválido".into()))?;
-        let Some(arr) = arr.as_array() else { return Ok(0.0); };
+        let Some(arr) = arr.as_array() else { return Ok(Decimal::ZERO); };
 
         // Preços legítimos do produto, por nome (adicionais + variações).
-        let mut legit: std::collections::HashMap<String, f64> = std::collections::HashMap::new();
+        let mut legit: std::collections::HashMap<String, Decimal> = std::collections::HashMap::new();
         for gid in &product.addon_group_ids {
             for addon in svc.find_by_group(company_id, *gid).await? {
                 legit.insert(addon.name, addon.price);
@@ -628,7 +633,7 @@ impl OrderService {
                     for o in opts {
                         if let (Some(name), Some(price)) = (
                             o.get("name").and_then(|n| n.as_str()),
-                            o.get("price").and_then(|p| p.as_f64()),
+                            o.get("price").and_then(|p| p.as_f64()).and_then(Decimal::from_f64),
                         ) {
                             legit.insert(name.to_string(), price);
                         }
@@ -637,20 +642,21 @@ impl OrderService {
             }
         }
 
-        let mut total = 0.0;
+        let mut total = Decimal::ZERO;
         for v in arr {
             let name = v
                 .get("name")
                 .and_then(|n| n.as_str())
                 .ok_or_else(|| CoreError::Validation("Adicional sem nome".into()))?;
-            let claimed = v.get("price").and_then(|p| p.as_f64());
+            let claimed = v.get("price").and_then(|p| p.as_f64()).and_then(Decimal::from_f64);
             let expected = legit.get(name).copied().ok_or_else(|| {
                 CoreError::Validation(format!("Adicional '{name}' não pertence a este produto"))
             })?;
             if let Some(c) = claimed {
-                if (c - expected).abs() > 0.01 {
+                if (c - expected).abs() > dec!(0.01) {
                     return Err(CoreError::Validation(format!(
-                        "Preço de adicional '{name}' divergente: esperado {expected:.2}, recebido {c:.2}"
+                        "Preço de adicional '{name}' divergente: esperado {}, recebido {}",
+                        money::round2(expected), money::round2(c)
                     )));
                 }
             }
@@ -663,14 +669,14 @@ impl OrderService {
 /// Soma `price` dos adicionais do snapshot do cliente (`addons_json`).
 /// Usado apenas no caminho confiável (PDV desktop, sem `addon_service`);
 /// no servidor o preço é resolvido pelo catálogo (vide `addons_total`).
-fn parse_addons_total(addons_json: Option<&str>) -> f64 {
-    let Some(s) = addons_json else { return 0.0; };
+fn parse_addons_total(addons_json: Option<&str>) -> Decimal {
+    let Some(s) = addons_json else { return Decimal::ZERO; };
     let trimmed = s.trim();
-    if trimmed.is_empty() { return 0.0; }
-    let Ok(arr) = serde_json::from_str::<serde_json::Value>(trimmed) else { return 0.0; };
-    let Some(arr) = arr.as_array() else { return 0.0; };
+    if trimmed.is_empty() { return Decimal::ZERO; }
+    let Ok(arr) = serde_json::from_str::<serde_json::Value>(trimmed) else { return Decimal::ZERO; };
+    let Some(arr) = arr.as_array() else { return Decimal::ZERO; };
     arr.iter()
-        .filter_map(|v| v.get("price").and_then(|p| p.as_f64()))
+        .filter_map(|v| v.get("price").and_then(|p| p.as_f64()).and_then(Decimal::from_f64))
         .sum()
 }
 
@@ -683,7 +689,7 @@ fn validate_items(items: &[OrderItemInput]) -> Result<(), CoreError> {
         if item.quantity <= 0.0 {
             return Err(CoreError::Validation("Item quantity must be positive".into()));
         }
-        if item.unit_price < 0.0 {
+        if item.unit_price < Decimal::ZERO {
             return Err(CoreError::Validation("Item price cannot be negative".into()));
         }
         if item.product_name.trim().is_empty() {
@@ -700,8 +706,8 @@ fn is_unique_violation(msg: &str) -> bool {
 }
 
 /// Constrói OrderItems e calcula o total do pedido.
-fn build_items(company_id: Uuid, order_id: Uuid, inputs: &[OrderItemInput]) -> (Vec<OrderItem>, f64) {
-    let mut total = 0.0;
+fn build_items(company_id: Uuid, order_id: Uuid, inputs: &[OrderItemInput]) -> (Vec<OrderItem>, Decimal) {
+    let mut total = Decimal::ZERO;
     let items: Vec<OrderItem> = inputs.iter().map(|i| {
         let item = OrderItem::new(
             company_id,

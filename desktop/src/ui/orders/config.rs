@@ -1,5 +1,6 @@
 
 use slint::{ComponentHandle, Model, ModelRc, SharedString, VecModel};
+use rust_decimal::prelude::ToPrimitive;
 use uuid::Uuid;
 
 
@@ -180,8 +181,8 @@ pub(crate) fn setup_start_product_config(
                     let items: Vec<crate::ConfigAddon> = addons.iter().filter(|a| a.active).map(|a| crate::ConfigAddon {
                         id: SharedString::from(a.base.id.to_string()),
                         name: SharedString::from(a.name.as_str()),
-                        price: a.price as f32,
-                        price_display: SharedString::from(format_addon_price(a.price)),
+                        price: a.price.to_f64().unwrap_or(0.0) as f32,
+                        price_display: SharedString::from(format_addon_price(a.price.to_f64().unwrap_or(0.0))),
                         selected: false,
                     }).collect();
                     crate::ConfigAddonGroup {
@@ -196,7 +197,7 @@ pub(crate) fn setup_start_product_config(
                 }).collect();
                 ui.set_config_product_id(SharedString::from(pid_str));
                 ui.set_config_product_name(SharedString::from(product_name));
-                ui.set_config_base_price(base_price as f32);
+                ui.set_config_base_price(base_price.to_f64().unwrap_or(0.0) as f32);
                 ui.set_config_qty(1);
                 ui.set_config_variations(ModelRc::new(VecModel::from(vars_ui)));
                 ui.set_config_addon_groups(ModelRc::new(VecModel::from(groups_ui)));
@@ -332,8 +333,8 @@ pub(crate) fn setup_edit_order_edit_item(
                     let items: Vec<crate::ConfigAddon> = addons.iter().filter(|a| a.active).map(|a| crate::ConfigAddon {
                         id: SharedString::from(a.base.id.to_string()),
                         name: SharedString::from(a.name.as_str()),
-                        price: a.price as f32,
-                        price_display: SharedString::from(format_addon_price(a.price)),
+                        price: a.price.to_f64().unwrap_or(0.0) as f32,
+                        price_display: SharedString::from(format_addon_price(a.price.to_f64().unwrap_or(0.0))),
                         selected: is_selected(&group_name, &a.name),
                     }).collect();
                     crate::ConfigAddonGroup {
@@ -348,7 +349,7 @@ pub(crate) fn setup_edit_order_edit_item(
                 }).collect();
                 ui.set_config_product_id(SharedString::from(pid_str));
                 ui.set_config_product_name(SharedString::from(product_name));
-                ui.set_config_base_price(base_price as f32);
+                ui.set_config_base_price(base_price.to_f64().unwrap_or(0.0) as f32);
                 ui.set_config_qty(qty_i.max(1));
                 ui.set_config_variations(ModelRc::new(VecModel::from(vars_ui)));
                 ui.set_config_addon_groups(ModelRc::new(VecModel::from(groups_ui)));

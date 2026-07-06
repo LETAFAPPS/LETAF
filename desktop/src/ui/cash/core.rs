@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use rust_decimal::prelude::ToPrimitive;
 
 use slint::ComponentHandle;
 
@@ -101,7 +102,7 @@ pub(crate) fn setup_refresh(
                     .iter()
                     .filter(|s| s.status == SessionStatus::Closed)
                     .take(5)
-                    .map(|s| s.initial_change)
+                    .map(|s| s.initial_change.to_f64().unwrap_or(0.0))
                     .collect();
                 if closed.is_empty() {
                     100.0

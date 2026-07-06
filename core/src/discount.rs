@@ -1,43 +1,42 @@
 //! Cálculo de desconto aplicado ao preço unitário de um produto.
 //!
-//! Regras aplicadas (AI_RULES.md §1, §11):
-//! - Função pura, sem dependência de banco/UI — pode ser chamada tanto
-//!   pelo backend (validar `unit_price` do cliente) quanto pelo cliente
-//!   (calcular o que mostrar). Mesma lógica → mesmo resultado.
-//! - Desconto incide só sobre o preço base do produto; adicionais
-//!   (Fase 4) são acréscimo limpo somado depois.
+//! Regras aplicadas (AI_RULES.md §1, §11, §13):
+//! - Função pura, sem dependência de banco/UI — roda no backend (validar
+//!   `unit_price` do cliente) e no cliente web (mostrar). Mesma lógica.
+//! - Desconto incide só sobre o preço base; adicionais somam depois.
+//! - Dinheiro em `Decimal` (exato); quantidades seguem `f64`.
+
+use rust_decimal::prelude::FromPrimitive;
+use rust_decimal::Decimal;
+use rust_decimal_macros::dec;
 
 use crate::product::model::Product;
 
 /// Preço unitário do produto com o desconto eventual aplicado, para a
 /// `quantity` informada (descontos `bulk_*` dependem da quantidade).
-///
-/// Cobre os 4 kinds suportados (`fixed`, `percent`, `bulk_fixed`,
-/// `bulk_percent`) e ambos os modos bulk: tier único legado em
-/// `discount_value`/`discount_min_qty` OU múltiplos tiers em
-/// `discount_tiers` (JSON `[{"min_qty","value"}, ...]`).
-pub fn effective_unit_price(p: &Product, quantity: f64) -> f64 {
-    let base = p.price.unwrap_or(0.0);
+pub fn effective_unit_price(p: &Product, quantity: f64) -> Decimal {
+    let base = p.price.unwrap_or(Decimal::ZERO);
     let Some(kind) = p.discount_kind.as_deref() else { return base; };
     match kind {
-        "fixed" => (base - p.discount_value.unwrap_or(0.0)).max(0.0),
-        "percent" => (base * (1.0 - p.discount_value.unwrap_or(0.0) / 100.0)).max(0.0),
+        "fixed" => (base - p.discount_value.unwrap_or(Decimal::ZERO)).max(Decimal::ZERO),
+        "percent" => {
+            let pct = p.discount_value.unwrap_or(Decimal::ZERO);
+            (base * (dec!(1) - pct / dec!(100))).max(Decimal::ZERO)
+        }
         "bulk_fixed" => match winning_bulk_value(p, quantity) {
-            Some(v) => (base - v).max(0.0),
+            Some(v) => (base - v).max(Decimal::ZERO),
             None => base,
         },
         "bulk_percent" => match winning_bulk_value(p, quantity) {
-            Some(v) => (base * (1.0 - v / 100.0)).max(0.0),
+            Some(v) => (base * (dec!(1) - v / dec!(100))).max(Decimal::ZERO),
             None => base,
         },
         _ => base,
     }
 }
 
-/// Tier vencedor (maior `min_qty` cuja condição `quantity >= min_qty` é
-/// satisfeita) — devolve apenas o `value` para uso na fórmula.
-/// Considera os dois formatos suportados (tiers JSON ou tier único).
-fn winning_bulk_value(p: &Product, quantity: f64) -> Option<f64> {
+/// Tier vencedor (maior `min_qty` satisfeito) — devolve o `value`.
+fn winning_bulk_value(p: &Product, quantity: f64) -> Option<Decimal> {
     if let Some(json) = p.discount_tiers.as_deref() {
         if let Some(value) = winning_tier_from_json(json, quantity) {
             return Some(value);
@@ -48,13 +47,14 @@ fn winning_bulk_value(p: &Product, quantity: f64) -> Option<f64> {
     if min > 0.0 && quantity >= min { Some(v) } else { None }
 }
 
-fn winning_tier_from_json(json: &str, quantity: f64) -> Option<f64> {
+fn winning_tier_from_json(json: &str, quantity: f64) -> Option<Decimal> {
     let parsed: serde_json::Value = serde_json::from_str(json).ok()?;
     let arr = parsed.as_array()?;
-    let mut tiers: Vec<(f64, f64)> = arr.iter()
+    // `min_qty` é quantidade (f64); `value` é dinheiro (Decimal).
+    let mut tiers: Vec<(f64, Decimal)> = arr.iter()
         .filter_map(|v| {
             let q = v.get("min_qty")?.as_f64()?;
-            let val = v.get("value")?.as_f64()?;
+            let val = v.get("value")?.as_f64().and_then(Decimal::from_f64)?;
             if q <= 0.0 { return None; }
             Some((q, val))
         })

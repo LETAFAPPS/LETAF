@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use rust_decimal::prelude::ToPrimitive;
 
 use slint::{ComponentHandle, Model, ModelRc, SharedString, VecModel};
 use tokio::sync::Notify;
@@ -62,8 +63,8 @@ pub(crate) fn setup_edit_order(
                     product_id: SharedString::from(it.product_id.to_string()),
                     product_name: SharedString::from(it.product_name.as_str()),
                     qty: SharedString::from(format_qty(it.quantity)),
-                    unit_price: it.unit_price as f32,
-                    line_total_display: SharedString::from(format!("R$ {:.2}", it.subtotal)),
+                    unit_price: it.unit_price.to_f64().unwrap_or(0.0) as f32,
+                    line_total_display: SharedString::from(format!("R$ {:.2}", it.subtotal.to_f64().unwrap_or(0.0))),
                     addons_json: SharedString::from(it.addons_json.as_deref().unwrap_or("")),
                 }
             }).collect();
@@ -345,8 +346,8 @@ pub(crate) fn setup_save_edit_order(
                         product_id: pid,
                         product_name: name,
                         quantity: qty,
-                        unit_price: unit,
-                        subtotal: 0.0, // service recalcula
+                        unit_price: letaf_core::money::from_db_f64(unit),
+                        subtotal: rust_decimal::Decimal::ZERO, // service recalcula
                         notes: None,
                         addons_json: aj,
                     });
@@ -357,7 +358,7 @@ pub(crate) fn setup_save_edit_order(
                     let mut it = orig.clone();
                     it.quantity = qty;
                     it.product_name = name;
-                    it.unit_price = unit;
+                    it.unit_price = letaf_core::money::from_db_f64(unit);
                     // Propaga o snapshot REconfigurado via "Editar item":
                     // sem isso, o save preservaria o `addons_json`
                     // original mesmo quando o operador trocou

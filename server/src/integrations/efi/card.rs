@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use rust_decimal::Decimal;
 use std::time::{Duration, Instant};
 
 use async_trait::async_trait;
@@ -339,8 +340,8 @@ fn parse_notification_event(item: &Value) -> Option<CardChargeEvent> {
     let amount = item
         .get("value")
         .and_then(|v| v.as_i64())
-        .map(|cents| cents as f64 / 100.0)
-        .unwrap_or(0.0);
+        .map(|cents| Decimal::from(cents) / Decimal::from(100))
+        .unwrap_or(Decimal::ZERO);
     let paid_at = item
         .get("received_by_bank_at")
         .or_else(|| item.get("paid_at"))
