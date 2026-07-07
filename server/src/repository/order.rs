@@ -173,6 +173,20 @@ impl PgOrderRepository {
         }
         Ok(map)
     }
+
+    /// Anexa os itens (1 query batch) a uma lista de pedidos já carregados.
+    async fn attach_items(&self, orders: &mut [Order]) -> Result<(), CoreError> {
+        if orders.is_empty() {
+            return Ok(());
+        }
+        let company_id = orders[0].base.company_id;
+        let ids: Vec<Uuid> = orders.iter().map(|o| o.base.id).collect();
+        let mut map = self.load_items_batch(company_id, &ids).await?;
+        for order in orders.iter_mut() {
+            order.items = map.remove(&order.base.id).unwrap_or_default();
+        }
+        Ok(())
+    }
 }
 
 #[async_trait]
@@ -619,13 +633,34 @@ impl OrderRepository for PgOrderRepository {
         .map_err(map_db)?;
 
         let mut orders: Vec<Order> = rows.into_iter().map(Order::from).collect();
-        if !orders.is_empty() {
-            let ids: Vec<Uuid> = orders.iter().map(|o| o.base.id).collect();
-            let mut map = self.load_items_batch(company_id, &ids).await?;
-            for order in &mut orders {
-                order.items = map.remove(&order.base.id).unwrap_or_default();
-            }
-        }
+        self.attach_items(&mut orders).await?;
+        Ok(orders)
+    }
+
+    async fn find_updated_since_paged(
+        &self,
+        company_id: Uuid,
+        since: NaiveDateTime,
+        after_id: Uuid,
+        limit: i64,
+    ) -> Result<Vec<Order>, CoreError> {
+        let rows = sqlx::query_as::<_, OrderRow>(
+            "SELECT * FROM orders
+              WHERE company_id = $1
+                AND (updated_at > $2 OR (updated_at = $2 AND id > $3))
+              ORDER BY updated_at ASC, id ASC
+              LIMIT $4",
+        )
+        .bind(company_id)
+        .bind(since)
+        .bind(after_id)
+        .bind(limit)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(map_db)?;
+
+        let mut orders: Vec<Order> = rows.into_iter().map(Order::from).collect();
+        self.attach_items(&mut orders).await?;
         Ok(orders)
     }
 

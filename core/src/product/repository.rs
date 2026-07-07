@@ -122,6 +122,18 @@ pub trait ProductRepository: Send + Sync {
         company_id: Uuid,
         since: NaiveDateTime,
     ) -> Result<Vec<StockMovement>, CoreError>;
+
+    /// Página do ledger por keyset `(updated_at, id)` (default delega ao acima;
+    /// o ledger cresce sem limite → o Postgres sobrescreve para paginar).
+    async fn find_stock_movements_updated_since_paged(
+        &self,
+        company_id: Uuid,
+        since: NaiveDateTime,
+        _after_id: Uuid,
+        _limit: i64,
+    ) -> Result<Vec<StockMovement>, CoreError> {
+        self.find_stock_movements_updated_since(company_id, since).await
+    }
 }
 
 /// Resultado da tentativa atômica de ajuste de estoque.

@@ -176,6 +176,17 @@ impl FinanceService {
         self.repo.find_updated_since(company_id, since).await
     }
 
+    /// Página do pull por keyset `(updated_at, id)`.
+    pub async fn find_updated_since_paged(
+        &self,
+        company_id: Uuid,
+        since: chrono::NaiveDateTime,
+        after_id: Uuid,
+        limit: i64,
+    ) -> Result<Vec<FinanceEntry>, CoreError> {
+        self.repo.find_updated_since_paged(company_id, since, after_id, limit).await
+    }
+
     /// Upsert vindo do sync. Recebe a entidade por valor para poder
     /// marcar `synced = true` e validar o `company_id` contra o do
     /// chamador (AI_RULES.md §11 — nunca confiar no payload).

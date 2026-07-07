@@ -214,6 +214,30 @@ impl CustomerRepository for PgCustomerRepository {
         Ok(rows.into_iter().map(Customer::from).collect())
     }
 
+    async fn find_updated_since_paged(
+        &self,
+        company_id: Uuid,
+        since: NaiveDateTime,
+        after_id: Uuid,
+        limit: i64,
+    ) -> Result<Vec<Customer>, CoreError> {
+        let rows = sqlx::query_as::<_, CustomerRow>(
+            "SELECT * FROM customers
+              WHERE company_id = $1
+                AND (updated_at > $2 OR (updated_at = $2 AND id > $3))
+              ORDER BY updated_at ASC, id ASC
+              LIMIT $4",
+        )
+        .bind(company_id)
+        .bind(since)
+        .bind(after_id)
+        .bind(limit)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(map_db)?;
+        Ok(rows.into_iter().map(Customer::from).collect())
+    }
+
     async fn sync_upsert(&self, customer: &Customer) -> Result<(), CoreError> {
         sqlx::query(
             "INSERT INTO customers (id, company_id, name, email, phone, document, password_hash, profile_picture, created_at, updated_at, deleted_at, synced, notes)

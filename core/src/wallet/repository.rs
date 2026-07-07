@@ -90,5 +90,16 @@ pub trait WalletRepository: Send + Sync {
         company_id: Uuid,
         since: NaiveDateTime,
     ) -> Result<Vec<WalletMovement>, CoreError>;
+    /// Página do pull de movimentos por keyset `(updated_at, id)` (default
+    /// delega ao acima; só o Postgres sobrescreve).
+    async fn find_movements_updated_since_paged(
+        &self,
+        company_id: Uuid,
+        since: NaiveDateTime,
+        _after_id: Uuid,
+        _limit: i64,
+    ) -> Result<Vec<WalletMovement>, CoreError> {
+        self.find_movements_updated_since(company_id, since).await
+    }
     async fn sync_upsert_movement(&self, movement: &WalletMovement) -> Result<(), CoreError>;
 }

@@ -106,7 +106,12 @@ pub(crate) async fn pull_customers(
     auth.verify_any_role(ROLES_OPERATORS)?;
     let items = state
         .customer_service
-        .find_updated_since(auth.0.company_id, params.since)
+        .find_updated_since_paged(
+            auth.0.company_id,
+            params.since,
+            params.after_id(),
+            params.page_limit(),
+        )
         .await?;
 
     Ok(Json(items))

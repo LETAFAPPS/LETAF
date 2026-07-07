@@ -379,6 +379,32 @@ impl WalletRepository for PgWalletRepository {
         .collect())
     }
 
+    async fn find_movements_updated_since_paged(
+        &self,
+        company_id: Uuid,
+        since: NaiveDateTime,
+        after_id: Uuid,
+        limit: i64,
+    ) -> Result<Vec<WalletMovement>, CoreError> {
+        Ok(sqlx::query_as::<_, WalletMovementRow>(
+            "SELECT * FROM wallet_movements
+              WHERE company_id = $1
+                AND (updated_at > $2 OR (updated_at = $2 AND id > $3))
+              ORDER BY updated_at ASC, id ASC
+              LIMIT $4",
+        )
+        .bind(company_id)
+        .bind(since)
+        .bind(after_id)
+        .bind(limit)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(map_db)?
+        .into_iter()
+        .map(Into::into)
+        .collect())
+    }
+
     async fn sync_upsert_movement(&self, m: &WalletMovement) -> Result<(), CoreError> {
         sqlx::query(
             "INSERT INTO wallet_movements

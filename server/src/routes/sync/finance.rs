@@ -66,7 +66,12 @@ pub(crate) async fn pull_cash_movements(
     auth.verify_any_role(ROLES_OPERATORS)?;
     auth.require_permission("cash.view")?;
     let items = state.cash_service
-        .find_movements_updated_since(auth.0.company_id, params.since)
+        .find_movements_updated_since_paged(
+            auth.0.company_id,
+            params.since,
+            params.after_id(),
+            params.page_limit(),
+        )
         .await?;
     Ok(Json(items))
 }
@@ -127,7 +132,12 @@ pub(crate) async fn pull_finance_entries(
     auth.require_permission("finance.view")?;
     let items = state
         .finance_service
-        .find_updated_since(auth.0.company_id, params.since)
+        .find_updated_since_paged(
+            auth.0.company_id,
+            params.since,
+            params.after_id(),
+            params.page_limit(),
+        )
         .await?;
     Ok(Json(items))
 }
@@ -187,7 +197,12 @@ pub(crate) async fn pull_wallet_movements(
     auth.require_permission("customers.view")?;
     let items = state
         .wallet_service
-        .find_movements_updated_since(auth.0.company_id, params.since)
+        .find_movements_updated_since_paged(
+            auth.0.company_id,
+            params.since,
+            params.after_id(),
+            params.page_limit(),
+        )
         .await?;
     Ok(Json(items))
 }

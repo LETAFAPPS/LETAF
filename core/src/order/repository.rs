@@ -109,4 +109,17 @@ pub trait OrderRepository: Send + Sync {
 
     /// Busca pedidos atualizados após o timestamp (§7 — sync pull).
     async fn find_updated_since(&self, company_id: Uuid, since: NaiveDateTime) -> Result<Vec<Order>, CoreError>;
+
+    /// Página do pull por keyset `(updated_at, id)` — o histórico de pedidos
+    /// cresce sem limite. Default delega ao acima; só o Postgres sobrescreve.
+    /// Cada pedido vem com seus itens (igual `find_updated_since`).
+    async fn find_updated_since_paged(
+        &self,
+        company_id: Uuid,
+        since: NaiveDateTime,
+        _after_id: Uuid,
+        _limit: i64,
+    ) -> Result<Vec<Order>, CoreError> {
+        self.find_updated_since(company_id, since).await
+    }
 }

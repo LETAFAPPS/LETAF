@@ -215,6 +215,17 @@ impl CustomerService {
         self.repo.find_updated_since(company_id, since).await
     }
 
+    /// Página do pull por keyset `(updated_at, id)`.
+    pub async fn find_updated_since_paged(
+        &self,
+        company_id: Uuid,
+        since: chrono::NaiveDateTime,
+        after_id: Uuid,
+        limit: i64,
+    ) -> Result<Vec<Customer>, CoreError> {
+        self.repo.find_updated_since_paged(company_id, since, after_id, limit).await
+    }
+
     /// Upsert de sincronização (§7.7 — last-write-wins).
     ///
     /// Regras aplicadas (AI_RULES.md §7.7, §11):

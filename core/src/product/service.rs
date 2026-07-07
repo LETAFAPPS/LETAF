@@ -536,6 +536,19 @@ impl ProductService {
         self.repo.find_stock_movements_updated_since(company_id, since).await
     }
 
+    /// Página do ledger de estoque por keyset `(updated_at, id)`.
+    pub async fn find_stock_movements_updated_since_paged(
+        &self,
+        company_id: Uuid,
+        since: chrono::NaiveDateTime,
+        after_id: uuid::Uuid,
+        limit: i64,
+    ) -> Result<Vec<StockMovement>, CoreError> {
+        self.repo
+            .find_stock_movements_updated_since_paged(company_id, since, after_id, limit)
+            .await
+    }
+
     /// Retorna apenas produtos ativos para exibição no catálogo público.
     ///
     /// Regras aplicadas (AI_RULES.md §3, §8):

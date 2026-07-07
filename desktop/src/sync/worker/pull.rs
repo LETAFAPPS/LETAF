@@ -31,6 +31,21 @@ use super::{PullCursor, SyncWorker};
 impl PullCursor for Product {
     fn pull_cursor(&self) -> (NaiveDateTime, uuid::Uuid) { (self.base.updated_at, self.base.id) }
 }
+impl PullCursor for Customer {
+    fn pull_cursor(&self) -> (NaiveDateTime, uuid::Uuid) { (self.base.updated_at, self.base.id) }
+}
+impl PullCursor for FinanceEntry {
+    fn pull_cursor(&self) -> (NaiveDateTime, uuid::Uuid) { (self.base.updated_at, self.base.id) }
+}
+impl PullCursor for CashMovement {
+    fn pull_cursor(&self) -> (NaiveDateTime, uuid::Uuid) { (self.base.updated_at, self.base.id) }
+}
+impl PullCursor for WalletMovement {
+    fn pull_cursor(&self) -> (NaiveDateTime, uuid::Uuid) { (self.base.updated_at, self.base.id) }
+}
+impl PullCursor for Order {
+    fn pull_cursor(&self) -> (NaiveDateTime, uuid::Uuid) { (self.base.updated_at, self.base.id) }
+}
 
 impl SyncWorker {
 
@@ -69,7 +84,7 @@ impl SyncWorker {
 
     /// Pull de clientes do servidor.
     pub(super) async fn pull_customers(&self, token: &str, since: NaiveDateTime, mut max_ts: NaiveDateTime) -> Result<NaiveDateTime, CoreError> {
-        let items: Vec<Customer> = self.fetch_pull(token, "/sync/pull/customers", since).await?;
+        let items: Vec<Customer> = self.fetch_pull_paged(token, "/sync/pull/customers", since).await?;
         let cid = self.state.company_id();
         for item in items {
             if item.base.updated_at > max_ts { max_ts = item.base.updated_at; }
@@ -135,7 +150,7 @@ impl SyncWorker {
     /// múltiplas vezes em rajada (vários pedidos novos no mesmo pull)
     /// é seguro: o som não duplica e o modal só abre uma vez.
     pub(super) async fn pull_orders(&self, token: &str, since: NaiveDateTime, mut max_ts: NaiveDateTime) -> Result<NaiveDateTime, CoreError> {
-        let items: Vec<Order> = self.fetch_pull(token, "/sync/pull/orders", since).await?;
+        let items: Vec<Order> = self.fetch_pull_paged(token, "/sync/pull/orders", since).await?;
         let cid = self.state.company_id();
         let mut any_new = false;
         for item in items {
@@ -215,7 +230,7 @@ impl SyncWorker {
     }
 
     pub(super) async fn pull_cash_movements(&self, token: &str, since: NaiveDateTime, mut max_ts: NaiveDateTime) -> Result<NaiveDateTime, CoreError> {
-        let items: Vec<CashMovement> = self.fetch_pull(token, "/sync/pull/cash-movements", since).await?;
+        let items: Vec<CashMovement> = self.fetch_pull_paged(token, "/sync/pull/cash-movements", since).await?;
         let cid = self.state.company_id();
         for item in items {
             if item.base.updated_at > max_ts { max_ts = item.base.updated_at; }
@@ -241,7 +256,7 @@ impl SyncWorker {
         &self, token: &str, since: NaiveDateTime, mut max_ts: NaiveDateTime,
     ) -> Result<NaiveDateTime, CoreError> {
         let items: Vec<FinanceEntry> =
-            self.fetch_pull(token, "/sync/pull/finance-entries", since).await?;
+            self.fetch_pull_paged(token, "/sync/pull/finance-entries", since).await?;
         let cid = self.state.company_id();
         for item in items {
             if item.base.updated_at > max_ts { max_ts = item.base.updated_at; }
@@ -267,7 +282,7 @@ impl SyncWorker {
         &self, token: &str, since: NaiveDateTime, mut max_ts: NaiveDateTime,
     ) -> Result<NaiveDateTime, CoreError> {
         let items: Vec<WalletMovement> =
-            self.fetch_pull(token, "/sync/pull/wallet-movements", since).await?;
+            self.fetch_pull_paged(token, "/sync/pull/wallet-movements", since).await?;
         let cid = self.state.company_id();
         for item in items {
             if item.base.updated_at > max_ts { max_ts = item.base.updated_at; }

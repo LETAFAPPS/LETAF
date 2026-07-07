@@ -62,5 +62,15 @@ pub trait FinanceRepository: Send + Sync {
         company_id: Uuid,
         since: NaiveDateTime,
     ) -> Result<Vec<FinanceEntry>, CoreError>;
+    /// Página do pull por keyset `(updated_at, id)` (default delega ao acima).
+    async fn find_updated_since_paged(
+        &self,
+        company_id: Uuid,
+        since: NaiveDateTime,
+        _after_id: Uuid,
+        _limit: i64,
+    ) -> Result<Vec<FinanceEntry>, CoreError> {
+        self.find_updated_since(company_id, since).await
+    }
     async fn sync_upsert(&self, entry: &FinanceEntry) -> Result<(), CoreError>;
 }
