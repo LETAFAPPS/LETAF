@@ -594,6 +594,16 @@ impl OrderService {
                     product.name, money::round2(expected), money::round2(item.unit_price)
                 )));
             }
+            // Regras de composição da variação (§11) — só no servidor
+            // (`addon_service` presente); o PDV desktop é operador confiável,
+            // igual à resolução de preço de adicional acima.
+            if self.addon_service.is_some() {
+                validate_required_variations(
+                    product.variations.as_deref(),
+                    &product.name,
+                    item.addons_json.as_deref(),
+                )?;
+            }
         }
         Ok(())
     }
@@ -687,6 +697,65 @@ fn parse_addons_total(addons_json: Option<&str>) -> Decimal {
         .sum()
 }
 
+/// Valida (servidor) que toda variação `required` do produto tem ao menos uma
+/// seleção no `addons_json`. CONSERVADOR (§11): só rejeita quando é possível
+/// afirmar sem ambiguidade que um grupo obrigatório ficou sem seleção. Uma
+/// seleção é atribuída ao grupo por `group`==título OU por `name` ∈ opções do
+/// grupo (mesma base por-nome que a verificação de preço já usa). Casos
+/// ambíguos (JSON malformado, grupo obrigatório sem opções) → aceita.
+fn validate_required_variations(
+    variations: Option<&str>,
+    product_name: &str,
+    addons_json: Option<&str>,
+) -> Result<(), CoreError> {
+    let Some(vs) = variations else { return Ok(()); };
+    let Ok(serde_json::Value::Array(groups)) =
+        serde_json::from_str::<serde_json::Value>(vs)
+    else {
+        return Ok(()); // JSON inválido: não é papel deste check punir.
+    };
+
+    // Seleções do cliente: (grupo opcional, nome).
+    let selections: Vec<(Option<String>, String)> = addons_json
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .and_then(|s| serde_json::from_str::<serde_json::Value>(s).ok())
+        .and_then(|v| v.as_array().cloned())
+        .unwrap_or_default()
+        .iter()
+        .filter_map(|sel| {
+            let name = sel.get("name").and_then(|n| n.as_str())?.to_string();
+            let group = sel.get("group").and_then(|g| g.as_str()).map(String::from);
+            Some((group, name))
+        })
+        .collect();
+
+    for g in &groups {
+        if !g.get("required").and_then(|r| r.as_bool()).unwrap_or(false) {
+            continue;
+        }
+        let Some(title) = g.get("title").and_then(|t| t.as_str()) else { continue };
+        let opt_names: std::collections::HashSet<&str> = g
+            .get("options")
+            .and_then(|o| o.as_array())
+            .map(|opts| opts.iter().filter_map(|o| o.get("name").and_then(|n| n.as_str())).collect())
+            .unwrap_or_default();
+        // Grupo obrigatório sem opções conhecidas: ambíguo → aceita.
+        if opt_names.is_empty() {
+            continue;
+        }
+        let satisfied = selections.iter().any(|(sel_group, sel_name)| {
+            sel_group.as_deref() == Some(title) || opt_names.contains(sel_name.as_str())
+        });
+        if !satisfied {
+            return Err(CoreError::Validation(format!(
+                "Selecione a opção obrigatória de '{title}' em '{product_name}'"
+            )));
+        }
+    }
+    Ok(())
+}
+
 /// Valida que a lista de itens não está vazia e cada item é válido.
 fn validate_items(items: &[OrderItemInput]) -> Result<(), CoreError> {
     if items.is_empty() {
@@ -744,4 +813,46 @@ fn build_items(company_id: Uuid, order_id: Uuid, inputs: &[OrderItemInput]) -> (
         item
     }).collect();
     (items, total)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::validate_required_variations;
+
+    // Produto com uma variação OBRIGATÓRIA "Sabor" (opções Calabresa/Frango)
+    // e uma NÃO-obrigatória "Borda".
+    const VARIATIONS: &str = r#"[
+        {"title":"Sabor","required":true,"options":[{"name":"Calabresa","price":"0.00"},{"name":"Frango","price":"2.00"}]},
+        {"title":"Borda","required":false,"options":[{"name":"Cheddar","price":"3.00"}]}
+    ]"#;
+
+    #[test]
+    fn rejeita_quando_obrigatoria_sem_selecao() {
+        // Sem addons_json → variação obrigatória não atendida.
+        assert!(validate_required_variations(Some(VARIATIONS), "Pizza", None).is_err());
+        // addons_json só com a borda (não-obrigatória) → falta o Sabor.
+        let only_borda = r#"[{"group":"Borda","name":"Cheddar","price":"3.00"}]"#;
+        assert!(validate_required_variations(Some(VARIATIONS), "Pizza", Some(only_borda)).is_err());
+    }
+
+    #[test]
+    fn aceita_com_selecao_por_grupo_ou_por_nome() {
+        // Schema novo (com "group").
+        let by_group = r#"[{"group":"Sabor","name":"Calabresa","price":"0.00"}]"#;
+        assert!(validate_required_variations(Some(VARIATIONS), "Pizza", Some(by_group)).is_ok());
+        // Schema legado (sem "group") → atribui pelo nome da opção.
+        let by_name = r#"[{"name":"Frango","price":"2.00"}]"#;
+        assert!(validate_required_variations(Some(VARIATIONS), "Pizza", Some(by_name)).is_ok());
+    }
+
+    #[test]
+    fn aceita_em_casos_ambiguos_ou_sem_obrigatoria() {
+        // Produto sem variações → nada a exigir.
+        assert!(validate_required_variations(None, "X", None).is_ok());
+        // JSON malformado → não pune.
+        assert!(validate_required_variations(Some("{lixo"), "X", None).is_ok());
+        // Variação obrigatória SEM opções conhecidas → ambíguo → aceita.
+        let no_opts = r#"[{"title":"Sabor","required":true,"options":[]}]"#;
+        assert!(validate_required_variations(Some(no_opts), "X", None).is_ok());
+    }
 }
