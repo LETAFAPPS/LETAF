@@ -213,7 +213,10 @@ fn parse_tiers_for_ui(json: &str) -> Vec<DiscountTierData> {
         .filter_map(|item| {
             let obj = item.as_object()?;
             let q = obj.get("min_qty")?.as_f64()?;
-            let val = obj.get("value")?.as_f64()?;
+            // Tolerante: valor número (legado) ou string decimal (novo).
+            let val = obj.get("value").and_then(|x| {
+                x.as_f64().or_else(|| x.as_str().and_then(|s| s.trim().parse().ok()))
+            })?;
             Some(DiscountTierData {
                 min_qty: SharedString::from(format_tier_number(q)),
                 value: SharedString::from(format_tier_number(val)),
@@ -250,7 +253,11 @@ pub(crate) fn ui_tiers_to_json(ui: &MainWindow) -> Option<String> {
     pairs.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
     let arr: Vec<serde_json::Value> = pairs
         .into_iter()
-        .map(|(q, v)| serde_json::json!({ "min_qty": q, "value": v }))
+        // `value` é dinheiro → string decimal; `min_qty` é quantidade (número).
+        .map(|(q, v)| serde_json::json!({
+            "min_qty": q,
+            "value": letaf_core::money::price_to_json_string(letaf_core::money::from_db_f64(v)),
+        }))
         .collect();
     serde_json::to_string(&serde_json::Value::Array(arr)).ok()
 }

@@ -152,6 +152,8 @@ fn ui_variations_json(ui: &MainWindow) -> Option<String> {
             let name = opt.name.trim().to_string();
             if name.is_empty() { continue; }
             let price = parse_decimal(&opt.price).unwrap_or(0.0).max(0.0);
+            // Preço gravado como STRING decimal (sem f64 no armazenamento, §13).
+            let price = letaf_core::money::price_to_json_string(letaf_core::money::from_db_f64(price));
             opts.push(serde_json::json!({ "name": name, "price": price }));
         }
         if opts.is_empty() { continue; }
@@ -203,7 +205,10 @@ pub(crate) fn parse_variations_for_ui(json: &str) -> Vec<VariationData> {
         let options: Vec<VariationOptionData> = options_arr.iter().filter_map(|opt| {
             let o = opt.as_object()?;
             let name = o.get("name")?.as_str()?.to_string();
-            let price = o.get("price")?.as_f64()?;
+            // Tolerante: preço número (legado) ou string decimal (novo).
+            let price = o.get("price").and_then(|p| {
+                p.as_f64().or_else(|| p.as_str().and_then(|s| s.trim().parse().ok()))
+            })?;
             Some(VariationOptionData {
                 name: SharedString::from(name),
                 price: SharedString::from(format_variation_price(price)),

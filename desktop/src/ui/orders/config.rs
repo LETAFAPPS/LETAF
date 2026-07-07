@@ -565,7 +565,7 @@ pub(crate) fn setup_config_confirm(ui: &MainWindow) {
                 }
                 if let Some((n, p)) = winner {
                     extras += p;
-                    snapshot.push(serde_json::json!({ "group": title.clone(), "name": n, "price": p }));
+                    snapshot.push(serde_json::json!({ "group": title.clone(), "name": n, "price": letaf_core::money::price_to_json_string(letaf_core::money::from_db_f64(p)) }));
                 }
             } else {
                 for oi in 0..opts.row_count() {
@@ -573,7 +573,7 @@ pub(crate) fn setup_config_confirm(ui: &MainWindow) {
                     if o.selected {
                         let p = o.price as f64;
                         extras += p;
-                        snapshot.push(serde_json::json!({ "group": title.clone(), "name": o.name.to_string(), "price": p }));
+                        snapshot.push(serde_json::json!({ "group": title.clone(), "name": o.name.to_string(), "price": letaf_core::money::price_to_json_string(letaf_core::money::from_db_f64(p)) }));
                     }
                 }
             }
@@ -588,7 +588,7 @@ pub(crate) fn setup_config_confirm(ui: &MainWindow) {
                 if a.selected {
                     let p = a.price as f64;
                     extras += p;
-                    snapshot.push(serde_json::json!({ "group": group_name.clone(), "name": a.name.to_string(), "price": p }));
+                    snapshot.push(serde_json::json!({ "group": group_name.clone(), "name": a.name.to_string(), "price": letaf_core::money::price_to_json_string(letaf_core::money::from_db_f64(p)) }));
                 }
             }
         }

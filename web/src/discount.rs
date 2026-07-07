@@ -23,7 +23,10 @@ fn parse_tiers(json: &str) -> Vec<BulkTier> {
         .filter_map(|v| {
             let obj = v.as_object()?;
             let min_qty = obj.get("min_qty").and_then(|x| x.as_f64())?;
-            let value = obj.get("value").and_then(|x| x.as_f64())?;
+            // Tolerante: valor número (legado) ou string decimal (novo formato).
+            let value = obj
+                .get("value")
+                .and_then(|x| x.as_f64().or_else(|| x.as_str().and_then(|s| s.trim().parse().ok())))?;
             if min_qty <= 0.0 {
                 return None;
             }

@@ -3,8 +3,34 @@
 //! para centavos e a limpeza do `f64` do cache local (desktop).
 
 use rust_decimal_macros::dec;
+use serde_json::json;
 
-use letaf_core::money::{from_db_f64, qty, round2, to_cents};
+use letaf_core::money::{from_db_f64, price_from_json, price_to_json_string, qty, round2, to_cents};
+
+#[test]
+fn price_from_json_aceita_numero_e_string_exato() {
+    // Número (legado) e string decimal (novo) → mesmo Decimal, exato em 2 casas.
+    assert_eq!(price_from_json(&json!(39.90)), Some(dec!(39.90)));
+    assert_eq!(price_from_json(&json!("39.90")), Some(dec!(39.90)));
+    // f64 ruidoso (ex.: 0.1+0.2) arredonda a 2 casas.
+    assert_eq!(price_from_json(&json!(0.30000000000000004)), Some(dec!(0.30)));
+    // String é a fonte exata (sem passar por f64).
+    assert_eq!(price_from_json(&json!("6.50")), Some(dec!(6.50)));
+    // Inválidos.
+    assert_eq!(price_from_json(&json!("abc")), None);
+    assert_eq!(price_from_json(&json!(null)), None);
+}
+
+#[test]
+fn price_to_json_string_canonica_2_casas() {
+    assert_eq!(price_to_json_string(dec!(39.9)), "39.90");
+    assert_eq!(price_to_json_string(dec!(6.5)), "6.50");
+    assert_eq!(price_to_json_string(dec!(0)), "0.00");
+    // Round-trip exato para vários valores.
+    for v in [dec!(12.34), dec!(0), dec!(100), dec!(0.05)] {
+        assert_eq!(price_from_json(&json!(price_to_json_string(v))), Some(v));
+    }
+}
 
 #[test]
 fn round2_half_up_away_from_zero() {

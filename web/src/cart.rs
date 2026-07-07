@@ -58,7 +58,8 @@ impl CartItem {
         let arr: Vec<serde_json::Value> = self
             .addons
             .iter()
-            .map(|a| serde_json::json!({ "name": a.name, "price": a.price }))
+            // Preço como string decimal (2 casas) — sem f64 no JSON gravado.
+            .map(|a| serde_json::json!({ "name": a.name, "price": format!("{:.2}", a.price) }))
             .collect();
         serde_json::to_string(&serde_json::Value::Array(arr)).ok()
     }

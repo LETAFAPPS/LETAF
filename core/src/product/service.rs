@@ -320,7 +320,7 @@ impl ProductService {
             let q = obj.get("min_qty").and_then(|v| v.as_f64()).ok_or_else(|| {
                 CoreError::Validation(format!("discount_tiers[{idx}].min_qty missing"))
             })?;
-            let v = obj.get("value").and_then(|x| x.as_f64()).and_then(rust_decimal::prelude::FromPrimitive::from_f64).ok_or_else(|| {
+            let v = obj.get("value").and_then(crate::money::price_from_json).ok_or_else(|| {
                 CoreError::Validation(format!("discount_tiers[{idx}].value missing"))
             })?;
             if q <= 0.0 {
@@ -442,11 +442,11 @@ impl ProductService {
                         "variations[{idx}].options[{opt_idx}].name is required"
                     )));
                 }
-                let opt_price = opt_obj.get("price").and_then(|v| v.as_f64())
+                let opt_price = opt_obj.get("price").and_then(crate::money::price_from_json)
                     .ok_or_else(|| CoreError::Validation(format!(
                         "variations[{idx}].options[{opt_idx}].price is required"
                     )))?;
-                if opt_price < 0.0 {
+                if opt_price < Decimal::ZERO {
                     return Err(CoreError::Validation(format!(
                         "variations[{idx}].options[{opt_idx}].price cannot be negative"
                     )));

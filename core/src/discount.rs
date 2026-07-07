@@ -6,7 +6,6 @@
 //! - Desconto incide só sobre o preço base; adicionais somam depois.
 //! - Dinheiro em `Decimal` (exato); quantidades seguem `f64`.
 
-use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::Decimal;
 use rust_decimal_macros::dec;
 
@@ -54,7 +53,7 @@ fn winning_tier_from_json(json: &str, quantity: f64) -> Option<Decimal> {
     let mut tiers: Vec<(f64, Decimal)> = arr.iter()
         .filter_map(|v| {
             let q = v.get("min_qty")?.as_f64()?;
-            let val = v.get("value")?.as_f64().and_then(Decimal::from_f64).map(crate::money::round2)?;
+            let val = crate::money::price_from_json(v.get("value")?)?;
             if q <= 0.0 { return None; }
             Some((q, val))
         })

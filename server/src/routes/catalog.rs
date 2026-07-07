@@ -423,7 +423,8 @@ fn parse_variations(raw: Option<&str>) -> Vec<CatalogVariation> {
         let options: Vec<CatalogVariationOption> = options_arr.iter().filter_map(|opt| {
             let o = opt.as_object()?;
             let name = o.get("name")?.as_str()?.to_string();
-            let price = o.get("price")?.as_f64()?;
+            // Tolerante a preço número (legado) ou string decimal (novo formato).
+            let price = letaf_core::money::price_from_json(o.get("price")?)?.to_f64()?;
             Some(CatalogVariationOption { name, price })
         }).collect();
         if options.is_empty() { return None; }
