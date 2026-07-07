@@ -78,6 +78,23 @@ pub trait OrderRepository: Send + Sync {
     /// - Marca synced = false para replicação.
     async fn cancel(&self, company_id: Uuid, id: Uuid, reason: &str) -> Result<(), CoreError>;
 
+    /// Cancela o pedido E restitui o estoque dos itens na MESMA transação
+    /// (AI_RULES.md §4, §7.6 — sem janela de estoque-fantasma se o processo
+    /// cair entre o cancelamento e a restituição).
+    ///
+    /// `restitutions` = `(product_id, quantidade_a_devolver)`, uma entrada por
+    /// item. Produtos com `unlimited_stock` ou já excluídos são pulados sem
+    /// erro (não há o que restituir) — o cancelamento nunca falha por causa do
+    /// estoque. Cada restituição efetivada grava um `StockMovement` (+delta,
+    /// razão "cancel") no ledger para propagar via sync idempotente.
+    async fn cancel_atomic(
+        &self,
+        company_id: Uuid,
+        id: Uuid,
+        reason: &str,
+        restitutions: &[(Uuid, f64)],
+    ) -> Result<(), CoreError>;
+
     /// Soft delete do pedido (e seus itens).
     async fn soft_delete(&self, company_id: Uuid, id: Uuid) -> Result<(), CoreError>;
 

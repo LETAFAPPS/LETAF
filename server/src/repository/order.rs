@@ -495,6 +495,55 @@ impl OrderRepository for PgOrderRepository {
         Ok(())
     }
 
+    async fn cancel_atomic(
+        &self,
+        company_id: Uuid,
+        id: Uuid,
+        reason: &str,
+        restitutions: &[(Uuid, f64)],
+    ) -> Result<(), CoreError> {
+        let now = chrono::Utc::now().naive_utc();
+        let mut tx = self.pool.begin().await.map_err(map_db)?;
+
+        sqlx::query(
+            "UPDATE orders SET status = 'cancelled', cancellation_reason = $1, updated_at = $2, synced = false
+             WHERE company_id = $3 AND id = $4 AND deleted_at IS NULL",
+        )
+        .bind(reason)
+        .bind(now)
+        .bind(company_id)
+        .bind(id)
+        .execute(&mut *tx)
+        .await
+        .map_err(map_db)?;
+
+        // Restitui o estoque (+qty). Produto ilimitado/excluído → rows=0 →
+        // pula sem erro (nada a devolver); o cancelamento não falha por isso.
+        for (product_id, qty) in restitutions {
+            let rows = sqlx::query(
+                "UPDATE products
+                    SET stock_quantity = stock_quantity + $1, updated_at = $2, synced = false
+                  WHERE company_id = $3 AND id = $4 AND deleted_at IS NULL
+                    AND unlimited_stock = false",
+            )
+            .bind(qty)
+            .bind(now)
+            .bind(company_id)
+            .bind(product_id)
+            .execute(&mut *tx)
+            .await
+            .map_err(map_db)?
+            .rows_affected();
+            if rows > 0 {
+                insert_stock_movement(&mut tx, company_id, *product_id, *qty, "cancel", Some(id), now)
+                    .await?;
+            }
+        }
+
+        tx.commit().await.map_err(map_db)?;
+        Ok(())
+    }
+
     async fn soft_delete(&self, company_id: Uuid, id: Uuid) -> Result<(), CoreError> {
         let now = chrono::Utc::now().naive_utc();
         let mut tx = self.pool.begin().await.map_err(map_db)?;

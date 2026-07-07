@@ -338,6 +338,55 @@ impl OrderRepository for SqliteOrderRepository {
         Ok(())
     }
 
+    async fn cancel_atomic(
+        &self,
+        company_id: Uuid,
+        id: Uuid,
+        reason: &str,
+        restitutions: &[(Uuid, f64)],
+    ) -> Result<(), CoreError> {
+        let now = ts(chrono::Utc::now().naive_utc());
+        let mut tx = self.pool.begin().await.map_err(map_db)?;
+
+        sqlx::query(
+            "UPDATE orders SET status = 'cancelled', cancellation_reason = ?1, updated_at = ?2, synced = false
+             WHERE company_id = ?3 AND id = ?4 AND deleted_at IS NULL",
+        )
+        .bind(reason)
+        .bind(&now)
+        .bind(company_id.to_string())
+        .bind(id.to_string())
+        .execute(&mut *tx)
+        .await
+        .map_err(map_db)?;
+
+        // Restitui o estoque (+qty). Produto ilimitado/excluído → rows=0 →
+        // pula sem erro; o cancelamento não falha por causa do estoque.
+        for (product_id, qty) in restitutions {
+            let rows = sqlx::query(
+                "UPDATE products
+                    SET stock_quantity = stock_quantity + ?1, updated_at = ?2, synced = 0
+                  WHERE company_id = ?3 AND id = ?4 AND deleted_at IS NULL
+                    AND unlimited_stock = 0",
+            )
+            .bind(qty)
+            .bind(&now)
+            .bind(company_id.to_string())
+            .bind(product_id.to_string())
+            .execute(&mut *tx)
+            .await
+            .map_err(map_db)?
+            .rows_affected();
+            if rows > 0 {
+                insert_stock_movement(&mut tx, company_id, *product_id, *qty, "cancel", Some(id), &now)
+                    .await?;
+            }
+        }
+
+        tx.commit().await.map_err(map_db)?;
+        Ok(())
+    }
+
     async fn soft_delete(&self, company_id: Uuid, id: Uuid) -> Result<(), CoreError> {
         let now = ts(chrono::Utc::now().naive_utc());
         let mut tx = self.pool.begin().await.map_err(map_db)?;
@@ -672,5 +721,81 @@ impl TryFrom<OrderItemRow> for OrderItem {
             notes: r.notes,
             addons_json: r.addons_json,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use sqlx::sqlite::SqlitePoolOptions;
+
+    async fn mem_pool() -> SqlitePool {
+        let pool = SqlitePoolOptions::new()
+            .max_connections(1)
+            .connect("sqlite::memory:")
+            .await
+            .unwrap();
+        sqlx::migrate!("./migrations").run(&pool).await.unwrap();
+        pool
+    }
+
+    async fn insert_product(pool: &SqlitePool, cid: Uuid, id: Uuid, stock: f64, unlimited: bool) {
+        sqlx::query(
+            "INSERT INTO products (id, company_id, name, price, stock_quantity, min_stock, \
+             unlimited_stock, unit, created_at, updated_at, synced, active, web_visible, balance_mode) \
+             VALUES (?1, ?2, 'P', NULL, ?3, 0, ?4, 'un', '2026-01-01 00:00:00.000000', \
+             '2026-01-01 00:00:00.000000', 1, 1, 1, 'weight')",
+        )
+        .bind(id.to_string())
+        .bind(cid.to_string())
+        .bind(stock)
+        .bind(unlimited)
+        .execute(pool)
+        .await
+        .unwrap();
+    }
+
+    async fn stock_and_movements(pool: &SqlitePool, id: Uuid) -> (f64, i64) {
+        let stock: f64 = sqlx::query_scalar("SELECT stock_quantity FROM products WHERE id = ?1")
+            .bind(id.to_string())
+            .fetch_one(pool)
+            .await
+            .unwrap();
+        let mv: i64 = sqlx::query_scalar(
+            "SELECT COUNT(*) FROM stock_movements WHERE product_id = ?1 AND reason = 'cancel'",
+        )
+        .bind(id.to_string())
+        .fetch_one(pool)
+        .await
+        .unwrap();
+        (stock, mv)
+    }
+
+    /// cancel_atomic restitui o estoque e grava um StockMovement de devolução
+    /// — tudo na mesma transação (§4, §7.6).
+    #[tokio::test]
+    async fn cancel_atomic_restitui_estoque_e_grava_movimento() {
+        let (cid, pid) = (Uuid::new_v4(), Uuid::new_v4());
+        let pool = mem_pool().await;
+        insert_product(&pool, cid, pid, 3.0, false).await;
+        let repo = SqliteOrderRepository::new(pool.clone());
+        repo.cancel_atomic(cid, Uuid::new_v4(), "cliente desistiu", &[(pid, 2.0)])
+            .await
+            .unwrap();
+        assert_eq!(stock_and_movements(&pool, pid).await, (5.0, 1), "estoque 3+2 e 1 movimento");
+    }
+
+    /// Produto ilimitado não é restituído (não rastreia estoque) — sem
+    /// movimento, sem erro.
+    #[tokio::test]
+    async fn cancel_atomic_pula_produto_ilimitado() {
+        let (cid, pid) = (Uuid::new_v4(), Uuid::new_v4());
+        let pool = mem_pool().await;
+        insert_product(&pool, cid, pid, 0.0, true).await;
+        let repo = SqliteOrderRepository::new(pool.clone());
+        repo.cancel_atomic(cid, Uuid::new_v4(), "motivo", &[(pid, 2.0)])
+            .await
+            .unwrap();
+        assert_eq!(stock_and_movements(&pool, pid).await, (0.0, 0), "ilimitado: sem restituição");
     }
 }

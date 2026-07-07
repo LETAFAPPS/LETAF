@@ -497,21 +497,16 @@ impl OrderService {
             }
             _ => {}
         }
-        self.repo.cancel(company_id, id, trimmed).await?;
-        // Restitui o estoque dos itens. Falha aqui (produto deletado,
-        // por exemplo) não reverte o cancelamento — mas precisamos
-        // deixar rastro: estoque fantasma silencioso é dado perdido
-        // (AI_RULES.md §7.6 — nenhum dado pode ser perdido).
-        for item in &order.items {
-            if let Err(e) = self.product_service
-                .adjust_stock(company_id, item.product_id, item.quantity).await
-            {
-                tracing::warn!(
-                    "Cancel order {}: stock restore failed for product {} (+{}): {}",
-                    id, item.product_id, item.quantity, e
-                );
-            }
-        }
+        // Cancela E restitui o estoque na MESMA transação (§4, §7.6): sem
+        // janela de estoque-fantasma se o processo cair no meio. Produtos
+        // ilimitados/excluídos são pulados pelo repo (o cancel não falha por
+        // estoque). O ledger idempotente propaga a devolução via sync.
+        let restitutions: Vec<(Uuid, f64)> = order
+            .items
+            .iter()
+            .map(|item| (item.product_id, item.quantity))
+            .collect();
+        self.repo.cancel_atomic(company_id, id, trimmed, &restitutions).await?;
         self.repo.find_by_id(company_id, id).await?
             .ok_or_else(|| CoreError::NotFound("Order not found".into()))
     }
