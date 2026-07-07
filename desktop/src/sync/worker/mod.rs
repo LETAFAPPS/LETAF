@@ -18,6 +18,17 @@ const SYNC_INTERVAL_SECS: u64 = 30;
 /// de todas as entidades. Com intervalo de 30s, N=10 ≈ a cada 5 min.
 const RECONCILE_EVERY_N_CYCLES: u64 = 10;
 
+/// Tamanho da página do pull paginado (keyset). Abaixo do teto do servidor
+/// (`MAX_PAGE_LIMIT=1000`) — margem para não ser cortado.
+const PULL_PAGE_LIMIT: i64 = 500;
+
+/// Expõe o cursor keyset `(updated_at, id)` de um item puxado, para o
+/// `fetch_pull_paged` avançar a paginação. Implementado pelos tipos das
+/// entidades grandes (produtos, pedidos, ledgers).
+pub(super) trait PullCursor {
+    fn pull_cursor(&self) -> (NaiveDateTime, Uuid);
+}
+
 /// Worker de sincronização em background.
 ///
 /// Regras aplicadas (AI_RULES.md §7):
@@ -425,7 +436,57 @@ impl SyncWorker {
         since: NaiveDateTime,
     ) -> Result<Vec<T>, CoreError> {
         let url = format!("{}{}?since={}", self.server_url, endpoint, since.format("%Y-%m-%dT%H:%M:%S%.f"));
-        let resp = self.http.get(&url)
+        self.get_pull_page(token, endpoint, &url).await
+    }
+
+    /// Pull PAGINADO por keyset `(updated_at, id)` — para entidades que crescem
+    /// (ledgers, pedidos, produtos): puxa em páginas de até `PULL_PAGE_LIMIT`,
+    /// evitando estourar o timeout HTTP num único GET gigante (§7, §13). O
+    /// servidor ordena por `(updated_at, id)`; avançamos o cursor pelo ÚLTIMO
+    /// item da página até vir uma página incompleta. `sync_upsert` é idempotente,
+    /// então mesmo um reprocessamento de borda é seguro.
+    async fn fetch_pull_paged<T: DeserializeOwned + PullCursor>(
+        &self,
+        token: &str,
+        endpoint: &str,
+        since: NaiveDateTime,
+    ) -> Result<Vec<T>, CoreError> {
+        let mut all: Vec<T> = Vec::new();
+        let mut cur_ts = since;
+        let mut cur_id = Uuid::nil();
+        loop {
+            let url = format!(
+                "{}{}?since={}&after_id={}&limit={}",
+                self.server_url,
+                endpoint,
+                cur_ts.format("%Y-%m-%dT%H:%M:%S%.f"),
+                cur_id,
+                PULL_PAGE_LIMIT,
+            );
+            let page: Vec<T> = self.get_pull_page(token, endpoint, &url).await?;
+            let full = page.len() as i64 >= PULL_PAGE_LIMIT;
+            if let Some(last) = page.last() {
+                let (ts, id) = last.pull_cursor();
+                cur_ts = ts;
+                cur_id = id;
+            }
+            all.extend(page);
+            if !full {
+                break;
+            }
+        }
+        Ok(all)
+    }
+
+    /// GET de uma página do pull (envio + tratamento de status + decode).
+    /// Base compartilhada por `fetch_pull` (tiro único) e `fetch_pull_paged`.
+    async fn get_pull_page<T: DeserializeOwned>(
+        &self,
+        token: &str,
+        endpoint: &str,
+        url: &str,
+    ) -> Result<Vec<T>, CoreError> {
+        let resp = self.http.get(url)
             .bearer_auth(token)
             .send()
             .await

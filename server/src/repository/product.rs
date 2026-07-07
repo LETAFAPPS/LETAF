@@ -406,6 +406,33 @@ impl ProductRepository for PgProductRepository {
         Ok(products)
     }
 
+    async fn find_updated_since_paged(
+        &self,
+        company_id: Uuid,
+        since: NaiveDateTime,
+        after_id: Uuid,
+        limit: i64,
+    ) -> Result<Vec<Product>, CoreError> {
+        let rows = sqlx::query_as::<_, ProductRow>(
+            "SELECT * FROM products
+              WHERE company_id = $1
+                AND (updated_at > $2 OR (updated_at = $2 AND id > $3))
+              ORDER BY updated_at ASC, id ASC
+              LIMIT $4",
+        )
+        .bind(company_id)
+        .bind(since)
+        .bind(after_id)
+        .bind(limit)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(map_db)?;
+
+        let mut products: Vec<Product> = rows.into_iter().map(Product::from).collect();
+        self.hydrate_addon_group_ids(company_id, &mut products).await?;
+        Ok(products)
+    }
+
     async fn find_addon_group_ids(&self, company_id: Uuid, product_id: Uuid) -> Result<Vec<Uuid>, CoreError> {
         let rows: Vec<(Uuid,)> = sqlx::query_as(
             "SELECT group_id FROM product_addon_groups

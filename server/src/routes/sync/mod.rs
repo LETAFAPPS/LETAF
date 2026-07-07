@@ -8,6 +8,7 @@
 use axum::{routing::{get, post}, Router};
 use chrono::NaiveDateTime;
 use serde::Deserialize;
+use uuid::Uuid;
 
 use crate::context::AppState;
 
@@ -23,11 +24,33 @@ use customers::*;
 use finance::*;
 use orders::*;
 
-/// Parâmetro de query para pull: `?since=2024-01-01T00:00:00`.
+/// Parâmetro de query para pull: `?since=2024-01-01T00:00:00`. Para endpoints
+/// paginados, o cliente também envia `&after_id=<uuid>&limit=<n>` (keyset).
 #[derive(Deserialize)]
 pub(crate) struct PullQuery {
     #[serde(default = "default_since")]
     pub(crate) since: NaiveDateTime,
+    /// Componente `id` do cursor keyset (desempate de `updated_at` iguais).
+    #[serde(default)]
+    pub(crate) after_id: Option<Uuid>,
+    /// Tamanho da página pedido pelo cliente (limitado por `MAX_PAGE_LIMIT`).
+    #[serde(default)]
+    pub(crate) limit: Option<i64>,
+}
+
+/// Teto de linhas por página do pull — protege o servidor de um `limit`
+/// abusivo vindo do cliente.
+const MAX_PAGE_LIMIT: i64 = 1000;
+
+impl PullQuery {
+    /// `after_id` do cursor (nil quando ausente = início).
+    pub(crate) fn after_id(&self) -> Uuid {
+        self.after_id.unwrap_or_else(Uuid::nil)
+    }
+    /// Tamanho de página efetivo, sempre em `[1, MAX_PAGE_LIMIT]`.
+    pub(crate) fn page_limit(&self) -> i64 {
+        self.limit.unwrap_or(MAX_PAGE_LIMIT).clamp(1, MAX_PAGE_LIMIT)
+    }
 }
 
 fn default_since() -> NaiveDateTime {

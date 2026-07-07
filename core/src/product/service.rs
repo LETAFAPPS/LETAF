@@ -482,6 +482,20 @@ impl ProductService {
         self.repo.find_updated_since(company_id, since).await
     }
 
+    /// Página do pull por keyset `(updated_at, id)` — ver
+    /// [`ProductRepository::find_updated_since_paged`].
+    pub async fn find_updated_since_paged(
+        &self,
+        company_id: Uuid,
+        since: chrono::NaiveDateTime,
+        after_id: uuid::Uuid,
+        limit: i64,
+    ) -> Result<Vec<Product>, CoreError> {
+        self.repo
+            .find_updated_since_paged(company_id, since, after_id, limit)
+            .await
+    }
+
     // ── Movimentos de estoque (ledger — §7) ──
     /// Movimentos pendentes de push.
     pub async fn find_unsynced_stock_movements(

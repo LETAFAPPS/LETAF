@@ -33,6 +33,21 @@ pub trait ProductRepository: Send + Sync {
     /// Busca entidades atualizadas após o timestamp (§7 — sync pull).
     async fn find_updated_since(&self, company_id: Uuid, since: NaiveDateTime) -> Result<Vec<Product>, CoreError>;
 
+    /// Página do pull por KEYSET `(updated_at, id)` (§7, §13): no máximo `limit`
+    /// linhas com `(updated_at, id) > (since, after_id)`, ordenadas por
+    /// `(updated_at, id)`. Permite paginar bases grandes sem estourar timeout/
+    /// memória. Default: delega a `find_updated_since` (sem paginar) — só as
+    /// impls que precisam (Postgres) sobrescrevem.
+    async fn find_updated_since_paged(
+        &self,
+        company_id: Uuid,
+        since: NaiveDateTime,
+        _after_id: Uuid,
+        _limit: i64,
+    ) -> Result<Vec<Product>, CoreError> {
+        self.find_updated_since(company_id, since).await
+    }
+
     /// Retorna apenas produtos ativos E visíveis na web — catálogo público.
     /// Filtros aplicados: active = true AND web_visible = true AND deleted_at IS NULL.
     async fn find_active(&self, company_id: Uuid) -> Result<Vec<Product>, CoreError>;
