@@ -1,12 +1,15 @@
-use axum::extract::State;
+use axum::extract::{Path, State};
 use rust_decimal::prelude::{FromPrimitive, ToPrimitive};
 use rust_decimal::Decimal;
+use axum::http::{header, HeaderValue, StatusCode};
+use axum::response::{IntoResponse, Response};
 use axum::{routing::get, Json, Router};
 use serde::Serialize;
 use uuid::Uuid;
 
 use crate::context::AppState;
 use crate::error::ServerError;
+use crate::media::{decode_image, IMMUTABLE_CACHE};
 use crate::middleware::tenant::TenantContext;
 
 /// Rotas públicas do catálogo (cardápio digital).
@@ -25,6 +28,91 @@ pub fn routes() -> Router<AppState> {
         .route("/catalog/banners", get(list_banners))
         .route("/catalog/coupons/validate", get(validate_coupon))
         .route("/catalog/info", get(get_info))
+        // Mídia pública servida como bytes (não base64 inline) — HTML enxuto,
+        // cache longo, tenant pelo Host. Requer que o proxy roteie
+        // `/catalog/*` para a API (mesmo bloco dos demais /catalog).
+        .route("/catalog/media/product/{id}", get(media_product))
+        .route("/catalog/media/banner/{id}", get(media_banner))
+        .route("/catalog/media/logo", get(media_logo))
+        .route("/catalog/media/cover", get(media_cover))
+}
+
+/// Constrói a resposta de mídia: bytes decodificados + Content-Type +
+/// cache imutável. Imagem ausente/base64 inválido → 404.
+fn media_response(data: Option<String>) -> Response {
+    match data.as_deref().and_then(decode_image) {
+        Some((bytes, mime)) => {
+            let mut resp = bytes.into_response();
+            let headers = resp.headers_mut();
+            headers.insert(header::CONTENT_TYPE, HeaderValue::from_static(mime));
+            headers.insert(header::CACHE_CONTROL, HeaderValue::from_static(IMMUTABLE_CACHE));
+            resp
+        }
+        None => StatusCode::NOT_FOUND.into_response(),
+    }
+}
+
+/// GET /catalog/media/product/{id} — imagem do produto (público, tenant por Host).
+async fn media_product(
+    State(state): State<AppState>,
+    tenant: TenantContext,
+    Path(id): Path<Uuid>,
+) -> Response {
+    let data = state
+        .product_service
+        .find_by_id(tenant.company_id, id)
+        .await
+        .ok()
+        .flatten()
+        .and_then(|p| p.image_data);
+    media_response(data)
+}
+
+/// GET /catalog/media/banner/{id} — imagem do banner.
+async fn media_banner(
+    State(state): State<AppState>,
+    tenant: TenantContext,
+    Path(id): Path<Uuid>,
+) -> Response {
+    let data = state
+        .banner_service
+        .find_by_id(tenant.company_id, id)
+        .await
+        .ok()
+        .flatten()
+        .map(|b| b.image_data);
+    media_response(data)
+}
+
+/// GET /catalog/media/logo — logotipo da empresa.
+async fn media_logo(State(state): State<AppState>, tenant: TenantContext) -> Response {
+    let data = state
+        .company_service
+        .find_by_id(tenant.company_id)
+        .await
+        .ok()
+        .flatten()
+        .and_then(|c| c.logo_data);
+    media_response(data)
+}
+
+/// GET /catalog/media/cover — capa da empresa.
+async fn media_cover(State(state): State<AppState>, tenant: TenantContext) -> Response {
+    let data = state
+        .company_service
+        .find_by_id(tenant.company_id)
+        .await
+        .ok()
+        .flatten()
+        .and_then(|c| c.cover_data);
+    media_response(data)
+}
+
+/// Monta a URL relativa de mídia com cache-busting por `updated_at` (epoch).
+/// Relativa de propósito: o navegador resolve contra o subdomínio do tenant,
+/// e a API resolve a empresa pelo Host — sem base absoluta nem company_id.
+fn media_url(path: &str, updated_at: chrono::NaiveDateTime) -> String {
+    format!("/catalog/media/{path}?v={}", updated_at.and_utc().timestamp())
 }
 
 /// Resposta de pré-validação de cupom (carrinho web). É só uma
@@ -88,8 +176,10 @@ async fn validate_coupon(
 #[derive(Serialize)]
 struct CatalogInfo {
     name: String,
-    logo_data: Option<String>,
-    cover_data: Option<String>,
+    /// URL relativa da mídia (não mais base64 inline) — `None` quando não há
+    /// logo/capa cadastrada.
+    logo_url: Option<String>,
+    cover_url: Option<String>,
     address: Option<String>,
     phone: Option<String>,
 }
@@ -111,7 +201,9 @@ struct CatalogProduct {
     unlimited_stock: bool,
     category_id: Option<Uuid>,
     subcategory_id: Option<Uuid>,
-    image_data: Option<String>,
+    /// URL relativa da imagem (`/catalog/media/product/{id}?v=...`) ou `None`
+    /// quando o produto não tem imagem. Substitui o base64 inline (SEO/LCP).
+    image_url: Option<String>,
     /// Cor de fundo detectada nas bordas da imagem do produto (`#RRGGBB`).
     /// `None` quando a imagem é transparente ou indetectável — a UI cai no
     /// fundo padrão do tema (igual ao placeholder).
@@ -224,10 +316,11 @@ async fn get_info(
     let company = state.company_service
         .find_by_id(tenant.company_id).await?
         .ok_or_else(|| ServerError::Core(letaf_core::error::CoreError::NotFound("Company not found".into())))?;
+    let v = company.updated_at;
     Ok(Json(CatalogInfo {
         name: company.name,
-        logo_data: company.logo_data,
-        cover_data: company.cover_data,
+        logo_url: company.logo_data.as_ref().map(|_| media_url("logo", v)),
+        cover_url: company.cover_data.as_ref().map(|_| media_url("cover", v)),
         address: company.address,
         phone: company.phone,
     }))
@@ -274,6 +367,10 @@ async fn list_products(
                 addons: addons_by_group.get(&g.base.id).cloned().unwrap_or_default(),
             })
             .collect();
+        let image_url = p
+            .image_data
+            .as_ref()
+            .map(|_| media_url(&format!("product/{}", p.base.id), p.base.updated_at));
         catalog.push(CatalogProduct {
             id: p.base.id,
             name: p.name,
@@ -284,7 +381,7 @@ async fn list_products(
             unlimited_stock: p.unlimited_stock,
             category_id: p.category_id,
             subcategory_id: p.subcategory_id,
-            image_data: p.image_data,
+            image_url,
             cover_color: p.cover_color,
             availability_schedule: p.availability_schedule,
             discount_kind: p.discount_kind,
@@ -408,7 +505,8 @@ async fn list_category_icons() -> Json<Vec<CatalogCategoryIcon>> {
 struct CatalogBanner {
     id: Uuid,
     title: String,
-    image_data: String,
+    /// URL relativa da imagem do banner (não base64 inline).
+    image_url: String,
     item_type: String,
     item_id: Option<Uuid>,
     item_url: Option<String>,
@@ -425,9 +523,9 @@ async fn list_banners(
     let catalog: Vec<CatalogBanner> = items
         .into_iter()
         .map(|b| CatalogBanner {
+            image_url: media_url(&format!("banner/{}", b.base.id), b.base.updated_at),
             id: b.base.id,
             title: b.title,
-            image_data: b.image_data,
             item_type: b.item_type,
             item_id: b.item_id,
             item_url: b.item_url,

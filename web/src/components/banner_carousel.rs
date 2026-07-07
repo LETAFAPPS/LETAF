@@ -3,7 +3,6 @@ use std::time::Duration;
 use leptos::prelude::*;
 
 use crate::api::CatalogBanner;
-use crate::format;
 
 const ROTATE: Duration = Duration::from_millis(5000);
 
@@ -38,7 +37,7 @@ pub fn BannerCarousel(banners: Vec<CatalogBanner>) -> impl IntoView {
                 )
             >
                 {banners.into_iter().map(|b| {
-                    let src = format::image_data_url(&b.image_data);
+                    let src = b.image_url.clone();
                     let title = b.title.clone();
                     let url = (b.item_type == "url").then_some(b.item_url).flatten();
                     match url {

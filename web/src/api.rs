@@ -10,10 +10,11 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct CatalogInfo {
     pub name: String,
+    /// URL relativa da mídia servida pela API (`/catalog/media/...`).
     #[serde(default)]
-    pub logo_data: Option<String>,
+    pub logo_url: Option<String>,
     #[serde(default)]
-    pub cover_data: Option<String>,
+    pub cover_url: Option<String>,
     #[serde(default)]
     pub address: Option<String>,
     #[serde(default)]
@@ -35,7 +36,7 @@ pub struct CatalogCategory {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct CatalogBanner {
     pub title: String,
-    pub image_data: String,
+    pub image_url: String,
     #[serde(default)]
     pub item_type: String,
     #[serde(default)]
@@ -94,8 +95,9 @@ pub struct CatalogProduct {
     pub description: Option<String>,
     #[serde(default)]
     pub price: Option<f64>,
+    /// URL relativa da imagem (`/catalog/media/product/{id}?v=...`).
     #[serde(default)]
-    pub image_data: Option<String>,
+    pub image_url: Option<String>,
     #[serde(default)]
     pub cover_color: Option<String>,
     #[serde(default)]

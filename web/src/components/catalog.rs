@@ -3,7 +3,6 @@ use leptos_meta::{Meta, Title};
 
 use crate::api::CatalogData;
 use crate::availability::{self, Now};
-use crate::format;
 use super::account_button::AccountButton;
 use super::banner_carousel::BannerCarousel;
 use super::product_card::ProductCard;
@@ -54,8 +53,9 @@ pub fn CatalogPage() -> impl IntoView {
 fn CatalogView(data: CatalogData) -> impl IntoView {
     let nome = data.info.name.clone();
     let desc = format!("Cardápio de {nome} — peça online.");
-    let cover = data.info.cover_data.as_deref().map(format::image_data_url);
-    let logo = data.info.logo_data.as_deref().map(format::image_data_url);
+    // URLs já vêm prontas da API (mídia servida como bytes, não base64).
+    let cover = data.info.cover_url.clone();
+    let logo = data.info.logo_url.clone();
     let cats = data.categories;
     let banners = data.banners;
     let business_hours = data.business_hours;

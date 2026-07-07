@@ -17,7 +17,7 @@ pub fn ProductCard(product: CatalogProduct) -> impl IntoView {
     let has_disc = discount::has_active_unit_discount(&product, 1.0);
     let seal = discount::discount_badge_label(&product);
 
-    let img = product.image_data.as_deref().map(format::image_data_url);
+    let img = product.image_url.clone();
     let bg = product
         .cover_color
         .clone()

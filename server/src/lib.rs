@@ -7,6 +7,7 @@ pub mod email;
 pub mod error;
 pub mod integrations;
 pub mod jwt;
+pub mod media;
 pub mod middleware;
 pub mod repository;
 pub mod routes;

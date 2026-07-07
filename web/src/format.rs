@@ -20,20 +20,3 @@ pub fn qty(q: f64) -> String {
 pub fn server_error(raw: &str) -> String {
     raw.rsplit(": ").next().unwrap_or(raw).trim().to_string()
 }
-
-/// Monta o `src` da imagem a partir do `image_data` da API: se já for um
-/// data URL, usa direto; senão, prefixa o MIME inferido da assinatura
-/// base64 (PNG/WEBP/JPEG).
-pub fn image_data_url(image_data: &str) -> String {
-    if image_data.starts_with("data:") {
-        return image_data.to_string();
-    }
-    let mime = if image_data.starts_with("iVBOR") {
-        "image/png"
-    } else if image_data.starts_with("UklGR") {
-        "image/webp"
-    } else {
-        "image/jpeg"
-    };
-    format!("data:{mime};base64,{image_data}")
-}
