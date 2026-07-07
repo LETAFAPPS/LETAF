@@ -336,5 +336,6 @@ mod tests {
         change_addon_qty(&mut st, "g", "a2", 1, false, 1); // bloqueado
         let sel = read_group_selection(&st, "g");
         assert_eq!(sel.values().filter(|q| **q > 0).count(), 1);
+        assert!(validate_group(&g, &sel)); // 1 item selecionado respeita max=1
     }
 }
