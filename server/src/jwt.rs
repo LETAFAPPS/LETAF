@@ -39,6 +39,13 @@ pub struct Claims {
     /// permissão exige re-login. Ver `core::permission`.
     #[serde(default)]
     pub perms: Vec<String>,
+    /// Versão de credencial do usuário no momento da emissão (RBAC §11).
+    /// O servidor compara com o `token_version` atual do usuário a cada
+    /// requisição de operador; se mudou (role/permissões/senha alterados),
+    /// o token é rejeitado — revogação sem esperar o `exp`. `#[serde(default)]`
+    /// = 0 para tokens legados (compat.: casa com o default 0 da coluna).
+    #[serde(default)]
+    pub tv: i32,
     pub exp: usize,
 }
 
@@ -58,6 +65,7 @@ pub fn create_token(
     company_id: Uuid,
     role: &str,
     perms: Vec<String>,
+    token_version: i32,
     secret: &str,
     expiration_hours: u64,
 ) -> Result<String, ServerError> {
@@ -71,6 +79,7 @@ pub fn create_token(
         company_id,
         role: role.to_string(),
         perms,
+        tv: token_version,
         exp: expiration,
     };
 

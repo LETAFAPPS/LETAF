@@ -40,4 +40,34 @@ pub trait UserRepository: Send + Sync {
     /// (isolamento por company_id): necessário para resolver o tenant
     /// antes da autenticação.
     async fn find_by_email_global(&self, email: &str) -> Result<Option<User>, CoreError>;
+
+    /// Versão de credencial atual do usuário (RBAC §11 — revogação de JWT).
+    /// `None` se o usuário não existe ou está soft-deletado (serve também de
+    /// checagem de existência). Default (desktop, que não valida JWT): `Some(0)`
+    /// se o usuário existe — o servidor (Postgres) sobrescreve com o valor real.
+    async fn find_token_version(
+        &self,
+        company_id: Uuid,
+        id: Uuid,
+    ) -> Result<Option<i32>, CoreError> {
+        Ok(self.find_by_id(company_id, id).await?.map(|_| 0))
+    }
+
+    /// Incrementa a versão de credencial (invalida tokens emitidos antes).
+    /// Chamado ao mudar role/permissões ou senha. Default: no-op (só o
+    /// servidor versiona).
+    async fn bump_token_version(&self, _company_id: Uuid, _id: Uuid) -> Result<(), CoreError> {
+        Ok(())
+    }
+
+    /// Incrementa a versão de credencial de TODOS os usuários de uma função
+    /// (job_role). Chamado quando as permissões da função mudam — revoga os
+    /// tokens de quem a possui. Default: no-op (só o servidor versiona).
+    async fn bump_token_version_by_job_role(
+        &self,
+        _company_id: Uuid,
+        _job_role_id: Uuid,
+    ) -> Result<(), CoreError> {
+        Ok(())
+    }
 }

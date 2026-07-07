@@ -306,11 +306,13 @@ async fn register(
         .await?;
 
     let perms = resolve_perms(&state, &user).await;
+    // Usuário recém-criado: token_version inicial é 0.
     let token = create_token(
         user.base.id,
         tenant.company_id,
         user.role.as_db_str(),
         perms.clone(),
+        0,
         &state.config.jwt_secret,
         24,
     )?;
@@ -348,11 +350,17 @@ async fn login_desktop(
         .ok_or(ServerError::TenantNotFound)?;
 
     let perms = resolve_perms(&state, &user).await;
+    let tv = state
+        .auth_service
+        .find_token_version(company_id, user.base.id)
+        .await?
+        .unwrap_or(0);
     let token = create_token(
         user.base.id,
         company_id,
         user.role.as_db_str(),
         perms.clone(),
+        tv,
         &state.config.jwt_secret,
         24,
     )?;
@@ -382,11 +390,17 @@ async fn login(
         .await?;
 
     let perms = resolve_perms(&state, &user).await;
+    let tv = state
+        .auth_service
+        .find_token_version(tenant.company_id, user.base.id)
+        .await?
+        .unwrap_or(0);
     let token = create_token(
         user.base.id,
         tenant.company_id,
         user.role.as_db_str(),
         perms.clone(),
+        tv,
         &state.config.jwt_secret,
         24,
     )?;

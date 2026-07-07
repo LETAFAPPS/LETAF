@@ -247,6 +247,55 @@ impl UserRepository for PgUserRepository {
         Ok(rows.into_iter().next().map(User::from))
     }
 
+    async fn find_token_version(
+        &self,
+        company_id: Uuid,
+        id: Uuid,
+    ) -> Result<Option<i32>, CoreError> {
+        // Uma query cobre existência (None = inexistente/soft-deletado) e a
+        // versão de credencial (RBAC §11).
+        let row: Option<(i32,)> = sqlx::query_as(
+            "SELECT token_version FROM users
+              WHERE company_id = $1 AND id = $2 AND deleted_at IS NULL",
+        )
+        .bind(company_id)
+        .bind(id)
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(map_db)?;
+        Ok(row.map(|(v,)| v))
+    }
+
+    async fn bump_token_version(&self, company_id: Uuid, id: Uuid) -> Result<(), CoreError> {
+        sqlx::query(
+            "UPDATE users SET token_version = token_version + 1
+              WHERE company_id = $1 AND id = $2",
+        )
+        .bind(company_id)
+        .bind(id)
+        .execute(&self.pool)
+        .await
+        .map_err(map_db)?;
+        Ok(())
+    }
+
+    async fn bump_token_version_by_job_role(
+        &self,
+        company_id: Uuid,
+        job_role_id: Uuid,
+    ) -> Result<(), CoreError> {
+        sqlx::query(
+            "UPDATE users SET token_version = token_version + 1
+              WHERE company_id = $1 AND job_role_id = $2",
+        )
+        .bind(company_id)
+        .bind(job_role_id)
+        .execute(&self.pool)
+        .await
+        .map_err(map_db)?;
+        Ok(())
+    }
+
     async fn sync_upsert(&self, user: &User) -> Result<(), CoreError> {
         sqlx::query(
             "INSERT INTO users (id, company_id, email, password_hash, name, role, job_role_id, created_at, updated_at, deleted_at, synced)

@@ -84,6 +84,7 @@ async fn register(
         tenant.company_id,
         ROLE_CUSTOMER,
         Vec::new(), // cliente final não tem permissões de operador
+        0,          // cliente não versiona credencial (revogação é só p/ operador)
         &state.config.jwt_secret,
         72,
     )?;
@@ -166,6 +167,7 @@ async fn login(
         tenant.company_id,
         ROLE_CUSTOMER,
         Vec::new(), // cliente final não tem permissões de operador
+        0,          // cliente não versiona credencial (revogação é só p/ operador)
         &state.config.jwt_secret,
         72,
     )?;

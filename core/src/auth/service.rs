@@ -32,6 +32,30 @@ impl AuthService {
         self.repo.find_by_id(company_id, id).await
     }
 
+    /// Versão de credencial atual (RBAC §11 — revogação de JWT). `None` =
+    /// usuário inexistente/desativado.
+    pub async fn find_token_version(
+        &self,
+        company_id: Uuid,
+        id: Uuid,
+    ) -> Result<Option<i32>, CoreError> {
+        self.repo.find_token_version(company_id, id).await
+    }
+
+    /// Incrementa a versão de credencial (invalida tokens emitidos antes).
+    pub async fn bump_token_version(&self, company_id: Uuid, id: Uuid) -> Result<(), CoreError> {
+        self.repo.bump_token_version(company_id, id).await
+    }
+
+    /// Revoga tokens de todos os usuários de uma função (permissões mudaram).
+    pub async fn bump_token_version_by_job_role(
+        &self,
+        company_id: Uuid,
+        job_role_id: Uuid,
+    ) -> Result<(), CoreError> {
+        self.repo.bump_token_version_by_job_role(company_id, job_role_id).await
+    }
+
     pub async fn find_by_email(&self, company_id: Uuid, email: &str) -> Result<Option<User>, CoreError> {
         self.repo.find_by_email(company_id, email).await
     }
@@ -50,6 +74,9 @@ impl AuthService {
         user.base.updated_at = chrono::Utc::now().naive_utc();
         user.base.synced = false;
         self.repo.update(&user).await?;
+        // Troca de senha invalida tokens emitidos antes (RBAC §11 — no-op no
+        // desktop, que não versiona credencial).
+        self.repo.bump_token_version(user.base.company_id, user.base.id).await?;
         Ok(())
     }
 
@@ -169,14 +196,21 @@ impl AuthService {
             .find_by_id(company_id, id)
             .await?
             .ok_or_else(|| CoreError::NotFound("Funcionário não encontrado".into()))?;
+        // Mudança de função (permissões) ou de senha revoga tokens antigos.
+        let role_changed = user.job_role_id != job_role_id;
         user.name = name;
         user.job_role_id = job_role_id;
+        let mut pw_changed = false;
         if let Some(pw) = new_password.filter(|p| !p.trim().is_empty()) {
             user.password_hash = crate::hashing::hash_password(pw).await?;
+            pw_changed = true;
         }
         user.base.updated_at = chrono::Utc::now().naive_utc();
         user.base.synced = false;
         self.repo.update(&user).await?;
+        if role_changed || pw_changed {
+            self.repo.bump_token_version(company_id, id).await?;
+        }
         Ok(user)
     }
 
@@ -239,13 +273,19 @@ impl AuthService {
 
         user.email = email;
         user.name = name;
+        let mut pw_changed = false;
         if let Some(pw) = new_password.filter(|p| !p.trim().is_empty()) {
             user.password_hash = crate::hashing::hash_password(pw).await?;
+            pw_changed = true;
         }
         user.base.updated_at = chrono::Utc::now().naive_utc();
         user.base.synced = false;
 
         self.repo.update(&user).await?;
+        // Troca de senha revoga tokens antigos (mudança só de nome/email não).
+        if pw_changed {
+            self.repo.bump_token_version(company_id, id).await?;
+        }
         Ok(user)
     }
 

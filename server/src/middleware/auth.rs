@@ -104,21 +104,28 @@ impl FromRequestParts<AppState> for AuthClaims {
 
         let claims = validate_token(token, &state.config.jwt_secret)?;
 
-        // Revogação de acesso (§11): um operador do tenant (admin/employee)
-        // removido/desativado (`deleted_at`) perde acesso IMEDIATAMENTE, sem
-        // esperar o token expirar. `find_by_id` filtra `deleted_at IS NULL`,
-        // então "não encontrado" = conta inexistente/desativada → 401.
-        // `super_admin` (plataforma) e `customer` (outra tabela) seguem outro
-        // ciclo de vida e não passam por aqui. Custo: 1 lookup indexado por
-        // requisição de operador — aceitável (o middleware de tenant já faz um).
+        // Revogação de acesso (§11) para operadores do tenant (admin/employee),
+        // numa única query indexada: `find_token_version` devolve `None` se o
+        // usuário foi removido/desativado (deleted_at) → 401; e a versão de
+        // credencial atual, que deve casar com o `tv` do token — se mudou
+        // (role/permissões/senha alterados) o token é rejeitado na hora, sem
+        // esperar o `exp`. `super_admin` (plataforma) e `customer` (outra
+        // tabela) seguem outro ciclo e não passam por aqui.
         if claims.role == ROLE_ADMIN || claims.role == ROLE_EMPLOYEE {
-            let active = state
+            match state
                 .auth_service
-                .find_by_id(claims.company_id, claims.sub)
+                .find_token_version(claims.company_id, claims.sub)
                 .await?
-                .is_some();
-            if !active {
-                return Err(ServerError::Jwt("Conta desativada ou removida".into()));
+            {
+                None => {
+                    return Err(ServerError::Jwt("Conta desativada ou removida".into()));
+                }
+                Some(v) if v != claims.tv => {
+                    return Err(ServerError::Jwt(
+                        "Credenciais alteradas; faça login novamente".into(),
+                    ));
+                }
+                Some(_) => {}
             }
         }
         Ok(AuthClaims(claims))

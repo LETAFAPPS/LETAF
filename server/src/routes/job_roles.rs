@@ -103,6 +103,12 @@ async fn update(
         .job_role_service
         .update(tenant.company_id, id, body.name, body.permissions)
         .await?;
+    // As permissões da função podem ter mudado → revoga os tokens de quem a
+    // possui, para os novos limites valerem já no próximo request (§11).
+    state
+        .auth_service
+        .bump_token_version_by_job_role(tenant.company_id, id)
+        .await?;
     Ok(Json(item))
 }
 
