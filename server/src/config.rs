@@ -139,6 +139,10 @@ impl AppConfig {
 
         let jwt_secret = resolve_jwt_secret();
 
+        let efi = EfiConfig::from_env();
+        let efi_card = EfiCardConfig::from_env();
+        enforce_webhook_origin_auth(efi.as_ref(), efi_card.as_ref());
+
         Self {
             database_url: env::var("DATABASE_URL")
                 .unwrap_or_else(|_| "postgres://localhost/letaf".into()),
@@ -148,8 +152,8 @@ impl AppConfig {
                 .unwrap_or(3000),
             jwt_secret,
             cors_origins,
-            efi: EfiConfig::from_env(),
-            efi_card: EfiCardConfig::from_env(),
+            efi,
+            efi_card,
             app_updates_dir: env::var("APP_UPDATES_DIR")
                 .unwrap_or_else(|_| "updates".into()),
             smtp: SmtpConfig::from_env(),
@@ -236,5 +240,60 @@ fn resolve_jwt_secret() -> String {
                 panic!("JWT_SECRET é obrigatório em produção");
             }
         }
+    }
+}
+
+/// `true` se um webhook em PRODUÇÃO ficaria sem autenticação de origem
+/// (nem HMAC nem confiança explícita no proxy). Puro/testável (§13).
+fn webhook_auth_missing(is_producao: bool, hmac_present: bool, trust_proxy: bool) -> bool {
+    is_producao && !hmac_present && !trust_proxy
+}
+
+/// Falha o boot quando um gateway em `producao` não tem NENHUM mecanismo de
+/// autenticação de origem do webhook — HMAC (`EFI_*_WEBHOOK_HMAC`) OU o opt-out
+/// explícito `EFI_WEBHOOK_TRUST_PROXY=true` (mTLS/validação no proxy reverso).
+///
+/// Regras (AI_RULES.md §11): sem isso, qualquer um que alcance a URL do webhook
+/// forja confirmação de pagamento (fraude). A barreira é na INICIALIZAÇÃO —
+/// como `JWT_SECRET` — e NÃO em runtime: callbacks legítimos nunca são
+/// rejeitados, então o billing não quebra. Só afeta deploys de produção mal
+/// configurados; homologação e dev seguem opt-in.
+fn enforce_webhook_origin_auth(efi: Option<&EfiConfig>, efi_card: Option<&EfiCardConfig>) {
+    let trust_proxy = env::var("EFI_WEBHOOK_TRUST_PROXY")
+        .map(|v| v.trim().eq_ignore_ascii_case("true"))
+        .unwrap_or(false);
+    if let Some(e) = efi {
+        if webhook_auth_missing(e.env == "producao", e.pix_webhook_hmac.is_some(), trust_proxy) {
+            panic!(
+                "Webhook PIX em produção sem autenticação de origem: defina \
+                 EFI_PIX_WEBHOOK_HMAC ou EFI_WEBHOOK_TRUST_PROXY=true (mTLS no proxy)"
+            );
+        }
+    }
+    if let Some(c) = efi_card {
+        if webhook_auth_missing(c.env == "producao", c.webhook_hmac.is_some(), trust_proxy) {
+            panic!(
+                "Webhook de cartão em produção sem autenticação de origem: defina \
+                 EFI_CARD_WEBHOOK_HMAC (ou EFI_PIX_WEBHOOK_HMAC) ou \
+                 EFI_WEBHOOK_TRUST_PROXY=true (mTLS no proxy)"
+            );
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::webhook_auth_missing;
+
+    #[test]
+    fn webhook_auth_exigido_so_em_producao_sem_hmac_nem_proxy() {
+        // Produção sem HMAC e sem proxy confiável → falta autenticação.
+        assert!(webhook_auth_missing(true, false, false));
+        // HMAC presente resolve.
+        assert!(!webhook_auth_missing(true, true, false));
+        // Proxy confiável (mTLS) resolve.
+        assert!(!webhook_auth_missing(true, false, true));
+        // Homologação/dev nunca exige.
+        assert!(!webhook_auth_missing(false, false, false));
     }
 }
