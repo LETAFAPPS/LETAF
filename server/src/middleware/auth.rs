@@ -4,7 +4,7 @@ use uuid::Uuid;
 
 use crate::context::AppState;
 use crate::error::ServerError;
-use crate::jwt::{validate_token, Claims, ROLE_ADMIN, ROLE_SUPER_ADMIN};
+use crate::jwt::{validate_token, Claims, ROLE_ADMIN, ROLE_EMPLOYEE, ROLE_SUPER_ADMIN};
 
 /// Extractor axum que valida JWT do header Authorization.
 ///
@@ -103,6 +103,24 @@ impl FromRequestParts<AppState> for AuthClaims {
             .ok_or_else(|| ServerError::Jwt("Invalid authorization format".into()))?;
 
         let claims = validate_token(token, &state.config.jwt_secret)?;
+
+        // Revogação de acesso (§11): um operador do tenant (admin/employee)
+        // removido/desativado (`deleted_at`) perde acesso IMEDIATAMENTE, sem
+        // esperar o token expirar. `find_by_id` filtra `deleted_at IS NULL`,
+        // então "não encontrado" = conta inexistente/desativada → 401.
+        // `super_admin` (plataforma) e `customer` (outra tabela) seguem outro
+        // ciclo de vida e não passam por aqui. Custo: 1 lookup indexado por
+        // requisição de operador — aceitável (o middleware de tenant já faz um).
+        if claims.role == ROLE_ADMIN || claims.role == ROLE_EMPLOYEE {
+            let active = state
+                .auth_service
+                .find_by_id(claims.company_id, claims.sub)
+                .await?
+                .is_some();
+            if !active {
+                return Err(ServerError::Jwt("Conta desativada ou removida".into()));
+            }
+        }
         Ok(AuthClaims(claims))
     }
 }
