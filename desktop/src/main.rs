@@ -512,6 +512,7 @@ async fn init_state() -> DesktopState {
         wallet_service,
         subscription_service,
         payment_method_service,
+        Arc::new(repository::reconcile::SqliteReconcileRepository::new(pool.clone())),
         session,
         SyncStatusHandle::new(),
         alarm_watcher,

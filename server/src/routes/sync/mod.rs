@@ -38,6 +38,7 @@ fn default_since() -> NaiveDateTime {
 pub fn routes() -> Router<AppState> {
     Router::new()
         .route("/sync/products", post(sync_product))
+        .route("/sync/reconcile/manifest", get(reconcile_manifest))
         .route("/sync/stock-movements", post(sync_stock_movement))
         .route("/sync/pull/stock-movements", get(pull_stock_movements))
         .route("/sync/users", post(sync_user))

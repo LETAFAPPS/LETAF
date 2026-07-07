@@ -13,6 +13,10 @@ use letaf_core::error::CoreError;
 use crate::context::DesktopState;
 
 const SYNC_INTERVAL_SECS: u64 = 30;
+/// A reconciliação (anti-entropia, §7) roda no 1º ciclo (login) e a cada N
+/// ciclos como rede de segurança — não a cada ciclo, pois busca o manifesto
+/// de todas as entidades. Com intervalo de 30s, N=10 ≈ a cada 5 min.
+const RECONCILE_EVERY_N_CYCLES: u64 = 10;
 
 /// Worker de sincronização em background.
 ///
@@ -43,6 +47,9 @@ pub struct SyncWorker {
     /// nunca perder um ciclo — dá o "tempo real" dos badges.
     badges_dirty: Arc<Notify>,
     last_pull_at: Mutex<Option<NaiveDateTime>>,
+    /// Contador de ciclos — dispara a reconciliação no 1º ciclo e a cada
+    /// `RECONCILE_EVERY_N_CYCLES` (anti-entropia, §7).
+    reconcile_tick: std::sync::atomic::AtomicU64,
     /// Marcado true quando alguma chamada HTTP do ciclo atual falha por motivo
     /// de rede (timeout, DNS, conexão recusada) — diferenciando de erros de
     /// status HTTP (4xx/5xx) que indicam servidor acessível mas com problema.
@@ -51,6 +58,7 @@ pub struct SyncWorker {
 
 mod push;
 mod pull;
+mod reconcile;
 
 impl SyncWorker {
     pub fn new(
@@ -75,6 +83,7 @@ impl SyncWorker {
             cycle_done,
             badges_dirty,
             last_pull_at: Mutex::new(initial_last_pull_at),
+            reconcile_tick: std::sync::atomic::AtomicU64::new(0),
             network_failed: Mutex::new(false),
         }
     }
@@ -121,6 +130,16 @@ impl SyncWorker {
         // Início do ciclo
         if let Ok(mut g) = self.network_failed.lock() { *g = false; }
         self.state.sync_status.mark_syncing();
+
+        // Reconciliação (anti-entropia §7): no 1º ciclo (login) e a cada N
+        // ciclos. Roda ANTES do push/pull para que os reparos que ela agenda
+        // (marcar unsynced / resetar cursor) sejam efetivados neste mesmo
+        // ciclo — push reenvia o que falta no servidor; pull re-puxa o que
+        // falta no local.
+        let tick = self.reconcile_tick.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        if tick.is_multiple_of(RECONCILE_EVERY_N_CYCLES) {
+            self.reconcile_all(&token).await;
+        }
 
         self.run_pushes(&token).await;
         if let Err(e) = self.pull_all(&token).await {

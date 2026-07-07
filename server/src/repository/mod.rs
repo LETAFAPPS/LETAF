@@ -20,6 +20,7 @@ pub mod order;
 pub mod payment_charge;
 pub mod payment_method;
 pub mod product;
+pub mod reconcile;
 pub mod subcategory;
 pub mod subscription;
 pub mod wallet;

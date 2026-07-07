@@ -12,12 +12,36 @@ use letaf_core::subcategory::model::Subcategory;
 use letaf_core::product::model::Product;
 use letaf_core::product::stock_movement::StockMovement;
 
+use letaf_core::reconcile::{ManifestEntry, ReconcileRepository};
+
 use crate::context::AppState;
 use crate::error::ServerError;
 use crate::jwt::ROLES_OPERATORS;
 use crate::middleware::auth::AuthClaims;
+use crate::repository::reconcile::PgReconcileRepository;
 
 use super::PullQuery;
+
+/// Query da rota de manifesto: qual entidade reconciliar.
+#[derive(serde::Deserialize)]
+pub(crate) struct ManifestQuery {
+    pub(crate) entity: String,
+}
+
+/// GET /sync/reconcile/manifest?entity=<tabela> — manifesto (id, updated_at,
+/// deleted_at) de TODAS as linhas da entidade para o tenant. Base da
+/// reconciliação anti-entropia (§7): o desktop compara com o manifesto local
+/// e sincroniza divergências/faltas nos dois sentidos.
+pub(crate) async fn reconcile_manifest(
+    State(state): State<AppState>,
+    auth: AuthClaims,
+    Query(q): Query<ManifestQuery>,
+) -> Result<Json<Vec<ManifestEntry>>, ServerError> {
+    auth.verify_any_role(ROLES_OPERATORS)?;
+    let repo = PgReconcileRepository::new(state.pool.clone());
+    let manifest = repo.manifest(auth.0.company_id, &q.entity).await?;
+    Ok(Json(manifest))
+}
 
 /// POST /sync/products — upsert de produto sincronizado.
 pub(crate) async fn sync_product(

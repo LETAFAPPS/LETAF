@@ -71,6 +71,9 @@ pub struct DesktopState {
     pub subscription_service: Arc<SubscriptionService>,
     /// Catálogo de formas de pagamento cadastradas (Fase 14E).
     pub payment_method_service: Arc<PaymentMethodService>,
+    /// Repositório genérico de reconciliação (anti-entropia — §7). Usado pelo
+    /// SyncWorker para comparar manifestos local×servidor.
+    pub reconcile: Arc<crate::repository::reconcile::SqliteReconcileRepository>,
     pub session: Arc<SessionStore>,
     pub sync_status: SyncStatusHandle,
     /// Alarme de novos pedidos — `watcher` decide se um pedido recém
@@ -115,6 +118,7 @@ impl DesktopState {
         wallet_service: Arc<WalletService>,
         subscription_service: Arc<SubscriptionService>,
         payment_method_service: Arc<PaymentMethodService>,
+        reconcile: Arc<crate::repository::reconcile::SqliteReconcileRepository>,
         session: Arc<SessionStore>,
         sync_status: SyncStatusHandle,
         alarm_watcher: Arc<AlarmWatcher>,
@@ -144,6 +148,7 @@ impl DesktopState {
             wallet_service,
             subscription_service,
             payment_method_service,
+            reconcile,
             session,
             sync_status,
             alarm_watcher,
