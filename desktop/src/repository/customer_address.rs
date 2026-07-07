@@ -6,10 +6,9 @@ use uuid::Uuid;
 
 use letaf_core::customer_address::model::CustomerAddress;
 use letaf_core::customer_address::repository::CustomerAddressRepository;
-use letaf_core::entity::BaseFields;
 use letaf_core::error::CoreError;
 
-use super::helpers::{map_db, parse_timestamp, parse_uuid, ts};
+use super::helpers::{parse_base, map_db, parse_uuid, ts};
 
 #[derive(FromRow)]
 struct CustomerAddressRow {
@@ -32,14 +31,7 @@ impl TryFrom<CustomerAddressRow> for CustomerAddress {
     type Error = CoreError;
     fn try_from(r: CustomerAddressRow) -> Result<Self, Self::Error> {
         Ok(Self {
-            base: BaseFields {
-                id: parse_uuid(&r.id)?,
-                company_id: parse_uuid(&r.company_id)?,
-                created_at: parse_timestamp(&r.created_at)?,
-                updated_at: parse_timestamp(&r.updated_at)?,
-                deleted_at: r.deleted_at.as_deref().map(parse_timestamp).transpose()?,
-                synced: r.synced,
-            },
+            base: parse_base(&r.id, &r.company_id, &r.created_at, &r.updated_at, r.deleted_at.as_deref(), r.synced)?,
             customer_id: parse_uuid(&r.customer_id)?,
             label: r.label,
             custom_label: r.custom_label,

@@ -3,12 +3,11 @@ use sqlx::prelude::FromRow;
 use sqlx::SqlitePool;
 use uuid::Uuid;
 
-use letaf_core::entity::BaseFields;
 use letaf_core::error::CoreError;
 use letaf_core::payment_method::model::PaymentMethod;
 use letaf_core::payment_method::repository::PaymentMethodRepository;
 
-use super::helpers::{map_db, parse_timestamp, parse_uuid, ts};
+use super::helpers::{parse_base, map_db, ts};
 
 #[derive(FromRow)]
 struct PaymentMethodRow {
@@ -30,14 +29,7 @@ impl TryFrom<PaymentMethodRow> for PaymentMethod {
 
     fn try_from(r: PaymentMethodRow) -> Result<Self, Self::Error> {
         Ok(Self {
-            base: BaseFields {
-                id: parse_uuid(&r.id)?,
-                company_id: parse_uuid(&r.company_id)?,
-                created_at: parse_timestamp(&r.created_at)?,
-                updated_at: parse_timestamp(&r.updated_at)?,
-                deleted_at: r.deleted_at.as_deref().map(parse_timestamp).transpose()?,
-                synced: r.synced,
-            },
+            base: parse_base(&r.id, &r.company_id, &r.created_at, &r.updated_at, r.deleted_at.as_deref(), r.synced)?,
             kind: r.kind,
             label: r.label,
             masked: r.masked,

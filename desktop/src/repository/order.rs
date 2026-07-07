@@ -6,12 +6,11 @@ use sqlx::prelude::FromRow;
 use sqlx::{Sqlite, SqlitePool, Transaction};
 use uuid::Uuid;
 
-use letaf_core::entity::BaseFields;
 use letaf_core::error::CoreError;
 use letaf_core::order::model::{DeliveryType, Order, OrderItem, OrderStatus};
 use letaf_core::order::repository::OrderRepository;
 
-use super::helpers::{insert_stock_movement, map_db, parse_timestamp, parse_uuid, ts};
+use super::helpers::{parse_base, insert_stock_movement, map_db, parse_timestamp, parse_uuid, ts};
 
 /// Implementação SQLite do `OrderRepository`.
 ///
@@ -654,14 +653,7 @@ impl TryFrom<OrderRow> for Order {
 
     fn try_from(r: OrderRow) -> Result<Self, Self::Error> {
         Ok(Self {
-            base: BaseFields {
-                id: parse_uuid(&r.id)?,
-                company_id: parse_uuid(&r.company_id)?,
-                created_at: parse_timestamp(&r.created_at)?,
-                updated_at: parse_timestamp(&r.updated_at)?,
-                deleted_at: r.deleted_at.as_deref().map(parse_timestamp).transpose()?,
-                synced: r.synced,
-            },
+            base: parse_base(&r.id, &r.company_id, &r.created_at, &r.updated_at, r.deleted_at.as_deref(), r.synced)?,
             customer_id: parse_uuid(&r.customer_id)?,
             number: r.number,
             status: OrderStatus::from_str(&r.status).unwrap_or_else(|| {
@@ -704,14 +696,7 @@ impl TryFrom<OrderItemRow> for OrderItem {
 
     fn try_from(r: OrderItemRow) -> Result<Self, Self::Error> {
         Ok(Self {
-            base: BaseFields {
-                id: parse_uuid(&r.id)?,
-                company_id: parse_uuid(&r.company_id)?,
-                created_at: parse_timestamp(&r.created_at)?,
-                updated_at: parse_timestamp(&r.updated_at)?,
-                deleted_at: r.deleted_at.as_deref().map(parse_timestamp).transpose()?,
-                synced: r.synced,
-            },
+            base: parse_base(&r.id, &r.company_id, &r.created_at, &r.updated_at, r.deleted_at.as_deref(), r.synced)?,
             order_id: parse_uuid(&r.order_id)?,
             product_id: parse_uuid(&r.product_id)?,
             product_name: r.product_name,

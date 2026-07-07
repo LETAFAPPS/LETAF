@@ -4,14 +4,13 @@ use sqlx::prelude::FromRow;
 use sqlx::SqlitePool;
 use uuid::Uuid;
 
-use letaf_core::entity::BaseFields;
 use letaf_core::error::CoreError;
 use letaf_core::subscription::model::{
     Invoice, InvoiceStatus, PaymentMethod, PlanKind, Subscription, SubscriptionStatus,
 };
 use letaf_core::subscription::repository::SubscriptionRepository;
 
-use super::helpers::{date_str, map_db, parse_date, parse_timestamp, parse_uuid, ts};
+use super::helpers::{parse_base, date_str, map_db, parse_date, parse_timestamp, parse_uuid, ts};
 
 #[derive(FromRow)]
 struct SubscriptionRow {
@@ -45,14 +44,7 @@ impl TryFrom<SubscriptionRow> for Subscription {
 
     fn try_from(r: SubscriptionRow) -> Result<Self, Self::Error> {
         Ok(Self {
-            base: BaseFields {
-                id: parse_uuid(&r.id)?,
-                company_id: parse_uuid(&r.company_id)?,
-                created_at: parse_timestamp(&r.created_at)?,
-                updated_at: parse_timestamp(&r.updated_at)?,
-                deleted_at: r.deleted_at.as_deref().map(parse_timestamp).transpose()?,
-                synced: r.synced,
-            },
+            base: parse_base(&r.id, &r.company_id, &r.created_at, &r.updated_at, r.deleted_at.as_deref(), r.synced)?,
             plan_kind: PlanKind::from_str(&r.plan_kind),
             next_charge_date: r.next_charge_date.as_deref().map(parse_date).transpose()?,
             status: SubscriptionStatus::from_str(&r.status),
@@ -100,14 +92,7 @@ impl TryFrom<InvoiceRow> for Invoice {
 
     fn try_from(r: InvoiceRow) -> Result<Self, Self::Error> {
         Ok(Self {
-            base: BaseFields {
-                id: parse_uuid(&r.id)?,
-                company_id: parse_uuid(&r.company_id)?,
-                created_at: parse_timestamp(&r.created_at)?,
-                updated_at: parse_timestamp(&r.updated_at)?,
-                deleted_at: r.deleted_at.as_deref().map(parse_timestamp).transpose()?,
-                synced: r.synced,
-            },
+            base: parse_base(&r.id, &r.company_id, &r.created_at, &r.updated_at, r.deleted_at.as_deref(), r.synced)?,
             subscription_id: parse_uuid(&r.subscription_id)?,
             number: r.number,
             description: r.description,

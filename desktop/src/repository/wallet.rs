@@ -5,12 +5,11 @@ use sqlx::prelude::FromRow;
 use sqlx::SqlitePool;
 use uuid::Uuid;
 
-use letaf_core::entity::BaseFields;
 use letaf_core::error::CoreError;
 use letaf_core::wallet::model::{WalletAccount, WalletMovement, WalletMovementKind};
 use letaf_core::wallet::repository::WalletRepository;
 
-use super::helpers::{map_db, parse_timestamp, parse_uuid, ts};
+use super::helpers::{parse_base, map_db, parse_uuid, ts};
 
 // ── Rows ─────────────────────────────────────────────────────────
 
@@ -31,14 +30,7 @@ impl TryFrom<WalletAccountRow> for WalletAccount {
     type Error = CoreError;
     fn try_from(r: WalletAccountRow) -> Result<Self, Self::Error> {
         Ok(Self {
-            base: BaseFields {
-                id: parse_uuid(&r.id)?,
-                company_id: parse_uuid(&r.company_id)?,
-                created_at: parse_timestamp(&r.created_at)?,
-                updated_at: parse_timestamp(&r.updated_at)?,
-                deleted_at: r.deleted_at.as_deref().map(parse_timestamp).transpose()?,
-                synced: r.synced,
-            },
+            base: parse_base(&r.id, &r.company_id, &r.created_at, &r.updated_at, r.deleted_at.as_deref(), r.synced)?,
             customer_id: parse_uuid(&r.customer_id)?,
             balance: letaf_core::money::from_db_f64(r.balance),
             credit_limit: letaf_core::money::from_db_f64(r.credit_limit),
@@ -66,14 +58,7 @@ impl TryFrom<WalletMovementRow> for WalletMovement {
     type Error = CoreError;
     fn try_from(r: WalletMovementRow) -> Result<Self, Self::Error> {
         Ok(Self {
-            base: BaseFields {
-                id: parse_uuid(&r.id)?,
-                company_id: parse_uuid(&r.company_id)?,
-                created_at: parse_timestamp(&r.created_at)?,
-                updated_at: parse_timestamp(&r.updated_at)?,
-                deleted_at: r.deleted_at.as_deref().map(parse_timestamp).transpose()?,
-                synced: r.synced,
-            },
+            base: parse_base(&r.id, &r.company_id, &r.created_at, &r.updated_at, r.deleted_at.as_deref(), r.synced)?,
             account_id: parse_uuid(&r.account_id)?,
             kind: WalletMovementKind::from_str(&r.kind),
             amount: letaf_core::money::from_db_f64(r.amount),

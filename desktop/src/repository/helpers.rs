@@ -2,7 +2,29 @@ use chrono::{NaiveDate, NaiveDateTime};
 use sqlx::{Sqlite, Transaction};
 use uuid::Uuid;
 
+use letaf_core::entity::BaseFields;
 use letaf_core::error::CoreError;
+
+/// Monta os `BaseFields` a partir das colunas cruas do SQLite (TEXT).
+/// Fonte única do parse dos campos-base (id/company_id/datas/synced),
+/// eliminando o bloco repetido em cada `TryFrom<XxxRow>` (§8/§14).
+pub fn parse_base(
+    id: &str,
+    company_id: &str,
+    created_at: &str,
+    updated_at: &str,
+    deleted_at: Option<&str>,
+    synced: bool,
+) -> Result<BaseFields, CoreError> {
+    Ok(BaseFields {
+        id: parse_uuid(id)?,
+        company_id: parse_uuid(company_id)?,
+        created_at: parse_timestamp(created_at)?,
+        updated_at: parse_timestamp(updated_at)?,
+        deleted_at: deleted_at.map(parse_timestamp).transpose()?,
+        synced,
+    })
+}
 
 /// Converte erro sqlx em CoreError::Repository.
 ///

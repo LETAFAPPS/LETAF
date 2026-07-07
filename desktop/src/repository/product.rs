@@ -10,7 +10,7 @@ use letaf_core::product::model::{BalanceMode, Product};
 use letaf_core::product::repository::{ProductRepository, StockAdjustResult};
 use letaf_core::product::stock_movement::StockMovement;
 
-use super::helpers::{insert_stock_movement, map_db, parse_timestamp, parse_uuid, ts};
+use super::helpers::{parse_base, insert_stock_movement, map_db, parse_timestamp, parse_uuid, ts};
 
 #[derive(FromRow)]
 struct ProductRow {
@@ -107,14 +107,7 @@ impl TryFrom<StockMovementRow> for StockMovement {
     type Error = CoreError;
     fn try_from(r: StockMovementRow) -> Result<Self, Self::Error> {
         Ok(Self {
-            base: BaseFields {
-                id: parse_uuid(&r.id)?,
-                company_id: parse_uuid(&r.company_id)?,
-                created_at: parse_timestamp(&r.created_at)?,
-                updated_at: parse_timestamp(&r.updated_at)?,
-                deleted_at: r.deleted_at.as_deref().map(parse_timestamp).transpose()?,
-                synced: r.synced,
-            },
+            base: parse_base(&r.id, &r.company_id, &r.created_at, &r.updated_at, r.deleted_at.as_deref(), r.synced)?,
             product_id: parse_uuid(&r.product_id)?,
             delta: r.delta,
             reason: r.reason,

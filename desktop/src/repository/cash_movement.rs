@@ -7,10 +7,9 @@ use uuid::Uuid;
 
 use letaf_core::cash::model::{CashMovement, MovementKind};
 use letaf_core::cash::repository::CashMovementRepository;
-use letaf_core::entity::BaseFields;
 use letaf_core::error::CoreError;
 
-use super::helpers::{map_db, parse_timestamp, parse_uuid, ts};
+use super::helpers::{parse_base, map_db, parse_uuid, ts};
 
 #[derive(FromRow)]
 struct CashMovementRow {
@@ -33,14 +32,7 @@ impl TryFrom<CashMovementRow> for CashMovement {
     type Error = CoreError;
     fn try_from(r: CashMovementRow) -> Result<Self, Self::Error> {
         Ok(Self {
-            base: BaseFields {
-                id: parse_uuid(&r.id)?,
-                company_id: parse_uuid(&r.company_id)?,
-                created_at: parse_timestamp(&r.created_at)?,
-                updated_at: parse_timestamp(&r.updated_at)?,
-                deleted_at: r.deleted_at.as_deref().map(parse_timestamp).transpose()?,
-                synced: r.synced,
-            },
+            base: parse_base(&r.id, &r.company_id, &r.created_at, &r.updated_at, r.deleted_at.as_deref(), r.synced)?,
             session_id: parse_uuid(&r.session_id)?,
             kind: MovementKind::from_str(&r.kind),
             amount: letaf_core::money::from_db_f64(r.amount),

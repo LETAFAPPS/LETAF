@@ -6,10 +6,9 @@ use uuid::Uuid;
 
 use letaf_core::banner::model::Banner;
 use letaf_core::banner::repository::BannerRepository;
-use letaf_core::entity::BaseFields;
 use letaf_core::error::CoreError;
 
-use super::helpers::{map_db, parse_timestamp, parse_uuid, ts};
+use super::helpers::{parse_base, map_db, parse_uuid, ts};
 
 #[derive(FromRow)]
 struct BannerRow {
@@ -32,14 +31,7 @@ impl TryFrom<BannerRow> for Banner {
     type Error = CoreError;
     fn try_from(r: BannerRow) -> Result<Self, Self::Error> {
         Ok(Self {
-            base: BaseFields {
-                id: parse_uuid(&r.id)?,
-                company_id: parse_uuid(&r.company_id)?,
-                created_at: parse_timestamp(&r.created_at)?,
-                updated_at: parse_timestamp(&r.updated_at)?,
-                deleted_at: r.deleted_at.as_deref().map(parse_timestamp).transpose()?,
-                synced: r.synced,
-            },
+            base: parse_base(&r.id, &r.company_id, &r.created_at, &r.updated_at, r.deleted_at.as_deref(), r.synced)?,
             title: r.title,
             image_data: r.image_data,
             item_type: r.item_type,
