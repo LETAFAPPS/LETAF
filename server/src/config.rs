@@ -73,6 +73,12 @@ pub struct EfiCardConfig {
     /// URL pública que a Efi chama a cada cobrança (webhook). Precisa
     /// apontar para `POST /webhooks/efi` deste servidor.
     pub notification_url: String,
+    /// Segredo `?hmac=` do webhook de CARTÃO (API Cobranças), análogo ao
+    /// `EfiConfig::pix_webhook_hmac` do PIX. Lido de `EFI_CARD_WEBHOOK_HMAC`,
+    /// com fallback para `EFI_PIX_WEBHOOK_HMAC` (compat.). Quando `Some`, o
+    /// webhook de cartão exige a query `hmac` igual — sem depender da config
+    /// do PIX, que pode nem estar habilitada (§11).
+    pub webhook_hmac: Option<String>,
 }
 
 impl EfiCardConfig {
@@ -167,12 +173,15 @@ impl EfiCardConfig {
         // até apontar uma URL pública.
         let notification_url = non_empty("EFI_NOTIFICATION_URL").unwrap_or_default();
         let env = env::var("EFI_ENV").unwrap_or_else(|_| "homologacao".into());
+        let webhook_hmac = non_empty("EFI_CARD_WEBHOOK_HMAC")
+            .or_else(|| non_empty("EFI_PIX_WEBHOOK_HMAC"));
         Some(Self {
             env: if env == "producao" { env } else { "homologacao".into() },
             client_id,
             client_secret,
             payee_code,
             notification_url,
+            webhook_hmac,
         })
     }
 }

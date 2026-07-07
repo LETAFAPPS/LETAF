@@ -393,9 +393,9 @@ async fn efi_webhook(
     // Opt-in para não quebrar deploys que dependem de mTLS no proxy.
     if let Some(expected) = state
         .config
-        .efi
+        .efi_card
         .as_ref()
-        .and_then(|e| e.pix_webhook_hmac.as_deref())
+        .and_then(|e| e.webhook_hmac.as_deref())
     {
         let provided = q.hmac.as_deref().unwrap_or("");
         if !ct_eq(provided.as_bytes(), expected.as_bytes()) {
