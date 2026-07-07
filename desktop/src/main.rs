@@ -463,7 +463,7 @@ async fn init_state() -> DesktopState {
     ));
 
     let session = Arc::new(SessionStore::new(pool.clone()));
-    let company_id = resolve_company_id(&company_service).await;
+    let company_id = resolve_company_id(&company_service, &session).await;
 
     // Seed de assinatura padrão (plano Mensal + 5 faturas históricas)
     // na primeira execução offline. Idempotente em boots subsequentes.
@@ -529,9 +529,22 @@ async fn init_state() -> DesktopState {
 ///
 /// Na primeira execução, cria uma empresa padrão.
 /// Nas seguintes, reutiliza a existente.
-async fn resolve_company_id(service: &CompanyService) -> Uuid {
+///
+/// Prefere a empresa da SESSÃO salva (o tenant efetivamente logado neste
+/// device) quando ela existe localmente — evita que os seeds
+/// (`ensure_seed`/`seed_defaults`) rodem no tenant ERRADO se o SQLite acumulou
+/// mais de uma empresa (troca de conta no mesmo computador). Sem sessão, cai
+/// na primeira empresa; sem nenhuma, cria a padrão (§11).
+async fn resolve_company_id(service: &CompanyService, session: &SessionStore) -> Uuid {
     let companies = service.find_all().await
         .expect("Failed to load companies");
+
+    if let Some(saved) = session.load_company_id().await {
+        if let Some(company) = companies.iter().find(|c| c.id == saved) {
+            tracing::info!("Company da sessão: {} ({})", company.name, company.id);
+            return company.id;
+        }
+    }
 
     if let Some(company) = companies.first() {
         tracing::info!("Loaded existing company: {} ({})", company.name, company.id);
