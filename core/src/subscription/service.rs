@@ -49,6 +49,17 @@ pub struct PlanTerms {
     pub discount_monthly: Decimal,
 }
 
+/// Valor cobrado por ciclo já com o desconto comercial abatido.
+///
+/// `gross` é o preço de tabela do ciclo inteiro; `discount_monthly` é o
+/// desconto em R$/mês (nunca negativo) e `months` os meses do ciclo — o
+/// desconto incide sobre cada mês. Resultado nunca abaixo de zero.
+///
+/// Pura/testável (§13) — a UI nunca calcula preço; o backend é a fonte.
+pub fn charge_amount(gross: Decimal, discount_monthly: Decimal, months: u32) -> Decimal {
+    (gross - discount_monthly.max(Decimal::ZERO) * Decimal::from(months)).max(Decimal::ZERO)
+}
+
 impl SubscriptionService {
     pub fn new(repo: Arc<dyn SubscriptionRepository>) -> Self {
         Self { repo }
@@ -125,7 +136,7 @@ impl SubscriptionService {
         };
         // Desconto por mês abatido do ciclo inteiro; nunca abaixo de zero.
         let discount_monthly = sub.plan_discount_monthly.max(Decimal::ZERO);
-        let amount = (gross - discount_monthly * Decimal::from(months)).max(Decimal::ZERO);
+        let amount = charge_amount(gross, discount_monthly, months);
         PlanTerms {
             name,
             amount,

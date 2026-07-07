@@ -35,12 +35,14 @@ pub struct ManifestEntry {
 /// da allowlist — nomes de tabela NUNCA vêm do cliente sem passar por aqui
 /// (defesa contra SQL injection na query genérica de manifesto).
 ///
-/// Exclusões intencionais: `companies` (o próprio tenant, sem `company_id`;
-/// reconciliação especial não vale o custo), `plans` (catálogo global, não
-/// sincroniza por tenant), `order_items` (filho do agregado Order — reconcilia
-/// junto do pedido), `payment_charges` (criadas no servidor), tabelas de
-/// junção e `stock_movements` (ledger com sync próprio).
+/// `companies` entra com filtro por `id` (é o próprio tenant, sem coluna
+/// `company_id` — ver [`tenant_key_column`]). Exclusões intencionais: `plans`
+/// (catálogo global, não sincroniza por tenant), `order_items` (filho do
+/// agregado Order — reconcilia junto do pedido), `payment_charges` (criadas no
+/// servidor), tabelas de junção e `stock_movements` (ledger append-only com
+/// sync próprio, sem pull incremental — o reparo servidor→local não se aplica).
 pub const RECONCILE_TABLES: &[&str] = &[
+    "companies",
     "products",
     "categories",
     "subcategories",
@@ -69,6 +71,17 @@ pub const RECONCILE_TABLES: &[&str] = &[
 /// qualquer query que interpole o nome da tabela.
 pub fn is_reconcilable(table: &str) -> bool {
     RECONCILE_TABLES.contains(&table)
+}
+
+/// Coluna de isolamento do tenant para a query de manifesto. Quase toda
+/// entidade filtra por `company_id`; `companies` é o próprio tenant (a chave é
+/// o `id`). Retorno é uma const (nunca vem do cliente) — seguro interpolar.
+pub fn tenant_key_column(table: &str) -> &'static str {
+    if table == "companies" {
+        "id"
+    } else {
+        "company_id"
+    }
 }
 
 /// Resultado da comparação entre o manifesto local e o do servidor.

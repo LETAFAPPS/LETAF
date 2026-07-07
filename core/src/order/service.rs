@@ -98,8 +98,7 @@ impl OrderService {
         // Desconto vem JÁ calculado/validado pelo caller (server),
         // que recomputa via CouponService — nunca confiamos no valor
         // do frontend (§11). Aqui só garantimos que não fica negativo.
-        let discount = discount_amount.max(Decimal::ZERO).min(items_total);
-        let total = (items_total - discount).max(Decimal::ZERO);
+        let (discount, total) = order_total(items_total, discount_amount, Decimal::ZERO);
         // Quantidade a decrementar por item (§4: aplicada na MESMA
         // transação do insert do pedido, dentro de `create_atomic`).
         let stock_deltas: Vec<(Uuid, f64)> =
@@ -176,9 +175,8 @@ impl OrderService {
         let (final_items, items_total) = build_items(company_id, order_id, &items);
         // §11: backend recomputa. Desconto clampado a [0, itens];
         // adicional (acréscimo) não-negativo soma ao total.
-        let discount = discount_amount.max(Decimal::ZERO).min(items_total);
         let additional = additional_amount.max(Decimal::ZERO);
-        let total = (items_total - discount + additional).max(Decimal::ZERO);
+        let (discount, total) = order_total(items_total, discount_amount, additional);
         // Baixa de estoque na MESMA transação do insert (§4).
         let stock_deltas: Vec<(Uuid, f64)> =
             items.iter().map(|i| (i.product_id, i.quantity)).collect();
@@ -419,7 +417,7 @@ impl OrderService {
         }
         let subtotal: Decimal = finalized.iter().map(|i| i.subtotal).sum();
         // Preserva desconto E adicional ao recompor o total (§11).
-        let new_total = (subtotal - order.discount_amount + order.additional_amount).max(Decimal::ZERO);
+        let (_, new_total) = order_total(subtotal, order.discount_amount, order.additional_amount);
 
         // Delta de estoque por produto = soma das qty ANTIGAS − soma das
         // qty NOVAS. Calculado antes de sobrescrever `order.items`.
@@ -706,6 +704,20 @@ fn is_unique_violation(msg: &str) -> bool {
 }
 
 /// Constrói OrderItems e calcula o total do pedido.
+/// Desconto e total finais do pedido (§11 — puro/testável). O desconto é
+/// clampado a `[0, items_total]` (nunca negativo nem maior que os itens); o
+/// adicional (acréscimo) é não-negativo e soma; o total nunca fica negativo.
+pub fn order_total(
+    items_total: Decimal,
+    discount_amount: Decimal,
+    additional_amount: Decimal,
+) -> (Decimal, Decimal) {
+    let discount = discount_amount.max(Decimal::ZERO).min(items_total);
+    let additional = additional_amount.max(Decimal::ZERO);
+    let total = (items_total - discount + additional).max(Decimal::ZERO);
+    (discount, total)
+}
+
 fn build_items(company_id: Uuid, order_id: Uuid, inputs: &[OrderItemInput]) -> (Vec<OrderItem>, Decimal) {
     let mut total = Decimal::ZERO;
     let items: Vec<OrderItem> = inputs.iter().map(|i| {

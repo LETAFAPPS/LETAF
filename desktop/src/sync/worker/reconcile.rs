@@ -13,6 +13,7 @@
 //! atrasado, escrita fora de ordem, `synced` marcado mas ausente no servidor)
 //! deixa de ficar preso — é reconferido e sincronizado.
 
+use chrono::NaiveDateTime;
 use uuid::Uuid;
 
 use letaf_core::error::CoreError;
@@ -21,30 +22,65 @@ use letaf_core::reconcile::{ManifestEntry, ReconcileRepository, RECONCILE_TABLES
 use super::SyncWorker;
 
 impl SyncWorker {
-    /// Reconcilia todas as entidades. Se houver divergência servidor→local em
-    /// qualquer uma, reseta o cursor de pull para forçar re-pull completo.
+    /// Reconcilia todas as entidades. Para cada uma com divergência
+    /// servidor→local, re-puxa APENAS aquela entidade (desde a época; upsert
+    /// LWW idempotente) — sem perturbar o cursor incremental global.
     pub(super) async fn reconcile_all(&self, token: &str) {
         let cid = self.state.company_id();
-        let mut server_drift = false;
+        let mut drifted: Vec<&'static str> = Vec::new();
         for &table in RECONCILE_TABLES {
             match self.reconcile_entity(token, cid, table).await {
-                Ok(drift) => server_drift |= drift,
+                Ok(true) => drifted.push(table),
+                Ok(false) => {}
                 Err(e) => tracing::warn!("Reconcile {table}: {e}"),
             }
         }
-        if server_drift {
-            tracing::info!(
-                "Reconcile: divergência servidor→local detectada; forçando re-pull completo neste ciclo"
-            );
-            // Reset do cursor em memória → o `pull_all` deste ciclo lê
-            // `since = época` e re-puxa tudo (LWW idempotente). Ao concluir,
-            // o cursor volta a avançar e é persistido. Não persistimos a
-            // época aqui: se o re-pull falhar, o próximo reconcile re-detecta.
-            match self.last_pull_at.lock() {
-                Ok(mut g) => *g = None,
-                Err(p) => *p.into_inner() = None,
+        if !drifted.is_empty() {
+            tracing::info!("Reconcile: re-puxando entidades divergentes: {drifted:?}");
+            for table in drifted {
+                if let Err(e) = self.repull_entity(token, table).await {
+                    tracing::warn!("Reconcile re-pull {table}: {e}");
+                }
             }
         }
+    }
+
+    /// Re-puxa UMA entidade desde a época (traz tudo do servidor; upsert LWW
+    /// idempotente). Ignora o `max_ts` retornado: o cursor incremental global
+    /// não é tocado — este é um reparo pontual, não o pull do ciclo.
+    async fn repull_entity(&self, token: &str, table: &str) -> Result<(), CoreError> {
+        let epoch = NaiveDateTime::default();
+        match table {
+            "companies" => self.pull_companies(token, epoch, epoch).await?,
+            "job_roles" => self.pull_job_roles(token, epoch, epoch).await?,
+            "users" => self.pull_users(token, epoch, epoch).await?,
+            "customers" => self.pull_customers(token, epoch, epoch).await?,
+            "categories" => self.pull_categories(token, epoch, epoch).await?,
+            "subcategories" => self.pull_subcategories(token, epoch, epoch).await?,
+            "addon_groups" => self.pull_addon_groups(token, epoch, epoch).await?,
+            "addons" => self.pull_addons(token, epoch, epoch).await?,
+            "products" => self.pull_products(token, epoch, epoch).await?,
+            "orders" => self.pull_orders(token, epoch, epoch).await?,
+            "business_hours" => self.pull_business_hours(token, epoch, epoch).await?,
+            "banners" => self.pull_banners(token, epoch, epoch).await?,
+            "coupons" => self.pull_coupons(token, epoch, epoch).await?,
+            "customer_addresses" => self.pull_customer_addresses(token, epoch, epoch).await?,
+            "cash_sessions" => self.pull_cash_sessions(token, epoch, epoch).await?,
+            "cash_movements" => self.pull_cash_movements(token, epoch, epoch).await?,
+            "finance_categories" => self.pull_finance_categories(token, epoch, epoch).await?,
+            "finance_entries" => self.pull_finance_entries(token, epoch, epoch).await?,
+            "wallet_accounts" => self.pull_wallet_accounts(token, epoch, epoch).await?,
+            "wallet_movements" => self.pull_wallet_movements(token, epoch, epoch).await?,
+            "subscriptions" => self.pull_subscriptions(token, epoch, epoch).await?,
+            "subscription_invoices" => self.pull_subscription_invoices(token, epoch, epoch).await?,
+            "payment_methods" => self.pull_payment_methods(token, epoch, epoch).await?,
+            other => {
+                return Err(CoreError::Validation(format!(
+                    "Reconcile: entidade sem pull dedicado: {other}"
+                )))
+            }
+        };
+        Ok(())
     }
 
     /// Reconcilia UMA entidade. Retorna `true` se o servidor tem registros

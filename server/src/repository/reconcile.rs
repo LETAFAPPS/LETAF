@@ -11,7 +11,7 @@ use sqlx::PgPool;
 use uuid::Uuid;
 
 use letaf_core::error::CoreError;
-use letaf_core::reconcile::{is_reconcilable, ManifestEntry, ReconcileRepository};
+use letaf_core::reconcile::{is_reconcilable, tenant_key_column, ManifestEntry, ReconcileRepository};
 
 use super::helpers::map_db;
 
@@ -37,9 +37,11 @@ impl ReconcileRepository for PgReconcileRepository {
                 "Entidade não reconciliável: {table}"
             )));
         }
-        // `table` é da allowlist — seguro interpolar. Filtro por tenant (§11).
+        // `table` e a coluna-chave são consts da allowlist — seguro
+        // interpolar. Filtro por tenant (§11); `companies` usa `id`.
+        let key = tenant_key_column(table);
         let sql = format!(
-            "SELECT id, updated_at, deleted_at FROM {table} WHERE company_id = $1"
+            "SELECT id, updated_at, deleted_at FROM {table} WHERE {key} = $1"
         );
         let rows: Vec<(Uuid, NaiveDateTime, Option<NaiveDateTime>)> =
             sqlx::query_as(&sql)
@@ -67,8 +69,9 @@ impl ReconcileRepository for PgReconcileRepository {
         if ids.is_empty() {
             return Ok(());
         }
+        let key = tenant_key_column(table);
         let sql = format!(
-            "UPDATE {table} SET synced = false WHERE company_id = $1 AND id = ANY($2)"
+            "UPDATE {table} SET synced = false WHERE {key} = $1 AND id = ANY($2)"
         );
         sqlx::query(&sql)
             .bind(company_id)

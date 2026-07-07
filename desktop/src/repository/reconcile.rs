@@ -9,7 +9,7 @@ use sqlx::SqlitePool;
 use uuid::Uuid;
 
 use letaf_core::error::CoreError;
-use letaf_core::reconcile::{is_reconcilable, ManifestEntry, ReconcileRepository};
+use letaf_core::reconcile::{is_reconcilable, tenant_key_column, ManifestEntry, ReconcileRepository};
 
 use super::helpers::{map_db, parse_timestamp, parse_uuid};
 
@@ -35,8 +35,9 @@ impl ReconcileRepository for SqliteReconcileRepository {
                 "Entidade não reconciliável: {table}"
             )));
         }
+        let key = tenant_key_column(table);
         let sql = format!(
-            "SELECT id, updated_at, deleted_at FROM {table} WHERE company_id = ?1"
+            "SELECT id, updated_at, deleted_at FROM {table} WHERE {key} = ?1"
         );
         let rows: Vec<(String, String, Option<String>)> = sqlx::query_as(&sql)
             .bind(company_id.to_string())
@@ -74,8 +75,9 @@ impl ReconcileRepository for SqliteReconcileRepository {
             .map(|i| format!("?{}", i + 2))
             .collect::<Vec<_>>()
             .join(", ");
+        let key = tenant_key_column(table);
         let sql = format!(
-            "UPDATE {table} SET synced = 0 WHERE company_id = ?1 AND id IN ({placeholders})"
+            "UPDATE {table} SET synced = 0 WHERE {key} = ?1 AND id IN ({placeholders})"
         );
         let mut q = sqlx::query(&sql).bind(company_id.to_string());
         for id in ids {
