@@ -416,8 +416,12 @@ impl OrderService {
             finalized.push(it);
         }
         let subtotal: Decimal = finalized.iter().map(|i| i.subtotal).sum();
-        // Preserva desconto E adicional ao recompor o total (§11).
-        let (_, new_total) = order_total(subtotal, order.discount_amount, order.additional_amount);
+        // Preserva desconto E adicional ao recompor o total (§11). Reatribui o
+        // desconto CLAMPADO: se a edição derrubou o subtotal abaixo do desconto
+        // antigo, `discount_amount` não pode continuar maior que os itens.
+        let (new_discount, new_total) =
+            order_total(subtotal, order.discount_amount, order.additional_amount);
+        order.discount_amount = new_discount;
 
         // Delta de estoque por produto = soma das qty ANTIGAS − soma das
         // qty NOVAS. Calculado antes de sobrescrever `order.items`.
