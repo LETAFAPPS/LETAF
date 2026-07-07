@@ -530,13 +530,21 @@ impl ProductRepository for SqliteProductRepository {
                  price = excluded.price,
                  cost_price = excluded.cost_price,
                  -- Estoque: só aceita o absoluto do servidor quando o registro
-                 -- local está sincronizado (synced=1). Se há venda/ajuste local
-                 -- pendente (synced=0), preserva o valor local — o servidor
-                 -- converge depois que o movimento pendente for empurrado e
-                 -- aplicado lá. Evita o overselling do LWW sobre o absoluto (§7).
-                 stock_quantity = CASE WHEN products.synced = 1
-                                       THEN excluded.stock_quantity
-                                       ELSE products.stock_quantity END,
+                 -- local está sincronizado (synced=1) E não há movimento de
+                 -- estoque pendente (stock_movements.synced=0) para o produto.
+                 -- O flag do produto sozinho não basta: uma venda marca o
+                 -- produto synced=1 no push, mas o StockMovement é enviado num
+                 -- passo separado; se ele ficar pendente, aceitar o absoluto do
+                 -- servidor (que ainda não recebeu o delta) reintroduz o valor
+                 -- inflado → overselling. A guarda pelo ledger fecha essa janela.
+                 stock_quantity = CASE
+                     WHEN products.synced = 1
+                          AND NOT EXISTS (
+                              SELECT 1 FROM stock_movements sm
+                              WHERE sm.product_id = products.id AND sm.synced = 0
+                          )
+                     THEN excluded.stock_quantity
+                     ELSE products.stock_quantity END,
                  unlimited_stock = excluded.unlimited_stock,
                  barcode = excluded.barcode,
                  unit = excluded.unit,
@@ -682,5 +690,99 @@ impl ProductRepository for SqliteProductRepository {
         .await
         .map_err(map_db)?;
         rows.into_iter().map(StockMovement::try_from).collect()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rust_decimal::Decimal;
+    use sqlx::sqlite::SqlitePoolOptions;
+
+    /// Pool SQLite em memória com migrations. `max_connections=1` mantém o
+    /// mesmo banco entre queries.
+    async fn mem_pool() -> SqlitePool {
+        let pool = SqlitePoolOptions::new()
+            .max_connections(1)
+            .connect("sqlite::memory:")
+            .await
+            .unwrap();
+        sqlx::migrate!("./migrations").run(&pool).await.unwrap();
+        pool
+    }
+
+    fn product_at(cid: Uuid, id: Uuid, stock: f64, updated: &str, synced: bool) -> Product {
+        let mut p = Product::new(
+            cid, "P".into(), None, None, None, Some(Decimal::from(10)), None, stock, 0.0,
+            false, None, "un".into(), BalanceMode::Weight, None, None, None, None,
+            None, None, None,
+        );
+        p.base.id = id;
+        p.base.updated_at =
+            chrono::NaiveDateTime::parse_from_str(updated, "%Y-%m-%d %H:%M:%S%.f").unwrap();
+        p.base.synced = synced;
+        p
+    }
+
+    async fn insert_pending_movement(pool: &SqlitePool, cid: Uuid, product_id: Uuid) {
+        sqlx::query(
+            "INSERT INTO stock_movements (id, company_id, product_id, delta, reason, \
+             created_at, updated_at, synced) \
+             VALUES (?1, ?2, ?3, -3.0, 'venda', '2026-01-05 12:00:00.000000', \
+             '2026-01-05 12:00:00.000000', 0)",
+        )
+        .bind(Uuid::new_v4().to_string())
+        .bind(cid.to_string())
+        .bind(product_id.to_string())
+        .execute(pool)
+        .await
+        .unwrap();
+    }
+
+    async fn stock_of(pool: &SqlitePool, id: Uuid) -> f64 {
+        sqlx::query_scalar("SELECT stock_quantity FROM products WHERE id = ?1")
+            .bind(id.to_string())
+            .fetch_one(pool)
+            .await
+            .unwrap()
+    }
+
+    /// CRÍTICO (auditoria): com um StockMovement pendente (synced=0), o pull
+    /// NÃO pode aceitar o estoque absoluto do servidor mesmo que o produto
+    /// esteja synced=1 — senão o delta da venda pendente é revertido
+    /// (overselling). O estoque local deve ser preservado.
+    #[tokio::test]
+    async fn pull_preserva_estoque_local_quando_ha_movimento_pendente() {
+        let (cid, id) = (Uuid::new_v4(), Uuid::new_v4());
+        let pool = mem_pool().await;
+        let repo = SqliteProductRepository::new(pool.clone());
+        // Local: produto já sincronizado (synced=1) com estoque baixado p/ 7.
+        repo.sync_upsert(&product_at(cid, id, 7.0, "2026-01-05 12:00:00.000000", true))
+            .await
+            .unwrap();
+        // Movimento da venda ainda não sincronizado.
+        insert_pending_movement(&pool, cid, id).await;
+        // Servidor manda versão mais nova com estoque inflado (10) — não recebeu
+        // o delta ainda.
+        repo.sync_upsert(&product_at(cid, id, 10.0, "2026-01-06 12:00:00.000000", true))
+            .await
+            .unwrap();
+        assert_eq!(stock_of(&pool, id).await, 7.0, "movimento pendente preserva o local");
+    }
+
+    /// Sem movimento pendente, o pull aceita normalmente o absoluto do servidor
+    /// (convergência LWW §7.7).
+    #[tokio::test]
+    async fn pull_aceita_estoque_servidor_sem_movimento_pendente() {
+        let (cid, id) = (Uuid::new_v4(), Uuid::new_v4());
+        let pool = mem_pool().await;
+        let repo = SqliteProductRepository::new(pool.clone());
+        repo.sync_upsert(&product_at(cid, id, 7.0, "2026-01-05 12:00:00.000000", true))
+            .await
+            .unwrap();
+        repo.sync_upsert(&product_at(cid, id, 10.0, "2026-01-06 12:00:00.000000", true))
+            .await
+            .unwrap();
+        assert_eq!(stock_of(&pool, id).await, 10.0, "sem pendência, converge ao servidor");
     }
 }

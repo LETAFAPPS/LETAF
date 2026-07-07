@@ -389,19 +389,27 @@ impl OrderRepository for SqliteOrderRepository {
 
     async fn mark_synced(&self, company_id: Uuid, id: Uuid, updated_at: chrono::NaiveDateTime) -> Result<(), CoreError> {
         let mut tx = self.pool.begin().await.map_err(map_db)?;
-        sqlx::query("UPDATE orders SET synced = true WHERE company_id = ?1 AND id = ?2 AND updated_at = ?3")
-            .bind(company_id.to_string())
-            .bind(id.to_string())
-            .bind(ts(updated_at))
-            .execute(&mut *tx)
-            .await
-            .map_err(map_db)?;
-        sqlx::query("UPDATE order_items SET synced = true WHERE company_id = ?1 AND order_id = ?2")
-            .bind(company_id.to_string())
-            .bind(id.to_string())
-            .execute(&mut *tx)
-            .await
-            .map_err(map_db)?;
+        let header = sqlx::query(
+            "UPDATE orders SET synced = true WHERE company_id = ?1 AND id = ?2 AND updated_at = ?3",
+        )
+        .bind(company_id.to_string())
+        .bind(id.to_string())
+        .bind(ts(updated_at))
+        .execute(&mut *tx)
+        .await
+        .map_err(map_db)?;
+        // Só marca os itens quando o HEADER foi de fato marcado (condição de
+        // `updated_at` casou). Se o pedido foi editado durante o push, o header
+        // fica synced=false (0 linhas) e os itens NÃO podem virar synced=true,
+        // senão pai e filhos divergem (§7.6).
+        if header.rows_affected() == 1 {
+            sqlx::query("UPDATE order_items SET synced = true WHERE company_id = ?1 AND order_id = ?2")
+                .bind(company_id.to_string())
+                .bind(id.to_string())
+                .execute(&mut *tx)
+                .await
+                .map_err(map_db)?;
+        }
         tx.commit().await.map_err(map_db)?;
         Ok(())
     }

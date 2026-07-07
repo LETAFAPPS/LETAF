@@ -301,6 +301,7 @@ impl SyncWorker {
             };
         }
         add!(self.state.product_service.find_unsynced(cid),       "products");
+        add!(self.state.product_service.find_unsynced_stock_movements(cid), "stock_movements");
         add!(self.state.auth_service.find_unsynced(cid),          "users");
         add!(self.state.job_role_service.find_unsynced(cid),      "job_roles");
         add!(self.state.company_service.find_unsynced(),          "companies");

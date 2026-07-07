@@ -169,8 +169,12 @@ impl ProductService {
         }
         self.repo.update(&product).await?;
         if stock_delta.abs() > f64::EPSILON {
-            self.repo.try_adjust_stock(company_id, id, stock_delta).await?;
-            product.stock_quantity = target_stock; // reflete no retorno
+            // Aplica o delta pelo ledger via `adjust_stock`, que trata o
+            // `StockAdjustResult` (Insufficient/NotFound viram erro em vez de
+            // falha silenciosa) e grava o StockMovement atomicamente. Só reflete
+            // `target_stock` no retorno se o ajuste de fato ocorreu (§7.6).
+            self.adjust_stock(company_id, id, stock_delta).await?;
+            product.stock_quantity = target_stock;
         }
         // Reescreve as associações N:M com a lista atual (lista vazia
         // limpa todas) — mesmo padrão de outras coleções gerenciadas
