@@ -7,7 +7,8 @@ use super::model::Subscription;
 use super::service::SubscriptionService;
 use crate::error::CoreError;
 use crate::payment_gateway::pix_auto::{
-    is_active_status, CreatedRecurrence, PixAutoCustomer, PixAutoGateway, PixAutoInput,
+    is_active_status, is_rejected_status, CreatedRecurrence, PixAutoCustomer, PixAutoGateway,
+    PixAutoInput,
 };
 
 /// Orquestra o Pix Automático: cria o mandato (recorrência), reflete o
@@ -110,6 +111,12 @@ impl PixAutoBillingService {
             self.subscriptions
                 .apply_pix_auto_charge(&updated, "paid", terms.amount, None, today)
                 .await?;
+        } else if is_rejected_status(&status.status) {
+            // Mandato recusado/encerrado pelo banco do pagador: o débito
+            // automático não vai mais ocorrer. Desvincula o Pix Automático
+            // para o billing loop parar de emitir `cobr` num `rec` morto e
+            // cair no PIX manual. Não é punitivo (não marca Overdue).
+            return self.subscriptions.cancel_pix_auto(company_id).await;
         }
         Ok(updated)
     }
