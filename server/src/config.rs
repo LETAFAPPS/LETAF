@@ -134,7 +134,16 @@ impl AppConfig {
             .collect();
 
         if cors_origins.iter().any(|o| o == "*") {
-            tracing::warn!("CORS_ORIGINS=* — restrinja em produção");
+            if cfg!(debug_assertions) {
+                tracing::warn!("CORS_ORIGINS=* — restrinja em produção");
+            } else {
+                // Em release (produção), origem aberta é bloqueada no boot —
+                // mesmo padrão do JWT_SECRET. Defina CORS_ORIGINS explícito (§11).
+                panic!(
+                    "CORS_ORIGINS=* não é permitido em release: defina as origens \
+                     explícitas separadas por vírgula (ex.: https://app.seudominio.com)"
+                );
+            }
         }
 
         let jwt_secret = resolve_jwt_secret();
