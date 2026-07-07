@@ -641,7 +641,7 @@ impl OrderService {
                     for o in opts {
                         if let (Some(name), Some(price)) = (
                             o.get("name").and_then(|n| n.as_str()),
-                            o.get("price").and_then(|p| p.as_f64()).and_then(Decimal::from_f64),
+                            o.get("price").and_then(|p| p.as_f64()).and_then(Decimal::from_f64).map(money::round2),
                         ) {
                             legit.insert(name.to_string(), price);
                         }
@@ -656,7 +656,7 @@ impl OrderService {
                 .get("name")
                 .and_then(|n| n.as_str())
                 .ok_or_else(|| CoreError::Validation("Adicional sem nome".into()))?;
-            let claimed = v.get("price").and_then(|p| p.as_f64()).and_then(Decimal::from_f64);
+            let claimed = v.get("price").and_then(|p| p.as_f64()).and_then(Decimal::from_f64).map(money::round2);
             let expected = legit.get(name).copied().ok_or_else(|| {
                 CoreError::Validation(format!("Adicional '{name}' não pertence a este produto"))
             })?;
@@ -684,7 +684,7 @@ fn parse_addons_total(addons_json: Option<&str>) -> Decimal {
     let Ok(arr) = serde_json::from_str::<serde_json::Value>(trimmed) else { return Decimal::ZERO; };
     let Some(arr) = arr.as_array() else { return Decimal::ZERO; };
     arr.iter()
-        .filter_map(|v| v.get("price").and_then(|p| p.as_f64()).and_then(Decimal::from_f64))
+        .filter_map(|v| v.get("price").and_then(|p| p.as_f64()).and_then(Decimal::from_f64).map(money::round2))
         .sum()
 }
 

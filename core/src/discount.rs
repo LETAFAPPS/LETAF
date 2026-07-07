@@ -54,7 +54,7 @@ fn winning_tier_from_json(json: &str, quantity: f64) -> Option<Decimal> {
     let mut tiers: Vec<(f64, Decimal)> = arr.iter()
         .filter_map(|v| {
             let q = v.get("min_qty")?.as_f64()?;
-            let val = v.get("value")?.as_f64().and_then(Decimal::from_f64)?;
+            let val = v.get("value")?.as_f64().and_then(Decimal::from_f64).map(crate::money::round2)?;
             if q <= 0.0 { return None; }
             Some((q, val))
         })
