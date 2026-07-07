@@ -1,14 +1,9 @@
 //! Utilidades compartilhadas do domínio (AI_RULES §8/§14: sem
-//! duplicação). Antes `round_2` (wallet) e `add_months` (finance e
-//! subscription, com implementações divergentes) viviam espalhados.
+//! duplicação). `add_months` (finance e subscription, com implementações
+//! divergentes) vivia espalhado; centralizado aqui. Dinheiro é `Decimal`
+//! (ver `crate::money`) — não há arredondamento monetário em `f64`.
 
 use chrono::{Datelike, NaiveDate};
-
-/// Arredondamento contábil padrão (2 casas) — evita drift de ponto
-/// flutuante após muitas operações monetárias.
-pub fn round_2(v: f64) -> f64 {
-    (v * 100.0).round() / 100.0
-}
 
 /// Soma `months` (pode ser negativo) preservando o "fim de mês":
 /// 31/01 + 1 → 28/02 (ou 29/02 em ano bissexto), 15/01 + 1 → 15/02.

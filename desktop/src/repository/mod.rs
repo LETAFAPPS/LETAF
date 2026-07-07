@@ -15,7 +15,6 @@ pub mod finance_category;
 pub mod helpers;
 pub mod job_role;
 pub mod order;
-pub mod payment_charge;
 pub mod payment_method;
 pub mod printer;
 pub mod product;
