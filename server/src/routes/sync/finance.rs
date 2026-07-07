@@ -34,6 +34,9 @@ pub(crate) async fn pull_cash_sessions(
     Query(params): Query<PullQuery>,
 ) -> Result<Json<Vec<CashSession>>, ServerError> {
     auth.verify_any_role(ROLES_OPERATORS)?;
+    // Dado sensível (caixa): pull só para quem enxerga a tela (§11). O push
+    // fica aberto para não travar dados de outro operador no mesmo desktop.
+    auth.require_permission("cash.view")?;
     let items = state.cash_service
         .find_sessions_updated_since(auth.0.company_id, params.since)
         .await?;
@@ -61,6 +64,7 @@ pub(crate) async fn pull_cash_movements(
     Query(params): Query<PullQuery>,
 ) -> Result<Json<Vec<CashMovement>>, ServerError> {
     auth.verify_any_role(ROLES_OPERATORS)?;
+    auth.require_permission("cash.view")?;
     let items = state.cash_service
         .find_movements_updated_since(auth.0.company_id, params.since)
         .await?;
@@ -88,6 +92,7 @@ pub(crate) async fn pull_finance_categories(
     Query(params): Query<PullQuery>,
 ) -> Result<Json<Vec<FinanceCategory>>, ServerError> {
     auth.verify_any_role(ROLES_OPERATORS)?;
+    auth.require_permission("finance.view")?;
     let items = state
         .finance_category_service
         .find_updated_since(auth.0.company_id, params.since)
@@ -119,6 +124,7 @@ pub(crate) async fn pull_finance_entries(
     Query(params): Query<PullQuery>,
 ) -> Result<Json<Vec<FinanceEntry>>, ServerError> {
     auth.verify_any_role(ROLES_OPERATORS)?;
+    auth.require_permission("finance.view")?;
     let items = state
         .finance_service
         .find_updated_since(auth.0.company_id, params.since)
@@ -147,6 +153,8 @@ pub(crate) async fn pull_wallet_accounts(
     Query(params): Query<PullQuery>,
 ) -> Result<Json<Vec<WalletAccount>>, ServerError> {
     auth.verify_any_role(ROLES_OPERATORS)?;
+    // Carteira = crédito (fiado) por cliente: gateia pela permissão de clientes.
+    auth.require_permission("customers.view")?;
     let items = state
         .wallet_service
         .find_accounts_updated_since(auth.0.company_id, params.since)
@@ -176,6 +184,7 @@ pub(crate) async fn pull_wallet_movements(
     Query(params): Query<PullQuery>,
 ) -> Result<Json<Vec<WalletMovement>>, ServerError> {
     auth.verify_any_role(ROLES_OPERATORS)?;
+    auth.require_permission("customers.view")?;
     let items = state
         .wallet_service
         .find_movements_updated_since(auth.0.company_id, params.since)

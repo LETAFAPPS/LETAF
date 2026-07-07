@@ -60,6 +60,8 @@ pub(crate) async fn pull_subscriptions(
     Query(params): Query<PullQuery>,
 ) -> Result<Json<Vec<Subscription>>, ServerError> {
     auth.verify_any_role(ROLES_OPERATORS)?;
+    // Dado sensível (assinatura/billing): pull só para quem enxerga a tela.
+    auth.require_permission("subscription.view")?;
     let items = state
         .subscription_service
         .find_subscriptions_updated_since(auth.0.company_id, params.since)
@@ -88,6 +90,7 @@ pub(crate) async fn pull_subscription_invoices(
     Query(params): Query<PullQuery>,
 ) -> Result<Json<Vec<SubscriptionInvoice>>, ServerError> {
     auth.verify_any_role(ROLES_OPERATORS)?;
+    auth.require_permission("subscription.view")?;
     let items = state
         .subscription_service
         .find_invoices_updated_since(auth.0.company_id, params.since)
