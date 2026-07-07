@@ -319,7 +319,14 @@ async fn serve(state: AppState, config: &AppConfig) {
     tracing::info!("Server running on {addr}");
 
     let listener = TcpListener::bind(&addr).await.expect("Failed to bind");
-    axum::serve(listener, app).await.expect("Server failed");
+    // `with_connect_info` expõe o IP do socket (ConnectInfo) para o rate
+    // limiter de autenticação (§11) quando não há proxy confiável.
+    axum::serve(
+        listener,
+        app.into_make_service_with_connect_info::<std::net::SocketAddr>(),
+    )
+    .await
+    .expect("Server failed");
 }
 
 /// Constrói o CorsLayer a partir da configuração.

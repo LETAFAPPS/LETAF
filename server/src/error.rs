@@ -36,6 +36,11 @@ pub enum ServerError {
     /// não configurado). 503 com mensagem explícita ao invés de 500.
     #[error("{0}")]
     ServiceUnavailable(&'static str),
+
+    /// Excesso de requisições (rate limit) — 429. Usado nos endpoints de
+    /// autenticação para frear brute force (§11).
+    #[error("{0}")]
+    TooManyRequests(&'static str),
 }
 
 impl IntoResponse for ServerError {
@@ -69,6 +74,9 @@ impl IntoResponse for ServerError {
             }
             ServerError::ServiceUnavailable(msg) => {
                 (StatusCode::SERVICE_UNAVAILABLE, (*msg).to_string())
+            }
+            ServerError::TooManyRequests(msg) => {
+                (StatusCode::TOO_MANY_REQUESTS, (*msg).to_string())
             }
         };
 

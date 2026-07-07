@@ -6,6 +6,7 @@ use uuid::Uuid;
 
 use crate::context::AppState;
 use crate::error::ServerError;
+use crate::rate_limit::ClientIp;
 use crate::jwt::{create_token, ROLE_CUSTOMER};
 use crate::middleware::auth::AuthClaims;
 use crate::middleware::tenant::TenantContext;
@@ -147,8 +148,14 @@ async fn update_profile(
 async fn login(
     State(state): State<AppState>,
     tenant: TenantContext,
+    ip: ClientIp,
     Json(body): Json<LoginRequest>,
 ) -> Result<Json<CustomerAuthResponse>, ServerError> {
+    if !state.login_rate_limiter.check(ip.0) {
+        return Err(ServerError::TooManyRequests(
+            "Muitas tentativas. Aguarde alguns instantes e tente novamente.",
+        ));
+    }
     let customer = state
         .customer_service
         .authenticate(tenant.company_id, &body.email, &body.password)

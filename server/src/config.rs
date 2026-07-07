@@ -12,6 +12,10 @@ pub struct AppConfig {
     pub server_port: u16,
     pub jwt_secret: String,
     pub cors_origins: Vec<String>,
+    /// Quando `true` (`TRUST_PROXY=true`), o IP do cliente para rate limit é
+    /// lido do `X-Forwarded-For` (deploy atrás de proxy reverso). Padrão
+    /// `false` = usa o IP do socket (seguro contra spoof de header).
+    pub trust_proxy: bool,
     /// `None` quando variáveis EFI_* não estão setadas — o servidor
     /// sobe normalmente, apenas os endpoints `/payments/*` retornam
     /// 503 indicando "gateway não configurado".
@@ -161,6 +165,9 @@ impl AppConfig {
                 .unwrap_or(3000),
             jwt_secret,
             cors_origins,
+            trust_proxy: env::var("TRUST_PROXY")
+                .map(|v| v.trim().eq_ignore_ascii_case("true"))
+                .unwrap_or(false),
             efi,
             efi_card,
             app_updates_dir: env::var("APP_UPDATES_DIR")

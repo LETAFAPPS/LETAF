@@ -11,6 +11,10 @@ use crate::error::ServerError;
 use crate::jwt::create_token;
 use crate::middleware::auth::AuthClaims;
 use crate::middleware::tenant::TenantContext;
+use crate::rate_limit::ClientIp;
+
+/// Mensagem de 429 nos endpoints de autenticação.
+const RATE_LIMIT_MSG: &str = "Muitas tentativas. Aguarde alguns instantes e tente novamente.";
 
 /// Rotas REST para autenticação.
 ///
@@ -86,8 +90,12 @@ struct ForgotPasswordRequest {
 
 async fn forgot_password(
     State(state): State<AppState>,
+    ip: ClientIp,
     Json(body): Json<ForgotPasswordRequest>,
 ) -> Result<StatusCode, ServerError> {
+    if !state.login_rate_limiter.check(ip.0) {
+        return Err(ServerError::TooManyRequests(RATE_LIMIT_MSG));
+    }
     let email = body.email.trim().to_string();
     // `find_by_email_global` → Err se duplicado (ambíguo) ou None se não existe.
     if let Ok(Some(_)) = state.auth_service.find_by_email_global(&email).await {
@@ -320,8 +328,12 @@ async fn register(
 ///   identificar o tenant antes da autenticação
 async fn login_desktop(
     State(state): State<AppState>,
+    ip: ClientIp,
     Json(body): Json<LoginRequest>,
 ) -> Result<Json<DesktopAuthResponse>, ServerError> {
+    if !state.login_rate_limiter.check(ip.0) {
+        return Err(ServerError::TooManyRequests(RATE_LIMIT_MSG));
+    }
     let user = state
         .auth_service
         .authenticate_global(&body.email, &body.password)
@@ -358,8 +370,12 @@ async fn login_desktop(
 async fn login(
     State(state): State<AppState>,
     tenant: TenantContext,
+    ip: ClientIp,
     Json(body): Json<LoginRequest>,
 ) -> Result<Json<AuthResponse>, ServerError> {
+    if !state.login_rate_limiter.check(ip.0) {
+        return Err(ServerError::TooManyRequests(RATE_LIMIT_MSG));
+    }
     let user = state
         .auth_service
         .authenticate(tenant.company_id, &body.email, &body.password)

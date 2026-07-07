@@ -78,7 +78,15 @@ pub struct AppState {
     pub password_reset_service: Arc<PasswordResetService>,
     /// Catálogo de planos (gerido pelo super admin; lido pelas lojas).
     pub plan_service: Arc<PlanService>,
+    /// Rate limiter dos endpoints de autenticação (anti-brute-force §11).
+    pub login_rate_limiter: Arc<crate::rate_limit::RateLimiter>,
 }
+
+/// Máx. de tentativas de auth por IP dentro da janela. Generoso para não
+/// travar escritório atrás de NAT, mas restritivo para bot (o bcrypt cost 13
+/// já encarece cada tentativa).
+const LOGIN_RATE_MAX: usize = 20;
+const LOGIN_RATE_WINDOW_SECS: u64 = 60;
 
 impl AppState {
     #[allow(clippy::too_many_arguments)]
@@ -113,6 +121,10 @@ impl AppState {
         plan_service: Arc<PlanService>,
     ) -> Self {
         Self {
+            login_rate_limiter: Arc::new(crate::rate_limit::RateLimiter::new(
+                LOGIN_RATE_MAX,
+                std::time::Duration::from_secs(LOGIN_RATE_WINDOW_SECS),
+            )),
             pool,
             config,
             product_service,

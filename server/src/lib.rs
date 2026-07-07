@@ -9,5 +9,6 @@ pub mod integrations;
 pub mod jwt;
 pub mod media;
 pub mod middleware;
+pub mod rate_limit;
 pub mod repository;
 pub mod routes;
