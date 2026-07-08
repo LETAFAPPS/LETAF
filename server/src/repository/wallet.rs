@@ -312,6 +312,26 @@ impl WalletRepository for PgWalletRepository {
         .collect())
     }
 
+    async fn find_accounts_updated_since_paged(
+        &self,
+        company_id: Uuid,
+        since: NaiveDateTime,
+        after_id: Uuid,
+        limit: i64,
+    ) -> Result<Vec<WalletAccount>, CoreError> {
+        Ok(sqlx::query_as::<_, WalletAccountRow>(&keyset_pull_sql("wallet_accounts"))
+            .bind(company_id)
+            .bind(since)
+            .bind(after_id)
+            .bind(limit)
+            .fetch_all(&self.pool)
+            .await
+            .map_err(map_db)?
+            .into_iter()
+            .map(Into::into)
+            .collect())
+    }
+
     async fn sync_upsert_account(&self, a: &WalletAccount) -> Result<(), CoreError> {
         sqlx::query(
             "INSERT INTO wallet_accounts

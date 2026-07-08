@@ -13,6 +13,22 @@ use crate::error::CoreError;
 #[async_trait]
 pub trait SubscriptionRepository: Send + Sync {
     async fn find_current(&self, company_id: Uuid) -> Result<Option<Subscription>, CoreError>;
+
+    /// Assinatura atual de VÁRIAS empresas numa só query (painel super-admin,
+    /// §13 — evita N+1). Retorna no máximo uma por company. Default: laço de
+    /// `find_current` (desktop não usa); o servidor sobrescreve com `DISTINCT ON`.
+    async fn find_current_for_companies(
+        &self,
+        company_ids: &[Uuid],
+    ) -> Result<Vec<Subscription>, CoreError> {
+        let mut out = Vec::new();
+        for &id in company_ids {
+            if let Some(s) = self.find_current(id).await? {
+                out.push(s);
+            }
+        }
+        Ok(out)
+    }
     /// Busca uma assinatura pelo seu próprio id, independente de
     /// status/`next_charge_date` (usado no fluxo de cobrança).
     async fn find_subscription_by_id(

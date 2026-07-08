@@ -177,7 +177,12 @@ pub(crate) async fn pull_wallet_accounts(
     auth.require_permission("customers.view")?;
     let items = state
         .wallet_service
-        .find_accounts_updated_since(auth.0.company_id, params.since)
+        .find_accounts_updated_since_paged(
+            auth.0.company_id,
+            params.since,
+            params.after_id(),
+            params.page_limit(),
+        )
         .await?;
     Ok(Json(items))
 }

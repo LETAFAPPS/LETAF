@@ -162,6 +162,24 @@ impl SubscriptionRepository for PgSubscriptionRepository {
         .map_err(map_db)
     }
 
+    async fn find_current_for_companies(
+        &self,
+        company_ids: &[Uuid],
+    ) -> Result<Vec<Subscription>, CoreError> {
+        // §13: uma query em vez de N (painel super-admin). `DISTINCT ON` pega a
+        // assinatura mais recente por empresa — mesma seleção do `find_current`.
+        let rows = sqlx::query_as::<_, SubscriptionRow>(
+            "SELECT DISTINCT ON (company_id) * FROM subscriptions
+             WHERE company_id = ANY($1) AND deleted_at IS NULL
+             ORDER BY company_id, created_at DESC",
+        )
+        .bind(company_ids)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(map_db)?;
+        Ok(rows.into_iter().map(Subscription::from).collect())
+    }
+
     async fn create_subscription(&self, s: &Subscription) -> Result<(), CoreError> {
         sqlx::query(
             "INSERT INTO subscriptions

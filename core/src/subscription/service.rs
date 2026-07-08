@@ -215,6 +215,14 @@ impl SubscriptionService {
         self.repo.find_current(company_id).await
     }
 
+    /// Assinatura atual de várias empresas numa só query (painel super-admin).
+    pub async fn find_current_for_companies(
+        &self,
+        company_ids: &[Uuid],
+    ) -> Result<Vec<Subscription>, CoreError> {
+        self.repo.find_current_for_companies(company_ids).await
+    }
+
     pub async fn find_invoices(&self, company_id: Uuid) -> Result<Vec<Invoice>, CoreError> {
         self.repo.find_invoices(company_id).await
     }
@@ -950,9 +958,12 @@ fn is_paid_status(s: &str) -> bool {
 
 /// Status que contam como **falha/recusa** (gera atraso).
 fn is_failed_status(s: &str) -> bool {
+    // NÃO inclui "canceled"/"cancelled": um cancelamento de cobrança não é falha
+    // de pagamento e não deve marcar o tenant como Overdue (o cancelamento
+    // "limpo" passa por cancel_card/cancel_pix_auto). Só desfechos de FALHA real.
     matches!(
         s,
-        "unpaid" | "refused" | "declined" | "canceled" | "cancelled" | "expired" | "contested"
+        "unpaid" | "refused" | "declined" | "expired" | "contested"
     )
 }
 

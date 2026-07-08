@@ -263,6 +263,19 @@ impl WalletService {
             .await
     }
 
+    /// Página do pull de carteiras por keyset `(updated_at, id)`.
+    pub async fn find_accounts_updated_since_paged(
+        &self,
+        company_id: Uuid,
+        since: chrono::NaiveDateTime,
+        after_id: Uuid,
+        limit: i64,
+    ) -> Result<Vec<WalletAccount>, CoreError> {
+        self.repo
+            .find_accounts_updated_since_paged(company_id, since, after_id, limit)
+            .await
+    }
+
     pub async fn sync_upsert_account(
         &self,
         company_id: Uuid,

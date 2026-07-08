@@ -82,14 +82,9 @@ async fn overview(
 ) -> Result<Json<OverviewResponse>, ServerError> {
     require_super_admin(&auth)?;
     let tenants = tenants(&state).await?;
-    let mut active = 0usize;
-    for c in &tenants {
-        if let Ok(Some(sub)) = state.subscription_service.find_current(c.id).await {
-            if sub.status.as_str() == "active" {
-                active += 1;
-            }
-        }
-    }
+    let ids: Vec<Uuid> = tenants.iter().map(|c| c.id).collect();
+    let subs = state.subscription_service.find_current_for_companies(&ids).await?;
+    let active = subs.iter().filter(|s| s.status.as_str() == "active").count();
     let admins = state.auth_service.find_all(auth.0.company_id).await?;
     Ok(Json(OverviewResponse {
         companies: tenants.len(),
@@ -255,11 +250,15 @@ async fn list_companies(
 ) -> Result<Json<Vec<CompanyRow>>, ServerError> {
     require_super_admin(&auth)?;
     let tenants = tenants(&state).await?;
+    let ids: Vec<Uuid> = tenants.iter().map(|c| c.id).collect();
+    let subs = state.subscription_service.find_current_for_companies(&ids).await?;
+    let by_company: std::collections::HashMap<Uuid, &_> =
+        subs.iter().map(|s| (s.base.company_id, s)).collect();
     let mut rows = Vec::with_capacity(tenants.len());
     for c in tenants {
-        let (plan, status) = match state.subscription_service.find_current(c.id).await {
-            Ok(Some(sub)) => (sub.plan_kind.as_str().to_string(), sub.status.as_str().to_string()),
-            _ => (String::new(), "none".to_string()),
+        let (plan, status) = match by_company.get(&c.id) {
+            Some(sub) => (sub.plan_kind.as_str().to_string(), sub.status.as_str().to_string()),
+            None => (String::new(), "none".to_string()),
         };
         rows.push(CompanyRow {
             id: c.id,
@@ -290,9 +289,13 @@ async fn list_subscriptions(
 ) -> Result<Json<Vec<SubscriptionRow>>, ServerError> {
     require_super_admin(&auth)?;
     let tenants = tenants(&state).await?;
+    let ids: Vec<Uuid> = tenants.iter().map(|c| c.id).collect();
+    let subs = state.subscription_service.find_current_for_companies(&ids).await?;
+    let by_company: std::collections::HashMap<Uuid, &_> =
+        subs.iter().map(|s| (s.base.company_id, s)).collect();
     let mut rows = Vec::with_capacity(tenants.len());
     for c in tenants {
-        if let Ok(Some(sub)) = state.subscription_service.find_current(c.id).await {
+        if let Some(sub) = by_company.get(&c.id) {
             rows.push(SubscriptionRow {
                 company_id: c.id,
                 company_name: c.name,

@@ -55,6 +55,9 @@ impl PullCursor for CashSession {
 impl PullCursor for SubscriptionInvoice {
     fn pull_cursor(&self) -> (NaiveDateTime, uuid::Uuid) { (self.base.updated_at, self.base.id) }
 }
+impl PullCursor for WalletAccount {
+    fn pull_cursor(&self) -> (NaiveDateTime, uuid::Uuid) { (self.base.updated_at, self.base.id) }
+}
 
 impl SyncWorker {
 
@@ -278,7 +281,7 @@ impl SyncWorker {
         &self, token: &str, since: NaiveDateTime, mut max_ts: NaiveDateTime,
     ) -> Result<NaiveDateTime, CoreError> {
         let items: Vec<WalletAccount> =
-            self.fetch_pull(token, "/sync/pull/wallet-accounts", since).await?;
+            self.fetch_pull_paged(token, "/sync/pull/wallet-accounts", since).await?;
         let cid = self.state.company_id();
         for item in items {
             if item.base.updated_at > max_ts { max_ts = item.base.updated_at; }

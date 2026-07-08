@@ -38,6 +38,20 @@ pub(crate) async fn reconcile_manifest(
     Query(q): Query<ManifestQuery>,
 ) -> Result<Json<Vec<ManifestEntry>>, ServerError> {
     auth.verify_any_role(ROLES_OPERATORS)?;
+    // §11: o manifesto expõe ids/updated_at/deleted_at da entidade. Sem gate,
+    // ele CONTORNARIA a permissão do pull correspondente (ex.: enumerar caixa/
+    // financeiro sem `cash.view`/`finance.view`). Espelha exatamente a permissão
+    // do pull de cada entidade sensível; catálogo/pedidos seguem só por role,
+    // como seus pulls.
+    if let Some(perm) = match q.entity.as_str() {
+        "cash_sessions" | "cash_movements" => Some("cash.view"),
+        "finance_entries" | "finance_categories" => Some("finance.view"),
+        "wallet_accounts" | "wallet_movements" => Some("customers.view"),
+        "subscriptions" | "subscription_invoices" => Some("subscription.view"),
+        _ => None,
+    } {
+        auth.require_permission(perm)?;
+    }
     let repo = PgReconcileRepository::new(state.pool.clone());
     let manifest = repo.manifest(auth.0.company_id, &q.entity).await?;
     Ok(Json(manifest))

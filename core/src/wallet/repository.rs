@@ -83,6 +83,17 @@ pub trait WalletRepository: Send + Sync {
         company_id: Uuid,
         since: NaiveDateTime,
     ) -> Result<Vec<WalletAccount>, CoreError>;
+    /// Página do pull por keyset `(updated_at, id)` — carteiras crescem por
+    /// cliente (§7/§13). Default delega ao não paginado; o servidor sobrescreve.
+    async fn find_accounts_updated_since_paged(
+        &self,
+        company_id: Uuid,
+        since: NaiveDateTime,
+        _after_id: Uuid,
+        _limit: i64,
+    ) -> Result<Vec<WalletAccount>, CoreError> {
+        self.find_accounts_updated_since(company_id, since).await
+    }
     async fn sync_upsert_account(&self, account: &WalletAccount) -> Result<(), CoreError>;
 
     // ── Sync — movements ──
