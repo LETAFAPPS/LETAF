@@ -965,16 +965,29 @@ fn subtract_months(date: NaiveDate, months: i32) -> NaiveDate {
     add_months(date, -months)
 }
 
-/// Gera um número de fatura sequencial baseado na contagem atual de
-/// invoices da empresa. Não é "atômico" (race condition possível em
-/// concorrência alta) mas o billing loop roda single-thread por
-/// company — suficiente para esta fase.
+/// Gera o próximo número de fatura sequencial da empresa.
+///
+/// Deriva do MAIOR número já emitido (+1), não da CONTAGEM: assim um
+/// soft-delete de qualquer fatura não faz o próximo número regredir e
+/// colidir com um existente (o count-based reusava). Base 80 → 1ª fatura = 81.
+/// A concorrência continua serializada pelo billing loop (single-thread por
+/// company), então não precisa de sequência atômica no banco nesta fase.
 async fn generate_invoice_number(
     today: NaiveDate,
     repo: &Arc<dyn SubscriptionRepository>,
     company_id: Uuid,
 ) -> Result<String, CoreError> {
     let existing = repo.find_invoices(company_id).await?;
-    let next = existing.len() as u32 + 81;
-    Ok(format!("NFS-{:04}-{}", next, today.format("%Y")))
+    let max_seq = existing
+        .iter()
+        .filter_map(|inv| parse_invoice_seq(&inv.number))
+        .max()
+        .unwrap_or(80);
+    Ok(format!("NFS-{:04}-{}", max_seq + 1, today.format("%Y")))
+}
+
+/// Extrai o componente sequencial de um número `NFS-<seq>-<ano>` (ex.:
+/// `"NFS-0081-2026"` → `81`). `None` se o formato não bater.
+fn parse_invoice_seq(number: &str) -> Option<u32> {
+    number.strip_prefix("NFS-")?.split('-').next()?.parse().ok()
 }
