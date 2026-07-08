@@ -150,6 +150,7 @@ component CodeBoxes inherits Rectangle {
     callback edited();
     callback completed();
     property <bool> fired: false;
+    property <bool> focus-pending: true;
     height: 56px;
 
     function refresh() {
@@ -162,7 +163,13 @@ component CodeBoxes inherits Rectangle {
         }
     }
 
-    init => { d0.focus(); }
+    // Foca a 1ª caixa via Timer (padrão do projeto) — focar no `init` roda
+    // DURANTE a troca de passo e causa re-entrância no foco do Slint (crash).
+    Timer {
+        interval: 1ms;
+        running: root.focus-pending;
+        triggered => { root.focus-pending = false; d0.focus(); }
+    }
 
     HorizontalLayout {
         alignment: center;
