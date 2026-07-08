@@ -264,7 +264,7 @@ export component LoginPage inherits Rectangle {
     // ── Painel esquerdo · showcase (metade esquerda exata) ──────────
     Rectangle {
         x: 0; y: 0;
-        width: parent.width * 1.15 / 2.15;   // proporção 1.15 : 1 do mockup
+        width: parent.width / 2;   // divisão exata no meio (50/50)
         height: parent.height;
         background: #1a1a18;
         clip: true;
@@ -370,9 +370,9 @@ export component LoginPage inherits Rectangle {
 
     // ── Painel direito · formulário (metade direita) ────────────────
     Rectangle {
-        x: parent.width * 1.15 / 2.15;
+        x: parent.width / 2;
         y: 0;
-        width: parent.width - self.x;
+        width: parent.width / 2;
         height: parent.height;
         background: #f8f7f4;
 
