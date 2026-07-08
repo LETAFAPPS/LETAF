@@ -107,6 +107,22 @@ async fn create_order(
     auth.verify(tenant.company_id, ROLE_CUSTOMER)?;
     let customer_id = auth.0.sub;
 
+    // §11: o cliente web é não-confiável. Se o lojista fechou a loja
+    // manualmente (`store_override == "closed"`), o backend rejeita o pedido
+    // — senão uma requisição forjada criaria pedido com a loja fechada. A
+    // janela por HORÁRIO não é reforçada aqui porque exigiria o fuso da loja
+    // (ausente no modelo); o override manual é independente de fuso.
+    let company = state
+        .company_service
+        .find_by_id(tenant.company_id)
+        .await?
+        .ok_or_else(|| CoreError::NotFound("Empresa não encontrada".into()))?;
+    if company.store_override == "closed" {
+        return Err(ServerError::Core(CoreError::Validation(
+            "Loja fechada no momento. Tente novamente mais tarde.".into(),
+        )));
+    }
+
     let items: Vec<OrderItemInput> = req
         .items
         .into_iter()

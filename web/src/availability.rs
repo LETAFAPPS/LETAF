@@ -42,6 +42,17 @@ struct AvailabilityDay {
     active: bool,
 }
 
+/// `true` se `mins` cai na janela `[open, close)`. Trata a VIRADA DE
+/// MEIA-NOITE: quando `close <= open` a janela cruza 00:00 (ex.: 18:00→02:00),
+/// valendo `mins >= open || mins < close`. `close == open` = 24h.
+fn in_window(mins: i32, open: i32, close: i32) -> bool {
+    if close > open {
+        mins >= open && mins < close
+    } else {
+        mins >= open || mins < close
+    }
+}
+
 /// Converte `"HH:MM"` em minutos desde meia-noite.
 fn hhmm_to_minutes(s: &str) -> Option<i32> {
     let (h, m) = s.split_once(':')?;
@@ -69,7 +80,7 @@ pub fn is_available_now(schedule: Option<&str>, now: Option<(i32, i32)>) -> bool
         Some(e) if e.active => {
             let open = hhmm_to_minutes(&e.open).unwrap_or(0);
             let close = hhmm_to_minutes(&e.close).unwrap_or(24 * 60);
-            mins >= open && mins < close
+            in_window(mins, open, close)
         }
         _ => false,
     }
@@ -97,7 +108,7 @@ pub fn is_store_open_now(
         Some(h) if h.is_open => {
             let open = hhmm_to_minutes(&h.open_time).unwrap_or(0);
             let close = hhmm_to_minutes(&h.close_time).unwrap_or(24 * 60);
-            mins >= open && mins <= close
+            in_window(mins, open, close)
         }
         _ => false,
     }
@@ -182,6 +193,24 @@ mod tests {
         assert!(!is_available_now(Some(&s), Some((2, 600)))); // outro dia
         let inactive = sched(1, "08:00", "12:00", false);
         assert!(!is_available_now(Some(&inactive), Some((1, 600)))); // dia inativo
+    }
+
+    #[test]
+    fn product_janela_cruza_meia_noite() {
+        // Bar noturno: abre 18:00 (1080) e fecha 02:00 (120) do dia seguinte.
+        let s = sched(1, "18:00", "02:00", true);
+        assert!(is_available_now(Some(&s), Some((1, 1140)))); // 19:00 dentro
+        assert!(is_available_now(Some(&s), Some((1, 60)))); // 01:00 dentro (após meia-noite)
+        assert!(!is_available_now(Some(&s), Some((1, 600)))); // 10:00 fora
+        assert!(!is_available_now(Some(&s), Some((1, 150)))); // 02:30 fora
+    }
+
+    #[test]
+    fn store_janela_cruza_meia_noite() {
+        let hours = vec![bh(5, "18:00", "02:00", true)]; // sexta 18h→02h
+        assert!(is_store_open_now(&hours, "none", Some((5, 1380)))); // 23:00 aberto
+        assert!(is_store_open_now(&hours, "none", Some((5, 30)))); // 00:30 aberto
+        assert!(!is_store_open_now(&hours, "none", Some((5, 720)))); // 12:00 fechado
     }
 
     #[test]
