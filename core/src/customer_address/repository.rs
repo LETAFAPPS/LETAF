@@ -52,4 +52,14 @@ pub trait CustomerAddressRepository: Send + Sync {
         company_id: Uuid,
         since: NaiveDateTime,
     ) -> Result<Vec<CustomerAddress>, CoreError>;
+    /// Página do pull por keyset `(updated_at, id)` (default delega ao acima).
+    async fn find_updated_since_paged(
+        &self,
+        company_id: Uuid,
+        since: NaiveDateTime,
+        _after_id: Uuid,
+        _limit: i64,
+    ) -> Result<Vec<CustomerAddress>, CoreError> {
+        self.find_updated_since(company_id, since).await
+    }
 }

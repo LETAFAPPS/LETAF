@@ -10,7 +10,7 @@ use letaf_core::cash::repository::CashSessionRepository;
 use letaf_core::entity::BaseFields;
 use letaf_core::error::CoreError;
 
-use super::helpers::map_db;
+use super::helpers::{keyset_pull_sql, map_db};
 
 #[derive(FromRow)]
 struct CashSessionRow {
@@ -213,6 +213,26 @@ impl CashSessionRepository for PgCashSessionRepository {
         .into_iter()
         .map(Into::into)
         .collect())
+    }
+
+    async fn find_updated_since_paged(
+        &self,
+        company_id: Uuid,
+        since: NaiveDateTime,
+        after_id: Uuid,
+        limit: i64,
+    ) -> Result<Vec<CashSession>, CoreError> {
+        Ok(sqlx::query_as::<_, CashSessionRow>(&keyset_pull_sql("cash_sessions"))
+            .bind(company_id)
+            .bind(since)
+            .bind(after_id)
+            .bind(limit)
+            .fetch_all(&self.pool)
+            .await
+            .map_err(map_db)?
+            .into_iter()
+            .map(Into::into)
+            .collect())
     }
 
     async fn sync_upsert(&self, s: &CashSession) -> Result<(), CoreError> {

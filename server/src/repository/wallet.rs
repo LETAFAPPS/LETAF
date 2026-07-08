@@ -10,7 +10,7 @@ use letaf_core::error::CoreError;
 use letaf_core::wallet::model::{WalletAccount, WalletMovement, WalletMovementKind};
 use letaf_core::wallet::repository::WalletRepository;
 
-use super::helpers::map_db;
+use super::helpers::{keyset_pull_sql, map_db};
 
 #[derive(FromRow)]
 struct WalletAccountRow {
@@ -386,13 +386,7 @@ impl WalletRepository for PgWalletRepository {
         after_id: Uuid,
         limit: i64,
     ) -> Result<Vec<WalletMovement>, CoreError> {
-        Ok(sqlx::query_as::<_, WalletMovementRow>(
-            "SELECT * FROM wallet_movements
-              WHERE company_id = $1
-                AND (updated_at > $2 OR (updated_at = $2 AND id > $3))
-              ORDER BY updated_at ASC, id ASC
-              LIMIT $4",
-        )
+        Ok(sqlx::query_as::<_, WalletMovementRow>(&keyset_pull_sql("wallet_movements"))
         .bind(company_id)
         .bind(since)
         .bind(after_id)

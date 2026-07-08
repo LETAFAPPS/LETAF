@@ -13,7 +13,7 @@ use letaf_core::subscription::model::{
 use letaf_core::subscription::model::PlanKind;
 use letaf_core::subscription::repository::SubscriptionRepository;
 
-use super::helpers::map_db;
+use super::helpers::{keyset_pull_sql, map_db};
 
 #[derive(FromRow)]
 struct SubscriptionRow {
@@ -619,6 +619,24 @@ impl SubscriptionRepository for PgSubscriptionRepository {
         .fetch_all(&self.pool)
         .await
         .map_err(map_db)?;
+        Ok(rows.into_iter().map(Invoice::from).collect())
+    }
+
+    async fn find_invoices_updated_since_paged(
+        &self,
+        company_id: Uuid,
+        since: NaiveDateTime,
+        after_id: Uuid,
+        limit: i64,
+    ) -> Result<Vec<Invoice>, CoreError> {
+        let rows = sqlx::query_as::<_, InvoiceRow>(&keyset_pull_sql("subscription_invoices"))
+            .bind(company_id)
+            .bind(since)
+            .bind(after_id)
+            .bind(limit)
+            .fetch_all(&self.pool)
+            .await
+            .map_err(map_db)?;
         Ok(rows.into_iter().map(Invoice::from).collect())
     }
 }

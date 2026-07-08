@@ -363,12 +363,15 @@ impl SubscriptionService {
         if !matches!(sub.status, SubscriptionStatus::Overdue) {
             return Ok(());
         }
+        // Só reativa se NÃO houver fatura em aberto: Pending (não paga) OU
+        // Failed (ciclo anterior recusado) — senão o assinante voltaria a
+        // Active devendo um ciclo.
         let still_pending = self
             .repo
             .find_invoices(company_id)
             .await?
             .into_iter()
-            .any(|i| matches!(i.status, InvoiceStatus::Pending));
+            .any(|i| matches!(i.status, InvoiceStatus::Pending | InvoiceStatus::Failed));
         if still_pending {
             return Ok(());
         }
@@ -917,6 +920,19 @@ impl SubscriptionService {
     ) -> Result<Vec<Invoice>, CoreError> {
         self.repo
             .find_invoices_updated_since(company_id, since)
+            .await
+    }
+
+    /// Página do pull de faturas por keyset `(updated_at, id)`.
+    pub async fn find_invoices_updated_since_paged(
+        &self,
+        company_id: Uuid,
+        since: chrono::NaiveDateTime,
+        after_id: Uuid,
+        limit: i64,
+    ) -> Result<Vec<Invoice>, CoreError> {
+        self.repo
+            .find_invoices_updated_since_paged(company_id, since, after_id, limit)
             .await
     }
 }

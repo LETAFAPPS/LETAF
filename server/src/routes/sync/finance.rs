@@ -38,7 +38,12 @@ pub(crate) async fn pull_cash_sessions(
     // fica aberto para não travar dados de outro operador no mesmo desktop.
     auth.require_permission("cash.view")?;
     let items = state.cash_service
-        .find_sessions_updated_since(auth.0.company_id, params.since)
+        .find_sessions_updated_since_paged(
+            auth.0.company_id,
+            params.since,
+            params.after_id(),
+            params.page_limit(),
+        )
         .await?;
     Ok(Json(items))
 }

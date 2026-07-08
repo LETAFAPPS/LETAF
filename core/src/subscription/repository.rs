@@ -92,4 +92,15 @@ pub trait SubscriptionRepository: Send + Sync {
         company_id: Uuid,
         since: NaiveDateTime,
     ) -> Result<Vec<Invoice>, CoreError>;
+    /// Página do pull de faturas por keyset `(updated_at, id)` (default delega
+    /// ao acima).
+    async fn find_invoices_updated_since_paged(
+        &self,
+        company_id: Uuid,
+        since: NaiveDateTime,
+        _after_id: Uuid,
+        _limit: i64,
+    ) -> Result<Vec<Invoice>, CoreError> {
+        self.find_invoices_updated_since(company_id, since).await
+    }
 }

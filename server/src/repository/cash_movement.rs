@@ -10,7 +10,7 @@ use letaf_core::cash::repository::CashMovementRepository;
 use letaf_core::entity::BaseFields;
 use letaf_core::error::CoreError;
 
-use super::helpers::map_db;
+use super::helpers::{keyset_pull_sql, map_db};
 
 #[derive(FromRow)]
 struct CashMovementRow {
@@ -174,13 +174,7 @@ impl CashMovementRepository for PgCashMovementRepository {
         after_id: Uuid,
         limit: i64,
     ) -> Result<Vec<CashMovement>, CoreError> {
-        Ok(sqlx::query_as::<_, CashMovementRow>(
-            "SELECT * FROM cash_movements
-              WHERE company_id = $1
-                AND (updated_at > $2 OR (updated_at = $2 AND id > $3))
-              ORDER BY updated_at ASC, id ASC
-              LIMIT $4",
-        )
+        Ok(sqlx::query_as::<_, CashMovementRow>(&keyset_pull_sql("cash_movements"))
         .bind(company_id)
         .bind(since)
         .bind(after_id)

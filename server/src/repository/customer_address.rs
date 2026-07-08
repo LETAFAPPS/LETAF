@@ -9,7 +9,7 @@ use letaf_core::customer_address::repository::CustomerAddressRepository;
 use letaf_core::entity::BaseFields;
 use letaf_core::error::CoreError;
 
-use super::helpers::map_db;
+use super::helpers::{keyset_pull_sql, map_db};
 
 /// Row intermediário para mapeamento sqlx → domínio.
 ///
@@ -224,6 +224,24 @@ impl CustomerAddressRepository for PgCustomerAddressRepository {
         )
         .bind(company_id).bind(since)
         .fetch_all(&self.pool).await.map_err(map_db)?;
+        Ok(rows.into_iter().map(CustomerAddress::from).collect())
+    }
+
+    async fn find_updated_since_paged(
+        &self,
+        company_id: Uuid,
+        since: NaiveDateTime,
+        after_id: Uuid,
+        limit: i64,
+    ) -> Result<Vec<CustomerAddress>, CoreError> {
+        let rows = sqlx::query_as::<_, CustomerAddressRow>(&keyset_pull_sql("customer_addresses"))
+            .bind(company_id)
+            .bind(since)
+            .bind(after_id)
+            .bind(limit)
+            .fetch_all(&self.pool)
+            .await
+            .map_err(map_db)?;
         Ok(rows.into_iter().map(CustomerAddress::from).collect())
     }
 

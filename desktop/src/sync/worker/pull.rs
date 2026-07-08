@@ -46,6 +46,15 @@ impl PullCursor for WalletMovement {
 impl PullCursor for Order {
     fn pull_cursor(&self) -> (NaiveDateTime, uuid::Uuid) { (self.base.updated_at, self.base.id) }
 }
+impl PullCursor for CustomerAddress {
+    fn pull_cursor(&self) -> (NaiveDateTime, uuid::Uuid) { (self.base.updated_at, self.base.id) }
+}
+impl PullCursor for CashSession {
+    fn pull_cursor(&self) -> (NaiveDateTime, uuid::Uuid) { (self.base.updated_at, self.base.id) }
+}
+impl PullCursor for SubscriptionInvoice {
+    fn pull_cursor(&self) -> (NaiveDateTime, uuid::Uuid) { (self.base.updated_at, self.base.id) }
+}
 
 impl SyncWorker {
 
@@ -210,7 +219,7 @@ impl SyncWorker {
     }
 
     pub(super) async fn pull_customer_addresses(&self, token: &str, since: NaiveDateTime, mut max_ts: NaiveDateTime) -> Result<NaiveDateTime, CoreError> {
-        let items: Vec<CustomerAddress> = self.fetch_pull(token, "/sync/pull/customer-addresses", since).await?;
+        let items: Vec<CustomerAddress> = self.fetch_pull_paged(token, "/sync/pull/customer-addresses", since).await?;
         let cid = self.state.company_id();
         for item in items {
             if item.base.updated_at > max_ts { max_ts = item.base.updated_at; }
@@ -220,7 +229,7 @@ impl SyncWorker {
     }
 
     pub(super) async fn pull_cash_sessions(&self, token: &str, since: NaiveDateTime, mut max_ts: NaiveDateTime) -> Result<NaiveDateTime, CoreError> {
-        let items: Vec<CashSession> = self.fetch_pull(token, "/sync/pull/cash-sessions", since).await?;
+        let items: Vec<CashSession> = self.fetch_pull_paged(token, "/sync/pull/cash-sessions", since).await?;
         let cid = self.state.company_id();
         for item in items {
             if item.base.updated_at > max_ts { max_ts = item.base.updated_at; }
@@ -319,7 +328,7 @@ impl SyncWorker {
         mut max_ts: NaiveDateTime,
     ) -> Result<NaiveDateTime, CoreError> {
         let items: Vec<SubscriptionInvoice> = self
-            .fetch_pull(token, "/sync/pull/subscription-invoices", since)
+            .fetch_pull_paged(token, "/sync/pull/subscription-invoices", since)
             .await?;
         let cid = self.state.company_id();
         for item in items {

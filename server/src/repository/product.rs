@@ -11,7 +11,7 @@ use letaf_core::product::model::{BalanceMode, Product};
 use letaf_core::product::repository::{ProductRepository, StockAdjustResult};
 use letaf_core::product::stock_movement::StockMovement;
 
-use super::helpers::{insert_stock_movement, map_db};
+use super::helpers::{insert_stock_movement, keyset_pull_sql, map_db};
 
 /// Row intermediário sqlx → StockMovement (tipos nativos do Postgres).
 #[derive(FromRow)]
@@ -413,13 +413,7 @@ impl ProductRepository for PgProductRepository {
         after_id: Uuid,
         limit: i64,
     ) -> Result<Vec<Product>, CoreError> {
-        let rows = sqlx::query_as::<_, ProductRow>(
-            "SELECT * FROM products
-              WHERE company_id = $1
-                AND (updated_at > $2 OR (updated_at = $2 AND id > $3))
-              ORDER BY updated_at ASC, id ASC
-              LIMIT $4",
-        )
+        let rows = sqlx::query_as::<_, ProductRow>(&keyset_pull_sql("products"))
         .bind(company_id)
         .bind(since)
         .bind(after_id)

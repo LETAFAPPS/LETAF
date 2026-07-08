@@ -93,7 +93,12 @@ pub(crate) async fn pull_subscription_invoices(
     auth.require_permission("subscription.view")?;
     let items = state
         .subscription_service
-        .find_invoices_updated_since(auth.0.company_id, params.since)
+        .find_invoices_updated_since_paged(
+            auth.0.company_id,
+            params.since,
+            params.after_id(),
+            params.page_limit(),
+        )
         .await?;
     Ok(Json(items))
 }

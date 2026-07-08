@@ -9,7 +9,7 @@ use letaf_core::error::CoreError;
 use letaf_core::customer::model::Customer;
 use letaf_core::customer::repository::CustomerRepository;
 
-use super::helpers::map_db;
+use super::helpers::{keyset_pull_sql, map_db};
 
 /// Row intermediário para mapeamento sqlx → domínio.
 ///
@@ -221,13 +221,7 @@ impl CustomerRepository for PgCustomerRepository {
         after_id: Uuid,
         limit: i64,
     ) -> Result<Vec<Customer>, CoreError> {
-        let rows = sqlx::query_as::<_, CustomerRow>(
-            "SELECT * FROM customers
-              WHERE company_id = $1
-                AND (updated_at > $2 OR (updated_at = $2 AND id > $3))
-              ORDER BY updated_at ASC, id ASC
-              LIMIT $4",
-        )
+        let rows = sqlx::query_as::<_, CustomerRow>(&keyset_pull_sql("customers"))
         .bind(company_id)
         .bind(since)
         .bind(after_id)

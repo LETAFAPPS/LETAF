@@ -12,7 +12,7 @@ use letaf_core::finance::model::{
 };
 use letaf_core::finance::repository::FinanceRepository;
 
-use super::helpers::map_db;
+use super::helpers::{keyset_pull_sql, map_db};
 
 #[derive(FromRow)]
 struct FinanceEntryRow {
@@ -287,13 +287,7 @@ impl FinanceRepository for PgFinanceRepository {
         after_id: Uuid,
         limit: i64,
     ) -> Result<Vec<FinanceEntry>, CoreError> {
-        Ok(sqlx::query_as::<_, FinanceEntryRow>(
-            "SELECT * FROM finance_entries
-              WHERE company_id = $1
-                AND (updated_at > $2 OR (updated_at = $2 AND id > $3))
-              ORDER BY updated_at ASC, id ASC
-              LIMIT $4",
-        )
+        Ok(sqlx::query_as::<_, FinanceEntryRow>(&keyset_pull_sql("finance_entries"))
         .bind(company_id)
         .bind(since)
         .bind(after_id)

@@ -46,6 +46,24 @@ pub async fn insert_stock_movement(
     Ok(())
 }
 
+/// Monta o SELECT paginado por keyset `(updated_at, id)` do pull, para uma
+/// tabela sincronizável. Fonte única do SQL repetido nos
+/// `find_updated_since_paged` das entidades grandes (§8/§14 — sem duplicação).
+/// `table` é sempre um literal interno (nunca entrada do cliente), então a
+/// interpolação é segura.
+///
+/// Binds esperados, nesta ordem: `$1 company_id`, `$2 since`, `$3 after_id`,
+/// `$4 limit`.
+pub fn keyset_pull_sql(table: &str) -> String {
+    format!(
+        "SELECT * FROM {table}
+          WHERE company_id = $1
+            AND (updated_at > $2 OR (updated_at = $2 AND id > $3))
+          ORDER BY updated_at ASC, id ASC
+          LIMIT $4"
+    )
+}
+
 /// Verifica conectividade com PostgreSQL.
 ///
 /// Regras aplicadas (AI_RULES.md §5, §10):
