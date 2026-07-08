@@ -2,7 +2,8 @@
 // UI responsiva e adaptável; estética é requisito.
 
 :root {
-    --brand: #fb8632;
+    // Laranja de marca — único do sistema (mesmo do desktop/tema, §3).
+    --brand: #e8731c;
     --price: #66bb6a;
     --ink: #1a1a1a;
     --muted: #9ca3af;
@@ -597,7 +598,7 @@ button.ind { cursor: pointer; padding: 0; }
         height: 30px;
         border: none;
         background: #f9fafb;
-        color: #f97316;
+        color: var(--brand);
         font-size: 1rem;
         font-weight: 700;
         cursor: pointer;
