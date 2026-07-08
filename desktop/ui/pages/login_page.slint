@@ -1,16 +1,148 @@
 import { Theme } from "../theme.slint";
-import { FormField, PasswordField } from "../components/form_fields.slint";
-import { ActionBtn } from "../components/buttons.slint";
+import { AssetIcon } from "../components/icons.slint";
 
-// ── Tela de login (split 50/50: marketing escuro | formulário claro) ─────────
+// ── Tela de login (split: showcase escuro | formulário claro) ────────────────
+// Redesenhada a partir do mockup "LETAF Login Split" (mockups/login).
 // Regras aplicadas (AI_RULES.md §3, §8, §11):
-// - UI sem lógica de negócio; autenticação delegada a `do-login`.
-// - Divisão exata em metades via `width: parent.width / 2` (não usar
-//   HorizontalLayout: o conteúdo grande da esquerda empurrava a
-//   divisão e desalinhava as colunas).
-// - `login-with-pin` é placeholder da entrada por PIN (futuro).
-// - `subdomain` (rodapé) identifica o estabelecimento se já houve
-//   login; `app-version` mostra só o número da versão.
+// - UI sem lógica de negócio; autenticação delegada a `do-login` (e a
+//   recuperação a `forgot-request`/`verify-submit`/`reset-submit`).
+// - Componente local `LoginField` (52px, com ícone) isolado — não altera os
+//   campos de 32px usados nas demais telas.
+// - Todas as propriedades/callbacks preservadas para o wiring Rust
+//   (login.rs / session.rs) permanecer intacto.
+
+// ── Campo de login com ícone à esquerda (e olho, se senha) ──────────────────
+component LoginField inherits VerticalLayout {
+    in property <string> label;
+    in-out property <string> value;
+    in property <string> placeholder;
+    in property <image> icon;
+    in property <bool> is-password: false;
+    callback accepted();
+
+    property <bool> show-pass: false;
+    spacing: 8px;
+
+    Text {
+        text: root.label;
+        font-size: 12.5px;
+        font-weight: 600;
+        color: #4a4640;
+    }
+    Rectangle {
+        height: 52px;
+        border-radius: 10px;
+        border-width: 1.5px;
+        border-color: fld.has-focus ? Theme.primary : #e4dfd8;
+        background: #ffffff;
+        drop-shadow-blur: fld.has-focus ? 8px : 0px;
+        drop-shadow-color: #e8731c22;
+
+        // Ícone à esquerda (mail / cadeado).
+        AssetIcon {
+            x: 14px;
+            y: (parent.height - 20px) / 2;
+            width: 20px; height: 20px; icon-size: 20px;
+            icon-color: #a8a29a;
+            source: root.icon;
+        }
+
+        fld := TextInput {
+            x: 46px;
+            width: parent.width - (root.is-password ? 84px : 60px);
+            height: parent.height;
+            vertical-alignment: center;
+            text <=> root.value;
+            input-type: (root.is-password && !root.show-pass) ? InputType.password : InputType.text;
+            font-size: 14px;
+            color: #1c1a18;
+            single-line: true;
+            accepted => { root.accepted(); }
+        }
+
+        if root.value == "": Text {
+            text: root.placeholder;
+            font-size: 14px;
+            color: #b4afa8;
+            vertical-alignment: center;
+            x: 46px;
+            width: parent.width - 60px;
+            height: parent.height;
+        }
+
+        // Toggle de visibilidade (só senha).
+        if root.is-password: eye-ta := TouchArea {
+            x: parent.width - 42px;
+            y: (parent.height - 34px) / 2;
+            width: 34px; height: 34px;
+            clicked => { root.show-pass = !root.show-pass; }
+            if !root.show-pass: Path {
+                x: (parent.width - 18px) / 2; y: (parent.height - 16px) / 2;
+                width: 18px; height: 16px; viewbox-width: 24; viewbox-height: 24;
+                fill: eye-ta.has-hover ? #4a4640 : #8a857e;
+                commands: "M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5C21.27 7.61 17 4.5 12 4.5zm0 12c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z";
+            }
+            if root.show-pass: Path {
+                x: (parent.width - 18px) / 2; y: (parent.height - 16px) / 2;
+                width: 18px; height: 16px; viewbox-width: 24; viewbox-height: 24;
+                fill: eye-ta.has-hover ? #4a4640 : #8a857e;
+                commands: "M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.83l2.92 2.92c1.51-1.26 2.7-2.89 3.43-4.75C21.27 7.61 17 4.5 12 4.5c-1.23 0-2.41.2-3.51.57l2.17 2.17C11.26 7.13 11.61 7 12 7zM2 4.27l2.28 2.28.46.46C3.08 8.3 1.78 10.02 1 12c1.73 4.39 6 7.5 11 7.5 1.55 0 3.03-.3 4.38-.84l.42.42L19.73 22 21 20.73 3.27 3 2 4.27zM7.53 9.8l1.55 1.55c-.05.21-.08.43-.08.65 0 1.66 1.34 3 3 3 .22 0 .44-.03.65-.08l1.55 1.55c-.67.33-1.41.53-2.2.53-2.76 0-5-2.24-5-5 0-.79.2-1.53.53-2.2zm4.31-.78l3.15 3.15.02-.16c0-1.66-1.34-3-3-3l-.17.01z";
+            }
+        }
+
+        // Clique em qualquer parte foca o campo (área abaixo do olho).
+        if !fld.has-focus: TouchArea {
+            x: 0;
+            width: parent.width - (root.is-password ? 42px : 0px);
+            clicked => { fld.focus(); }
+        }
+    }
+}
+
+// ── Botão primário (CTA) do login/recuperação ───────────────────────────────
+component PrimaryBtn inherits TouchArea {
+    in property <string> label;
+    height: 54px;
+    Rectangle {
+        width: 100%; height: 100%;
+        border-radius: 10px;
+        background: root.has-hover ? Theme.primary-dark : Theme.primary;
+        Text {
+            text: root.label;
+            font-size: 15px;
+            font-weight: 700;
+            color: #ffffff;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+    }
+}
+
+// ── Linha de destaque (ícone + título + descrição) do painel showcase ───────
+component FeatureRow inherits HorizontalLayout {
+    in property <image> icon;
+    in property <string> title;
+    in property <string> desc;
+    spacing: 14px;
+    Rectangle {
+        width: 38px; height: 38px;
+        border-radius: 9px;
+        background: #232320;
+        AssetIcon {
+            width: 20px; height: 20px; icon-size: 20px;
+            x: (parent.width - self.width) / 2;
+            y: (parent.height - self.height) / 2;
+            icon-color: #f5f3ef;
+            source: root.icon;
+        }
+    }
+    VerticalLayout {
+        alignment: center;
+        spacing: 2px;
+        Text { text: root.title; font-size: 13.5px; font-weight: 600; color: #e6e3de; }
+        Text { text: root.desc; font-size: 12px; color: #807b75; wrap: word-wrap; }
+    }
+}
 
 export component LoginPage inherits Rectangle {
     in-out property <string> email;
@@ -27,94 +159,104 @@ export component LoginPage inherits Rectangle {
     // ── Recuperação de senha ("esqueci a senha") ──────────────────
     // Passo: 0 = login · 1 = informar e-mail · 2 = informar código ·
     // 3 = definir nova senha (só aparece após o código ser validado).
-    // O Rust preenche `recovery-status`/`recovery-step`.
     in-out property <int> recovery-step: 0;
     in-out property <string> recovery-email;
     in-out property <string> recovery-code;
     in-out property <string> recovery-new-password;
     in-out property <string> recovery-status;
     in property <bool> recovery-busy: false;
-    callback forgot-request();   // passo 1 → envia o código pro e-mail
-    callback verify-submit();    // passo 2 → valida o código (sem consumir)
-    callback reset-submit();     // passo 3 → define a nova senha
+    callback forgot-request();
+    callback verify-submit();
+    callback reset-submit();
 
     width: 100%;
     height: 100%;
-    background: Theme.surface;
+    background: #f8f7f4;
 
-    // ── Painel esquerdo (metade esquerda exata) ─────────────────
+    // ── Painel esquerdo · showcase (metade esquerda exata) ──────────
     Rectangle {
-        x: 0;
-        y: 0;
-        width: parent.width / 2;
+        x: 0; y: 0;
+        width: parent.width * 1.15 / 2.15;   // proporção 1.15 : 1 do mockup
         height: parent.height;
-        // Mesma cor do menu lateral: marrom no tema claro,
-        // #1A1A1A no tema escuro (Theme.sidebar-bg).
-        background: Theme.sidebar-bg;
+        background: #1a1a18;
+        clip: true;
+
+        // Marca d'água (ícone gigante, bem sutil, sangrando à direita).
+        Image {
+            source: @image-url("../icone-watermark.png");
+            width: 1120px;
+            image-fit: contain;
+            x: parent.width - 640px;
+            y: (parent.height - self.height) / 2;
+            opacity: 0.05;
+        }
 
         VerticalLayout {
-            padding: 48px;
+            padding: 56px;
             alignment: space-between;
 
-            // Topo: logo do estabelecimento (apenas a imagem).
+            // Topo: logo LETAF.
             HorizontalLayout {
                 alignment: start;
                 Image {
-                    source: @image-url("../letaf-logo.png");
-                    height: 46px;
+                    source: @image-url("../letaf.png");
+                    height: 34px;
                     width: self.height * self.source.width / max(1, self.source.height);
                     image-fit: contain;
                 }
             }
 
-            // Meio: chamada principal.
+            // Meio: chamada + destaques.
             VerticalLayout {
                 spacing: 0;
+                max-width: 520px;
                 Text {
-                    text: "OFFLINE-FIRST · MULTI-ESTAÇÃO";
-                    font-size: 11.5px;
-                    font-weight: Theme.fw-strong;
-                    letter-spacing: 1.5px;
-                    color: #8A8178;
-                }
-                Rectangle { height: 14px; }
-                // Chamada em 3 linhas (branco / laranja / branco),
-                // como no mockup, com entrelinha justa.
-                Text {
-                    text: "Sua operação,";
-                    font-size: 52px;
-                    font-weight: 800;
-                    color: #FFFFFF;
-                }
-                Text {
-                    text: "com ou sem";
-                    font-size: 52px;
-                    font-weight: 800;
-                    color: Theme.primary;
-                }
-                Text {
-                    text: "internet.";
-                    font-size: 52px;
-                    font-weight: 800;
-                    color: #FFFFFF;
+                    text: "OFFLINE-FIRST";
+                    font-size: 11px;
+                    font-weight: 700;
+                    letter-spacing: 1.8px;
+                    color: #7a756f;
                 }
                 Rectangle { height: 22px; }
+                Text { text: "Sua operação,"; font-size: 52px; font-weight: 800; color: #f5f3ef; }
+                Text { text: "com ou sem"; font-size: 52px; font-weight: 800; color: Theme.primary; }
+                Text { text: "internet."; font-size: 52px; font-weight: 800; color: #f5f3ef; }
+                Rectangle { height: 22px; }
                 Text {
-                    text: "Vendas salvas localmente, sincronizadas em segundo plano. O sistema nunca trava, você nunca para.";
+                    text: "Vendas salvas localmente e sincronizadas em segundo plano. O sistema nunca trava, você nunca para.";
                     font-size: 15px;
-                    color: #A89E94;
+                    color: #9a958f;
                     wrap: word-wrap;
+                    max-width: 440px;
+                }
+                Rectangle { height: 38px; }
+                VerticalLayout {
+                    spacing: 14px;
+                    FeatureRow {
+                        icon: @image-url("../assets/icons/1.2/wifi.svg");
+                        title: "Funciona Offline";
+                        desc: "Cada estação opera sozinha, sem depender da rede.";
+                    }
+                    FeatureRow {
+                        icon: @image-url("../assets/icons/1.2/atualizar.svg");
+                        title: "Sincroniza Automaticamente";
+                        desc: "Quando a conexão volta, tudo é reconciliado.";
+                    }
+                    FeatureRow {
+                        icon: @image-url("../assets/icons/1.2/seguranca.svg");
+                        title: "Dados Protegidos";
+                        desc: "Acesso restrito e criptografado por estabelecimento.";
+                    }
                 }
             }
 
-            // Rodapé numa única linha: versão à esquerda, subdomínio
-            // à direita (mesma posição do mockup).
+            // Rodapé: versão (e subdomínio à direita, quando houver).
             HorizontalLayout {
                 Text {
                     text: root.app-version;
                     font-family: Theme.font-mono;
-                    font-size: 12px;
-                    color: #6E665F;
+                    font-size: 11.5px;
+                    color: #5f5b56;
                     vertical-alignment: center;
                     horizontal-stretch: 1;
                 }
@@ -123,17 +265,13 @@ export component LoginPage inherits Rectangle {
                     spacing: 8px;
                     VerticalLayout {
                         alignment: center;
-                        Rectangle {
-                            width: 8px; height: 8px;
-                            border-radius: 4px;
-                            background: #4CAF50;
-                        }
+                        Rectangle { width: 8px; height: 8px; border-radius: 4px; background: #4CAF50; }
                     }
                     Text {
                         text: root.subdomain + ".letaf.app";
                         font-family: Theme.font-mono;
-                        font-size: 12px;
-                        color: #9A9189;
+                        font-size: 11.5px;
+                        color: #9a9189;
                         vertical-alignment: center;
                     }
                 }
@@ -141,19 +279,17 @@ export component LoginPage inherits Rectangle {
         }
     }
 
-    // ── Painel direito (metade direita exata) ───────────────────
-    // Mesmo card centralizado tanto para LOGIN quanto para RECUPERAÇÃO —
-    // só o conteúdo do formulário troca (mantém o padrão visual).
+    // ── Painel direito · formulário (metade direita) ────────────────
     Rectangle {
-        x: parent.width / 2;
+        x: parent.width * 1.15 / 2.15;
         y: 0;
-        width: parent.width / 2;
+        width: parent.width - self.x;
         height: parent.height;
-        background: Theme.surface;
+        background: #f8f7f4;
 
-        // ── LOGIN (recovery-step == 0) ──────────────────────────
+        // ── LOGIN (recovery-step == 0) ──────────────────────────────
         if root.recovery-step == 0: Rectangle {
-            width: 360px;
+            width: 400px;
             height: login-col.preferred-height;
             x: (parent.width - self.width) / 2;
             y: (parent.height - self.height) / 2;
@@ -163,80 +299,84 @@ export component LoginPage inherits Rectangle {
 
                 Text {
                     text: "ÁREA RESTRITA";
-                    font-size: 11.5px;
-                    font-weight: Theme.fw-strong;
+                    font-size: 11px;
+                    font-weight: 700;
                     letter-spacing: 1.5px;
-                    color: Theme.text-secondary;
+                    color: #a29c94;
+                    horizontal-alignment: center;
+                }
+                Rectangle { height: 12px; }
+                Text {
+                    text: "Entrar";
+                    font-size: 34px;
+                    font-weight: 800;
+                    color: #1c1a18;
+                    horizontal-alignment: center;
                 }
                 Rectangle { height: 8px; }
                 Text {
-                    text: "Entrar";
-                    font-size: Theme.fs-page;
-                    font-weight: Theme.fw-strong;
-                    color: Theme.text-primary;
-                }
-                Rectangle { height: 6px; }
-                Text {
                     text: "Use suas credenciais de administrador.";
                     font-size: 14px;
-                    color: Theme.text-secondary;
+                    color: #6a6460;
+                    horizontal-alignment: center;
                 }
 
-                Rectangle { height: 26px; }
+                Rectangle { height: 32px; }
 
-                FormField {
+                LoginField {
                     label: "Email";
                     value <=> root.email;
                     placeholder: "usuario@email.com";
+                    icon: @image-url("../assets/icons/1.2/email.svg");
                     accepted => { root.do-login(); }
                 }
-                Rectangle { height: 12px; }
-                PasswordField {
+                Rectangle { height: 20px; }
+                LoginField {
                     label: "Senha";
                     value <=> root.password;
                     placeholder: "Sua senha";
+                    icon: @image-url("../assets/icons/1.2/cadeado-aberto.svg");
+                    is-password: true;
                     accepted => { root.do-login(); }
                 }
 
-                Rectangle { height: 12px; }
+                Rectangle { height: 14px; }
 
                 HorizontalLayout {
                     spacing: 8px;
                     remember-ta := TouchArea {
                         horizontal-stretch: 1;
-                        height: 20px;
+                        height: 22px;
                         clicked => { root.remember-me = !root.remember-me; }
                         HorizontalLayout {
-                            spacing: 6px;
+                            spacing: 10px;
                             alignment: start;
                             Rectangle {
-                                width: 18px; height: 18px;
-                                border-radius: 4px;
-                                border-width: 2px;
-                                border-color: root.remember-me ? Theme.primary : Theme.border;
-                                background: root.remember-me ? Theme.primary : transparent;
+                                width: 20px; height: 20px;
+                                border-radius: 6px;
+                                border-width: 1.5px;
+                                border-color: #cfc9c1;
+                                background: root.remember-me ? Theme.primary : #ffffff;
                                 if root.remember-me: Path {
                                     x: (parent.width - 12px) / 2;
                                     y: (parent.height - 9px) / 2;
                                     width: 12px; height: 9px;
                                     viewbox-width: 12; viewbox-height: 9;
-                                    stroke: white;
-                                    stroke-width: 2px;
-                                    fill: transparent;
+                                    stroke: white; stroke-width: 2px; fill: transparent;
                                     commands: "M1 4.5 L4.5 8 L11 1";
                                 }
                             }
                             Text {
                                 text: "Lembrar";
-                                font-size: 13px;
-                                color: Theme.text-secondary;
+                                font-size: 13.5px;
+                                color: #4a4640;
                                 vertical-alignment: center;
                             }
                         }
                     }
                     forgot-ta := TouchArea {
                         width: forgot-lbl.preferred-width;
-                        height: 20px;
+                        height: 22px;
                         clicked => {
                             root.recovery-email = root.email;
                             root.recovery-code = "";
@@ -246,37 +386,36 @@ export component LoginPage inherits Rectangle {
                         }
                         forgot-lbl := Text {
                             text: "Esqueci a senha";
-                            font-size: 13px;
+                            font-size: 12.5px;
+                            font-weight: 600;
                             color: forgot-ta.has-hover ? Theme.primary-dark : Theme.primary;
                             vertical-alignment: center;
                         }
                     }
                 }
 
-                Rectangle { height: 18px; }
+                Rectangle { height: 26px; }
 
-                ActionBtn {
+                PrimaryBtn {
                     label: "Entrar";
-                    bg-color: Theme.sidebar-sel-bg;
                     width: 100%;
-                    height: 46px;
                     clicked => { root.do-login(); }
                 }
 
-                if root.status != "": Rectangle { height: 10px; }
+                if root.status != "": Rectangle { height: 12px; }
                 if root.status != "": Text {
                     text: root.status;
-                    font-size: 12px;
-                    font-weight: Theme.fw-strong;
+                    font-size: 12.5px;
+                    font-weight: 600;
                     color: #E65100;
                     wrap: word-wrap;
                     width: 100%;
                     horizontal-alignment: center;
                 }
 
-                Rectangle { height: 22px; }
+                Rectangle { height: 20px; }
 
-                // Status do servidor abaixo do botão.
+                // Status do servidor.
                 HorizontalLayout {
                     alignment: center;
                     spacing: 7px;
@@ -289,21 +428,19 @@ export component LoginPage inherits Rectangle {
                         }
                     }
                     Text {
-                        text: root.server-online
-                            ? "Servidor Online"
-                            : "Servidor Offline";
-                        font-size: 12px;
-                        color: Theme.text-secondary;
+                        text: root.server-online ? "Servidor Online" : "Servidor Offline";
+                        font-size: 12.5px;
+                        font-weight: 600;
+                        color: root.server-online ? #4CAF50 : #C62828;
                         vertical-alignment: center;
                     }
                 }
             }
         }
 
-        // ── RECUPERAÇÃO DE SENHA (recovery-step > 0) ────────────
-        // Mesmo card do login; passo 1 = e-mail, passo 2 = código + nova senha.
+        // ── RECUPERAÇÃO DE SENHA (recovery-step > 0) ────────────────
         if root.recovery-step > 0: Rectangle {
-            width: 360px;
+            width: 400px;
             height: rec-col.preferred-height;
             x: (parent.width - self.width) / 2;
             y: (parent.height - self.height) / 2;
@@ -311,64 +448,97 @@ export component LoginPage inherits Rectangle {
             rec-col := VerticalLayout {
                 spacing: 0;
 
-                Text {
-                    text: "RECUPERAR ACESSO";
-                    font-size: 11.5px;
-                    font-weight: Theme.fw-strong;
-                    letter-spacing: 1.5px;
-                    color: Theme.text-secondary;
-                }
-                Rectangle { height: 8px; }
-                Text {
-                    text: root.recovery-step == 1 ? "Recuperar senha"
-                        : (root.recovery-step == 2 ? "Confirmar código" : "Definir nova senha");
-                    font-size: Theme.fs-page;
-                    font-weight: Theme.fw-strong;
-                    color: Theme.text-primary;
-                }
-                Rectangle { height: 6px; }
-                Text {
-                    text: root.recovery-step == 1
-                        ? "Informe seu e-mail. Enviaremos um código de 6 dígitos."
-                        : (root.recovery-step == 2
-                            ? "Digite o código de 6 dígitos enviado ao seu e-mail."
-                            : "Escolha a nova senha para a sua conta.");
-                    font-size: 14px;
-                    color: Theme.text-secondary;
-                    wrap: word-wrap;
+                // Voltar um passo (passo 1 → login).
+                back-ta := TouchArea {
+                    width: back-row.preferred-width;
+                    height: 22px;
+                    clicked => {
+                        root.recovery-step = root.recovery-step - 1;
+                        root.recovery-status = "";
+                    }
+                    back-row := HorizontalLayout {
+                        spacing: 7px;
+                        AssetIcon {
+                            width: 16px; height: 16px; icon-size: 16px;
+                            icon-color: back-ta.has-hover ? #1c1a18 : #6a6460;
+                            source: @image-url("../assets/icons/1.2/seta-esquerda.svg");
+                        }
+                        back-lbl := Text {
+                            text: root.recovery-step == 1 ? "Voltar para o login" : "Voltar";
+                            font-size: 12.5px;
+                            font-weight: 600;
+                            color: back-ta.has-hover ? #1c1a18 : #6a6460;
+                            vertical-alignment: center;
+                        }
+                    }
                 }
 
                 Rectangle { height: 26px; }
 
-                if root.recovery-step == 1: FormField {
+                Text {
+                    text: "RECUPERAÇÃO";
+                    font-size: 11px;
+                    font-weight: 700;
+                    letter-spacing: 1.5px;
+                    color: #a29c94;
+                    horizontal-alignment: center;
+                }
+                Rectangle { height: 12px; }
+                Text {
+                    text: root.recovery-step == 1 ? "Recuperar acesso"
+                        : (root.recovery-step == 2 ? "Confirmar código" : "Definir nova senha");
+                    font-size: 32px;
+                    font-weight: 800;
+                    color: #1c1a18;
+                    horizontal-alignment: center;
+                }
+                Rectangle { height: 8px; }
+                Text {
+                    text: root.recovery-step == 1
+                        ? "Informe seu email. Enviaremos um código de 6 dígitos."
+                        : (root.recovery-step == 2
+                            ? "Digite o código de 6 dígitos enviado ao seu email."
+                            : "Escolha a nova senha para a sua conta.");
+                    font-size: 14px;
+                    color: #6a6460;
+                    wrap: word-wrap;
+                    width: 100%;
+                    horizontal-alignment: center;
+                }
+
+                Rectangle { height: 32px; }
+
+                if root.recovery-step == 1: LoginField {
                     label: "Email";
                     value <=> root.recovery-email;
-                    placeholder: "seu@email.com";
+                    placeholder: "usuario@email.com";
+                    icon: @image-url("../assets/icons/1.2/email.svg");
                     accepted => { root.forgot-request(); }
                 }
-                if root.recovery-step == 2: FormField {
+                if root.recovery-step == 2: LoginField {
                     label: "Código (6 dígitos)";
                     value <=> root.recovery-code;
                     placeholder: "000000";
+                    icon: @image-url("../assets/icons/1.2/email.svg");
                     accepted => { root.verify-submit(); }
                 }
-                if root.recovery-step == 3: PasswordField {
+                if root.recovery-step == 3: LoginField {
                     label: "Nova senha";
                     value <=> root.recovery-new-password;
                     placeholder: "Mínimo 6 caracteres";
+                    icon: @image-url("../assets/icons/1.2/cadeado-aberto.svg");
+                    is-password: true;
                     accepted => { root.reset-submit(); }
                 }
 
-                Rectangle { height: 18px; }
+                Rectangle { height: 24px; }
 
-                ActionBtn {
+                PrimaryBtn {
                     label: root.recovery-busy
                         ? "Aguarde..."
-                        : (root.recovery-step == 1 ? "Enviar código"
+                        : (root.recovery-step == 1 ? "Enviar link de recuperação"
                             : (root.recovery-step == 2 ? "Confirmar código" : "Redefinir senha"));
-                    bg-color: Theme.sidebar-sel-bg;
                     width: 100%;
-                    height: 46px;
                     clicked => {
                         if (root.recovery-step == 1) { root.forgot-request(); }
                         else if (root.recovery-step == 2) { root.verify-submit(); }
@@ -376,37 +546,15 @@ export component LoginPage inherits Rectangle {
                     }
                 }
 
-                if root.recovery-status != "": Rectangle { height: 10px; }
+                if root.recovery-status != "": Rectangle { height: 12px; }
                 if root.recovery-status != "": Text {
                     text: root.recovery-status;
-                    font-size: 12px;
-                    font-weight: Theme.fw-strong;
+                    font-size: 12.5px;
+                    font-weight: 600;
                     color: Theme.primary;
                     wrap: word-wrap;
                     width: 100%;
                     horizontal-alignment: center;
-                }
-
-                Rectangle { height: 22px; }
-
-                // Voltar um passo (passo 1 → login). Mesma posição do
-                // status do servidor no card de login.
-                HorizontalLayout {
-                    alignment: center;
-                    back-ta := TouchArea {
-                        width: back-lbl.preferred-width;
-                        height: 22px;
-                        clicked => {
-                            root.recovery-step = root.recovery-step - 1;
-                            root.recovery-status = "";
-                        }
-                        back-lbl := Text {
-                            text: root.recovery-step == 1 ? "‹ Voltar ao login" : "‹ Voltar";
-                            font-size: 13px;
-                            color: back-ta.has-hover ? Theme.primary-dark : Theme.primary;
-                            vertical-alignment: center;
-                        }
-                    }
                 }
             }
         }
