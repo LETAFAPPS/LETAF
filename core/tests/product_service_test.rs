@@ -61,6 +61,29 @@ impl ProductRepository for MockProductRepo {
         Ok(())
     }
 
+    async fn update_atomic(
+        &self,
+        product: &Product,
+        stock_delta: f64,
+        group_ids: &[Uuid],
+    ) -> Result<(), CoreError> {
+        let mut items = self.items.lock().unwrap();
+        if let Some(existing) = items.iter_mut().find(|p| p.base.id == product.base.id) {
+            *existing = product.clone();
+            if stock_delta.abs() > f64::EPSILON && !product.unlimited_stock {
+                let new_qty = existing.stock_quantity + stock_delta;
+                if new_qty < 0.0 {
+                    return Err(CoreError::Validation(
+                        "Estoque insuficiente para o ajuste".into(),
+                    ));
+                }
+                existing.stock_quantity = new_qty;
+            }
+            existing.addon_group_ids = group_ids.to_vec();
+        }
+        Ok(())
+    }
+
     async fn soft_delete(&self, company_id: Uuid, id: Uuid) -> Result<(), CoreError> {
         let mut items = self.items.lock().unwrap();
         if let Some(p) = items.iter_mut().find(|p| p.base.id == id && p.base.company_id == company_id) {

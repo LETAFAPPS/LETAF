@@ -689,7 +689,12 @@ impl SubscriptionService {
         let Some(mut sub) = self.repo.find_current(company_id).await? else {
             return Ok(());
         };
-        sub.next_charge_date = Some(next_charge_after(today, sub.plan_kind));
+        // Ciclo vem de `terms()` (respeita `plan_period_months` dos planos de
+        // catálogo), não de `plan_kind` — que fica `Monthly` em planos de
+        // catálogo e faria a próxima cobrança cair 1 mês à frente sempre,
+        // cobrando um plano anual/semestral meses antes do previsto.
+        let months = self.terms(&sub).months as i32;
+        sub.next_charge_date = Some(add_months(today, months));
         sub.base.updated_at = chrono::Utc::now().naive_utc();
         sub.base.synced = false;
         self.repo.update_subscription(&sub).await

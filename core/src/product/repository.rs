@@ -23,6 +23,19 @@ pub trait ProductRepository: Send + Sync {
     async fn find_by_ids(&self, company_id: Uuid, ids: &[Uuid]) -> Result<Vec<Product>, CoreError>;
     async fn create(&self, product: &Product) -> Result<(), CoreError>;
     async fn update(&self, product: &Product) -> Result<(), CoreError>;
+    /// Edição ATÔMICA (§4): metadados + delta de estoque (com ledger append-only)
+    /// + associações N:M de adicionais numa ÚNICA transação. Evita o estado
+    /// divergente do `update` seguido de `try_adjust_stock`/`replace_addon_groups`
+    /// separados, em que uma falha no meio deixava metadados gravados sem o
+    /// ajuste de estoque. `stock_delta` é `target - old` (0 = sem mudança);
+    /// produto `unlimited_stock` não gera delta nem movimento. Retorna
+    /// `Validation` se o delta deixaria o estoque negativo.
+    async fn update_atomic(
+        &self,
+        product: &Product,
+        stock_delta: f64,
+        addon_group_ids: &[Uuid],
+    ) -> Result<(), CoreError>;
     async fn soft_delete(&self, company_id: Uuid, id: Uuid) -> Result<(), CoreError>;
     async fn find_unsynced(&self, company_id: Uuid) -> Result<Vec<Product>, CoreError>;
     async fn mark_synced(&self, company_id: Uuid, id: Uuid, updated_at: chrono::NaiveDateTime) -> Result<(), CoreError>;

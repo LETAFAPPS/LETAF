@@ -297,6 +297,105 @@ impl ProductRepository for PgProductRepository {
         Ok(())
     }
 
+    async fn update_atomic(
+        &self,
+        product: &Product,
+        stock_delta: f64,
+        group_ids: &[Uuid],
+    ) -> Result<(), CoreError> {
+        let mut tx = self.pool.begin().await.map_err(map_db)?;
+        // 1. Metadados (mantém `stock_quantity` atual; o delta vem no passo 2).
+        sqlx::query(
+            "UPDATE products SET name = $1, description = $2, category_id = $3, subcategory_id = $4, price = $5, cost_price = $6, stock_quantity = $7, unlimited_stock = $8, barcode = $9, unit = $10, balance_mode = $11, image_data = $12, cover_color = $13, availability_schedule = $14, discount_kind = $15, discount_value = $16, discount_min_qty = $17, discount_tiers = $18, variations = $19, min_stock = $20, updated_at = $21, synced = $22
+             WHERE company_id = $23 AND id = $24 AND deleted_at IS NULL",
+        )
+        .bind(&product.name)
+        .bind(&product.description)
+        .bind(product.category_id)
+        .bind(product.subcategory_id)
+        .bind(product.price)
+        .bind(product.cost_price)
+        .bind(product.stock_quantity)
+        .bind(product.unlimited_stock)
+        .bind(&product.barcode)
+        .bind(&product.unit)
+        .bind(product.balance_mode.as_db_str())
+        .bind(&product.image_data)
+        .bind(&product.cover_color)
+        .bind(&product.availability_schedule)
+        .bind(&product.discount_kind)
+        .bind(product.discount_value)
+        .bind(product.discount_min_qty)
+        .bind(&product.discount_tiers)
+        .bind(&product.variations)
+        .bind(product.min_stock)
+        .bind(product.base.updated_at)
+        .bind(product.base.synced)
+        .bind(product.base.company_id)
+        .bind(product.base.id)
+        .execute(&mut *tx)
+        .await
+        .map_err(map_db)?;
+
+        // 2. Delta de estoque + ledger append-only (§7), com guarda de não-negativo.
+        if stock_delta.abs() > f64::EPSILON && !product.unlimited_stock {
+            let rows = sqlx::query(
+                "UPDATE products
+                    SET stock_quantity = stock_quantity + $1, updated_at = $2, synced = false
+                  WHERE company_id = $3 AND id = $4 AND deleted_at IS NULL
+                    AND unlimited_stock = false AND stock_quantity + $1 >= 0",
+            )
+            .bind(stock_delta)
+            .bind(product.base.updated_at)
+            .bind(product.base.company_id)
+            .bind(product.base.id)
+            .execute(&mut *tx)
+            .await
+            .map_err(map_db)?
+            .rows_affected();
+            if rows != 1 {
+                tx.rollback().await.map_err(map_db)?;
+                return Err(CoreError::Validation(
+                    "Estoque insuficiente para o ajuste".into(),
+                ));
+            }
+            insert_stock_movement(
+                &mut tx,
+                product.base.company_id,
+                product.base.id,
+                stock_delta,
+                "edit",
+                None,
+                product.base.updated_at,
+            )
+            .await?;
+        }
+
+        // 3. Reescreve as associações N:M de adicionais (DELETE + INSERT).
+        sqlx::query("DELETE FROM product_addon_groups WHERE company_id = $1 AND product_id = $2")
+            .bind(product.base.company_id)
+            .bind(product.base.id)
+            .execute(&mut *tx)
+            .await
+            .map_err(map_db)?;
+        for (idx, gid) in group_ids.iter().enumerate() {
+            sqlx::query(
+                "INSERT INTO product_addon_groups (company_id, product_id, group_id, sort_order)
+                 VALUES ($1, $2, $3, $4)",
+            )
+            .bind(product.base.company_id)
+            .bind(product.base.id)
+            .bind(gid)
+            .bind(idx as i32)
+            .execute(&mut *tx)
+            .await
+            .map_err(map_db)?;
+        }
+
+        tx.commit().await.map_err(map_db)?;
+        Ok(())
+    }
+
     async fn soft_delete(&self, company_id: Uuid, id: Uuid) -> Result<(), CoreError> {
         let now = chrono::Utc::now().naive_utc();
         sqlx::query(

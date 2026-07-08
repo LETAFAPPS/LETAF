@@ -158,28 +158,19 @@ impl ProductService {
         product.base.updated_at = chrono::Utc::now().naive_utc();
         product.base.synced = false;
 
-        // Estoque NÃO sincroniza por LWW (§7): mudanças de estoque na edição
-        // viram delta no ledger. O `update` mantém o estoque atual e a
-        // diferença (se houver) é aplicada via `try_adjust_stock`, que grava
-        // o StockMovement atomicamente. Produto ilimitado não tem delta.
+        // Estoque NÃO sincroniza por LWW (§7): a diferença vira delta no ledger.
+        // O `update_atomic` grava metadados + delta de estoque (com StockMovement)
+        // + associações de adicionais numa ÚNICA transação (§4) — sem o estado
+        // divergente de operações separadas. Produto ilimitado não tem delta.
         let target_stock = product.stock_quantity;
         let stock_delta = if unlimited_stock { 0.0 } else { target_stock - old_stock };
         if stock_delta.abs() > f64::EPSILON {
-            product.stock_quantity = old_stock; // o update não altera o estoque
+            product.stock_quantity = old_stock; // o UPDATE de metadados mantém o estoque; o delta é aplicado à parte
         }
-        self.repo.update(&product).await?;
-        if stock_delta.abs() > f64::EPSILON {
-            // Aplica o delta pelo ledger via `adjust_stock`, que trata o
-            // `StockAdjustResult` (Insufficient/NotFound viram erro em vez de
-            // falha silenciosa) e grava o StockMovement atomicamente. Só reflete
-            // `target_stock` no retorno se o ajuste de fato ocorreu (§7.6).
-            self.adjust_stock(company_id, id, stock_delta).await?;
-            product.stock_quantity = target_stock;
-        }
-        // Reescreve as associações N:M com a lista atual (lista vazia
-        // limpa todas) — mesmo padrão de outras coleções gerenciadas
-        // pelo produto.
-        self.repo.replace_addon_groups(company_id, product.base.id, &addon_group_ids).await?;
+        self.repo
+            .update_atomic(&product, stock_delta, &addon_group_ids)
+            .await?;
+        product.stock_quantity = target_stock;
         product.addon_group_ids = addon_group_ids;
         Ok(product)
     }

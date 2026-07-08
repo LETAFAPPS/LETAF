@@ -707,6 +707,42 @@ impl OrderRepository for PgOrderRepository {
             Some(local) => order.base.updated_at > local,
             None => true,
         };
+        // Colisão de `number` entre origens (desktop offline × web): o número é
+        // MAX+1 independente nos dois bancos. Se este id é NOVO aqui e o número
+        // já pertence a OUTRO pedido, renumera para o próximo livre e bumpa
+        // `updated_at` — assim o desktop reconverte no pull. Sem isto o INSERT
+        // viola o UNIQUE(company_id, number) e o push re-tentaria para sempre,
+        // travando o sync e perdendo a venda no servidor (§7.6). Cada tentativa
+        // recomputa MAX+1, então converge mesmo sob corrida.
+        let renumbered: Option<Order> = if existing.is_none() {
+            let clash: Option<(uuid::Uuid,)> = sqlx::query_as(
+                "SELECT id FROM orders WHERE company_id = $1 AND number = $2 AND id <> $3 LIMIT 1",
+            )
+            .bind(order.base.company_id)
+            .bind(order.number)
+            .bind(order.base.id)
+            .fetch_optional(&mut *tx)
+            .await
+            .map_err(map_db)?;
+            if clash.is_some() {
+                let (next,): (i64,) = sqlx::query_as(
+                    "SELECT COALESCE(MAX(number), 0) + 1 FROM orders WHERE company_id = $1",
+                )
+                .bind(order.base.company_id)
+                .fetch_one(&mut *tx)
+                .await
+                .map_err(map_db)?;
+                let mut o = order.clone();
+                o.number = next;
+                o.base.updated_at = chrono::Utc::now().naive_utc();
+                Some(o)
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+        let order = renumbered.as_ref().unwrap_or(order);
         upsert_order_row(&mut tx, order).await?;
         if incoming_wins {
             sqlx::query(
