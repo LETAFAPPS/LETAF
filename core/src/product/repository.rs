@@ -65,6 +65,13 @@ pub trait ProductRepository: Send + Sync {
     /// Filtros aplicados: active = true AND web_visible = true AND deleted_at IS NULL.
     async fn find_active(&self, company_id: Uuid) -> Result<Vec<Product>, CoreError>;
 
+    /// Só o `image_data` do produto (rota de mídia, §13): evita o `SELECT *` e
+    /// a query extra de `hydrate_addon_group_ids` do `find_by_id` a cada imagem
+    /// servida. Default delega a `find_by_id`; o servidor sobrescreve.
+    async fn find_image_data(&self, company_id: Uuid, id: Uuid) -> Result<Option<String>, CoreError> {
+        Ok(self.find_by_id(company_id, id).await?.and_then(|p| p.image_data))
+    }
+
     /// Alterna estado ativo/inativo (cardápio web + PDV) — AI_RULES.md §8.
     async fn toggle_active(&self, company_id: Uuid, id: Uuid, active: bool) -> Result<(), CoreError>;
 

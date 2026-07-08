@@ -31,6 +31,11 @@ impl ProductService {
         self.repo.find_by_id(company_id, id).await
     }
 
+    /// Só o `image_data` (rota de mídia do catálogo, §13).
+    pub async fn find_image_data(&self, company_id: Uuid, id: Uuid) -> Result<Option<String>, CoreError> {
+        self.repo.find_image_data(company_id, id).await
+    }
+
     pub async fn find_all(&self, company_id: Uuid) -> Result<Vec<Product>, CoreError> {
         self.repo.find_all(company_id).await
     }

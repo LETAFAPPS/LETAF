@@ -106,6 +106,19 @@ impl CompanyRepository for PgCompanyRepository {
         .map_err(map_db)
     }
 
+    async fn find_id_by_subdomain(&self, subdomain: &str) -> Result<Option<Uuid>, CoreError> {
+        // Caminho quente (todo request passa pelo tenant): só o id, sem os
+        // blobs `logo_data`/`cover_data` do `SELECT *` (§13).
+        let row: Option<(Uuid,)> = sqlx::query_as(
+            "SELECT id FROM companies WHERE subdomain = $1 AND deleted_at IS NULL",
+        )
+        .bind(subdomain)
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(map_db)?;
+        Ok(row.map(|(id,)| id))
+    }
+
     async fn find_all(&self) -> Result<Vec<Company>, CoreError> {
         let rows = sqlx::query_as::<_, CompanyRow>(
             "SELECT * FROM companies WHERE deleted_at IS NULL ORDER BY name",

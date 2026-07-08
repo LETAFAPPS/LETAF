@@ -60,11 +60,10 @@ async fn media_product(
 ) -> Response {
     let data = state
         .product_service
-        .find_by_id(tenant.company_id, id)
+        .find_image_data(tenant.company_id, id)
         .await
         .ok()
-        .flatten()
-        .and_then(|p| p.image_data);
+        .flatten();
     media_response(data)
 }
 

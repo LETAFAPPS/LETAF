@@ -442,9 +442,23 @@ impl ProductRepository for PgProductRepository {
     }
 
     /// Catálogo público: ativos E visíveis na web.
+    ///
+    /// §13: NÃO puxa o blob `image_data` (base64, potencialmente centenas de KB
+    /// por produto) — a rota pública mais quente só checa se HÁ imagem para
+    /// montar a URL de `/catalog/media/product/{id}` (a imagem em si é servida
+    /// por esse endpoint separado). Retorna um sentinela de 1 byte no lugar do
+    /// blob (`'1'`/NULL); o resto das colunas é explícito.
     async fn find_active(&self, company_id: Uuid) -> Result<Vec<Product>, CoreError> {
         let rows = sqlx::query_as::<_, ProductRow>(
-            "SELECT * FROM products WHERE company_id = $1 AND deleted_at IS NULL AND active = true AND web_visible = true ORDER BY created_at DESC",
+            "SELECT id, company_id, name, description, category_id, subcategory_id, price, cost_price,
+                    stock_quantity, unlimited_stock, barcode, unit, created_at, updated_at, deleted_at,
+                    synced, active, web_visible, balance_mode,
+                    CASE WHEN image_data IS NOT NULL THEN '1' END AS image_data,
+                    cover_color, availability_schedule, discount_kind, discount_value, discount_min_qty,
+                    discount_tiers, variations, min_stock
+               FROM products
+              WHERE company_id = $1 AND deleted_at IS NULL AND active = true AND web_visible = true
+              ORDER BY created_at DESC",
         )
         .bind(company_id)
         .fetch_all(&self.pool)
@@ -454,6 +468,18 @@ impl ProductRepository for PgProductRepository {
         let mut products: Vec<Product> = rows.into_iter().map(Product::from).collect();
         self.hydrate_addon_group_ids(company_id, &mut products).await?;
         Ok(products)
+    }
+
+    async fn find_image_data(&self, company_id: Uuid, id: Uuid) -> Result<Option<String>, CoreError> {
+        let row: Option<(Option<String>,)> = sqlx::query_as(
+            "SELECT image_data FROM products WHERE company_id = $1 AND id = $2 AND deleted_at IS NULL",
+        )
+        .bind(company_id)
+        .bind(id)
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(map_db)?;
+        Ok(row.and_then(|(img,)| img))
     }
 
     async fn toggle_active(&self, company_id: Uuid, id: Uuid, active: bool) -> Result<(), CoreError> {

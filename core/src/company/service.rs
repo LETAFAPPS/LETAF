@@ -58,6 +58,11 @@ impl CompanyService {
         self.repo.find_by_subdomain(subdomain).await
     }
 
+    /// Resolve só o `company_id` pelo subdomínio (tenant middleware, §13).
+    pub async fn find_id_by_subdomain(&self, subdomain: &str) -> Result<Option<Uuid>, CoreError> {
+        self.repo.find_id_by_subdomain(subdomain).await
+    }
+
     pub async fn find_all(&self) -> Result<Vec<Company>, CoreError> {
         self.repo.find_all().await
     }

@@ -14,6 +14,13 @@ use crate::error::CoreError;
 pub trait CompanyRepository: Send + Sync {
     async fn find_by_id(&self, id: Uuid) -> Result<Option<Company>, CoreError>;
     async fn find_by_subdomain(&self, subdomain: &str) -> Result<Option<Company>, CoreError>;
+    /// Resolve APENAS o `company_id` pelo subdomínio (caminho quente do tenant
+    /// middleware, §13): evita puxar os blobs base64 `logo_data`/`cover_data`
+    /// a cada request só para extrair o id. Default delega a `find_by_subdomain`;
+    /// o servidor sobrescreve com um `SELECT id`.
+    async fn find_id_by_subdomain(&self, subdomain: &str) -> Result<Option<Uuid>, CoreError> {
+        Ok(self.find_by_subdomain(subdomain).await?.map(|c| c.id))
+    }
     async fn find_all(&self) -> Result<Vec<Company>, CoreError>;
     async fn create(&self, company: &Company) -> Result<(), CoreError>;
     async fn update(&self, company: &Company) -> Result<(), CoreError>;

@@ -189,30 +189,29 @@ mod server {
         let base = api_base();
         let th = host.split(':').next().unwrap_or(host).to_string();
         let client = crate::http_client();
-        let info: CatalogInfo = get_json(client, &base, &th, "/catalog/info").await?;
-        let categories: Vec<CatalogCategory> =
-            get_json(client, &base, &th, "/catalog/categories").await?;
-        let products: Vec<CatalogProduct> =
-            get_json(client, &base, &th, "/catalog/products").await?;
-        // Banners são promocionais (não essenciais): falha aqui não
-        // derruba o catálogo — cai numa lista vazia.
-        let banners: Vec<CatalogBanner> = get_json(client, &base, &th, "/catalog/banners")
-            .await
-            .unwrap_or_default();
-        // Horário de funcionamento (não essencial): falha → "none" (sem
-        // selo, loja tratada como sempre aberta).
-        let business_hours: BusinessHours = get_json(client, &base, &th, "/catalog/business-hours")
-            .await
-            .unwrap_or(BusinessHours {
+        // As 5 chamadas são independentes e ao mesmo host: dispara todas
+        // concorrentes (colapsa ~5 round-trips em ~1) — está no caminho de
+        // renderização do cardápio (TTFB/LCP), §13.
+        let (info, categories, products, banners, business_hours) = tokio::join!(
+            get_json::<CatalogInfo>(client, &base, &th, "/catalog/info"),
+            get_json::<Vec<CatalogCategory>>(client, &base, &th, "/catalog/categories"),
+            get_json::<Vec<CatalogProduct>>(client, &base, &th, "/catalog/products"),
+            get_json::<Vec<CatalogBanner>>(client, &base, &th, "/catalog/banners"),
+            get_json::<BusinessHours>(client, &base, &th, "/catalog/business-hours"),
+        );
+        Ok(CatalogData {
+            info: info?,
+            categories: categories?,
+            products: products?,
+            // Banners são promocionais (não essenciais): falha aqui não
+            // derruba o catálogo — cai numa lista vazia.
+            banners: banners.unwrap_or_default(),
+            // Horário de funcionamento (não essencial): falha → "none" (sem
+            // selo, loja tratada como sempre aberta).
+            business_hours: business_hours.unwrap_or(BusinessHours {
                 store_override: "none".into(),
                 hours: Vec::new(),
-            });
-        Ok(CatalogData {
-            info,
-            categories,
-            products,
-            banners,
-            business_hours,
+            }),
         })
     }
 

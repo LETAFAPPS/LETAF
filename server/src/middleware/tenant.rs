@@ -33,15 +33,15 @@ impl FromRequestParts<AppState> for TenantContext {
         let subdomain = extract_subdomain(parts)
             .ok_or(ServerError::TenantNotFound)?;
 
-        let company = state
+        let company_id = state
             .company_service
-            .find_by_subdomain(&subdomain)
+            .find_id_by_subdomain(&subdomain)
             .await
             .map_err(|_| ServerError::TenantNotFound)?
             .ok_or(ServerError::TenantNotFound)?;
 
         Ok(TenantContext {
-            company_id: company.id,
+            company_id,
             subdomain,
         })
     }
