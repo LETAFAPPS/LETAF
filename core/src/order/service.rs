@@ -398,7 +398,7 @@ impl OrderService {
         let now = chrono::Utc::now().naive_utc();
         let mut finalized: Vec<super::model::OrderItem> = Vec::with_capacity(new_items.len());
         for mut it in new_items.into_iter() {
-            if it.quantity <= 0.0 {
+            if !it.quantity.is_finite() || it.quantity <= 0.0 {
                 return Err(CoreError::Validation(
                     "Quantidade de item deve ser positiva".into(),
                 ));
@@ -756,7 +756,7 @@ fn validate_items(items: &[OrderItemInput]) -> Result<(), CoreError> {
         return Err(CoreError::Validation("Order must have at least one item".into()));
     }
     for item in items {
-        if item.quantity <= 0.0 {
+        if !item.quantity.is_finite() || item.quantity <= 0.0 {
             return Err(CoreError::Validation("Item quantity must be positive".into()));
         }
         if item.unit_price < Decimal::ZERO {

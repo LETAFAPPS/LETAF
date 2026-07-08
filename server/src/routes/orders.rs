@@ -153,7 +153,13 @@ async fn create_order(
     {
         None => (None, rust_decimal::Decimal::ZERO),
         Some(raw_code) => {
-            let subtotal: Decimal = items.iter().map(|i| money::qty(i.quantity) * i.unit_price).sum();
+            // Arredonda POR ITEM (mesma base de `build_items`): senão o subtotal
+            // do cupom diverge do total do pedido por frações de centavo e pode
+            // cruzar o limite de `min_order_value`/desconto numa borda.
+            let subtotal: Decimal = items
+                .iter()
+                .map(|i| money::round2(money::qty(i.quantity) * i.unit_price))
+                .sum();
             let mine = state.order_service
                 .find_by_customer(tenant.company_id, customer_id).await?;
             let norm = |c: &Option<String>| c.as_deref()
