@@ -3898,10 +3898,13 @@ dependencies = [
  "leptos_axum",
  "leptos_meta",
  "leptos_router",
+ "letaf-core",
  "reqwest",
+ "rust_decimal",
  "serde",
  "serde_json",
  "tokio",
+ "uuid",
  "wasm-bindgen",
  "web-sys",
 ]

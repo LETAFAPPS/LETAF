@@ -92,6 +92,7 @@ pub(crate) fn setup_refresh_business_hours(
             let s_cover     = opt(|c| c.cover_data.clone());
             let s_per_page    = company.as_ref().map(|c| c.products_per_page).unwrap_or(20);
             let s_orders_per_page = company.as_ref().map(|c| c.orders_per_page).unwrap_or(20);
+            let s_utc_offset  = company.as_ref().map(|c| c.utc_offset_minutes).unwrap_or(-180);
             let logo_buf  = if s_logo.is_empty()  { None } else { decode_pixel_buffer(&s_logo) };
             let cover_buf = if s_cover.is_empty() { None } else { decode_pixel_buffer(&s_cover) };
             match state.business_hours_service.find_all(cid).await {
@@ -118,6 +119,7 @@ pub(crate) fn setup_refresh_business_hours(
                         ui.set_store_synced(s_synced);
                         ui.set_products_per_page(s_per_page);
                         ui.set_orders_per_page(s_orders_per_page);
+                        ui.set_store_utc_offset(s_utc_offset);
                         ui.set_business_hours(ModelRc::new(VecModel::from(data)));
                     });
                 }

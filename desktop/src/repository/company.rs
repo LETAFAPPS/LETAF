@@ -148,8 +148,9 @@ impl CompanyRepository for SqliteCompanyRepository {
              address = ?4, phone = ?5, whatsapp = ?6, email = ?7, instagram = ?8,
              document = ?9, neighborhood = ?10, zip_code = ?11, city = ?12, uf = ?13,
              logo_data = ?14, cover_data = ?15,
-             products_per_page = ?16, orders_per_page = ?17, updated_at = ?18, synced = ?19
-             WHERE id = ?20 AND deleted_at IS NULL",
+             products_per_page = ?16, orders_per_page = ?17, utc_offset_minutes = ?18,
+             updated_at = ?19, synced = ?20
+             WHERE id = ?21 AND deleted_at IS NULL",
         )
         .bind(&company.name)
         .bind(&company.subdomain)
@@ -168,6 +169,7 @@ impl CompanyRepository for SqliteCompanyRepository {
         .bind(&company.cover_data)
         .bind(company.products_per_page as i64)
         .bind(company.orders_per_page as i64)
+        .bind(company.utc_offset_minutes as i64)
         .bind(ts(company.updated_at))
         .bind(company.synced)
         .bind(company.id.to_string())
@@ -234,9 +236,9 @@ impl CompanyRepository for SqliteCompanyRepository {
                 address, phone, whatsapp, email, instagram, document,
                 neighborhood, zip_code, city, uf,
                 logo_data, cover_data, products_per_page, orders_per_page,
-                created_at, updated_at, deleted_at, synced)
+                utc_offset_minutes, created_at, updated_at, deleted_at, synced)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12,
-                ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22)
+                ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23)
              ON CONFLICT (id) DO UPDATE SET
                  name = excluded.name,
                  subdomain = excluded.subdomain,
@@ -255,6 +257,7 @@ impl CompanyRepository for SqliteCompanyRepository {
                  cover_data = excluded.cover_data,
                  products_per_page = excluded.products_per_page,
                  orders_per_page = excluded.orders_per_page,
+                 utc_offset_minutes = excluded.utc_offset_minutes,
                  updated_at = excluded.updated_at,
                  deleted_at = excluded.deleted_at,
                  synced = excluded.synced
@@ -278,6 +281,7 @@ impl CompanyRepository for SqliteCompanyRepository {
         .bind(&company.cover_data)
         .bind(company.products_per_page as i64)
         .bind(company.orders_per_page as i64)
+        .bind(company.utc_offset_minutes as i64)
         .bind(ts(company.created_at))
         .bind(ts(company.updated_at))
         .bind(company.deleted_at.map(ts))

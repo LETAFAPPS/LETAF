@@ -571,6 +571,9 @@ export component MainWindow inherits Window {
     /// Configurada em SettingsPage e persistida em Company.
     in-out property <int>    products-per-page: 20;
     in-out property <int>    orders-per-page: 20;
+    /// Fuso da loja como offset fixo de UTC em minutos (ex.: -180 = Brasília).
+    /// Usado para validar horário/disponibilidade no backend. Persistido em Company.
+    in-out property <int>    store-utc-offset: -180;
 
     // ── Sidebar (status de sync + identidade do usuário) ───
     // Regras aplicadas (AI_RULES.md §7, §11):
@@ -2288,6 +2291,7 @@ export component MainWindow inherits Window {
                 store-synced: root.store-synced;
                 products-per-page <=> root.products-per-page;
                 orders-per-page <=> root.orders-per-page;
+                store-utc-offset <=> root.store-utc-offset;
                 set-store-override(v) => { root.set-store-override(v); }
                 save-store-info => { root.save-store-info(); }
                 pick-store-logo => { root.pick-store-logo(); }

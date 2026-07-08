@@ -159,8 +159,9 @@ impl CompanyRepository for PgCompanyRepository {
              address = $4, phone = $5, whatsapp = $6, email = $7, instagram = $8,
              document = $9, neighborhood = $10, zip_code = $11, city = $12, uf = $13,
              logo_data = $14, cover_data = $15,
-             products_per_page = $16, orders_per_page = $17, updated_at = $18, synced = $19
-             WHERE id = $20 AND deleted_at IS NULL",
+             products_per_page = $16, orders_per_page = $17, utc_offset_minutes = $18,
+             updated_at = $19, synced = $20
+             WHERE id = $21 AND deleted_at IS NULL",
         )
         .bind(&company.name)
         .bind(&company.subdomain)
@@ -179,6 +180,7 @@ impl CompanyRepository for PgCompanyRepository {
         .bind(&company.cover_data)
         .bind(company.products_per_page)
         .bind(company.orders_per_page)
+        .bind(company.utc_offset_minutes)
         .bind(company.updated_at)
         .bind(company.synced)
         .bind(company.id)
@@ -245,9 +247,9 @@ impl CompanyRepository for PgCompanyRepository {
                 address, phone, whatsapp, email, instagram, document,
                 neighborhood, zip_code, city, uf,
                 logo_data, cover_data, products_per_page, orders_per_page,
-                created_at, updated_at, deleted_at, synced)
+                utc_offset_minutes, created_at, updated_at, deleted_at, synced)
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12,
-                $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
+                $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
              ON CONFLICT (id) DO UPDATE SET
                  name = EXCLUDED.name,
                  subdomain = EXCLUDED.subdomain,
@@ -266,6 +268,7 @@ impl CompanyRepository for PgCompanyRepository {
                  cover_data = EXCLUDED.cover_data,
                  products_per_page = EXCLUDED.products_per_page,
                  orders_per_page = EXCLUDED.orders_per_page,
+                 utc_offset_minutes = EXCLUDED.utc_offset_minutes,
                  updated_at = EXCLUDED.updated_at,
                  deleted_at = EXCLUDED.deleted_at,
                  synced = EXCLUDED.synced
@@ -289,6 +292,7 @@ impl CompanyRepository for PgCompanyRepository {
         .bind(&company.cover_data)
         .bind(company.products_per_page)
         .bind(company.orders_per_page)
+        .bind(company.utc_offset_minutes)
         .bind(company.created_at)
         .bind(company.updated_at)
         .bind(company.deleted_at)

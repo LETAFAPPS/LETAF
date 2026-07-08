@@ -30,6 +30,8 @@ pub struct UpdateInfoInput {
     pub cover_data: Option<String>,
     pub products_per_page: i32,
     pub orders_per_page: i32,
+    /// Fuso da loja (offset fixo de UTC em minutos). Ver `Company::utc_offset_minutes`.
+    pub utc_offset_minutes: i32,
 }
 
 /// Service para o domínio Company.
@@ -146,6 +148,8 @@ impl CompanyService {
         }
         let products_per_page = input.products_per_page.clamp(1, 200);
         let orders_per_page = input.orders_per_page.clamp(1, 200);
+        // Offset plausível: UTC-12 (-720) a UTC+14 (+840).
+        let utc_offset_minutes = input.utc_offset_minutes.clamp(-720, 840);
         let mut company = self.repo.find_by_id(id).await?
             .ok_or_else(|| CoreError::NotFound("Company not found".into()))?;
         company.name = input.name;
@@ -163,6 +167,7 @@ impl CompanyService {
         company.cover_data = input.cover_data;
         company.products_per_page = products_per_page;
         company.orders_per_page = orders_per_page;
+        company.utc_offset_minutes = utc_offset_minutes;
         company.updated_at = chrono::Utc::now().naive_utc();
         company.synced = false;
         self.repo.update(&company).await?;
