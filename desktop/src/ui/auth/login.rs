@@ -118,6 +118,12 @@ pub(crate) fn setup_password_recovery(
                 ui.set_recovery_status(SharedString::from("Informe seu e-mail."));
                 return;
             }
+            if !is_valid_email(&email) {
+                ui.set_recovery_status(SharedString::from(
+                    "Informe um e-mail válido (com @ e domínio).",
+                ));
+                return;
+            }
             ui.set_recovery_busy(true);
             ui.set_recovery_status(SharedString::from("Enviando..."));
             let ui_weak = ui.as_weak();
@@ -360,11 +366,28 @@ pub(crate) fn update_ui_after_login(ui_weak: slint::Weak<MainWindow>, role: User
 ///
 /// Regras aplicadas (AI_RULES.md §8): responsabilidade única, sem lógica de negócio.
 pub(crate) fn validate_login_fields(email: &str, password: &str) -> Option<&'static str> {
-    match (email.trim().is_empty(), password.is_empty()) {
+    let email = email.trim();
+    match (email.is_empty(), password.is_empty()) {
         (true, true)  => Some("Informe o e-mail e a senha"),
         (true, false) => Some("Informe o e-mail"),
+        (false, _) if !is_valid_email(email) => Some("Informe um e-mail válido (com @ e domínio)"),
         (false, true) => Some("Informe a senha"),
         (false, false) => None,
+    }
+}
+
+/// Validação de formato de e-mail (§11 — o frontend só dá feedback; o backend
+/// revalida). Exige `@` com parte local não-vazia e um domínio contendo `.`
+/// (não nas bordas). Ex.: `a@b.com` ✓, `admin@demo` ✗, `x@y.` ✗.
+pub(crate) fn is_valid_email(email: &str) -> bool {
+    match email.trim().split_once('@') {
+        Some((local, domain)) => {
+            !local.is_empty()
+                && domain.contains('.')
+                && !domain.starts_with('.')
+                && !domain.ends_with('.')
+        }
+        None => false,
     }
 }
 
@@ -444,4 +467,29 @@ pub(crate) async fn do_login(
         perms: data.perms,
         name: data.user.name,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{is_valid_email, validate_login_fields};
+
+    #[test]
+    fn email_exige_arroba_e_dominio_com_ponto() {
+        assert!(is_valid_email("a@b.com"));
+        assert!(is_valid_email("admin@demo.com.br"));
+        assert!(!is_valid_email("admin@demo"));   // sem ponto no domínio
+        assert!(!is_valid_email("admin.com"));    // sem @
+        assert!(!is_valid_email("@demo.com"));    // sem parte local
+        assert!(!is_valid_email("a@.com"));       // ponto na borda do domínio
+        assert!(!is_valid_email("a@b."));         // ponto na borda
+        assert!(!is_valid_email(""));
+    }
+
+    #[test]
+    fn login_rejeita_email_invalido() {
+        assert_eq!(validate_login_fields("", "x"), Some("Informe o e-mail"));
+        assert!(validate_login_fields("admin@demo", "x").is_some()); // sem . → inválido
+        assert_eq!(validate_login_fields("a@b.com", ""), Some("Informe a senha"));
+        assert_eq!(validate_login_fields("a@b.com", "senha"), None);
+    }
 }

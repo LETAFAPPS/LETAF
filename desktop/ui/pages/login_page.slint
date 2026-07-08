@@ -144,6 +144,90 @@ component FeatureRow inherits HorizontalLayout {
     }
 }
 
+// ── Campo de código: 6 caixas numéricas, auto-confirma ao completar ────────
+// Numérico (input-type number), foco avança sozinho, select-all no clique
+// (redigitar substitui). `completed()` dispara quando os 6 dígitos estão
+// preenchidos. Sem lógica de negócio (§3).
+component CodeBoxes inherits Rectangle {
+    out property <string> value;
+    callback edited();
+    callback completed();
+    property <bool> fired: false;
+    height: 56px;
+
+    function refresh() {
+        self.value = d0.text + d1.text + d2.text + d3.text + d4.text + d5.text;
+        self.edited();
+        if self.value.character-count < 6 { self.fired = false; }
+        if self.value.character-count == 6 && !self.fired {
+            self.fired = true;
+            self.completed();
+        }
+    }
+
+    init => { d0.focus(); }
+
+    HorizontalLayout {
+        alignment: center;
+        spacing: 10px;
+
+        Rectangle {
+            width: 48px; height: 56px; border-radius: 10px;
+            border-width: 1.5px; border-color: d0.has-focus ? Theme.primary : #e4dfd8;
+            background: #ffffff;
+            if d0.text == "": Text { text: "0"; font-size: 22px; color: #d8d3cc; width: 100%; height: 100%; horizontal-alignment: center; vertical-alignment: center; }
+            d0 := TextInput { width: 100%; height: 100%; horizontal-alignment: center; vertical-alignment: center; input-type: number; font-size: 22px; font-weight: 700; color: #1c1a18; single-line: true;
+                edited => { root.refresh(); if d0.text != "" { d1.focus(); } } }
+            TouchArea { clicked => { d0.focus(); d0.select-all(); } }
+        }
+        Rectangle {
+            width: 48px; height: 56px; border-radius: 10px;
+            border-width: 1.5px; border-color: d1.has-focus ? Theme.primary : #e4dfd8;
+            background: #ffffff;
+            if d1.text == "": Text { text: "0"; font-size: 22px; color: #d8d3cc; width: 100%; height: 100%; horizontal-alignment: center; vertical-alignment: center; }
+            d1 := TextInput { width: 100%; height: 100%; horizontal-alignment: center; vertical-alignment: center; input-type: number; font-size: 22px; font-weight: 700; color: #1c1a18; single-line: true;
+                edited => { root.refresh(); if d1.text != "" { d2.focus(); } } }
+            TouchArea { clicked => { d1.focus(); d1.select-all(); } }
+        }
+        Rectangle {
+            width: 48px; height: 56px; border-radius: 10px;
+            border-width: 1.5px; border-color: d2.has-focus ? Theme.primary : #e4dfd8;
+            background: #ffffff;
+            if d2.text == "": Text { text: "0"; font-size: 22px; color: #d8d3cc; width: 100%; height: 100%; horizontal-alignment: center; vertical-alignment: center; }
+            d2 := TextInput { width: 100%; height: 100%; horizontal-alignment: center; vertical-alignment: center; input-type: number; font-size: 22px; font-weight: 700; color: #1c1a18; single-line: true;
+                edited => { root.refresh(); if d2.text != "" { d3.focus(); } } }
+            TouchArea { clicked => { d2.focus(); d2.select-all(); } }
+        }
+        Rectangle {
+            width: 48px; height: 56px; border-radius: 10px;
+            border-width: 1.5px; border-color: d3.has-focus ? Theme.primary : #e4dfd8;
+            background: #ffffff;
+            if d3.text == "": Text { text: "0"; font-size: 22px; color: #d8d3cc; width: 100%; height: 100%; horizontal-alignment: center; vertical-alignment: center; }
+            d3 := TextInput { width: 100%; height: 100%; horizontal-alignment: center; vertical-alignment: center; input-type: number; font-size: 22px; font-weight: 700; color: #1c1a18; single-line: true;
+                edited => { root.refresh(); if d3.text != "" { d4.focus(); } } }
+            TouchArea { clicked => { d3.focus(); d3.select-all(); } }
+        }
+        Rectangle {
+            width: 48px; height: 56px; border-radius: 10px;
+            border-width: 1.5px; border-color: d4.has-focus ? Theme.primary : #e4dfd8;
+            background: #ffffff;
+            if d4.text == "": Text { text: "0"; font-size: 22px; color: #d8d3cc; width: 100%; height: 100%; horizontal-alignment: center; vertical-alignment: center; }
+            d4 := TextInput { width: 100%; height: 100%; horizontal-alignment: center; vertical-alignment: center; input-type: number; font-size: 22px; font-weight: 700; color: #1c1a18; single-line: true;
+                edited => { root.refresh(); if d4.text != "" { d5.focus(); } } }
+            TouchArea { clicked => { d4.focus(); d4.select-all(); } }
+        }
+        Rectangle {
+            width: 48px; height: 56px; border-radius: 10px;
+            border-width: 1.5px; border-color: d5.has-focus ? Theme.primary : #e4dfd8;
+            background: #ffffff;
+            if d5.text == "": Text { text: "0"; font-size: 22px; color: #d8d3cc; width: 100%; height: 100%; horizontal-alignment: center; vertical-alignment: center; }
+            d5 := TextInput { width: 100%; height: 100%; horizontal-alignment: center; vertical-alignment: center; input-type: number; font-size: 22px; font-weight: 700; color: #1c1a18; single-line: true;
+                edited => { root.refresh(); } }
+            TouchArea { clicked => { d5.focus(); d5.select-all(); } }
+        }
+    }
+}
+
 export component LoginPage inherits Rectangle {
     in-out property <string> email;
     in-out property <string> password;
@@ -515,12 +599,24 @@ export component LoginPage inherits Rectangle {
                     icon: @image-url("../assets/icons/1.2/email.svg");
                     accepted => { root.forgot-request(); }
                 }
-                if root.recovery-step == 2: LoginField {
-                    label: "Código (6 dígitos)";
-                    value <=> root.recovery-code;
-                    placeholder: "000000";
-                    icon: @image-url("../assets/icons/1.2/email.svg");
-                    accepted => { root.verify-submit(); }
+                if root.recovery-step == 2: VerticalLayout {
+                    spacing: 8px;
+                    Text {
+                        text: "Código (6 dígitos)";
+                        font-size: 12.5px;
+                        font-weight: 600;
+                        color: #4a4640;
+                        horizontal-alignment: center;
+                    }
+                    CodeBoxes {
+                        // Sincroniza o código a cada dígito (para o botão manual)
+                        // e, ao completar os 6, confirma AUTOMATICAMENTE.
+                        edited => { root.recovery-code = self.value; }
+                        completed => {
+                            root.recovery-code = self.value;
+                            root.verify-submit();
+                        }
+                    }
                 }
                 if root.recovery-step == 3: LoginField {
                     label: "Nova senha";
