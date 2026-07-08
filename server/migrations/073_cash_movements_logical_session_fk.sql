@@ -1,0 +1,12 @@
+-- Torna `cash_movements.session_id` uma FK LÓGICA (sem CONSTRAINT REFERENCES),
+-- alinhando ao padrão dos outros livros-razão (stock_movements.order_id,
+-- wallet_movements.related_order_id — todos UUID sem REFERENCES) e ao desktop,
+-- que nunca teve a FK física.
+--
+-- Motivo (§7): a FK física fazia o INSERT de um movimento falhar no Postgres
+-- quando ele chegava no push ANTES da sua sessão (ex.: o push da sessão falha
+-- isoladamente com 500 num ciclo enquanto o do movimento é aceito), deixando o
+-- caixa mais frágil que os demais ledgers. A ordem de push (sessão antes de
+-- movimento) continua sendo a garantia normal; remover a FK só evita o encalhe
+-- na janela de push parcial.
+ALTER TABLE cash_movements DROP CONSTRAINT IF EXISTS cash_movements_session_id_fkey;
