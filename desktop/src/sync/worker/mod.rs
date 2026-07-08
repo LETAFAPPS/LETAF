@@ -252,15 +252,23 @@ impl SyncWorker {
         if let Err(e) = self.sync_addons(token).await {
             tracing::warn!("Addon sync error: {e}");
         }
+        // Movimentos de estoque ANTES dos produtos (§7): o `apply_stock_movement`
+        // do servidor só aplica o delta se o produto JÁ existe (senão 0 linhas).
+        // Empurrando os movimentos primeiro, para um produto NOVO (ainda não
+        // sincronizado) o delta é descartado e o INSERT do produto logo em
+        // seguida carrega o estoque LÍQUIDO correto — evitando o double-count
+        // (INSERT com o absoluto já decrementado + delta reaplicado). Para
+        // produto EXISTENTE o delta aplica e o upsert do produto preserva o
+        // estoque (não sobrescreve). Ambos os pushes vão no mesmo ciclo (rede
+        // up→ambos, down→nenhum), então o caso realista fica correto. O desktop
+        // não puxa/reaplica movimentos (estoque vem da linha do produto).
+        if let Err(e) = self.sync_stock_movements(token).await {
+            tracing::warn!("StockMovement sync error: {e}");
+        }
         // Produtos por último entre os "cadastros" porque podem
         // referenciar todos os anteriores (subcategoria + grupos).
         if let Err(e) = self.sync_products(token).await {
             tracing::warn!("Product sync error: {e}");
-        }
-        // Movimentos de estoque depois dos produtos: o servidor aplica o
-        // delta ao produto (ledger idempotente, substitui o LWW do estoque).
-        if let Err(e) = self.sync_stock_movements(token).await {
-            tracing::warn!("StockMovement sync error: {e}");
         }
         if let Err(e) = self.sync_orders(token).await {
             tracing::warn!("Order sync error: {e}");
