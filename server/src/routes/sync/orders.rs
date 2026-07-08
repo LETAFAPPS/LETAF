@@ -22,6 +22,9 @@ pub(crate) async fn sync_order(
     Json(order): Json<Order>,
 ) -> Result<Json<Value>, ServerError> {
     auth.verify_any_role(ROLES_OPERATORS)?;
+    // Mesma barra do POST /orders (operar o PDV = orders.view): permite que o
+    // caixa sincronize as vendas que criou offline (§11).
+    auth.require_permission("orders.view")?;
     state
         .order_service
         .sync_upsert(auth.0.company_id, order)

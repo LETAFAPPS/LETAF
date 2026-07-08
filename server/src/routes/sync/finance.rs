@@ -21,6 +21,7 @@ pub(crate) async fn sync_cash_session(
     Json(session): Json<CashSession>,
 ) -> Result<Json<Value>, ServerError> {
     auth.verify_any_role(ROLES_OPERATORS)?;
+    auth.require_permission("cash.view")?;
     state.cash_service
         .sync_upsert_session(auth.0.company_id, session)
         .await?;
@@ -34,8 +35,8 @@ pub(crate) async fn pull_cash_sessions(
     Query(params): Query<PullQuery>,
 ) -> Result<Json<Vec<CashSession>>, ServerError> {
     auth.verify_any_role(ROLES_OPERATORS)?;
-    // Dado sensível (caixa): pull só para quem enxerga a tela (§11). O push
-    // fica aberto para não travar dados de outro operador no mesmo desktop.
+    // Dado sensível (caixa): pull e push exigem cash.view (§11) — operadores
+    // do PDV têm a permissão, então não trava o fluxo do caixa.
     auth.require_permission("cash.view")?;
     let items = state.cash_service
         .find_sessions_updated_since_paged(
@@ -56,6 +57,7 @@ pub(crate) async fn sync_cash_movement(
     Json(movement): Json<CashMovement>,
 ) -> Result<Json<Value>, ServerError> {
     auth.verify_any_role(ROLES_OPERATORS)?;
+    auth.require_permission("cash.view")?;
     state.cash_service
         .sync_upsert_movement(auth.0.company_id, movement)
         .await?;
@@ -88,6 +90,7 @@ pub(crate) async fn sync_finance_category(
     Json(category): Json<FinanceCategory>,
 ) -> Result<Json<Value>, ServerError> {
     auth.verify_any_role(ROLES_OPERATORS)?;
+    auth.require_permission("finance.edit")?;
     state
         .finance_category_service
         .sync_upsert(auth.0.company_id, category)
@@ -120,6 +123,7 @@ pub(crate) async fn sync_finance_entry(
     Json(entry): Json<FinanceEntry>,
 ) -> Result<Json<Value>, ServerError> {
     auth.verify_any_role(ROLES_OPERATORS)?;
+    auth.require_permission("finance.edit")?;
     state
         .finance_service
         .sync_upsert(auth.0.company_id, entry)
@@ -154,6 +158,7 @@ pub(crate) async fn sync_wallet_account(
     Json(account): Json<WalletAccount>,
 ) -> Result<Json<Value>, ServerError> {
     auth.verify_any_role(ROLES_OPERATORS)?;
+    auth.require_permission("customers.edit")?;
     state
         .wallet_service
         .sync_upsert_account(auth.0.company_id, account)
@@ -185,6 +190,7 @@ pub(crate) async fn sync_wallet_movement(
     Json(movement): Json<WalletMovement>,
 ) -> Result<Json<Value>, ServerError> {
     auth.verify_any_role(ROLES_OPERATORS)?;
+    auth.require_permission("customers.edit")?;
     state
         .wallet_service
         .sync_upsert_movement(auth.0.company_id, movement)

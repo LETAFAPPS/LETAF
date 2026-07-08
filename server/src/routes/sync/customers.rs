@@ -28,7 +28,7 @@ pub(crate) async fn sync_user(
     let caller_is_admin = auth.0.role == ROLE_ADMIN || auth.0.role == ROLE_SUPER_ADMIN;
     state
         .auth_service
-        .sync_upsert_from_client(auth.0.company_id, caller_is_admin, payload)
+        .sync_upsert_from_client(auth.0.company_id, auth.0.sub, caller_is_admin, payload)
         .await?;
 
     Ok(Json(json!({ "synced": true })))
@@ -41,6 +41,9 @@ pub(crate) async fn sync_company(
     Json(company): Json<Company>,
 ) -> Result<Json<Value>, ServerError> {
     auth.verify_any_role(ROLES_OPERATORS)?;
+    // Config da empresa é nível-proprietário (§11): mesma barra da gestão de
+    // colaboradores. Sem CRUD REST — a autoridade vive aqui.
+    auth.require_permission("collaborators.edit")?;
     state
         .company_service
         .sync_upsert(auth.0.company_id, company)
@@ -89,6 +92,7 @@ pub(crate) async fn sync_customer(
     Json(customer): Json<Customer>,
 ) -> Result<Json<Value>, ServerError> {
     auth.verify_any_role(ROLES_OPERATORS)?;
+    auth.require_permission("customers.edit")?;
     state
         .customer_service
         .sync_upsert(auth.0.company_id, customer)
@@ -126,6 +130,7 @@ pub(crate) async fn sync_customer_address(
     Json(address): Json<CustomerAddress>,
 ) -> Result<Json<Value>, ServerError> {
     auth.verify_any_role(ROLES_OPERATORS)?;
+    auth.require_permission("customers.edit")?;
     state.customer_address_service
         .sync_upsert(auth.0.company_id, address)
         .await?;

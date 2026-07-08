@@ -50,6 +50,7 @@ pub(crate) async fn sync_product(
     Json(product): Json<Product>,
 ) -> Result<Json<Value>, ServerError> {
     auth.verify_any_role(ROLES_OPERATORS)?;
+    auth.require_permission("products.edit")?;
     state
         .product_service
         .sync_upsert(auth.0.company_id, product)
@@ -87,6 +88,7 @@ pub(crate) async fn sync_stock_movement(
     Json(movement): Json<StockMovement>,
 ) -> Result<Json<Value>, ServerError> {
     auth.verify_any_role(ROLES_OPERATORS)?;
+    auth.require_permission("products.edit")?;
     state
         .product_service
         .apply_stock_movement(auth.0.company_id, movement)
@@ -120,6 +122,7 @@ pub(crate) async fn sync_category(
     Json(category): Json<Category>,
 ) -> Result<Json<Value>, ServerError> {
     auth.verify_any_role(ROLES_OPERATORS)?;
+    auth.require_permission("categories.edit")?;
     state
         .category_service
         .sync_upsert(auth.0.company_id, category)
@@ -135,6 +138,7 @@ pub(crate) async fn sync_subcategory(
     Json(subcategory): Json<Subcategory>,
 ) -> Result<Json<Value>, ServerError> {
     auth.verify_any_role(ROLES_OPERATORS)?;
+    auth.require_permission("categories.edit")?;
     state
         .subcategory_service
         .sync_upsert(auth.0.company_id, subcategory)
@@ -163,6 +167,7 @@ pub(crate) async fn sync_addon_group(
     Json(group): Json<AddonGroup>,
 ) -> Result<Json<Value>, ServerError> {
     auth.verify_any_role(ROLES_OPERATORS)?;
+    auth.require_permission("addons.edit")?;
     state.addon_group_service
         .sync_upsert(auth.0.company_id, group)
         .await?;
@@ -189,6 +194,7 @@ pub(crate) async fn sync_addon(
     Json(addon): Json<Addon>,
 ) -> Result<Json<Value>, ServerError> {
     auth.verify_any_role(ROLES_OPERATORS)?;
+    auth.require_permission("addons.edit")?;
     state.addon_service
         .sync_upsert(auth.0.company_id, addon)
         .await?;
@@ -215,6 +221,7 @@ pub(crate) async fn sync_banner(
     Json(banner): Json<Banner>,
 ) -> Result<Json<Value>, ServerError> {
     auth.verify_any_role(ROLES_OPERATORS)?;
+    auth.require_permission("banners.edit")?;
     state.banner_service
         .sync_upsert(auth.0.company_id, banner)
         .await?;
@@ -241,6 +248,7 @@ pub(crate) async fn sync_coupon(
     Json(coupon): Json<Coupon>,
 ) -> Result<Json<Value>, ServerError> {
     auth.verify_any_role(ROLES_OPERATORS)?;
+    auth.require_permission("coupons.edit")?;
     state.coupon_service
         .sync_upsert(auth.0.company_id, coupon)
         .await?;
@@ -283,6 +291,9 @@ pub(crate) async fn sync_job_role(
     Json(role): Json<JobRole>,
 ) -> Result<Json<Value>, ServerError> {
     auth.verify_any_role(ROLES_OPERATORS)?;
+    // Funções (RBAC) definem permissões — criar/editar exige gestão de
+    // colaboradores, senão um operador forjaria uma Função de acesso total (§11).
+    auth.require_permission("collaborators.edit")?;
     state
         .job_role_service
         .sync_upsert(auth.0.company_id, role)

@@ -19,6 +19,7 @@ pub(crate) async fn sync_payment_method(
     Json(method): Json<PaymentMethod>,
 ) -> Result<Json<Value>, ServerError> {
     auth.verify_any_role(ROLES_OPERATORS)?;
+    auth.require_permission("finance.edit")?;
     state
         .payment_method_service
         .sync_upsert(auth.0.company_id, method)
@@ -46,6 +47,7 @@ pub(crate) async fn sync_subscription(
     Json(s): Json<Subscription>,
 ) -> Result<Json<Value>, ServerError> {
     auth.verify_any_role(ROLES_OPERATORS)?;
+    auth.require_permission("subscription.edit")?;
     state
         .subscription_service
         .sync_upsert_subscription(auth.0.company_id, s)
@@ -76,6 +78,7 @@ pub(crate) async fn sync_subscription_invoice(
     Json(inv): Json<SubscriptionInvoice>,
 ) -> Result<Json<Value>, ServerError> {
     auth.verify_any_role(ROLES_OPERATORS)?;
+    auth.require_permission("subscription.edit")?;
     state
         .subscription_service
         .sync_upsert_invoice(auth.0.company_id, inv)
@@ -110,6 +113,8 @@ pub(crate) async fn sync_business_hours(
     Json(bh): Json<BusinessHours>,
 ) -> Result<Json<Value>, ServerError> {
     auth.verify_any_role(ROLES_OPERATORS)?;
+    // Horário de funcionamento é config da vitrine (catálogo público).
+    auth.require_permission("products.edit")?;
     state
         .business_hours_service
         .sync_upsert(auth.0.company_id, bh)

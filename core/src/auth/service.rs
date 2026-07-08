@@ -406,6 +406,7 @@ impl AuthService {
     pub async fn sync_upsert_from_client(
         &self,
         company_id: Uuid,
+        caller_id: Uuid,
         caller_is_admin: bool,
         payload: super::model::SyncUserPayload,
     ) -> Result<(), CoreError> {
@@ -420,20 +421,35 @@ impl AuthService {
         let mut user = payload.into_user();
         let mut password_changed = false;
         match self.repo.find_by_id(company_id, user.base.id).await? {
-            // Usuário já existe: `role` é autoridade do servidor — preserva o
-            // valor do banco, ignorando o que veio no payload.
+            // Usuário já existe.
             Some(existing) => {
+                // Um chamador NÃO-admin só pode sincronizar o PRÓPRIO registro
+                // (nome/senha) — nunca o de terceiros (§11: senão sobrescreveria
+                // o password_hash de um Admin e faria takeover de conta).
+                if !caller_is_admin && user.base.id != caller_id {
+                    return Err(CoreError::Unauthorized(
+                        "Apenas Admin pode alterar credenciais de outro usuário".into(),
+                    ));
+                }
+                // `role` e `job_role_id` são autoridade do servidor: preserva os
+                // valores do banco para chamador não-admin — impede auto-escalar
+                // permissões trocando o próprio `job_role_id` via sync (§11).
                 user.role = existing.role;
+                if !caller_is_admin {
+                    user.job_role_id = existing.job_role_id;
+                }
                 // Troca de senha originada no desktop também revoga tokens
                 // antigos no servidor (§11) — senão a revogação por versão de
                 // credencial teria uma janela offline.
                 password_changed = existing.password_hash != user.password_hash;
             }
-            // Usuário novo: apenas um Admin pode introduzir outro Admin.
+            // Usuário NOVO: só um Admin pode criar usuário via sync (senão um
+            // funcionário criaria uma conta com job_role de permissão máxima e
+            // senha conhecida — escalada de privilégio, §11).
             None => {
-                if user.role == UserRole::Admin && !caller_is_admin {
-                    return Err(CoreError::Validation(
-                        "Apenas Admin pode criar usuário Admin".into(),
+                if !caller_is_admin {
+                    return Err(CoreError::Unauthorized(
+                        "Apenas Admin pode criar usuário".into(),
                     ));
                 }
             }
