@@ -263,6 +263,21 @@ impl OrderService {
         self.repo.count_coupon_uses(company_id, coupon_code).await
     }
 
+    pub async fn count_customer_orders(&self, company_id: Uuid, customer_id: Uuid) -> Result<i64, CoreError> {
+        self.repo.count_customer_orders(company_id, customer_id).await
+    }
+
+    pub async fn count_customer_coupon_uses(
+        &self,
+        company_id: Uuid,
+        customer_id: Uuid,
+        coupon_code: &str,
+    ) -> Result<i64, CoreError> {
+        self.repo
+            .count_customer_coupon_uses(company_id, customer_id, coupon_code)
+            .await
+    }
+
     pub async fn find_by_status(&self, company_id: Uuid, status: &OrderStatus) -> Result<Vec<Order>, CoreError> {
         self.repo.find_by_status(company_id, status).await
     }

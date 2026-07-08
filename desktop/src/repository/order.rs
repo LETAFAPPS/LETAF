@@ -244,6 +244,40 @@ impl OrderRepository for SqliteOrderRepository {
         Ok(row.0)
     }
 
+    async fn count_customer_orders(&self, company_id: Uuid, customer_id: Uuid) -> Result<i64, CoreError> {
+        let row: (i64,) = sqlx::query_as(
+            "SELECT COUNT(*) FROM orders
+             WHERE company_id = ?1 AND customer_id = ?2
+               AND status <> 'cancelled' AND deleted_at IS NULL",
+        )
+        .bind(company_id.to_string())
+        .bind(customer_id.to_string())
+        .fetch_one(&self.pool)
+        .await
+        .map_err(map_db)?;
+        Ok(row.0)
+    }
+
+    async fn count_customer_coupon_uses(
+        &self,
+        company_id: Uuid,
+        customer_id: Uuid,
+        coupon_code: &str,
+    ) -> Result<i64, CoreError> {
+        let row: (i64,) = sqlx::query_as(
+            "SELECT COUNT(*) FROM orders
+             WHERE company_id = ?1 AND customer_id = ?2 AND UPPER(coupon_code) = UPPER(?3)
+               AND status <> 'cancelled' AND deleted_at IS NULL",
+        )
+        .bind(company_id.to_string())
+        .bind(customer_id.to_string())
+        .bind(coupon_code)
+        .fetch_one(&self.pool)
+        .await
+        .map_err(map_db)?;
+        Ok(row.0)
+    }
+
     async fn find_by_status(&self, company_id: Uuid, status: &OrderStatus) -> Result<Vec<Order>, CoreError> {
         let rows = sqlx::query_as::<_, OrderRow>(
             "SELECT * FROM orders WHERE company_id = ?1 AND status = ?2 AND deleted_at IS NULL ORDER BY created_at DESC",

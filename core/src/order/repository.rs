@@ -51,6 +51,21 @@ pub trait OrderRepository: Send + Sync {
     /// Query dedicada — evita materializar todos os pedidos no checkout.
     async fn count_coupon_uses(&self, company_id: Uuid, coupon_code: &str) -> Result<i64, CoreError>;
 
+    /// Conta os pedidos NÃO-cancelados de um cliente. Query dedicada para o
+    /// checkout não materializar todo o histórico do cliente só para contar
+    /// (§13) — o que também tornaria um `LIMIT` no histórico perigoso para o
+    /// limite de cupom.
+    async fn count_customer_orders(&self, company_id: Uuid, customer_id: Uuid) -> Result<i64, CoreError>;
+
+    /// Conta quantas vezes um cliente usou um cupom (case-insensitive) em
+    /// pedidos não-cancelados. Base do limite por usuário no checkout.
+    async fn count_customer_coupon_uses(
+        &self,
+        company_id: Uuid,
+        customer_id: Uuid,
+        coupon_code: &str,
+    ) -> Result<i64, CoreError>;
+
     /// Lista pedidos por status.
     async fn find_by_status(&self, company_id: Uuid, status: &OrderStatus) -> Result<Vec<Order>, CoreError>;
 

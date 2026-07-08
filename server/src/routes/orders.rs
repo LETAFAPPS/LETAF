@@ -160,18 +160,14 @@ async fn create_order(
                 .iter()
                 .map(|i| money::round2(money::qty(i.quantity) * i.unit_price))
                 .sum();
-            let mine = state.order_service
-                .find_by_customer(tenant.company_id, customer_id).await?;
-            let norm = |c: &Option<String>| c.as_deref()
-                .map(|s| s.trim().to_uppercase());
+            // Contagens via COUNT dedicado (§13) — não materializa o histórico
+            // do cliente só para contar (que também tornaria um LIMIT no
+            // histórico perigoso para o limite por usuário do cupom).
             let target = raw_code.to_uppercase();
-            let customer_prior_orders = mine.iter()
-                .filter(|o| o.status != OrderStatus::Cancelled)
-                .count() as i64;
-            let user_uses = mine.iter()
-                .filter(|o| o.status != OrderStatus::Cancelled
-                    && norm(&o.coupon_code).as_deref() == Some(target.as_str()))
-                .count() as i64;
+            let customer_prior_orders = state.order_service
+                .count_customer_orders(tenant.company_id, customer_id).await?;
+            let user_uses = state.order_service
+                .count_customer_coupon_uses(tenant.company_id, customer_id, target.as_str()).await?;
             let total_uses = state.order_service
                 .count_coupon_uses(tenant.company_id, target.as_str()).await?;
             let now = chrono::Utc::now().naive_utc();
