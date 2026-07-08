@@ -418,10 +418,17 @@ impl AuthService {
             ));
         }
         let mut user = payload.into_user();
+        let mut password_changed = false;
         match self.repo.find_by_id(company_id, user.base.id).await? {
             // Usuário já existe: `role` é autoridade do servidor — preserva o
             // valor do banco, ignorando o que veio no payload.
-            Some(existing) => user.role = existing.role,
+            Some(existing) => {
+                user.role = existing.role;
+                // Troca de senha originada no desktop também revoga tokens
+                // antigos no servidor (§11) — senão a revogação por versão de
+                // credencial teria uma janela offline.
+                password_changed = existing.password_hash != user.password_hash;
+            }
             // Usuário novo: apenas um Admin pode introduzir outro Admin.
             None => {
                 if user.role == UserRole::Admin && !caller_is_admin {
@@ -432,6 +439,10 @@ impl AuthService {
             }
         }
         user.base.synced = true;
-        self.repo.sync_upsert(&user).await
+        self.repo.sync_upsert(&user).await?;
+        if password_changed {
+            self.repo.bump_token_version(company_id, user.base.id).await?;
+        }
+        Ok(())
     }
 }

@@ -115,6 +115,26 @@ fn media_url(path: &str, updated_at: chrono::NaiveDateTime) -> String {
     format!("/catalog/media/{path}?v={}", updated_at.and_utc().timestamp())
 }
 
+/// Sanitiza uma URL de banner (§11): só permite `http`/`https` — descarta
+/// esquemas perigosos como `javascript:` que executariam no cliente do tenant.
+fn safe_http_url(url: Option<String>) -> Option<String> {
+    url.filter(|u| {
+        let u = u.trim().to_ascii_lowercase();
+        u.starts_with("http://") || u.starts_with("https://")
+    })
+}
+
+/// Sanitiza uma cor de fundo (§11): só permite `#RRGGBB` — evita injeção de
+/// CSS via `cover_color` (ex.: `red;position:fixed;…` ou `url(...)`).
+fn safe_hex_color(color: Option<String>) -> Option<String> {
+    color.filter(|c| {
+        let c = c.trim();
+        c.len() == 7
+            && c.starts_with('#')
+            && c[1..].bytes().all(|b| b.is_ascii_hexdigit())
+    })
+}
+
 /// Resposta de pré-validação de cupom (carrinho web). É só uma
 /// PRÉVIA: a validação definitiva (limites de uso, primeira compra)
 /// acontece na criação do pedido, que conhece o cliente (§11).
@@ -382,7 +402,7 @@ async fn list_products(
             category_id: p.category_id,
             subcategory_id: p.subcategory_id,
             image_url,
-            cover_color: p.cover_color,
+            cover_color: safe_hex_color(p.cover_color),
             availability_schedule: p.availability_schedule,
             discount_kind: p.discount_kind,
             discount_value: p.discount_value.and_then(|d| d.to_f64()),
@@ -529,7 +549,7 @@ async fn list_banners(
             title: b.title,
             item_type: b.item_type,
             item_id: b.item_id,
-            item_url: b.item_url,
+            item_url: safe_http_url(b.item_url),
             sort_order: b.sort_order,
         })
         .collect();

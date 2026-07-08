@@ -77,11 +77,15 @@ impl FromRequestParts<AppState> for ClientIp {
         state: &AppState,
     ) -> Result<Self, Self::Rejection> {
         if state.config.trust_proxy {
+            // Usa o ÚLTIMO IP do X-Forwarded-For — o que o proxy reverso
+            // confiável ANEXA. O(s) primeiro(s) valor(es) são fornecidos pelo
+            // cliente e são spoofáveis; pegar o primeiro deixaria o atacante
+            // rotacionar IPs forjados e burlar o rate limit (§11).
             if let Some(ip) = parts
                 .headers
                 .get("x-forwarded-for")
                 .and_then(|v| v.to_str().ok())
-                .and_then(|s| s.split(',').next())
+                .and_then(|s| s.rsplit(',').next())
                 .and_then(|s| s.trim().parse::<IpAddr>().ok())
             {
                 return Ok(ClientIp(ip));

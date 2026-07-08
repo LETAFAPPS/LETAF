@@ -127,8 +127,13 @@ struct VerifyResetCodeRequest {
 
 async fn verify_reset_code(
     State(state): State<AppState>,
+    ip: ClientIp,
     Json(body): Json<VerifyResetCodeRequest>,
 ) -> Result<StatusCode, ServerError> {
+    // Rate limit: freia brute-force do código de 6 dígitos (§11).
+    if !state.login_rate_limiter.check(ip.0) {
+        return Err(ServerError::TooManyRequests(RATE_LIMIT_MSG));
+    }
     let email = body.email.trim().to_string();
     state
         .password_reset_service
@@ -147,8 +152,12 @@ struct ResetPasswordRequest {
 
 async fn reset_password(
     State(state): State<AppState>,
+    ip: ClientIp,
     Json(body): Json<ResetPasswordRequest>,
 ) -> Result<StatusCode, ServerError> {
+    if !state.login_rate_limiter.check(ip.0) {
+        return Err(ServerError::TooManyRequests(RATE_LIMIT_MSG));
+    }
     let email = body.email.trim().to_string();
     state
         .password_reset_service

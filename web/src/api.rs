@@ -188,20 +188,20 @@ mod server {
     pub async fn fetch_catalog(host: &str) -> Result<CatalogData, String> {
         let base = api_base();
         let th = host.split(':').next().unwrap_or(host).to_string();
-        let client = reqwest::Client::new();
-        let info: CatalogInfo = get_json(&client, &base, &th, "/catalog/info").await?;
+        let client = crate::http_client();
+        let info: CatalogInfo = get_json(client, &base, &th, "/catalog/info").await?;
         let categories: Vec<CatalogCategory> =
-            get_json(&client, &base, &th, "/catalog/categories").await?;
+            get_json(client, &base, &th, "/catalog/categories").await?;
         let products: Vec<CatalogProduct> =
-            get_json(&client, &base, &th, "/catalog/products").await?;
+            get_json(client, &base, &th, "/catalog/products").await?;
         // Banners são promocionais (não essenciais): falha aqui não
         // derruba o catálogo — cai numa lista vazia.
-        let banners: Vec<CatalogBanner> = get_json(&client, &base, &th, "/catalog/banners")
+        let banners: Vec<CatalogBanner> = get_json(client, &base, &th, "/catalog/banners")
             .await
             .unwrap_or_default();
         // Horário de funcionamento (não essencial): falha → "none" (sem
         // selo, loja tratada como sempre aberta).
-        let business_hours: BusinessHours = get_json(&client, &base, &th, "/catalog/business-hours")
+        let business_hours: BusinessHours = get_json(client, &base, &th, "/catalog/business-hours")
             .await
             .unwrap_or(BusinessHours {
                 store_override: "none".into(),
@@ -270,9 +270,9 @@ mod server {
     ) -> Result<SessionInfo, String> {
         let base = api_base();
         let th = host.split(':').next().unwrap_or(host).to_string();
-        let client = reqwest::Client::new();
+        let client = crate::http_client();
         let body = serde_json::json!({ "email": email, "password": password });
-        post_auth(&client, &base, &th, "/customer/login", body).await
+        post_auth(client, &base, &th, "/customer/login", body).await
     }
 
     pub async fn customer_register(
@@ -284,14 +284,14 @@ mod server {
     ) -> Result<SessionInfo, String> {
         let base = api_base();
         let th = host.split(':').next().unwrap_or(host).to_string();
-        let client = reqwest::Client::new();
+        let client = crate::http_client();
         let mut body = serde_json::json!({
             "name": name, "email": email, "password": password,
         });
         if !phone.is_empty() {
             body["phone"] = serde_json::json!(phone);
         }
-        post_auth(&client, &base, &th, "/customer/register", body).await
+        post_auth(client, &base, &th, "/customer/register", body).await
     }
 
     /// POST /orders com Bearer. Backend revalida preços/cupom (§11).
@@ -304,7 +304,7 @@ mod server {
     ) -> Result<OrderConfirmation, String> {
         let base = api_base();
         let th = host.split(':').next().unwrap_or(host).to_string();
-        let client = reqwest::Client::new();
+        let client = crate::http_client();
 
         let items_json: Vec<serde_json::Value> = items
             .iter()
@@ -377,15 +377,15 @@ mod server {
     pub async fn customer_profile(host: &str, token: &str) -> Result<ProfileInfo, String> {
         let base = api_base();
         let th = host.split(':').next().unwrap_or(host).to_string();
-        let client = reqwest::Client::new();
-        get_authed(&client, &base, &th, token, "/customer/profile").await
+        let client = crate::http_client();
+        get_authed(client, &base, &th, token, "/customer/profile").await
     }
 
     pub async fn customer_orders(host: &str, token: &str) -> Result<Vec<OrderSummary>, String> {
         let base = api_base();
         let th = host.split(':').next().unwrap_or(host).to_string();
-        let client = reqwest::Client::new();
-        get_authed(&client, &base, &th, token, "/orders/mine").await
+        let client = crate::http_client();
+        get_authed(client, &base, &th, token, "/orders/mine").await
     }
 
     pub async fn update_customer_profile(
@@ -398,7 +398,7 @@ mod server {
     ) -> Result<ProfileInfo, String> {
         let base = api_base();
         let th = host.split(':').next().unwrap_or(host).to_string();
-        let client = reqwest::Client::new();
+        let client = crate::http_client();
         let mut body = serde_json::json!({ "name": name });
         if !phone.is_empty() {
             body["phone"] = serde_json::json!(phone);

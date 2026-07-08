@@ -66,8 +66,15 @@ struct UpdateProfileRequest {
 async fn register(
     State(state): State<AppState>,
     tenant: TenantContext,
+    ip: ClientIp,
     Json(body): Json<RegisterRequest>,
 ) -> Result<(StatusCode, Json<CustomerAuthResponse>), ServerError> {
+    // Rate limit: evita criação em massa de contas de cliente (§11).
+    if !state.login_rate_limiter.check(ip.0) {
+        return Err(ServerError::TooManyRequests(
+            "Muitas tentativas. Aguarde alguns instantes e tente novamente.",
+        ));
+    }
     let customer = state
         .customer_service
         .register(

@@ -51,13 +51,24 @@ async fn media_proxy(
     use axum::http::{header, HeaderValue, StatusCode};
     use axum::response::IntoResponse;
 
+    // Só encaminha mídia do catálogo. Restringe `rest` aos prefixos esperados
+    // e rejeita `..` — senão um `..%2f..%2f` faria traversal para outras rotas
+    // internas da API (SSRF de leitura, §11).
+    let prefix_ok = matches!(
+        rest.split('/').next(),
+        Some("product") | Some("banner") | Some("logo") | Some("cover")
+    );
+    if !prefix_ok || rest.contains("..") {
+        return StatusCode::NOT_FOUND.into_response();
+    }
+
     let host = headers.get(header::HOST).and_then(|v| v.to_str().ok()).unwrap_or_default();
     let tenant = host.split(':').next().unwrap_or(host);
     let base = std::env::var("LETAF_API_BASE").unwrap_or_else(|_| "http://127.0.0.1:3001".into());
     let qs = query.map(|q| format!("?{q}")).unwrap_or_default();
     let url = format!("{base}/catalog/media/{rest}{qs}");
 
-    let resp = match reqwest::Client::new().get(&url).header(header::HOST, tenant).send().await {
+    let resp = match letaf_web::http_client().get(&url).header(header::HOST, tenant).send().await {
         Ok(r) => r,
         Err(_) => return StatusCode::BAD_GATEWAY.into_response(),
     };

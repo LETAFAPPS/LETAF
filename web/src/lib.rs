@@ -17,6 +17,15 @@ pub mod favorites;
 pub mod format;
 pub mod session;
 
+/// Cliente HTTP compartilhado do SSR (server fns + proxy de mídia). Reusa o
+/// pool de conexões/TLS entre requisições (§13) em vez de recriar por chamada.
+#[cfg(feature = "ssr")]
+pub fn http_client() -> &'static reqwest::Client {
+    use std::sync::OnceLock;
+    static CLIENT: OnceLock<reqwest::Client> = OnceLock::new();
+    CLIENT.get_or_init(reqwest::Client::new)
+}
+
 #[cfg(feature = "hydrate")]
 #[wasm_bindgen::prelude::wasm_bindgen]
 pub fn hydrate() {
