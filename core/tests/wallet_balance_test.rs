@@ -40,13 +40,17 @@ impl WalletRepository for MockWalletRepo {
         if let Some(a) = v.iter_mut().find(|a| a.base.id == account.base.id) { *a = account.clone(); }
         Ok(())
     }
-    async fn apply_movement(&self, account_new_state: &WalletAccount, _m: &WalletMovement) -> Result<(), CoreError> {
-        // Persiste o novo estado da conta (o service já computou o balance).
+    async fn apply_movement(&self, account_new_state: &WalletAccount, _m: &WalletMovement, expected_old_balance: rust_decimal::Decimal) -> Result<bool, CoreError> {
+        // Concorrência otimista: só aplica se o saldo atual bater com o esperado.
         let mut v = self.accounts.lock().unwrap();
         if let Some(a) = v.iter_mut().find(|a| a.base.id == account_new_state.base.id) {
+            if a.balance != expected_old_balance {
+                return Ok(false);
+            }
             *a = account_new_state.clone();
+            return Ok(true);
         }
-        Ok(())
+        Ok(false)
     }
     async fn find_movements_by_account(&self, _c: Uuid, _a: Uuid, _l: i64) -> Result<Vec<WalletMovement>, CoreError> { Ok(vec![]) }
     async fn find_unsynced_accounts(&self, _c: Uuid) -> Result<Vec<WalletAccount>, CoreError> { Ok(vec![]) }

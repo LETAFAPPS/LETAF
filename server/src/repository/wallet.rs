@@ -190,21 +190,33 @@ impl WalletRepository for PgWalletRepository {
         &self,
         a: &WalletAccount,
         m: &WalletMovement,
-    ) -> Result<(), CoreError> {
+        expected_old_balance: Decimal,
+    ) -> Result<bool, CoreError> {
         let mut tx = self.pool.begin().await.map_err(map_db)?;
-        sqlx::query(
+        // Concorrência otimista (§13): o UPDATE só ocorre se o saldo AINDA for
+        // `expected_old_balance` (não mudou desde a leitura). Sob corrida (ex.:
+        // duplo-clique), a 2ª operação afeta 0 linhas → devolvemos Ok(false)
+        // (sem inserir o movimento) e o service recarrega e retenta. Evita
+        // lost-update e furo do limite de crédito.
+        let rows = sqlx::query(
             "UPDATE wallet_accounts SET
                balance = $1, updated_at = $2, synced = $3
-             WHERE company_id = $4 AND id = $5",
+             WHERE company_id = $4 AND id = $5 AND balance = $6",
         )
         .bind(a.balance)
         .bind(a.base.updated_at)
         .bind(a.base.synced)
         .bind(a.base.company_id)
         .bind(a.base.id)
+        .bind(expected_old_balance)
         .execute(&mut *tx)
         .await
-        .map_err(map_db)?;
+        .map_err(map_db)?
+        .rows_affected();
+        if rows != 1 {
+            tx.rollback().await.map_err(map_db)?;
+            return Ok(false);
+        }
         sqlx::query(
             "INSERT INTO wallet_movements
              (id, company_id, account_id, kind, amount, balance_after,
@@ -228,7 +240,7 @@ impl WalletRepository for PgWalletRepository {
         .await
         .map_err(map_db)?;
         tx.commit().await.map_err(map_db)?;
-        Ok(())
+        Ok(true)
     }
 
     async fn find_movements_by_account(

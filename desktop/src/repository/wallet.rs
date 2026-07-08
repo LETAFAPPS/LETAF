@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use rust_decimal::Decimal;
 use rust_decimal::prelude::ToPrimitive;
 use chrono::{NaiveDateTime, Utc};
 use sqlx::prelude::FromRow;
@@ -179,23 +180,33 @@ impl WalletRepository for SqliteWalletRepository {
         &self,
         a: &WalletAccount,
         m: &WalletMovement,
-    ) -> Result<(), CoreError> {
+        expected_old_balance: Decimal,
+    ) -> Result<bool, CoreError> {
         // AI_RULES §4.Transações — balance + movement no MESMO BEGIN.
-        // Falha em qualquer step → rollback completo.
+        // §13 concorrência otimista: o UPDATE só vale se o saldo AINDA for
+        // `expected_old_balance`. Sob corrida (duplo-clique no PDV), a 2ª
+        // operação afeta 0 linhas → Ok(false) e o service recarrega e retenta,
+        // evitando lost-update e furo do limite de fiado.
         let mut tx = self.pool.begin().await.map_err(map_db)?;
-        sqlx::query(
+        let rows = sqlx::query(
             "UPDATE wallet_accounts SET
                balance = ?, updated_at = ?, synced = ?
-             WHERE company_id = ? AND id = ?",
+             WHERE company_id = ? AND id = ? AND balance = ?",
         )
         .bind(a.balance.to_f64().unwrap_or(0.0))
         .bind(ts(a.base.updated_at))
         .bind(a.base.synced)
         .bind(a.base.company_id.to_string())
         .bind(a.base.id.to_string())
+        .bind(expected_old_balance.to_f64().unwrap_or(0.0))
         .execute(&mut *tx)
         .await
-        .map_err(map_db)?;
+        .map_err(map_db)?
+        .rows_affected();
+        if rows != 1 {
+            tx.rollback().await.map_err(map_db)?;
+            return Ok(false);
+        }
         sqlx::query(
             "INSERT INTO wallet_movements
              (id, company_id, account_id, kind, amount, balance_after,
@@ -219,7 +230,7 @@ impl WalletRepository for SqliteWalletRepository {
         .await
         .map_err(map_db)?;
         tx.commit().await.map_err(map_db)?;
-        Ok(())
+        Ok(true)
     }
 
     async fn find_movements_by_account(

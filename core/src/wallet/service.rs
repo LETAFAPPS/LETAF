@@ -10,6 +10,10 @@ use super::repository::WalletRepository;
 use crate::error::CoreError;
 use crate::money::round2;
 
+/// Tentativas do controle de concorrência otimista da carteira (§13): sob
+/// corrida, a operação perdedora recarrega e retenta este nº de vezes.
+const WALLET_MAX_RETRIES: u8 = 5;
+
 /// Serviço da carteira do cliente.
 ///
 /// Regras aplicadas (AI_RULES.md §1, §4, §11, §14):
@@ -166,23 +170,31 @@ impl WalletService {
         }
         // ManualAdjust não passa por `apply` porque `amount` pode
         // ser negativo (o sinal vai no próprio amount, não no kind).
-        let mut account = self.must_load_account(company_id, account_id).await?;
-        let new_balance = round2(account.balance + amount);
-        ensure_within_floor(&account, new_balance)?;
-        account.balance = new_balance;
-        let now = Utc::now().naive_utc();
-        account.base.updated_at = now;
-        account.base.synced = false;
-        let mut movement = WalletMovement::new(
-            company_id,
-            account.base.id,
-            WalletMovementKind::ManualAdjust,
-            amount,
-            new_balance,
-        );
-        movement.notes = Some(notes);
-        self.repo.apply_movement(&account, &movement).await?;
-        Ok((account, movement))
+        // Concorrência otimista com retentativa (§13), igual a `apply`.
+        for _ in 0..WALLET_MAX_RETRIES {
+            let mut account = self.must_load_account(company_id, account_id).await?;
+            let old_balance = account.balance;
+            let new_balance = round2(account.balance + amount);
+            ensure_within_floor(&account, new_balance)?;
+            account.balance = new_balance;
+            let now = Utc::now().naive_utc();
+            account.base.updated_at = now;
+            account.base.synced = false;
+            let mut movement = WalletMovement::new(
+                company_id,
+                account.base.id,
+                WalletMovementKind::ManualAdjust,
+                amount,
+                new_balance,
+            );
+            movement.notes = Some(notes.clone());
+            if self.repo.apply_movement(&account, &movement, old_balance).await? {
+                return Ok((account, movement));
+            }
+        }
+        Err(CoreError::Repository(
+            "Conflito de concorrência na carteira; tente novamente".into(),
+        ))
     }
 
     // ── Queries ──
@@ -328,25 +340,35 @@ impl WalletService {
         order_id: Option<Uuid>,
         notes: Option<String>,
     ) -> Result<(WalletAccount, WalletMovement), CoreError> {
-        let mut account = self.must_load_account(company_id, account_id).await?;
-        let delta = amount * kind.sign();
-        let new_balance = round2(account.balance + delta);
-        ensure_within_floor(&account, new_balance)?;
-        account.balance = new_balance;
-        let now = Utc::now().naive_utc();
-        account.base.updated_at = now;
-        account.base.synced = false;
-        let mut movement = WalletMovement::new(
-            company_id,
-            account.base.id,
-            kind,
-            amount,
-            new_balance,
-        );
-        movement.related_order_id = order_id;
-        movement.notes = notes;
-        self.repo.apply_movement(&account, &movement).await?;
-        Ok((account, movement))
+        // Concorrência otimista com retentativa (§13): recarrega o saldo,
+        // recalcula e só grava se o saldo não mudou desde a leitura. Sob
+        // corrida (duplo-clique), a operação perdedora recarrega e retenta.
+        for _ in 0..WALLET_MAX_RETRIES {
+            let mut account = self.must_load_account(company_id, account_id).await?;
+            let old_balance = account.balance;
+            let delta = amount * kind.sign();
+            let new_balance = round2(account.balance + delta);
+            ensure_within_floor(&account, new_balance)?;
+            account.balance = new_balance;
+            let now = Utc::now().naive_utc();
+            account.base.updated_at = now;
+            account.base.synced = false;
+            let mut movement = WalletMovement::new(
+                company_id,
+                account.base.id,
+                kind,
+                amount,
+                new_balance,
+            );
+            movement.related_order_id = order_id;
+            movement.notes = notes.clone();
+            if self.repo.apply_movement(&account, &movement, old_balance).await? {
+                return Ok((account, movement));
+            }
+        }
+        Err(CoreError::Repository(
+            "Conflito de concorrência na carteira; tente novamente".into(),
+        ))
     }
 
     async fn must_load_account(

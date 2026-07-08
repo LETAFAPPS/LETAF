@@ -1,5 +1,6 @@
 use async_trait::async_trait;
 use chrono::NaiveDateTime;
+use rust_decimal::Decimal;
 use uuid::Uuid;
 
 use super::model::{WalletAccount, WalletMovement};
@@ -49,11 +50,17 @@ pub trait WalletRepository: Send + Sync {
     ///
     /// Marca tanto a account quanto o movimento como `synced = false`
     /// (escrita local pendente de sync — AI_RULES.md §7.3).
+    /// Aplica o movimento com CONCORRÊNCIA OTIMISTA: o UPDATE do saldo só vale
+    /// se o `balance` ainda for `expected_old_balance` (inalterado desde a
+    /// leitura). Retorna `Ok(false)` em conflito (outra operação mexeu no saldo)
+    /// — o service recarrega e retenta —, `Ok(true)` se aplicou. Evita
+    /// lost-update / furo de limite sob corrida (ex.: duplo-clique). §13.
     async fn apply_movement(
         &self,
         account_new_state: &WalletAccount,
         movement: &WalletMovement,
-    ) -> Result<(), CoreError>;
+        expected_old_balance: Decimal,
+    ) -> Result<bool, CoreError>;
 
     // ── Movements (leitura) ──
 
