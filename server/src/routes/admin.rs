@@ -211,7 +211,6 @@ async fn create_company(
         cover_data: none_if_blank(body.cover_data),
         products_per_page: 20,
         orders_per_page: 20,
-        utc_offset_minutes: -180, // BRT no cadastro; ajustável nas Configurações
     };
     if let Err(e) = state.company_service.update_info(company.id, info).await {
         let _ = state.company_service.soft_delete(company.id).await;

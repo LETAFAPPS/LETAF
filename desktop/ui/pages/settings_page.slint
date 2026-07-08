@@ -138,8 +138,6 @@ export component SettingsPage inherits VerticalLayout {
     in-out property <int>    products-per-page: 20;
     /// Quantidade de pedidos exibidos por página (idem).
     in-out property <int>    orders-per-page: 20;
-    /// Fuso da loja como offset fixo de UTC em minutos (-180 = Brasília).
-    in-out property <int>    store-utc-offset: -180;
 
     /// Impressoras cadastradas (lista refrescada por Rust via
     /// `refresh-printers`). Cada linha tem rótulo, tipo, sistema,
@@ -670,58 +668,6 @@ export component SettingsPage inherits VerticalLayout {
                     }
                     PaginationStepper {
                         value <=> root.orders-per-page;
-                    }
-                }
-            }
-        }
-    }
-
-    // ── Fuso horário da loja ─────────────────────────────────────────────
-    //
-    // Offset fixo de UTC (min) usado pelo BACKEND para validar horário de
-    // funcionamento e disponibilidade de produto no checkout (§11). Persistido
-    // em Company e sincronizado. Chips (padrão do app) em vez de ComboBox.
-    Card {
-        vertical-stretch: 0;
-        border-radius: 10px;
-        VerticalLayout {
-            padding: 14px;
-            spacing: 10px;
-            Text {
-                text: "Fuso horário";
-                font-size: 14px; font-weight: 700;
-                color: Theme.text-primary;
-            }
-            Text {
-                text: "Define o fuso usado para validar horário de funcionamento e disponibilidade dos produtos.";
-                font-size: 10px;
-                color: Theme.text-secondary;
-                wrap: word-wrap;
-            }
-            HorizontalLayout {
-                spacing: 8px;
-                for tz in [
-                    { label: "Brasília (UTC-3)", off: -180 },
-                    { label: "Amazonas (UTC-4)", off: -240 },
-                    { label: "Acre (UTC-5)", off: -300 },
-                    { label: "Noronha (UTC-2)", off: -120 },
-                ]: Rectangle {
-                    border-radius: 8px;
-                    border-width: 1px;
-                    border-color: root.store-utc-offset == tz.off ? #e8731c : Theme.border;
-                    background: root.store-utc-offset == tz.off ? #FFF3E0 : (tz-ta.has-hover ? Theme.row-hover : Theme.surface);
-                    horizontal-stretch: 1;
-                    height: 38px;
-                    Text {
-                        text: tz.label;
-                        font-size: 11px;
-                        font-weight: root.store-utc-offset == tz.off ? 700 : 500;
-                        color: root.store-utc-offset == tz.off ? #e8731c : Theme.text-primary;
-                        horizontal-alignment: center;
-                        vertical-alignment: center;
-                    }
-                    tz-ta := TouchArea {
-                        clicked => { root.store-utc-offset = tz.off; }
                     }
                 }
             }

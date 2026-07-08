@@ -38,7 +38,6 @@ pub(crate) fn setup_save_store_info(
         let cover        = ui_ref.get_store_cover_data().to_string();
         let products_per_page = ui_ref.get_products_per_page();
         let orders_per_page   = ui_ref.get_orders_per_page();
-        let utc_offset_minutes = ui_ref.get_store_utc_offset();
 
         // Normalização defensiva: telefones/documentos/CEP guardados só
         // com dígitos no banco (formatação acontece na UI). Isso evita
@@ -72,7 +71,6 @@ pub(crate) fn setup_save_store_info(
                 cover_data: some_if_filled(cover),
                 products_per_page,
                 orders_per_page,
-                utc_offset_minutes,
             };
             let result = state.company_service.update_info(cid, input).await;
             match result {
