@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -17,6 +18,17 @@ const SYNC_INTERVAL_SECS: u64 = 30;
 /// ciclos como rede de segurança — não a cada ciclo, pois busca o manifesto
 /// de todas as entidades. Com intervalo de 30s, N=10 ≈ a cada 5 min.
 const RECONCILE_EVERY_N_CYCLES: u64 = 10;
+
+/// Entidades puxadas a cada ciclo, na ordem de dependência (pais antes de
+/// filhos por FK lógica). Cada uma tem um cursor de pull PRÓPRIO (§7) — ver
+/// `SyncWorker::cursors`.
+const PULL_ENTITIES: [&str; 23] = [
+    "companies", "job_roles", "users", "customers", "categories", "subcategories",
+    "addon_groups", "addons", "products", "orders", "business_hours", "banners",
+    "coupons", "customer_addresses", "cash_sessions", "cash_movements",
+    "finance_categories", "finance_entries", "wallet_accounts", "wallet_movements",
+    "subscriptions", "subscription_invoices", "payment_methods",
+];
 
 /// Tamanho da página do pull paginado (keyset). Abaixo do teto do servidor
 /// (`MAX_PAGE_LIMIT=1000`) — margem para não ser cortado.
@@ -57,7 +69,14 @@ pub struct SyncWorker {
     /// Separado do `cycle_done` (7 ouvintes com `notify_one` rotativo) para
     /// nunca perder um ciclo — dá o "tempo real" dos badges.
     badges_dirty: Arc<Notify>,
-    last_pull_at: Mutex<Option<NaiveDateTime>>,
+    /// Cursor de pull POR ENTIDADE (§7): cada entidade avança independente
+    /// pelo próprio `max(updated_at)`. Um cursor global (único) fazia um
+    /// registro gravado após o pull da entidade X — mas com `updated_at` menor
+    /// que o máximo de uma entidade Y puxada depois no mesmo ciclo — cair
+    /// abaixo do cursor e ser pulado no incremental (só a reconciliação
+    /// recuperava, ~5 min). Persistimos o MÍNIMO do mapa (conservador no
+    /// restart; upsert idempotente).
+    cursors: Mutex<HashMap<&'static str, NaiveDateTime>>,
     /// Contador de ciclos — dispara a reconciliação no 1º ciclo e a cada
     /// `RECONCILE_EVERY_N_CYCLES` (anti-entropia, §7).
     reconcile_tick: std::sync::atomic::AtomicU64,
@@ -93,7 +112,12 @@ impl SyncWorker {
             notify,
             cycle_done,
             badges_dirty,
-            last_pull_at: Mutex::new(initial_last_pull_at),
+            cursors: Mutex::new(
+                PULL_ENTITIES
+                    .iter()
+                    .map(|&e| (e, initial_last_pull_at.unwrap_or_default()))
+                    .collect(),
+            ),
             reconcile_tick: std::sync::atomic::AtomicU64::new(0),
             network_failed: Mutex::new(false),
         }
@@ -352,76 +376,88 @@ impl SyncWorker {
     ///   entidade fazia o cursor avançar com base nas que sucederam,
     ///   pulando registros das que falharam (perda de dados silenciosa).
     async fn pull_all(&self, token: &str) -> Result<(), CoreError> {
-        // Lock tratado graciosamente: se o Mutex estiver envenenado
-        // (panic de outra task), NÃO derruba o sync — apenas parte
-        // do zero (re-puxa tudo; o upsert é idempotente por LWW).
-        let since = match self.last_pull_at.lock() {
-            Ok(g) => g.unwrap_or_default(),
-            Err(p) => p.into_inner().unwrap_or_default(),
-        };
-        let mut max_ts = since;
-        // Se QUALQUER pull falhar, não avançamos `last_pull_at` —
-        // próximo ciclo re-puxa todas as entidades desde `since`.
-        // Upsert é idempotente por LWW (§7.7), então re-puxar não
-        // corrompe dados.
+        // Cada entidade puxa desde o SEU cursor e o avança pelo SEU máximo,
+        // independente das demais (fecha a janela do cursor global, §7). Uma
+        // falha só congela o cursor daquela entidade — as outras avançam.
         let mut any_failed = false;
         macro_rules! try_pull {
-            ($call:expr, $label:literal) => {
-                match $call.await {
-                    Ok(ts) => { if ts > max_ts { max_ts = ts; } }
+            ($method:ident, $label:literal) => {{
+                let since = self.cursor_of($label);
+                match self.$method(token, since, since).await {
+                    Ok(ts) if ts > since => {
+                        // Recua 1µs: um registro com `updated_at` IGUAL ao
+                        // máximo, gravado logo após o snapshot, seria excluído
+                        // por `updated_at > since` no próximo ciclo. O recuo o
+                        // re-inclui — idempotente (upsert LWW), §7.6.
+                        self.advance_cursor($label, ts - chrono::Duration::microseconds(1));
+                    }
+                    Ok(_) => {}
                     Err(e) => {
                         any_failed = true;
                         tracing::warn!("pull {} falhou (será re-tentado): {e}", $label);
                     }
                 }
-            };
+            }};
         }
-        try_pull!(self.pull_companies(token, since, max_ts), "companies");
-        try_pull!(self.pull_job_roles(token, since, max_ts), "job_roles");
-        try_pull!(self.pull_users(token, since, max_ts), "users");
-        try_pull!(self.pull_customers(token, since, max_ts), "customers");
-        try_pull!(self.pull_categories(token, since, max_ts), "categories");
-        try_pull!(self.pull_subcategories(token, since, max_ts), "subcategories");
-        try_pull!(self.pull_addon_groups(token, since, max_ts), "addon_groups");
-        try_pull!(self.pull_addons(token, since, max_ts), "addons");
-        try_pull!(self.pull_products(token, since, max_ts), "products");
-        try_pull!(self.pull_orders(token, since, max_ts), "orders");
-        try_pull!(self.pull_business_hours(token, since, max_ts), "business_hours");
-        try_pull!(self.pull_banners(token, since, max_ts), "banners");
-        try_pull!(self.pull_coupons(token, since, max_ts), "coupons");
-        try_pull!(self.pull_customer_addresses(token, since, max_ts), "customer_addresses");
-        try_pull!(self.pull_cash_sessions(token, since, max_ts), "cash_sessions");
-        try_pull!(self.pull_cash_movements(token, since, max_ts), "cash_movements");
-        try_pull!(self.pull_finance_categories(token, since, max_ts), "finance_categories");
-        try_pull!(self.pull_finance_entries(token, since, max_ts), "finance_entries");
-        try_pull!(self.pull_wallet_accounts(token, since, max_ts), "wallet_accounts");
-        try_pull!(self.pull_wallet_movements(token, since, max_ts), "wallet_movements");
-        try_pull!(self.pull_subscriptions(token, since, max_ts), "subscriptions");
-        try_pull!(self.pull_subscription_invoices(token, since, max_ts), "subscription_invoices");
-        try_pull!(self.pull_payment_methods(token, since, max_ts), "payment_methods");
+        try_pull!(pull_companies, "companies");
+        try_pull!(pull_job_roles, "job_roles");
+        try_pull!(pull_users, "users");
+        try_pull!(pull_customers, "customers");
+        try_pull!(pull_categories, "categories");
+        try_pull!(pull_subcategories, "subcategories");
+        try_pull!(pull_addon_groups, "addon_groups");
+        try_pull!(pull_addons, "addons");
+        try_pull!(pull_products, "products");
+        try_pull!(pull_orders, "orders");
+        try_pull!(pull_business_hours, "business_hours");
+        try_pull!(pull_banners, "banners");
+        try_pull!(pull_coupons, "coupons");
+        try_pull!(pull_customer_addresses, "customer_addresses");
+        try_pull!(pull_cash_sessions, "cash_sessions");
+        try_pull!(pull_cash_movements, "cash_movements");
+        try_pull!(pull_finance_categories, "finance_categories");
+        try_pull!(pull_finance_entries, "finance_entries");
+        try_pull!(pull_wallet_accounts, "wallet_accounts");
+        try_pull!(pull_wallet_movements, "wallet_movements");
+        try_pull!(pull_subscriptions, "subscriptions");
+        try_pull!(pull_subscription_invoices, "subscription_invoices");
+        try_pull!(pull_payment_methods, "payment_methods");
 
+        // Persiste o MÍNIMO dos cursores: no restart, re-puxa desde o mais
+        // atrasado (conservador; upsert idempotente). Em memória, cada entidade
+        // mantém o próprio cursor avançado.
+        if let Some(min) = self.min_cursor() {
+            self.state.session.save_last_pull_at(min).await;
+        }
         if any_failed {
-            // Mantém o cursor — re-puxa tudo no próximo ciclo.
-            // Upsert idempotente garante que não duplica nem corrompe.
-            tracing::debug!(
-                "Pull com falhas parciais; last_pull_at preservado ({since}) para re-tentativa"
-            );
-        } else if max_ts > since {
-            // Recua o cursor 1µs: um registro gravado no servidor com
-            // `updated_at` IGUAL ao máximo deste ciclo, mas logo após o
-            // snapshot do pull, seria excluído para sempre por
-            // `updated_at > since` no próximo ciclo. O recuo re-inclui o
-            // limite no pull seguinte — idempotente (upsert LWW), fecha a
-            // janela de perda silenciosa (§7.6).
-            let cursor = max_ts - chrono::Duration::microseconds(1);
-            match self.last_pull_at.lock() {
-                Ok(mut g) => *g = Some(cursor),
-                Err(p) => *p.into_inner() = Some(cursor),
-            }
-            self.state.session.save_last_pull_at(cursor).await;
-            tracing::debug!("Pull complete, last_pull_at = {cursor}");
+            tracing::debug!("Pull com falhas parciais; cursores das que falharam preservados");
         }
         Ok(())
+    }
+
+    /// Cursor de pull atual de uma entidade (default = época se ausente).
+    fn cursor_of(&self, label: &str) -> NaiveDateTime {
+        match self.cursors.lock() {
+            Ok(g) => g.get(label).copied(),
+            Err(p) => p.into_inner().get(label).copied(),
+        }
+        .unwrap_or_default()
+    }
+
+    /// Avança o cursor de uma entidade após um pull bem-sucedido.
+    fn advance_cursor(&self, label: &'static str, ts: NaiveDateTime) {
+        match self.cursors.lock() {
+            Ok(mut g) => { g.insert(label, ts); }
+            Err(p) => { p.into_inner().insert(label, ts); }
+        }
+    }
+
+    /// Menor cursor entre todas as entidades (o que persistimos).
+    fn min_cursor(&self) -> Option<NaiveDateTime> {
+        match self.cursors.lock() {
+            Ok(g) => g.values().min().copied(),
+            Err(p) => p.into_inner().values().min().copied(),
+        }
     }
 
     /// GET genérico para pull de entidades do servidor.
