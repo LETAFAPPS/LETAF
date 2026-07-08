@@ -38,3 +38,6 @@ CHAVES*.md
 
 # Binários de atualização do desktop (servidos por /app/download)
 /updates/
+
+# Referências de design (mockups do dcodes) — não versionar.
+/mockups/
