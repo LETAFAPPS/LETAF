@@ -70,7 +70,7 @@ struct PlanDto {
 /// Formata um valor em reais ("R$ 2.000,00"). Delega ao helper canônico
 /// (a versão anterior não tinha separador de milhar — AI_RULES §8).
 fn brl(v: f64) -> String {
-    crate::format::money_br(letaf_core::money::from_db_f64(v))
+    crate::format::money_br_f64(v)
 }
 
 /// Cache dos planos crus (para o "editar" preencher o form com os valores

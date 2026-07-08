@@ -54,7 +54,7 @@ pub(crate) fn money(v: f64) -> String {
     // Formatação monetária única do sistema (separador de milhar + vírgula,
     // -0,0 normalizado). Delega ao helper canônico — a versão anterior usava
     // ponto decimal ("R$ 2530.00"), divergindo do resto (AI_RULES §8).
-    crate::format::money_br(letaf_core::money::from_db_f64(v))
+    crate::format::money_br_f64(v)
 }
 
 pub(crate) fn status_for(days: Option<i64>) -> (&'static str, &'static str) {

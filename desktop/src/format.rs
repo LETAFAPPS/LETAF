@@ -63,6 +63,14 @@ pub fn money_br(v: rust_decimal::Decimal) -> String {
     format!("R$ {}{},{:02}", if neg { "-" } else { "" }, int_part, dec)
 }
 
+/// Formata em pt-BR um valor vindo do banco como `f64` (converte para
+/// `Decimal` via `from_db_f64` e reusa `money_br`). Fonte ÚNICA do par
+/// "f64 do storage → máscara BRL", eliminando o wrapper reescrito em cada
+/// tela (AI_RULES.md §8/§14).
+pub fn money_br_f64(v: f64) -> String {
+    money_br(letaf_core::money::from_db_f64(v))
+}
+
 /// Formata uma quantidade de estoque conforme a unidade.
 ///
 /// Regras aplicadas (AI_RULES.md §1, §8):

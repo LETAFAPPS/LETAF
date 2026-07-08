@@ -12,7 +12,7 @@ use rust_decimal::prelude::ToPrimitive;
 /// `f64` (receita/ticket para gráficos) e formatados aqui, convertendo para
 /// `Decimal` (round2) só na apresentação. Dinheiro exato vive no domínio.
 fn money_br(v: f64) -> String {
-    crate::format::money_br(letaf_core::money::from_db_f64(v))
+    crate::format::money_br_f64(v)
 }
 use crate::{
     DashboardBarPoint, DashboardComparePoint, DashboardKpi, DashboardLinePoint,

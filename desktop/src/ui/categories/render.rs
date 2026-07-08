@@ -65,7 +65,7 @@ pub(crate) fn product_color(hex: Option<&str>) -> (Color, bool) {
 /// Formata moeda em pt-BR: "R$ 2.530,00". Delega ao helper canônico
 /// (era cópia byte-a-byte de `crate::format::money_br` — AI_RULES §8).
 pub(crate) fn money_br(v: f64) -> String {
-    crate::format::money_br(letaf_core::money::from_db_f64(v))
+    crate::format::money_br_f64(v)
 }
 
 /// Índice da categoria na ordem de exibição (para a cor estável).

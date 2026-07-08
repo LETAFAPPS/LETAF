@@ -12,7 +12,7 @@ use super::super::helpers::{show_toast, user_error};
 /// contados na UI em `f64` (contagem manual). Convertem para `Decimal`
 /// (round2) antes de formatar — dinheiro exato só é exigido nos cálculos
 /// do domínio; aqui é apresentação da conferência.
-fn fmt_brl(v: f64) -> String { crate::format::money_br(letaf_core::money::from_db_f64(v)) }
+fn fmt_brl(v: f64) -> String { crate::format::money_br_f64(v) }
 fn fmt_brl_signed(v: f64) -> String { crate::format::money_br_signed(letaf_core::money::from_db_f64(v)) }
 use super::core::parse_amount;
 

@@ -12,7 +12,7 @@ use letaf_core::product::model::Product;
 use rust_decimal::prelude::ToPrimitive;
 
 fn money_br(v: f64) -> String {
-    crate::format::money_br(letaf_core::money::from_db_f64(v))
+    crate::format::money_br_f64(v)
 }
 use crate::{
     ReportHBar, ReportHourlyBar, ReportNewVsReturning,

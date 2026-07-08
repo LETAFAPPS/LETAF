@@ -11,7 +11,7 @@ use letaf_core::finance_category::model::FinanceCategory;
 use letaf_core::order::model::{Order, OrderStatus};
 
 fn money_br(v: f64) -> String {
-    crate::format::money_br(letaf_core::money::from_db_f64(v))
+    crate::format::money_br_f64(v)
 }
 use crate::{
     FinanceCalendarCell, FinanceCashFlowPoint, FinanceCategoryOption, FinanceDayRow,
