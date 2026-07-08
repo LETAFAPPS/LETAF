@@ -603,13 +603,6 @@ export component LoginPage inherits Rectangle {
                 }
                 if root.recovery-step == 2: VerticalLayout {
                     spacing: 8px;
-                    Text {
-                        text: "Código (6 dígitos)";
-                        font-size: 12.5px;
-                        font-weight: 600;
-                        color: #4a4640;
-                        horizontal-alignment: center;
-                    }
                     CodeBoxes {
                         // Sincroniza o código a cada dígito (para o botão manual)
                         // e, ao completar os 6, confirma AUTOMATICAMENTE.
