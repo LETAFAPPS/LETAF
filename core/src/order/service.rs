@@ -439,24 +439,11 @@ impl OrderService {
         order.base.updated_at = now;
         order.base.synced = false;
 
-        self.repo.update(&order).await?;
-        // Reajuste best-effort do estoque (mesmo padrão do `cancel`): falha
-        // é logada, nunca silenciosa (§7.6). delta > 0 restitui; < 0 baixa.
-        for (product_id, delta) in stock_delta {
-            if delta.abs() < f64::EPSILON {
-                continue;
-            }
-            if let Err(e) = self
-                .product_service
-                .adjust_stock(company_id, product_id, delta)
-                .await
-            {
-                tracing::warn!(
-                    "Edit order {}: stock adjust failed for product {} (delta {}): {}",
-                    id, product_id, delta, e
-                );
-            }
-        }
+        // Edição + ajuste de estoque na MESMA transação (§4, §7.6): sem janela
+        // de divergência pedido×estoque. delta = qty ANTIGA − qty NOVA (positivo
+        // restitui, negativo baixa). Insuficiente aborta a edição inteira.
+        let deltas: Vec<(Uuid, f64)> = stock_delta.into_iter().collect();
+        self.repo.update_atomic(&order, &deltas).await?;
         self.repo.find_by_id(company_id, id).await?
             .ok_or_else(|| CoreError::NotFound("Order not found".into()))
     }
@@ -634,11 +621,14 @@ impl OrderService {
             .map_err(|_| CoreError::Validation("addons_json inválido".into()))?;
         let Some(arr) = arr.as_array() else { return Ok(Decimal::ZERO); };
 
-        // Preços legítimos do produto, por nome (adicionais + variações).
-        let mut legit: std::collections::HashMap<String, Decimal> = std::collections::HashMap::new();
+        // Preços legítimos por nome. Um mesmo nome pode existir em grupos
+        // distintos com preços distintos (ex.: "Grande" em Tamanho e em Copo),
+        // então guardamos TODOS os preços válidos daquele nome — sem "o último
+        // sobrescreve" (que causava preço errado / rejeição de seleção válida).
+        let mut legit: std::collections::HashMap<String, Vec<Decimal>> = std::collections::HashMap::new();
         for gid in &product.addon_group_ids {
             for addon in svc.find_by_group(company_id, *gid).await? {
-                legit.insert(addon.name, addon.price);
+                legit.entry(addon.name).or_default().push(addon.price);
             }
         }
         if let Some(vs) = product.variations.as_deref() {
@@ -652,7 +642,7 @@ impl OrderService {
                             o.get("name").and_then(|n| n.as_str()),
                             o.get("price").and_then(money::price_from_json),
                         ) {
-                            legit.insert(name.to_string(), price);
+                            legit.entry(name.to_string()).or_default().push(price);
                         }
                     }
                 }
@@ -665,19 +655,23 @@ impl OrderService {
                 .get("name")
                 .and_then(|n| n.as_str())
                 .ok_or_else(|| CoreError::Validation("Adicional sem nome".into()))?;
-            let claimed = v.get("price").and_then(money::price_from_json);
-            let expected = legit.get(name).copied().ok_or_else(|| {
+            let candidates = legit.get(name).filter(|c| !c.is_empty()).ok_or_else(|| {
                 CoreError::Validation(format!("Adicional '{name}' não pertence a este produto"))
             })?;
-            if let Some(c) = claimed {
-                if (c - expected).abs() > dec!(0.01) {
-                    return Err(CoreError::Validation(format!(
-                        "Preço de adicional '{name}' divergente: esperado {}, recebido {}",
-                        money::round2(expected), money::round2(c)
-                    )));
-                }
-            }
-            total += expected; // usa o preço do catálogo, não o do cliente
+            let claimed = v.get("price").and_then(money::price_from_json);
+            // Usa o preço do CATÁLOGO (nunca o do cliente). Com preço
+            // reivindicado, exige que case com algum preço legítimo do nome;
+            // sem ele, usa o primeiro (compat. com snapshot legado sem preço).
+            let chosen = match claimed {
+                Some(c) => *candidates
+                    .iter()
+                    .find(|&&p| (p - c).abs() <= dec!(0.01))
+                    .ok_or_else(|| CoreError::Validation(format!(
+                        "Preço de adicional '{name}' divergente do catálogo"
+                    )))?,
+                None => candidates[0],
+            };
+            total += chosen;
         }
         Ok(total)
     }

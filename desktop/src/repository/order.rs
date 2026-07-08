@@ -105,11 +105,6 @@ impl OrderRepository for SqliteOrderRepository {
         Ok(row.0.unwrap_or(0) + 1)
     }
 
-    async fn create(&self, order: &Order) -> Result<(), CoreError> {
-        // Sem baixa de estoque (caminho legado); delega à versão atômica.
-        self.create_atomic(order, &[]).await
-    }
-
     async fn create_atomic(
         &self,
         order: &Order,
@@ -284,13 +279,62 @@ impl OrderRepository for SqliteOrderRepository {
         Ok(())
     }
 
-    async fn update(&self, order: &Order) -> Result<(), CoreError> {
+    async fn update_atomic(
+        &self,
+        order: &Order,
+        stock_deltas: &[(Uuid, f64)],
+    ) -> Result<(), CoreError> {
         let now = ts(chrono::Utc::now().naive_utc());
         let mut tx = self.pool.begin().await.map_err(map_db)?;
-        // Substitui completamente a lista de itens. Delete + insert é
-        // mais simples que diffar; o trade-off é os UUIDs dos items
-        // mudarem entre edições — aceitável porque order_items não tem
-        // FKs externas (são "snapshots" do carrinho).
+
+        // Ajuste de estoque na MESMA transação (§4). `delta` soma ao estoque
+        // (negativo baixa, positivo restitui); ilimitado/excluído pulado;
+        // insuficiente num delta negativo aborta a tx.
+        for (product_id, delta) in stock_deltas {
+            if delta.abs() < f64::EPSILON {
+                continue;
+            }
+            let rows = sqlx::query(
+                "UPDATE products
+                    SET stock_quantity = stock_quantity + ?1, updated_at = ?2, synced = 0
+                  WHERE company_id = ?3 AND id = ?4 AND deleted_at IS NULL
+                    AND unlimited_stock = 0 AND stock_quantity + ?1 >= 0",
+            )
+            .bind(delta)
+            .bind(&now)
+            .bind(order.base.company_id.to_string())
+            .bind(product_id.to_string())
+            .execute(&mut *tx)
+            .await
+            .map_err(map_db)?
+            .rows_affected();
+            if rows == 0 {
+                let row: Option<(bool, Option<String>, String)> = sqlx::query_as(
+                    "SELECT unlimited_stock, deleted_at, name FROM products
+                      WHERE company_id = ?1 AND id = ?2",
+                )
+                .bind(order.base.company_id.to_string())
+                .bind(product_id.to_string())
+                .fetch_optional(&mut *tx)
+                .await
+                .map_err(map_db)?;
+                match row {
+                    None | Some((_, Some(_), _)) => {}
+                    Some((true, _, _)) => {}
+                    Some((false, _, name)) => {
+                        return Err(CoreError::Validation(format!(
+                            "Estoque insuficiente para '{name}' na edição do pedido"
+                        )));
+                    }
+                }
+            } else {
+                insert_stock_movement(&mut tx, order.base.company_id, *product_id, *delta, "edit", Some(order.base.id), &now)
+                    .await?;
+            }
+        }
+
+        // Substitui completamente a lista de itens (delete + insert; UUIDs dos
+        // items mudam entre edições — ok, são snapshots sem FK externa).
         sqlx::query(
             "DELETE FROM order_items WHERE company_id = ?1 AND order_id = ?2",
         )
@@ -317,23 +361,6 @@ impl OrderRepository for SqliteOrderRepository {
         .await
         .map_err(map_db)?;
         tx.commit().await.map_err(map_db)?;
-        Ok(())
-    }
-
-    async fn cancel(&self, company_id: Uuid, id: Uuid, reason: &str) -> Result<(), CoreError> {
-        let now = ts(chrono::Utc::now().naive_utc());
-        sqlx::query(
-            "UPDATE orders SET status = 'cancelled', cancellation_reason = ?1, updated_at = ?2, synced = false
-             WHERE company_id = ?3 AND id = ?4 AND deleted_at IS NULL",
-        )
-        .bind(reason)
-        .bind(now)
-        .bind(company_id.to_string())
-        .bind(id.to_string())
-        .execute(&self.pool)
-        .await
-        .map_err(map_db)?;
-
         Ok(())
     }
 

@@ -23,9 +23,6 @@ pub trait OrderRepository: Send + Sync {
     /// - Isolamento por tenant garante sequência independente por empresa.
     async fn next_number(&self, company_id: Uuid) -> Result<i64, CoreError>;
 
-    /// Cria pedido com seus itens em transação.
-    async fn create(&self, order: &Order) -> Result<(), CoreError>;
-
     /// Cria o pedido + seus itens E baixa o estoque dos produtos numa
     /// ÚNICA transação (AI_RULES.md §4 — venda + baixa de estoque atômicas).
     ///
@@ -60,23 +57,21 @@ pub trait OrderRepository: Send + Sync {
     /// Atualiza status do pedido.
     async fn update_status(&self, company_id: Uuid, id: Uuid, status: &OrderStatus) -> Result<(), CoreError>;
 
-    /// Atualiza dados editáveis do pedido em transação:
-    /// substitui completamente a lista de itens, reescreve `notes`,
-    /// `delivery_type` e `total` (já recalculado pelo service);
-    /// marca `synced = false` para o worker propagar.
+    /// Atualiza dados editáveis do pedido E ajusta o estoque na MESMA
+    /// transação (AI_RULES.md §4, §7.6): substitui a lista de itens, reescreve
+    /// `notes`/`delivery_type`/`total` e aplica os deltas de estoque juntos —
+    /// sem janela de divergência pedido×estoque na edição.
     ///
-    /// Regras aplicadas (AI_RULES.md §6, §10, §11):
-    /// - Operação atômica (itens + header juntos).
-    /// - `status`, `customer_id`, `coupon_code`, `discount_amount` e
-    ///   `number` permanecem intactos — edição é só do "carrinho".
-    async fn update(&self, order: &Order) -> Result<(), CoreError>;
-
-    /// Cancela o pedido registrando o motivo.
-    ///
-    /// Regras aplicadas (AI_RULES.md §6, §11):
-    /// - Persiste status = Cancelled e cancellation_reason juntos.
-    /// - Marca synced = false para replicação.
-    async fn cancel(&self, company_id: Uuid, id: Uuid, reason: &str) -> Result<(), CoreError>;
+    /// `stock_deltas` = `(product_id, delta)` com `delta` = quantidade a SOMAR
+    /// ao estoque (negativo baixa quando a edição aumenta a qty; positivo
+    /// restitui quando diminui). Estoque insuficiente num delta negativo aborta
+    /// a transação (nada é persistido); produto ilimitado/excluído é pulado.
+    /// `status`, `customer_id`, `coupon_code`, `number` permanecem intactos.
+    async fn update_atomic(
+        &self,
+        order: &Order,
+        stock_deltas: &[(Uuid, f64)],
+    ) -> Result<(), CoreError>;
 
     /// Cancela o pedido E restitui o estoque dos itens na MESMA transação
     /// (AI_RULES.md §4, §7.6 — sem janela de estoque-fantasma se o processo

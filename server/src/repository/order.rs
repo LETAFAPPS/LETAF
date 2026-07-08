@@ -11,7 +11,7 @@ use letaf_core::error::CoreError;
 use letaf_core::order::model::{DeliveryType, Order, OrderItem, OrderStatus};
 use letaf_core::order::repository::OrderRepository;
 
-use super::helpers::{insert_stock_movement, map_db};
+use super::helpers::{insert_stock_movement, keyset_pull_sql, map_db};
 
 /// Converte sentinela `Uuid::nil()` (= sem cliente, vinda do desktop)
 /// em `None` para o bind do Postgres — evita FK violation em
@@ -202,11 +202,6 @@ impl OrderRepository for PgOrderRepository {
         .await
         .map_err(map_db)?;
         Ok(row.0.unwrap_or(0) + 1)
-    }
-
-    async fn create(&self, order: &Order) -> Result<(), CoreError> {
-        // Sem baixa de estoque (caminho legado); delega à versão atômica.
-        self.create_atomic(order, &[]).await
     }
 
     async fn create_atomic(
@@ -440,9 +435,63 @@ impl OrderRepository for PgOrderRepository {
         Ok(())
     }
 
-    async fn update(&self, order: &Order) -> Result<(), CoreError> {
+    async fn update_atomic(
+        &self,
+        order: &Order,
+        stock_deltas: &[(Uuid, f64)],
+    ) -> Result<(), CoreError> {
         let now = chrono::Utc::now().naive_utc();
         let mut tx = self.pool.begin().await.map_err(map_db)?;
+
+        // Ajuste de estoque na MESMA transação (§4). `delta` soma ao estoque:
+        // negativo baixa (edição aumentou a qty) → checa suficiência; positivo
+        // restitui (qty diminuiu). Ilimitado/excluído é pulado; insuficiente
+        // aborta a tx (nada persiste).
+        for (product_id, delta) in stock_deltas {
+            if delta.abs() < f64::EPSILON {
+                continue;
+            }
+            let rows = sqlx::query(
+                "UPDATE products
+                    SET stock_quantity = stock_quantity + $1, updated_at = $2, synced = false
+                  WHERE company_id = $3 AND id = $4 AND deleted_at IS NULL
+                    AND unlimited_stock = false AND stock_quantity + $1 >= 0",
+            )
+            .bind(delta)
+            .bind(now)
+            .bind(order.base.company_id)
+            .bind(product_id)
+            .execute(&mut *tx)
+            .await
+            .map_err(map_db)?
+            .rows_affected();
+            if rows == 0 {
+                let row: Option<(bool, Option<chrono::NaiveDateTime>, String)> = sqlx::query_as(
+                    "SELECT unlimited_stock, deleted_at, name FROM products
+                      WHERE company_id = $1 AND id = $2",
+                )
+                .bind(order.base.company_id)
+                .bind(product_id)
+                .fetch_optional(&mut *tx)
+                .await
+                .map_err(map_db)?;
+                match row {
+                    // Produto excluído/inexistente: nada a ajustar (não aborta a edição).
+                    None | Some((_, Some(_), _)) => {}
+                    Some((true, _, _)) => { /* ilimitado: nada a ajustar */ }
+                    Some((false, _, name)) => {
+                        // Rastreia estoque e não deu para baixar → insuficiente.
+                        return Err(CoreError::Validation(format!(
+                            "Estoque insuficiente para '{name}' na edição do pedido"
+                        )));
+                    }
+                }
+            } else {
+                insert_stock_movement(&mut tx, order.base.company_id, *product_id, *delta, "edit", Some(order.base.id), now)
+                    .await?;
+            }
+        }
+
         sqlx::query(
             "DELETE FROM order_items WHERE company_id = $1 AND order_id = $2",
         )
@@ -489,23 +538,6 @@ impl OrderRepository for PgOrderRepository {
         .await
         .map_err(map_db)?;
         tx.commit().await.map_err(map_db)?;
-        Ok(())
-    }
-
-    async fn cancel(&self, company_id: Uuid, id: Uuid, reason: &str) -> Result<(), CoreError> {
-        let now = chrono::Utc::now().naive_utc();
-        sqlx::query(
-            "UPDATE orders SET status = 'cancelled', cancellation_reason = $1, updated_at = $2, synced = false
-             WHERE company_id = $3 AND id = $4 AND deleted_at IS NULL",
-        )
-        .bind(reason)
-        .bind(now)
-        .bind(company_id)
-        .bind(id)
-        .execute(&self.pool)
-        .await
-        .map_err(map_db)?;
-
         Ok(())
     }
 
@@ -644,13 +676,7 @@ impl OrderRepository for PgOrderRepository {
         after_id: Uuid,
         limit: i64,
     ) -> Result<Vec<Order>, CoreError> {
-        let rows = sqlx::query_as::<_, OrderRow>(
-            "SELECT * FROM orders
-              WHERE company_id = $1
-                AND (updated_at > $2 OR (updated_at = $2 AND id > $3))
-              ORDER BY updated_at ASC, id ASC
-              LIMIT $4",
-        )
+        let rows = sqlx::query_as::<_, OrderRow>(&keyset_pull_sql("orders"))
         .bind(company_id)
         .bind(since)
         .bind(after_id)
