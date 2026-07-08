@@ -321,7 +321,11 @@ impl WalletRepository for PgWalletRepository {
         .bind(a.base.id)
         .bind(a.base.company_id)
         .bind(a.customer_id)
-        .bind(a.balance)
+        // Saldo inicial = 0 no INSERT: o saldo do servidor é 100% derivado do
+        // ledger (sync_upsert_movement aplica cada delta). Semear aqui o
+        // `a.balance` do payload — que JÁ inclui os movimentos locais —
+        // duplicaria o 1º movimento de uma conta ainda não sincronizada. §7.
+        .bind(rust_decimal::Decimal::ZERO)
         .bind(a.credit_limit)
         .bind(a.base.created_at)
         .bind(a.base.updated_at)

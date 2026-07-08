@@ -649,6 +649,11 @@ async fn upsert_order(tx: &mut Transaction<'_, Sqlite>, order: &Order) -> Result
         "INSERT INTO orders (id, company_id, customer_id, number, status, total, delivery_type, notes, cancellation_reason, created_at, updated_at, deleted_at, synced, coupon_code, discount_amount, additional_amount, payment_method)
          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17)
          ON CONFLICT (id) DO UPDATE SET
+             -- `number` reconverge para o valor AUTORITATIVO do servidor: se o
+             -- servidor renumerou este pedido (colisão offline×web), o pull traz
+             -- o novo número e ele passa a valer localmente (§7). Sem isto o
+             -- desktop ficaria com o número antigo para sempre.
+             number = excluded.number,
              status = excluded.status,
              total = excluded.total,
              delivery_type = excluded.delivery_type,
