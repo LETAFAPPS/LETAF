@@ -84,6 +84,14 @@ impl FinanceService {
                 "Lançamento já foi liquidado".into(),
             ));
         }
+        // §11: o service é a autoridade. Um lançamento CANCELADO não pode ser
+        // "liquidado" (reviveria uma despesa/receita cancelada como paga,
+        // corrompendo o fluxo de caixa). Simétrico ao guard de `cancel`.
+        if entry.status == FinanceStatus::Cancelled {
+            return Err(CoreError::Validation(
+                "Lançamento cancelado não pode ser liquidado".into(),
+            ));
+        }
         let now = Utc::now().naive_utc();
         entry.status = match entry.kind {
             FinanceKind::Payable => FinanceStatus::Paid,

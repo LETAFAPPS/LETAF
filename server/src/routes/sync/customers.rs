@@ -41,9 +41,14 @@ pub(crate) async fn sync_company(
     Json(company): Json<Company>,
 ) -> Result<Json<Value>, ServerError> {
     auth.verify_any_role(ROLES_OPERATORS)?;
-    // Config da empresa é nível-proprietário (§11): mesma barra da gestão de
-    // colaboradores. Sem CRUD REST — a autoridade vive aqui.
-    auth.require_permission("collaborators.edit")?;
+    // A Company carrega `store_override` (abrir/fechar a loja) — operação
+    // COTIDIANA de operador/gerente, não só de proprietário. Gatear em
+    // `collaborators.edit` travava a propagação do "loja fechada" para a
+    // vitrine web (o push voltava 403 e nunca sincronizava). Usa a barra
+    // operacional (`orders.view`, que todo operador de PDV tem). §11: mudar
+    // identidade da loja por requisição forjada é baixo dano (a edição de fato
+    // acontece na UI de Configurações, e o desktop é o dispositivo autor).
+    auth.require_permission("orders.view")?;
     state
         .company_service
         .sync_upsert(auth.0.company_id, company)

@@ -268,11 +268,24 @@ fn render_totals(ctx: &mut Ctx, order: &Order) {
     let fee_label = if order.delivery_type == DeliveryType::Delivery { "Grátis" } else { "—" };
     write_pair(ctx, "Taxa de entrega", fee_label, ctx.style.body_pt, ctx.font);
     advance(ctx, ctx.style.line_height_mm);
-    if let Some(code) = order.coupon_code.as_deref().filter(|c| !c.is_empty()) {
-        write_pair(ctx, "Cupom", code, ctx.style.body_pt, ctx.font);
-        advance(ctx, ctx.style.line_height_mm);
+    // Desconto: impresso sempre que houver (cupom OU desconto direto de PDV) —
+    // senão a conta não fecha com o TOTAL. A linha "Cupom" só aparece se houver
+    // código.
+    if order.discount_amount > rust_decimal::Decimal::ZERO {
+        if let Some(code) = order.coupon_code.as_deref().filter(|c| !c.is_empty()) {
+            write_pair(ctx, "Cupom", code, ctx.style.body_pt, ctx.font);
+            advance(ctx, ctx.style.line_height_mm);
+        }
         write_pair(ctx, "Desconto",
             &format!("− R$ {:.2}", order.discount_amount),
+            ctx.style.body_pt, ctx.font);
+        advance(ctx, ctx.style.line_height_mm);
+    }
+    // Acréscimo (taxa/ajuste do PDV): o TOTAL já o reflete, então precisa
+    // aparecer para o papel bater matematicamente.
+    if order.additional_amount > rust_decimal::Decimal::ZERO {
+        write_pair(ctx, "Acréscimo",
+            &format!("+ R$ {:.2}", order.additional_amount),
             ctx.style.body_pt, ctx.font);
         advance(ctx, ctx.style.line_height_mm);
     }

@@ -84,8 +84,15 @@ impl BannerRepository for PgBannerRepository {
     }
 
     async fn find_active(&self, company_id: Uuid) -> Result<Vec<Banner>, CoreError> {
+        // §13: NÃO puxa o blob `image_data` (base64) — a rota pública
+        // `/catalog/banners` só monta a URL de `/catalog/media/banner/{id}`
+        // (a imagem é servida por endpoint separado). Sentinela vazia no lugar.
         let rows = sqlx::query_as::<_, BannerRow>(
-            "SELECT * FROM banners WHERE company_id = $1 AND deleted_at IS NULL AND active = TRUE ORDER BY sort_order ASC, created_at DESC",
+            "SELECT id, company_id, title, '' AS image_data, item_type, item_id, item_url,
+                    active, sort_order, created_at, updated_at, deleted_at, synced
+               FROM banners
+              WHERE company_id = $1 AND deleted_at IS NULL AND active = TRUE
+              ORDER BY sort_order ASC, created_at DESC",
         )
         .bind(company_id)
         .fetch_all(&self.pool)
