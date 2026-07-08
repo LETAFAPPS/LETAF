@@ -44,6 +44,19 @@ pub trait OrderRepository: Send + Sync {
     /// Lista todos os pedidos de uma empresa (sem itens, para listagem).
     async fn find_all(&self, company_id: Uuid) -> Result<Vec<Order>, CoreError>;
 
+    /// Página da listagem de operador (mais recentes primeiro), com `limit`/
+    /// `offset` — evita materializar TODO o histórico numa listagem que cresce
+    /// sem teto (§13). Default delega a `find_all` (desktop lê do SQLite local,
+    /// não serve esta rota); o servidor sobrescreve com `LIMIT/OFFSET`.
+    async fn find_all_paged(
+        &self,
+        company_id: Uuid,
+        _limit: i64,
+        _offset: i64,
+    ) -> Result<Vec<Order>, CoreError> {
+        self.find_all(company_id).await
+    }
+
     /// Lista pedidos de um cliente específico (sem itens).
     async fn find_by_customer(&self, company_id: Uuid, customer_id: Uuid) -> Result<Vec<Order>, CoreError>;
 

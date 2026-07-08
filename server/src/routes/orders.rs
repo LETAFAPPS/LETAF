@@ -270,15 +270,27 @@ async fn get_order(
 /// Regras aplicadas (AI_RULES.md §11):
 /// - Acesso apenas para operador (`ROLES_OPERATORS`).
 /// - Isolamento por `company_id` garantido pelo service.
+#[derive(Deserialize)]
+struct OrderListQuery {
+    limit: Option<i64>,
+    offset: Option<i64>,
+}
+
 async fn list_orders(
     State(state): State<AppState>,
     auth: AuthClaims,
     tenant: TenantContext,
+    axum::extract::Query(q): axum::extract::Query<OrderListQuery>,
 ) -> Result<Json<Vec<OrderResponse>>, ServerError> {
     auth.verify_any(tenant.company_id, ROLES_OPERATORS)?;
     auth.require_permission("orders.view")?;
 
-    let orders = state.order_service.find_all(tenant.company_id).await?;
+    // Paginação por página (§13): default recente e limitado para não
+    // materializar todo o histórico; `?limit`/`?offset` permitem varrer o
+    // resto sem esconder dados.
+    let limit = q.limit.unwrap_or(100).clamp(1, 500);
+    let offset = q.offset.unwrap_or(0).max(0);
+    let orders = state.order_service.find_all_paged(tenant.company_id, limit, offset).await?;
     Ok(Json(orders.iter().map(to_response).collect()))
 }
 

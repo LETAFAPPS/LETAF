@@ -362,6 +362,34 @@ impl OrderRepository for PgOrderRepository {
         Ok(orders)
     }
 
+    async fn find_all_paged(
+        &self,
+        company_id: Uuid,
+        limit: i64,
+        offset: i64,
+    ) -> Result<Vec<Order>, CoreError> {
+        let rows = sqlx::query_as::<_, OrderRow>(
+            "SELECT * FROM orders WHERE company_id = $1 AND deleted_at IS NULL
+             ORDER BY created_at DESC LIMIT $2 OFFSET $3",
+        )
+        .bind(company_id)
+        .bind(limit)
+        .bind(offset)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(map_db)?;
+
+        let mut orders: Vec<Order> = rows.into_iter().map(Order::from).collect();
+        if !orders.is_empty() {
+            let ids: Vec<Uuid> = orders.iter().map(|o| o.base.id).collect();
+            let mut map = self.load_items_batch(company_id, &ids).await?;
+            for order in &mut orders {
+                order.items = map.remove(&order.base.id).unwrap_or_default();
+            }
+        }
+        Ok(orders)
+    }
+
     async fn find_by_customer(&self, company_id: Uuid, customer_id: Uuid) -> Result<Vec<Order>, CoreError> {
         let rows = sqlx::query_as::<_, OrderRow>(
             "SELECT * FROM orders WHERE company_id = $1 AND customer_id = $2 AND deleted_at IS NULL ORDER BY created_at DESC",

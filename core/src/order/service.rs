@@ -253,6 +253,16 @@ impl OrderService {
         self.repo.find_all(company_id).await
     }
 
+    /// Página da listagem de operador (mais recentes primeiro).
+    pub async fn find_all_paged(
+        &self,
+        company_id: Uuid,
+        limit: i64,
+        offset: i64,
+    ) -> Result<Vec<Order>, CoreError> {
+        self.repo.find_all_paged(company_id, limit, offset).await
+    }
+
     pub async fn find_by_customer(&self, company_id: Uuid, customer_id: Uuid) -> Result<Vec<Order>, CoreError> {
         self.repo.find_by_customer(company_id, customer_id).await
     }
