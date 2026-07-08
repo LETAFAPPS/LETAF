@@ -224,6 +224,7 @@ impl CompanyService {
             cover_data: None,
             products_per_page: 20,
             orders_per_page: 20,
+            utc_offset_minutes: -180,
             created_at: epoch,
             updated_at: epoch,
             deleted_at: None,

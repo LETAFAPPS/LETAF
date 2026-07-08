@@ -13,6 +13,7 @@
 pub mod addon;
 pub mod addon_group;
 pub mod auth;
+pub mod availability;
 pub mod banner;
 pub mod business_hours;
 pub mod cash;

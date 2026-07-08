@@ -7,6 +7,7 @@ use axum::{routing::{get, patch, post}, Json, Router};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+use letaf_core::availability;
 use letaf_core::error::CoreError;
 use letaf_core::order::model::{DeliveryType, OrderStatus};
 use letaf_core::order::service::OrderItemInput;
@@ -107,21 +108,11 @@ async fn create_order(
     auth.verify(tenant.company_id, ROLE_CUSTOMER)?;
     let customer_id = auth.0.sub;
 
-    // §11: o cliente web é não-confiável. Se o lojista fechou a loja
-    // manualmente (`store_override == "closed"`), o backend rejeita o pedido
-    // — senão uma requisição forjada criaria pedido com a loja fechada. A
-    // janela por HORÁRIO não é reforçada aqui porque exigiria o fuso da loja
-    // (ausente no modelo); o override manual é independente de fuso.
     let company = state
         .company_service
         .find_by_id(tenant.company_id)
         .await?
         .ok_or_else(|| CoreError::NotFound("Empresa não encontrada".into()))?;
-    if company.store_override == "closed" {
-        return Err(ServerError::Core(CoreError::Validation(
-            "Loja fechada no momento. Tente novamente mais tarde.".into(),
-        )));
-    }
 
     let items: Vec<OrderItemInput> = req
         .items
@@ -135,6 +126,39 @@ async fn create_order(
             addons_json: i.addons_json,
         })
         .collect();
+
+    // §11 (cliente web não-confiável): valida disponibilidade no BACKEND, não
+    // só na UI. Usa o fuso fixo da loja (`utc_offset_minutes`) para derivar o
+    // "agora" local do agora em UTC — nunca o relógio do cliente. Fecha se a
+    // loja está fechada (override/horário) ou se algum item está fora da sua
+    // janela. Config ausente = aberto/disponível (não rejeita por falta de
+    // cadastro), espelhando o web.
+    {
+        let (day, mins) =
+            availability::local_now(chrono::Utc::now().naive_utc(), company.utc_offset_minutes);
+        let hours = state.business_hours_service.find_all(tenant.company_id).await?;
+        if !availability::is_store_open(&hours, &company.store_override, day, mins) {
+            return Err(ServerError::Core(CoreError::Validation(
+                "Loja fechada no momento. Tente novamente mais tarde.".into(),
+            )));
+        }
+        let ids: Vec<Uuid> = items.iter().map(|i| i.product_id).collect();
+        let products = state.product_service.find_by_ids(tenant.company_id, &ids).await?;
+        for item in &items {
+            let unavailable = products
+                .iter()
+                .find(|p| p.base.id == item.product_id)
+                .is_some_and(|p| {
+                    !availability::is_product_available(p.availability_schedule.as_deref(), day, mins)
+                });
+            if unavailable {
+                return Err(ServerError::Core(CoreError::Validation(format!(
+                    "\"{}\" não está disponível neste horário.",
+                    item.product_name
+                ))));
+            }
+        }
+    }
 
     let delivery_type = req.delivery_type
         .as_deref()
