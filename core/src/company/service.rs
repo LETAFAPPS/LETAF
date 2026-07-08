@@ -54,6 +54,12 @@ impl CompanyService {
         self.repo.find_by_id(id).await
     }
 
+    /// `find_by_id` sem os blobs (logo/cover viram sentinela de presença) —
+    /// rotas públicas quentes que não precisam do conteúdo (§13).
+    pub async fn find_by_id_light(&self, id: Uuid) -> Result<Option<Company>, CoreError> {
+        self.repo.find_by_id_light(id).await
+    }
+
     pub async fn find_by_subdomain(&self, subdomain: &str) -> Result<Option<Company>, CoreError> {
         self.repo.find_by_subdomain(subdomain).await
     }

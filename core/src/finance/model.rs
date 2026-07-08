@@ -243,10 +243,4 @@ impl FinanceEntry {
         matches!(self.status, FinanceStatus::Pending | FinanceStatus::Scheduled)
             && self.due_date < today
     }
-
-    /// `true` quando este registro é uma parcela/ocorrência (não a
-    /// cabeça do grupo).
-    pub fn is_installment_child(&self) -> bool {
-        self.parent_id != self.base.id
-    }
 }

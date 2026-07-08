@@ -269,13 +269,6 @@ impl CashService {
     ) -> Result<(), CoreError> {
         self.sessions.mark_synced(company_id, id, updated_at).await
     }
-    pub async fn find_sessions_updated_since(
-        &self,
-        company_id: Uuid,
-        since: chrono::NaiveDateTime,
-    ) -> Result<Vec<CashSession>, CoreError> {
-        self.sessions.find_updated_since(company_id, since).await
-    }
     /// Página do pull de sessões por keyset `(updated_at, id)`.
     pub async fn find_sessions_updated_since_paged(
         &self,

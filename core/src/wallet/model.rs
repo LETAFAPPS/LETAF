@@ -97,11 +97,6 @@ impl WalletAccount {
     pub fn floor(&self) -> Decimal {
         -self.credit_limit
     }
-
-    /// `true` quando a conta está em fiado (saldo negativo).
-    pub fn is_in_debt(&self) -> bool {
-        self.balance < Decimal::ZERO
-    }
 }
 
 /// Movimento da carteira — append-only no service (UPDATE só pra

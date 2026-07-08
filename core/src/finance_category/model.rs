@@ -82,20 +82,4 @@ impl FinanceCategory {
             scope: FinanceCategoryScope::default(),
         }
     }
-
-    /// Indica se a categoria pode ser usada em lançamentos `Payable`.
-    pub fn allows_payable(&self) -> bool {
-        matches!(
-            self.scope,
-            FinanceCategoryScope::Payable | FinanceCategoryScope::Both
-        )
-    }
-
-    /// Indica se a categoria pode ser usada em lançamentos `Receivable`.
-    pub fn allows_receivable(&self) -> bool {
-        matches!(
-            self.scope,
-            FinanceCategoryScope::Receivable | FinanceCategoryScope::Both
-        )
-    }
 }

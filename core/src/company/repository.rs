@@ -13,6 +13,14 @@ use crate::error::CoreError;
 #[async_trait]
 pub trait CompanyRepository: Send + Sync {
     async fn find_by_id(&self, id: Uuid) -> Result<Option<Company>, CoreError>;
+    /// Como `find_by_id`, mas SEM os blobs base64 `logo_data`/`cover_data`
+    /// (retornados como sentinela de presença `Some("1")`/`None`) — para rotas
+    /// públicas quentes que só checam se HÁ logo/capa e leem campos de texto
+    /// (`get_info`, `list_business_hours`), §13. Default delega a `find_by_id`;
+    /// o servidor sobrescreve com um SELECT enxuto.
+    async fn find_by_id_light(&self, id: Uuid) -> Result<Option<Company>, CoreError> {
+        self.find_by_id(id).await
+    }
     async fn find_by_subdomain(&self, subdomain: &str) -> Result<Option<Company>, CoreError>;
     /// Resolve APENAS o `company_id` pelo subdomínio (caminho quente do tenant
     /// middleware, §13): evita puxar os blobs base64 `logo_data`/`cover_data`

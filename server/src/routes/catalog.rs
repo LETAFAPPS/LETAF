@@ -333,7 +333,7 @@ async fn get_info(
     tenant: TenantContext,
 ) -> Result<Json<CatalogInfo>, ServerError> {
     let company = state.company_service
-        .find_by_id(tenant.company_id).await?
+        .find_by_id_light(tenant.company_id).await?
         .ok_or_else(|| ServerError::Core(letaf_core::error::CoreError::NotFound("Company not found".into())))?;
     let v = company.updated_at;
     Ok(Json(CatalogInfo {
@@ -474,7 +474,7 @@ async fn list_business_hours(
     tenant: TenantContext,
 ) -> Result<Json<CatalogBusinessHoursResponse>, ServerError> {
     let company = state.company_service
-        .find_by_id(tenant.company_id).await?
+        .find_by_id_light(tenant.company_id).await?
         .ok_or_else(|| ServerError::Core(letaf_core::error::CoreError::NotFound("Company not found".into())))?;
     let items = state.business_hours_service.find_all(tenant.company_id).await?;
     let hours: Vec<CatalogBusinessHoursEntry> = items

@@ -97,6 +97,25 @@ impl CompanyRepository for PgCompanyRepository {
         .map_err(map_db)
     }
 
+    async fn find_by_id_light(&self, id: Uuid) -> Result<Option<Company>, CoreError> {
+        // §13: sem os blobs `logo_data`/`cover_data` — sentinela de 1 byte só
+        // para presença. Colunas de texto explícitas para as rotas públicas.
+        sqlx::query_as::<_, CompanyRow>(
+            "SELECT id, name, subdomain, store_override, address, phone, whatsapp, email,
+                    instagram, document, neighborhood, zip_code, city, uf,
+                    CASE WHEN logo_data IS NOT NULL THEN '1' END AS logo_data,
+                    CASE WHEN cover_data IS NOT NULL THEN '1' END AS cover_data,
+                    products_per_page, orders_per_page, utc_offset_minutes,
+                    created_at, updated_at, deleted_at, synced
+               FROM companies WHERE id = $1 AND deleted_at IS NULL",
+        )
+        .bind(id)
+        .fetch_optional(&self.pool)
+        .await
+        .map(|opt| opt.map(Company::from))
+        .map_err(map_db)
+    }
+
     async fn find_by_subdomain(&self, subdomain: &str) -> Result<Option<Company>, CoreError> {
         sqlx::query_as::<_, CompanyRow>(
             "SELECT * FROM companies WHERE subdomain = $1 AND deleted_at IS NULL",
