@@ -26,6 +26,15 @@ serde_json = "1"
 # (letaf-server) — o web nunca toca o banco (AI_RULES §1, frontend burro).
 reqwest = { version = "0.12", features = ["json"], optional = true }
 
+# Só em teste: paridade entre `web::discount` (f64/DTO) e `core::discount`
+# (Decimal). NÃO entra no bundle wasm — dev-dependency roda nativo, então o
+# peso do core aqui não afeta o cliente (o motivo de a lógica ser duplicada em
+# f64 no web permanece).
+[dev-dependencies]
+letaf-core = { path = "../core" }
+rust_decimal = { version = "1", features = ["serde"] }
+uuid = { version = "1", features = ["v4"] }
+
 [features]
 hydrate = ["leptos/hydrate", "dep:console_error_panic_hook", "dep:wasm-bindgen", "dep:web-sys", "dep:js-sys"]
 ssr = [
