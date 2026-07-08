@@ -308,7 +308,10 @@ impl WalletRepository for PgWalletRepository {
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
              ON CONFLICT (id) DO UPDATE SET
                customer_id = EXCLUDED.customer_id,
-               balance = EXCLUDED.balance,
+               -- balance NÃO é sobrescrito no conflito: o saldo evolui só pelo
+               -- ledger (sync_upsert_movement aplica o delta), evitando LWW
+               -- sobre o valor absoluto — que perderia um débito concorrente
+               -- (web + desktop) mesmo com os dois movimentos no ledger. §7.
                credit_limit = EXCLUDED.credit_limit,
                updated_at = EXCLUDED.updated_at,
                deleted_at = EXCLUDED.deleted_at,
@@ -400,22 +403,19 @@ impl WalletRepository for PgWalletRepository {
     }
 
     async fn sync_upsert_movement(&self, m: &WalletMovement) -> Result<(), CoreError> {
-        sqlx::query(
+        // Ledger append-only idempotente (mesmo padrão de `apply_stock_movement`,
+        // §7): `ON CONFLICT DO NOTHING` garante que um id repetido não reinsere
+        // nem reaplica o delta. O saldo da conta evolui SÓ aqui (delta = sinal ×
+        // valor), nunca por LWW sobre o absoluto — assim dois débitos concorrentes
+        // (web + desktop) somam corretamente em vez de um sobrescrever o outro.
+        let mut tx = self.pool.begin().await.map_err(map_db)?;
+        let inserted = sqlx::query(
             "INSERT INTO wallet_movements
              (id, company_id, account_id, kind, amount, balance_after,
               related_order_id, notes,
               created_at, updated_at, deleted_at, synced)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-             ON CONFLICT (id) DO UPDATE SET
-               kind = EXCLUDED.kind,
-               amount = EXCLUDED.amount,
-               balance_after = EXCLUDED.balance_after,
-               related_order_id = EXCLUDED.related_order_id,
-               notes = EXCLUDED.notes,
-               updated_at = EXCLUDED.updated_at,
-               deleted_at = EXCLUDED.deleted_at,
-               synced = EXCLUDED.synced
-             WHERE EXCLUDED.updated_at > wallet_movements.updated_at AND wallet_movements.company_id = EXCLUDED.company_id",
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, true)
+             ON CONFLICT (id) DO NOTHING",
         )
         .bind(m.base.id)
         .bind(m.base.company_id)
@@ -428,10 +428,28 @@ impl WalletRepository for PgWalletRepository {
         .bind(m.base.created_at)
         .bind(m.base.updated_at)
         .bind(m.base.deleted_at)
-        .bind(m.base.synced)
-        .execute(&self.pool)
+        .execute(&mut *tx)
         .await
-        .map_err(map_db)?;
+        .map_err(map_db)?
+        .rows_affected();
+        if inserted == 1 {
+            // Aplica o delta ao saldo materializado só na 1ª vez. Bump de
+            // `updated_at` para o novo saldo propagar aos desktops no pull.
+            let delta = m.kind.sign() * m.amount;
+            sqlx::query(
+                "UPDATE wallet_accounts
+                    SET balance = balance + $1, updated_at = $2, synced = true
+                  WHERE company_id = $3 AND id = $4",
+            )
+            .bind(delta)
+            .bind(m.base.updated_at)
+            .bind(m.base.company_id)
+            .bind(m.account_id)
+            .execute(&mut *tx)
+            .await
+            .map_err(map_db)?;
+        }
+        tx.commit().await.map_err(map_db)?;
         Ok(())
     }
 }
