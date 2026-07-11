@@ -280,14 +280,25 @@ export component LoginPage inherits Rectangle {
             padding: 56px;
             alignment: space-between;
 
-            // Topo: logo LETAF.
-            HorizontalLayout {
+            // Topo: logo LETAF + tagline.
+            VerticalLayout {
                 alignment: start;
-                Image {
-                    source: @image-url("../letaf.png");
-                    height: 34px;
-                    width: self.height * self.source.width / max(1, self.source.height);
-                    image-fit: contain;
+                spacing: 14px;
+                HorizontalLayout {
+                    alignment: start;
+                    Image {
+                        source: @image-url("../letaf.png");
+                        height: 72px;
+                        width: self.height * self.source.width / max(1, self.source.height);
+                        image-fit: contain;
+                    }
+                }
+                Text {
+                    text: "Gestão Empresarial";
+                    font-size: 14px;
+                    font-weight: 600;
+                    letter-spacing: 0.4px;
+                    color: #9a958f;
                 }
             }
 
