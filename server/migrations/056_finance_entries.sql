@@ -8,7 +8,7 @@ CREATE TABLE finance_entries (
     party_name TEXT NOT NULL DEFAULT '',
     party_type TEXT NOT NULL DEFAULT 'other',
     category_id UUID,
-    amount NUMERIC(14, 2) NOT NULL,
+    amount DOUBLE PRECISION NOT NULL,
     due_date DATE NOT NULL,
     paid_at TIMESTAMP WITHOUT TIME ZONE,
     status TEXT NOT NULL DEFAULT 'pending',

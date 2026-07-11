@@ -5,7 +5,7 @@
 CREATE TABLE IF NOT EXISTS plans (
     id              UUID PRIMARY KEY,
     name            TEXT NOT NULL,
-    amount NUMERIC(14, 2) NOT NULL,        -- valor cobrado por ciclo (R$)
+    amount          DOUBLE PRECISION NOT NULL,        -- valor cobrado por ciclo (R$)
     period_months   INTEGER NOT NULL,                 -- meses por cobrança (1, 6, 12, ...)
     trial_days      INTEGER NOT NULL DEFAULT 0,       -- período gratuito antes da 1ª cobrança
     description     TEXT NOT NULL DEFAULT '',

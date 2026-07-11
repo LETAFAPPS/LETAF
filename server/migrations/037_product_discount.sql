@@ -5,5 +5,5 @@
 --   demais kinds).
 ALTER TABLE products
     ADD COLUMN IF NOT EXISTS discount_kind     TEXT,
-    ADD COLUMN IF NOT EXISTS discount_value NUMERIC(14, 2),
+    ADD COLUMN IF NOT EXISTS discount_value    DOUBLE PRECISION,
     ADD COLUMN IF NOT EXISTS discount_min_qty  DOUBLE PRECISION;

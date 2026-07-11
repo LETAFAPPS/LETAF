@@ -28,7 +28,7 @@ CREATE TABLE subscription_invoices (
     subscription_id UUID NOT NULL,
     number TEXT NOT NULL,
     description TEXT NOT NULL DEFAULT '',
-    amount NUMERIC(14, 2) NOT NULL,
+    amount DOUBLE PRECISION NOT NULL,
     method_kind TEXT NOT NULL DEFAULT 'card',
     method_label TEXT NOT NULL DEFAULT '',
     status TEXT NOT NULL DEFAULT 'pending',
