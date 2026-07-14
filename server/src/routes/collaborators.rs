@@ -137,6 +137,8 @@ async fn delete(
             "Você não pode excluir o próprio usuário".into(),
         )));
     }
-    state.auth_service.soft_delete(tenant.company_id, id).await?;
+    // `delete_employee` recusa alvos Admin/SuperAdmin (§11 — impede um gerente
+    // com `collaborators.edit` de excluir o Admin do tenant).
+    state.auth_service.delete_employee(tenant.company_id, id).await?;
     Ok(Json(json!({ "deleted": true })))
 }

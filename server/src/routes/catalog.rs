@@ -46,6 +46,12 @@ fn media_response(data: Option<String>) -> Response {
             let headers = resp.headers_mut();
             headers.insert(header::CONTENT_TYPE, HeaderValue::from_static(mime));
             headers.insert(header::CACHE_CONTROL, HeaderValue::from_static(IMMUTABLE_CACHE));
+            // Impede o navegador de "adivinhar" um tipo executável a partir do
+            // conteúdo (defesa contra XSS por sniffing na origem da loja, §11).
+            headers.insert(
+                header::X_CONTENT_TYPE_OPTIONS,
+                HeaderValue::from_static("nosniff"),
+            );
             resp
         }
         None => StatusCode::NOT_FOUND.into_response(),

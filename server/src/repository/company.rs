@@ -269,7 +269,10 @@ impl CompanyRepository for PgCompanyRepository {
                 $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
              ON CONFLICT (id) DO UPDATE SET
                  name = EXCLUDED.name,
-                 subdomain = EXCLUDED.subdomain,
+                 -- subdomain NÃO é atualizado no conflito: é a CHAVE de
+                 -- roteamento do tenant (Host → company). Deixar o sync trocá-lo
+                 -- (gate `orders.view`) permitiria um operador tirar o cardápio
+                 -- do ar. Definido só no INSERT (1º sync). §11.
                  store_override = EXCLUDED.store_override,
                  address = EXCLUDED.address,
                  phone = EXCLUDED.phone,

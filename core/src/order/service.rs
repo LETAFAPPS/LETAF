@@ -13,6 +13,12 @@ use crate::cash::service::CashService;
 use crate::error::CoreError;
 use crate::product::service::ProductService;
 
+/// Teto de sanidade para a quantidade de um item. Acima disso o subtotal
+/// (`qty * unit_price`) poderia estourar `NUMERIC(14,2)` no Postgres — o guard
+/// devolve erro de validação limpo em vez de um 500 cru. Um milhão de unidades
+/// já é ordens de grandeza acima de qualquer venda real (§13).
+const MAX_ITEM_QUANTITY: f64 = 1_000_000.0;
+
 /// Dados de entrada para um item do pedido.
 pub struct OrderItemInput {
     pub product_id: Uuid,
@@ -428,6 +434,11 @@ impl OrderService {
                     "Quantidade de item deve ser positiva".into(),
                 ));
             }
+            if it.quantity > MAX_ITEM_QUANTITY {
+                return Err(CoreError::Validation(
+                    "Quantidade de item excede o máximo permitido".into(),
+                ));
+            }
             if it.base.id == Uuid::nil() {
                 // Item novo — gera UUID e marca campos base.
                 it.base = crate::entity::BaseFields::new(company_id);
@@ -783,6 +794,11 @@ fn validate_items(items: &[OrderItemInput]) -> Result<(), CoreError> {
     for item in items {
         if !item.quantity.is_finite() || item.quantity <= 0.0 {
             return Err(CoreError::Validation("Item quantity must be positive".into()));
+        }
+        // Teto de sanidade: acima disso o subtotal estouraria NUMERIC(14,2) no
+        // Postgres (erro 500 cru). Recusa com validação limpa. §13.
+        if item.quantity > MAX_ITEM_QUANTITY {
+            return Err(CoreError::Validation("Quantidade de item excede o máximo permitido".into()));
         }
         if item.unit_price < Decimal::ZERO {
             return Err(CoreError::Validation("Item price cannot be negative".into()));

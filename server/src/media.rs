@@ -39,7 +39,10 @@ fn mime_from_meta(meta: &str) -> &'static str {
         "image/png" => "image/png",
         "image/webp" => "image/webp",
         "image/gif" => "image/gif",
-        "image/svg+xml" => "image/svg+xml",
+        // NÃO servir `image/svg+xml`: SVG na origem da loja executa JS
+        // (XSS armazenado). As imagens do app são sempre raster (o processador
+        // gera JPEG/PNG); um SVG só chega por payload forjado — cai no default
+        // e é tratado como JPEG (render quebrado, sem execução). §11.
         _ => "image/jpeg",
     }
 }

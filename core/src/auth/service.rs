@@ -196,6 +196,15 @@ impl AuthService {
             .find_by_id(company_id, id)
             .await?
             .ok_or_else(|| CoreError::NotFound("Funcionário não encontrado".into()))?;
+        // §11: a tela de Colaboradores gerencia APENAS funcionários. Sem esta
+        // guarda, um usuário com `collaborators.edit` (gerente) sobrescreveria a
+        // senha/Função de um Admin/SuperAdmin e assumiria a conta (escalada
+        // vertical). O role do alvo é autoridade do servidor.
+        if user.role != UserRole::Employee {
+            return Err(CoreError::Unauthorized(
+                "Só é possível editar funcionários por aqui".into(),
+            ));
+        }
         // Mudança de função (permissões) ou de senha revoga tokens antigos.
         let role_changed = user.job_role_id != job_role_id;
         user.name = name;
@@ -342,10 +351,25 @@ impl AuthService {
         Ok(user)
     }
 
-    /// Remoção lógica (soft delete).
+    /// Remoção lógica (soft delete) — genérica (usada também pelo painel
+    /// super-admin, que exclui super admins com sua própria guarda).
     pub async fn soft_delete(&self, company_id: Uuid, id: Uuid) -> Result<(), CoreError> {
         self.repo.find_by_id(company_id, id).await?
             .ok_or_else(|| CoreError::NotFound("User not found".into()))?;
+        self.repo.soft_delete(company_id, id).await
+    }
+
+    /// Remoção lógica de um FUNCIONÁRIO (tela de Colaboradores). §11: recusa
+    /// alvos que não sejam `Employee` — senão um usuário com `collaborators.edit`
+    /// excluiria o Admin do tenant.
+    pub async fn delete_employee(&self, company_id: Uuid, id: Uuid) -> Result<(), CoreError> {
+        let user = self.repo.find_by_id(company_id, id).await?
+            .ok_or_else(|| CoreError::NotFound("Funcionário não encontrado".into()))?;
+        if user.role != UserRole::Employee {
+            return Err(CoreError::Unauthorized(
+                "Só é possível excluir funcionários por aqui".into(),
+            ));
+        }
         self.repo.soft_delete(company_id, id).await
     }
 

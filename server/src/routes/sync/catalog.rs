@@ -323,6 +323,10 @@ pub(crate) async fn pull_job_roles(
     Query(params): Query<PullQuery>,
 ) -> Result<Json<Vec<JobRole>>, ServerError> {
     auth.verify_any_role(ROLES_OPERATORS)?;
+    // §11: a matriz de permissões (RBAC) é dado de back-office — só a tela de
+    // Colaboradores a consome; o POS não precisa. Gateia como o pull sensível
+    // (o RBAC efetivo em runtime vem do JWT, não deste pull).
+    auth.require_permission("collaborators.view")?;
     let items = state
         .job_role_service
         .find_updated_since(auth.0.company_id, params.since)

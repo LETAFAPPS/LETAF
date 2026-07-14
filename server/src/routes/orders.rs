@@ -145,12 +145,21 @@ async fn create_order(
         let ids: Vec<Uuid> = items.iter().map(|i| i.product_id).collect();
         let products = state.product_service.find_by_ids(tenant.company_id, &ids).await?;
         for item in &items {
-            let unavailable = products
-                .iter()
-                .find(|p| p.base.id == item.product_id)
-                .is_some_and(|p| {
-                    !availability::is_product_available(p.availability_schedule.as_deref(), day, mins)
-                });
+            let prod = products.iter().find(|p| p.base.id == item.product_id);
+            // §11: o cliente web é não-confiável. Rejeita item DESATIVADO ou
+            // não-visível na web (o catálogo promete que o cliente nunca os vê)
+            // e item fora da janela de disponibilidade — a decisão de "está à
+            // venda" é do backend, não do frontend. (Produto inexistente é
+            // barrado depois em verify_item_prices.)
+            if prod.is_some_and(|p| !p.active || !p.web_visible) {
+                return Err(ServerError::Core(CoreError::Validation(format!(
+                    "\"{}\" não está mais disponível.",
+                    item.product_name
+                ))));
+            }
+            let unavailable = prod.is_some_and(|p| {
+                !availability::is_product_available(p.availability_schedule.as_deref(), day, mins)
+            });
             if unavailable {
                 return Err(ServerError::Core(CoreError::Validation(format!(
                     "\"{}\" não está disponível neste horário.",
