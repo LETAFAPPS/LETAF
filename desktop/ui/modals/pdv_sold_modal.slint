@@ -1,6 +1,6 @@
 import { Theme } from "../theme.slint";
-import { Card } from "../components/cards.slint";
-import { ActionBtn, OutlineBtn } from "../components/buttons.slint";
+import { OutlineBtn } from "../components/buttons.slint";
+import { ModalShell } from "../components/modal_shell.slint";
 
 // ── Modal: pedido criado no PDV (pós-venda) ───────────────────────
 //
@@ -9,6 +9,10 @@ import { ActionBtn, OutlineBtn } from "../components/buttons.slint";
 // comanda do cliente e comanda da cozinha (reutilizando o fluxo
 // existente `print_receipt_now`). Fechar sem clicar volta o PDV
 // pronto para a próxima venda.
+//
+// Padrão do sistema (AI_RULES.md §3, §8): moldura via `ModalShell` (ícone do
+// sistema `sucesso.svg` no verde do tema, título, mensagem, divisor) + ações em
+// `OutlineBtn`. Antes usava header verde com o glifo "✓" e cor hardcoded.
 
 export component PdvSoldModal inherits Rectangle {
     in property <string> order-number;
@@ -17,9 +21,6 @@ export component PdvSoldModal inherits Rectangle {
     callback close();
     callback print-receipt();
     callback print-kitchen();
-
-    background: #00000080;
-    TouchArea { clicked => { root.close(); } }
 
     // Enter (ou Esc) fecha o modal. O FocusScope recebe o foco ao abrir
     // (Timer) pra capturar as teclas mesmo sem clicar.
@@ -35,80 +36,39 @@ export component PdvSoldModal inherits Rectangle {
         triggered => { fs.focus(); self.running = false; }
     }
 
-    VerticalLayout {
-        alignment: center;
-        HorizontalLayout {
-            alignment: center;
-            Card {
-                width: 400px;
-                TouchArea { }
+    ModalShell {
+        width: 100%;
+        height: 100%;
+        icon: @image-url("../assets/icons/1.2/sucesso.svg");
+        icon-color: Theme.success;
+        title: "Venda finalizada";
+        message: "Pedido #" + root.order-number + " · Total " + root.total-display
+            + "\nO pedido já está em PREPARANDO no Kanban.";
+        card-width: 420px;
+        close => { root.close(); }
 
-                VerticalLayout {
-                    padding: 0px;
-                    spacing: 0px;
+        VerticalLayout {
+            spacing: 8px;
 
-                    // Header verde (sucesso)
-                    Rectangle {
-                        background: #2E7D32;
-                        height: 70px;
-                        VerticalLayout {
-                            alignment: center;
-                            Text {
-                                text: "✓ Venda Finalizada";
-                                font-size: 18px; font-weight: 800;
-                                color: white;
-                                horizontal-alignment: center;
-                            }
-                            Text {
-                                text: "Pedido #" + root.order-number;
-                                font-size: 12px; font-weight: 600;
-                                color: white;
-                                horizontal-alignment: center;
-                            }
-                        }
-                    }
-
-                    // Body
-                    Rectangle {
-                        background: Theme.surface;
-                        VerticalLayout {
-                            padding: 22px;
-                            spacing: 14px;
-                            Text {
-                                text: "Total: " + root.total-display;
-                                font-size: 16px; font-weight: 700;
-                                color: Theme.text-primary;
-                                horizontal-alignment: center;
-                            }
-                            Text {
-                                text: "O pedido já está em PREPARANDO no Kanban. Imprimir comandas?";
-                                font-size: 12px;
-                                color: Theme.text-secondary;
-                                horizontal-alignment: center;
-                                wrap: word-wrap;
-                            }
-                            HorizontalLayout {
-                                spacing: 8px;
-                                OutlineBtn {
-                                    label: "Comanda Cliente";
-                                    horizontal-stretch: 1; height: 40px;
-                                    clicked => { root.print-receipt(); }
-                                }
-                                OutlineBtn {
-                                    label: "Cozinha";
-                                    horizontal-stretch: 1; height: 40px;
-                                    clicked => { root.print-kitchen(); }
-                                }
-                            }
-                            ActionBtn {
-                                label: "Fechar";
-                                bg-color: Theme.sidebar-sel-bg;
-                                horizontal-stretch: 1; height: 40px;
-                                clicked => { root.close(); }
-                            }
-                        }
-                    }
+            HorizontalLayout {
+                spacing: 8px;
+                OutlineBtn {
+                    label: "Comanda Cliente";
+                    horizontal-stretch: 1; height: 40px;
+                    clicked => { root.print-receipt(); }
                 }
+                OutlineBtn {
+                    label: "Cozinha";
+                    horizontal-stretch: 1; height: 40px;
+                    clicked => { root.print-kitchen(); }
+                }
+            }
+            OutlineBtn {
+                label: "Fechar";
+                accent: true;
+                btn-color: Theme.sidebar-sel-bg;
+                horizontal-stretch: 1; height: 40px;
+                clicked => { root.close(); }
             }
         }
     }

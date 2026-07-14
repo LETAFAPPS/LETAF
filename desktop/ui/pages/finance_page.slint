@@ -451,6 +451,11 @@ component ViewToggle inherits HorizontalLayout {
                 width: 76px;
                 clicked => { root.set-mode("list"); }
                 Rectangle {
+                    // Preenche a TouchArea (mesmo padrão do OutlineBtn). Sem
+                    // isto o Rectangle não ocupa a altura toda e o rótulo fica
+                    // desalinhado verticalmente.
+                    x: 0; y: 0;
+                    width: parent.width; height: parent.height;
                     border-radius: 7px;
                     background: root.active == "list"
                         ? Theme.primary
@@ -468,6 +473,8 @@ component ViewToggle inherits HorizontalLayout {
                 width: 96px;
                 clicked => { root.set-mode("calendar"); }
                 Rectangle {
+                    x: 0; y: 0;
+                    width: parent.width; height: parent.height;
                     border-radius: 7px;
                     background: root.active == "calendar"
                         ? Theme.primary
@@ -493,6 +500,10 @@ component StatusFilterChip inherits TouchArea {
     height: 30px;
     width: txt.preferred-width + 24px;
     Rectangle {
+        // Preenche a TouchArea (mesmo padrão do OutlineBtn) — senão o rótulo
+        // não fica centralizado na altura.
+        x: 0; y: 0;
+        width: parent.width; height: parent.height;
         border-radius: 6px;
         // Selecionado = só CONTORNO na cor de destaque (estilo Relatórios).
         border-width: root.active ? 1.5px : 1px;

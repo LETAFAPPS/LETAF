@@ -1,13 +1,14 @@
 import { Theme } from "../theme.slint";
-import { Card } from "../components/cards.slint";
-import { ActionBtn, OutlineBtn } from "../components/buttons.slint";
+import { OutlineBtn } from "../components/buttons.slint";
+import { ModalShell } from "../components/modal_shell.slint";
 
 // ── Modal: confirmar troca de plano com recorrência ativa ────────
 //
-// Regras aplicadas (AI_RULES.md §1, §11):
+// Regras aplicadas (AI_RULES.md §1, §3, §8, §11):
 // - UI só exibe a mensagem (montada no Rust) e dispara confirm/close.
 // - "Cancelar e trocar" faz, em um passo: cancela a recorrência no
 //   gateway + troca o plano (o Rust orquestra).
+// - Padrão do sistema: moldura via `ModalShell` + ações em `OutlineBtn`.
 
 export component PlanChangeConfirmModal inherits Rectangle {
     in property <string> message;
@@ -16,59 +17,32 @@ export component PlanChangeConfirmModal inherits Rectangle {
     callback close();
     callback confirm();
 
-    background: #00000060;
+    ModalShell {
+        width: 100%;
+        height: 100%;
+        icon: @image-url("../assets/icons/1.2/subscription.svg");
+        title: "Trocar de plano";
+        message: root.message;
+        card-width: 460px;
+        close => { root.close(); }
 
-    TouchArea { clicked => { root.close(); } }
-
-    VerticalLayout {
-        alignment: center;
         HorizontalLayout {
             alignment: center;
-            Card {
-                width: 440px;
-                TouchArea { }
+            spacing: 10px;
 
-                VerticalLayout {
-                    padding: 24px;
-                    spacing: 14px;
-
-                    Text {
-                        text: "Trocar de plano";
-                        font-size: 18px; font-weight: 700;
-                        color: Theme.text-primary;
-                        horizontal-alignment: center;
-                    }
-
-                    Rectangle { height: 1px; background: Theme.border; }
-
-                    Text {
-                        text: root.message;
-                        font-size: 13px;
-                        color: Theme.text-secondary;
-                        wrap: word-wrap;
-                        horizontal-alignment: center;
-                    }
-
-                    Rectangle { height: 4px; }
-
-                    HorizontalLayout {
-                        alignment: center;
-                        spacing: 10px;
-                        OutlineBtn {
-                            label: "Voltar";
-                            width: 110px;
-                            clicked => { root.close(); }
-                        }
-                        ActionBtn {
-                            label: root.loading ? "Processando…" : "Cancelar e trocar";
-                            bg-color: Theme.sidebar-sel-bg;
-                            width: 190px;
-                            clicked => {
-                                if !root.loading {
-                                    root.confirm();
-                                }
-                            }
-                        }
+            OutlineBtn {
+                label: "Voltar";
+                width: 120px; height: 40px;
+                clicked => { root.close(); }
+            }
+            OutlineBtn {
+                label: root.loading ? "Processando…" : "Cancelar e trocar";
+                accent: true;
+                btn-color: Theme.sidebar-sel-bg;
+                width: 190px; height: 40px;
+                clicked => {
+                    if !root.loading {
+                        root.confirm();
                     }
                 }
             }

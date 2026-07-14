@@ -2,10 +2,14 @@
 // credenciais (nome, e-mail e senha). Vale para admin, funcionário e super
 // admin. UI sem lógica (§1/§3): dados vêm do Rust (GET /auth/me) e o salvar
 // delega ao Rust (PUT /auth/profile). A autoridade é o backend (§11).
+//
+// Padrão do sistema (§3/§8): moldura via `ModalShell` (ícone do sistema, título,
+// mensagem, divisor) + ações em `OutlineBtn` — igual ao modal de caixa fechado.
+// Antes tinha header próprio (quadrado laranja com ícone) e "Salvar" preenchido.
 import { Theme } from "../theme.slint";
 import { FormField, PasswordField } from "../components/form_fields.slint";
-import { ActionBtn, OutlineBtn } from "../components/buttons.slint";
-import { PersonIcon } from "../components/icons.slint";
+import { OutlineBtn } from "../components/buttons.slint";
+import { ModalShell } from "../components/modal_shell.slint";
 
 export component ProfileModal inherits Rectangle {
     in property <string> role-label;
@@ -19,50 +23,18 @@ export component ProfileModal inherits Rectangle {
 
     width: 100%;
     height: 100%;
-    background: #00000088;
-    // Clique fora fecha.
-    TouchArea { clicked => { root.close(); } }
 
-    Rectangle {
-        width: 420px;
-        height: 452px;
-        x: (parent.width - self.width) / 2;
-        y: (parent.height - self.height) / 2;
-        border-radius: 16px;
-        border-width: 1px;
-        border-color: Theme.card-border;
-        drop-shadow-blur: 12px;
-        drop-shadow-offset-y: 0px;
-        drop-shadow-color: Theme.card-shadow;
-        background: Theme.surface;
-        // Absorve cliques dentro do card (não fecha).
-        TouchArea {}
+    ModalShell {
+        width: 100%;
+        height: 100%;
+        icon: @image-url("../assets/icons/1.2/user.svg");
+        title: "Meu perfil";
+        message: root.role-label;
+        card-width: 420px;
+        close => { root.close(); }
 
         VerticalLayout {
-            padding: 26px;
             spacing: 12px;
-            alignment: start;
-
-            HorizontalLayout {
-                spacing: 12px;
-                Rectangle {
-                    width: 52px; height: 52px; border-radius: 14px;
-                    background: Theme.sidebar-sel-bg;
-                    PersonIcon {
-                        icon-size: 26px; icon-color: white;
-                        x: (parent.width - self.width) / 2;
-                        y: (parent.height - self.height) / 2;
-                    }
-                }
-                VerticalLayout {
-                    alignment: center;
-                    spacing: 2px;
-                    Text { text: "Meu perfil"; font-size: 18px; font-weight: 800; color: Theme.text-primary; }
-                    Text { text: root.role-label; font-size: 12px; color: Theme.text-secondary; }
-                }
-            }
-
-            Rectangle { height: 1px; background: Theme.border; }
 
             FormField {
                 label: "Nome";
@@ -84,20 +56,24 @@ export component ProfileModal inherits Rectangle {
                 text: root.status;
                 font-size: 12px; color: Theme.primary;
                 wrap: word-wrap;
+                horizontal-alignment: center;
             }
 
-            Rectangle { vertical-stretch: 1; }
-
+            // Ações juntas (Cancelar colado no Salvar), no padrão do sistema.
             HorizontalLayout {
+                alignment: center;
                 spacing: 10px;
+
                 OutlineBtn {
                     label: "Cancelar";
+                    width: 120px; height: 40px;
                     clicked => { root.close(); }
                 }
-                Rectangle { horizontal-stretch: 1; }
-                ActionBtn {
-                    label: root.busy ? "Salvando..." : "Salvar";
-                    bg-color: Theme.sidebar-sel-bg;
+                OutlineBtn {
+                    label: root.busy ? "Salvando…" : "Salvar";
+                    accent: true;
+                    btn-color: Theme.sidebar-sel-bg;
+                    width: 120px; height: 40px;
                     clicked => { root.save(); }
                 }
             }

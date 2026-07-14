@@ -1,0 +1,101 @@
+// Moldura PADRÃO dos modais informativos / de confirmação do sistema.
+//
+// Encapsula tudo que esses modais têm em comum — overlay escurecido, fechar ao
+// clicar fora, `Card` centralizado, ícone do SISTEMA, título, mensagem e o
+// divisor acima das ações. O corpo/ações entram via `@children`.
+//
+// Regras (AI_RULES.md §3, §8, §14):
+// - Componente sem lógica de negócio; só renderiza e expõe `close()`.
+// - Fonte ÚNICA do visual dos modais: antes cada modal reimplementava overlay +
+//   card + título + divisor, divergindo entre telas.
+// - Só ícones do sistema (`assets/icons/1.2/*.svg`). NADA de emoji — a fonte não
+//   os renderiza de forma consistente e o glifo saía quebrado.
+//
+// Ações: use `OutlineBtn` (o mesmo das abas de Relatórios). A ação principal vai
+// com `accent: true` + `btn-color` de destaque (`Theme.sidebar-sel-bg`) ou de
+// perigo (`Theme.danger`); a secundária ("Cancelar"/"Voltar") fica neutra.
+//
+// Uso:
+//   ModalShell {
+//       icon: @image-url("../assets/icons/1.2/lixeira.svg");
+//       icon-color: Theme.danger;
+//       title: "Confirmar exclusão";
+//       message: "Esta ação não pode ser desfeita.";
+//       close => { root.close(); }
+//       HorizontalLayout {
+//           alignment: center; spacing: 10px;
+//           OutlineBtn { label: "Cancelar"; height: 40px; width: 120px; ... }
+//           OutlineBtn { label: "Excluir"; accent: true; btn-color: Theme.danger; ... }
+//       }
+//   }
+import { Theme } from "../theme.slint";
+import { Card } from "cards.slint";
+import { AssetIcon } from "icons.slint";
+
+export component ModalShell inherits Rectangle {
+    /// Ícone do sistema exibido no topo (opcional — vazio esconde).
+    in property <image> icon;
+    in property <color> icon-color: Theme.text-secondary;
+    in property <string> title;
+    in property <string> message;
+    in property <length> card-width: 400px;
+
+    callback close();
+
+    background: #00000060;
+
+    // Clique no fundo fecha o modal.
+    TouchArea { clicked => { root.close(); } }
+
+    VerticalLayout {
+        alignment: center;
+        HorizontalLayout {
+            alignment: center;
+
+            Card {
+                width: root.card-width;
+                border-radius: Theme.radius-3xl;
+
+                // Absorve os cliques DENTRO do card (não fecha o modal).
+                TouchArea { }
+
+                VerticalLayout {
+                    padding: 28px;
+                    spacing: 14px;
+
+                    if root.icon.width > 0: HorizontalLayout {
+                        alignment: center;
+                        AssetIcon {
+                            width: 44px;
+                            height: 44px;
+                            icon-size: 32px;
+                            icon-color: root.icon-color;
+                            source: root.icon;
+                        }
+                    }
+
+                    if root.title != "": Text {
+                        text: root.title;
+                        font-size: 16px;
+                        font-weight: 700;
+                        color: Theme.text-primary;
+                        horizontal-alignment: center;
+                    }
+
+                    if root.message != "": Text {
+                        text: root.message;
+                        font-size: 13px;
+                        color: Theme.text-secondary;
+                        horizontal-alignment: center;
+                        wrap: word-wrap;
+                    }
+
+                    Rectangle { height: 1px; background: Theme.border; }
+
+                    // Corpo/ações do modal (normalmente a linha de OutlineBtn).
+                    @children
+                }
+            }
+        }
+    }
+}

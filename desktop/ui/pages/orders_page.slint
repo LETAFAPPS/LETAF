@@ -118,26 +118,27 @@ export component CalendarPopup inherits Rectangle {
                 }
             }
 
+            // Ações do calendário: "Limpar" (neutro) e "Filtrar" (ação
+            // principal) dividem a largura do modal MEIO A MEIO — cada um com
+            // `horizontal-stretch: 1`, sem largura fixa. "Filtrar" usa o padrão
+            // do sistema: `OutlineBtn` em modo `accent` (contorno na cor de
+            // destaque, sem preencher), o mesmo das abas de Relatórios.
             HorizontalLayout {
                 spacing: 8px;
-                clr-ta := TouchArea {
-                    width: 90px; height: 32px;
+
+                OutlineBtn {
+                    label: "Limpar";
+                    horizontal-stretch: 1;
+                    height: 40px;
                     clicked => { root.clear(); }
-                    Rectangle {
-                        border-radius: 6px; border-width: 1px; border-color: Theme.card-border;
-                        background: clr-ta.has-hover ? Theme.row-hover : transparent;
-                        Text { text: "Limpar"; font-size: 12px; color: Theme.text-secondary; horizontal-alignment: center; vertical-alignment: center; width: parent.width; height: parent.height; }
-                    }
                 }
-                Rectangle { horizontal-stretch: 1; }
-                cls-ta := TouchArea {
-                    width: 90px; height: 32px;
+                OutlineBtn {
+                    label: "Filtrar";
+                    accent: true;
+                    btn-color: Theme.sidebar-sel-bg;
+                    horizontal-stretch: 1;
+                    height: 40px;
                     clicked => { root.close(); }
-                    Rectangle {
-                        border-radius: 6px;
-                        background: cls-ta.has-hover ? Theme.primary-dark : Theme.sidebar-sel-bg;
-                        Text { text: "Filtrar"; font-size: 12px; font-weight: 700; color: white; horizontal-alignment: center; vertical-alignment: center; width: parent.width; height: parent.height; }
-                    }
                 }
             }
         }

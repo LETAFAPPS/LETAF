@@ -1,60 +1,40 @@
 import { Theme } from "../theme.slint";
-import { Card } from "../components/cards.slint";
-import { ActionBtn, OutlineBtn } from "../components/buttons.slint";
+import { OutlineBtn } from "../components/buttons.slint";
+import { ModalShell } from "../components/modal_shell.slint";
 
 // ── Modal: confirmação de logout ──────────────────────────────────────────────
+//
+// Padrão do sistema (AI_RULES.md §3, §8): moldura via `ModalShell` + ações em
+// `OutlineBtn` (a principal em `accent`, contorno na cor de destaque).
 
 export component LogoutConfirmModal inherits Rectangle {
     callback close();
     callback do-logout();
 
-    background: #00000060;
+    ModalShell {
+        width: 100%;
+        height: 100%;
+        icon: @image-url("../assets/icons/1.2/logout.svg");
+        title: "Sair da conta?";
+        message: "Você será desconectado e precisará fazer login novamente.";
+        card-width: 380px;
+        close => { root.close(); }
 
-    TouchArea { clicked => { root.close(); } }
-
-    VerticalLayout {
-        alignment: center;
         HorizontalLayout {
             alignment: center;
-            Card {
-                width: 340px;
-                TouchArea { }
+            spacing: 10px;
 
-                VerticalLayout {
-                    padding: 24px;
-                    spacing: 16px;
-
-                    Text {
-                        text: "Sair da conta?";
-                        font-size: 18px; font-weight: 700;
-                        color: Theme.text-primary;
-                        horizontal-alignment: center;
-                    }
-
-                    Rectangle { height: 1px; background: Theme.border; }
-
-                    Text {
-                        text: "Você será desconectado e precisará\nfazer login novamente.";
-                        font-size: 14px;
-                        color: Theme.text-secondary;
-                        wrap: word-wrap;
-                        horizontal-alignment: center;
-                    }
-
-                    Rectangle { height: 4px; }
-
-                    HorizontalLayout {
-                        alignment: center;
-                        spacing: 10px;
-                        OutlineBtn { label: "Cancelar"; width: 110px; clicked => { root.close(); } }
-                        ActionBtn {
-                            label: "Sair";
-                            bg-color: Theme.sidebar-sel-bg;
-                            width: 110px;
-                            clicked => { root.close(); root.do-logout(); }
-                        }
-                    }
-                }
+            OutlineBtn {
+                label: "Cancelar";
+                width: 120px; height: 40px;
+                clicked => { root.close(); }
+            }
+            OutlineBtn {
+                label: "Sair";
+                accent: true;
+                btn-color: Theme.sidebar-sel-bg;
+                width: 120px; height: 40px;
+                clicked => { root.close(); root.do-logout(); }
             }
         }
     }

@@ -165,27 +165,32 @@ export component CashPage inherits VerticalLayout {
             padding: 0px;
             spacing: 0px;
 
-            // Header
-            Rectangle {
-                background: Theme.bg;
-                VerticalLayout {
-                    padding: 16px;
-                    spacing: 2px;
-                    Text {
-                        text: "Sessões Anteriores";
-                        font-size: 14px; font-weight: 700;
-                        color: Theme.text-primary;
-                    }
-                    Text {
-                        text: "Histórico dos últimos fechamentos";
-                        font-size: 11px; color: Theme.text-secondary;
-                    }
+            // Header — MESMO estilo do card de cima: SEM fundo próprio (o card
+            // já é `Theme.surface`) e com o mesmo padding de 18px. Um fundo
+            // aqui teria cantos RETOS e pintaria por cima dos cantos
+            // arredondados do card, "quadrando" o topo.
+            VerticalLayout {
+                padding: 18px;
+                spacing: 2px;
+                Text {
+                    text: "Sessões Anteriores";
+                    font-size: 14px; font-weight: 700;
+                    color: Theme.text-primary;
+                }
+                Text {
+                    text: "Histórico dos últimos fechamentos";
+                    font-size: 11px; color: Theme.text-secondary;
                 }
             }
-            // Tabela header
+            // Tabela header — idem, sem fundo próprio; a separação em relação
+            // às linhas é um divisor sutil (não mais a faixa bege).
             Rectangle {
-                background: Theme.bg;
                 height: 36px;
+                Rectangle {
+                    x: 0; y: parent.height - 1px;
+                    width: parent.width; height: 1px;
+                    background: Theme.border;
+                }
                 HorizontalLayout {
                     padding-left: 16px; padding-right: 16px;
                     spacing: 8px;
