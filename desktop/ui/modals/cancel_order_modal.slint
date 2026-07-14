@@ -81,7 +81,9 @@ export component CancelOrderModal inherits Rectangle {
                 OutlineBtn {
                     label: "Confirmar cancelamento";
                     accent: true;
-                    btn-color: Theme.danger;
+                    // Cinza enquanto o motivo está vazio (dica de que é
+                    // obrigatório); vermelho quando preenchido.
+                    btn-color: root.cancel-reason != "" ? Theme.danger : Theme.text-secondary;
                     width: 220px; height: 40px;
                     clicked => {
                         if root.cancel-reason == "" {

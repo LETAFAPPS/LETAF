@@ -47,23 +47,6 @@ export component SearchIcon inherits Path {
 }
 
 // ── Filtro (três linhas horizontais decrescentes) ──────────────────────
-// Estilo "sliders": três traços paralelos cujas extremidades reduzem do
-// topo para a base, sugerindo um filtro sendo aplicado.
-export component FilterIcon inherits Path {
-    in property <length> icon-size: 14px;
-    in property <color> icon-color: Theme.text-secondary;
-    in property <length> icon-stroke: 1.5px;
-
-    width: root.icon-size;
-    height: root.icon-size;
-    viewbox-width: 14;
-    viewbox-height: 14;
-    stroke: root.icon-color;
-    stroke-width: root.icon-stroke;
-    fill: transparent;
-    commands: "M 1 3 L 13 3 M 3 7 L 11 7 M 5 11 L 9 11";
-}
-
 // ── Câmera (placeholder de imagem de produto) ──────────────────────────
 // Câmera estilizada (corpo retangular + lente circular + visor topo) —
 // usada no quadrado do master-detail de Produtos quando o item ainda
@@ -97,23 +80,6 @@ export component EditIcon inherits Path {
     stroke-width: root.icon-stroke;
     fill: transparent;
     commands: "M 1.5 12.5 L 1.5 10.5 L 9 3 L 11 5 L 3.5 12.5 Z M 9 3 L 11 1 L 13 3 L 11 5";
-}
-
-// ── Mais (+) ───────────────────────────────────────────────────────────
-// Cruz simples para botões de adicionar.
-export component PlusIcon inherits Path {
-    in property <length> icon-size: 14px;
-    in property <color> icon-color: white;
-    in property <length> icon-stroke: 2px;
-
-    width: root.icon-size;
-    height: root.icon-size;
-    viewbox-width: 14;
-    viewbox-height: 14;
-    stroke: root.icon-color;
-    stroke-width: root.icon-stroke;
-    fill: transparent;
-    commands: "M 7 2 L 7 12 M 2 7 L 12 7";
 }
 
 // ── Pessoa (placeholder de avatar) ─────────────────────────────────────
