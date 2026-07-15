@@ -87,10 +87,26 @@ component LoginField inherits VerticalLayout {
             }
         }
 
-        // Clique em qualquer parte foca o campo (área abaixo do olho).
-        if !fld.has-focus: TouchArea {
+        // MODO SENHA MASCARADA: o hit-test do Slint mede o clique pelos
+        // caracteres reais (estreitos), mas exibe bolinhas (largas) — então o
+        // clique nunca alcança o fim e o cursor trava num índice baixo. Neste
+        // modo, clicar leva o cursor ao FIM (edição natural de senha lembrada);
+        // setas/Home/End reposicionam pelo teclado. O nº grande é clampado ao
+        // fim do texto pelo próprio Slint.
+        if root.is-password && !root.show-pass: TouchArea {
             x: 0;
-            width: parent.width - (root.is-password ? 42px : 0px);
+            width: parent.width - 42px; // não cobre o olho
+            clicked => {
+                fld.focus();
+                fld.set-selection-offsets(99999, 99999);
+            }
+        }
+        // E-mail / senha revelada: hit-test correto → posicionamento nativo.
+        // Só a faixa do ícone (0–46px) foca; a área do texto vai direto ao
+        // TextInput, que foca e posiciona o cursor onde se clicou.
+        if !(root.is-password && !root.show-pass) && !fld.has-focus: TouchArea {
+            x: 0;
+            width: 46px;
             clicked => { fld.focus(); }
         }
     }
@@ -273,7 +289,7 @@ export component LoginPage inherits Rectangle {
             image-fit: contain;
             x: parent.width - 640px;
             y: (parent.height - self.height) / 2;
-            opacity: 0.05;
+            opacity: 0.02;
         }
 
         VerticalLayout {
@@ -287,8 +303,12 @@ export component LoginPage inherits Rectangle {
                 HorizontalLayout {
                     alignment: start;
                     Image {
-                        source: @image-url("../letaf.png");
-                        height: 72px;
+                        // Wordmark RECORTADO (sem as margens transparentes do
+                        // letaf.png, que empurravam o glifo p/ direita e o
+                        // encolhiam). Assim a borda esquerda da logo alinha com
+                        // "Gestão Empresarial" logo abaixo.
+                        source: @image-url("../letaf-wordmark.png");
+                        height: 44px;
                         width: self.height * self.source.width / max(1, self.source.height);
                         image-fit: contain;
                     }
@@ -306,14 +326,6 @@ export component LoginPage inherits Rectangle {
             VerticalLayout {
                 spacing: 0;
                 max-width: 520px;
-                Text {
-                    text: "OFFLINE-FIRST";
-                    font-size: 11px;
-                    font-weight: 700;
-                    letter-spacing: 1.8px;
-                    color: #7a756f;
-                }
-                Rectangle { height: 22px; }
                 Text { text: "Sua operação,"; font-size: 52px; font-weight: 800; color: #f5f3ef; }
                 Text { text: "com ou sem"; font-size: 52px; font-weight: 800; color: Theme.primary; }
                 Text { text: "internet."; font-size: 52px; font-weight: 800; color: #f5f3ef; }
