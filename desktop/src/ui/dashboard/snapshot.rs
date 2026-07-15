@@ -1,19 +1,23 @@
 
-use std::collections::HashMap;
-
-use chrono::{Datelike, Duration, Local, NaiveDate, Timelike, Weekday};
+use chrono::{Datelike, Local, NaiveDate, Weekday};
+use rust_decimal::prelude::ToPrimitive;
+use rust_decimal::Decimal;
 use slint::{Color, ModelRc, SharedString, VecModel};
 
-use letaf_core::order::model::{Order, OrderStatus};
+use letaf_core::dashboard::{self, DashboardPeriod, TimeBucket};
+use letaf_core::order::model::Order;
 
-use rust_decimal::prelude::ToPrimitive;
-
-/// Wrapper de exibição do dashboard: os agregados analíticos são somados em
-/// `f64` (receita/ticket para gráficos) e formatados aqui, convertendo para
-/// `Decimal` (round2) só na apresentação. Dinheiro exato vive no domínio.
-fn money_br(v: f64) -> String {
-    crate::format::money_br_f64(v)
+/// Formata um `Decimal` (dinheiro exato do domínio) no padrão pt-BR.
+fn money_br(v: Decimal) -> String {
+    crate::format::money_br(v)
 }
+
+/// Converte `Decimal` para `f64` — usado SÓ na geometria dos gráficos
+/// (normalização de barras/linhas), nunca para persistir dinheiro.
+fn f(v: Decimal) -> f64 {
+    v.to_f64().unwrap_or(0.0)
+}
+
 use crate::{
     DashboardBarPoint, DashboardComparePoint, DashboardKpi, DashboardLinePoint,
     DashboardPaymentSlice, DashboardTopProduct, MainWindow,
@@ -45,6 +49,9 @@ pub(crate) struct Snapshot {
     pub(crate) payment_total: String,
 }
 
+/// Monta o snapshot de exibição do dashboard: chama o analytics do CORE
+/// (`dashboard::compute`, toda a regra de negócio, §3) e apenas MAPEIA o
+/// resultado para os tipos da UI — formatação pt-BR, cores e geometria (SVG).
 pub(crate) fn build_snapshot(
     orders: &[Order],
     sync_pending: i32,
@@ -53,73 +60,11 @@ pub(crate) fn build_snapshot(
     period: &str,
 ) -> Snapshot {
     let today = Local::now().date_naive();
-    // Mesmo dia da semana anterior (ex.: se hoje é terça, terça passada).
-    let same_day_last_week = today - Duration::days(7);
-
-    // Filtra pedidos válidos (não cancelados, não removidos).
-    let valid: Vec<&Order> = orders
-        .iter()
-        .filter(|o| o.base.deleted_at.is_none() && o.status != OrderStatus::Cancelled)
-        .collect();
+    let per = DashboardPeriod::from_str(period);
+    let m = dashboard::compute(orders, today, per);
 
     // ── KPIs ────────────────────────────────────────────────
-    let revenue_today: f64 = valid
-        .iter()
-        .filter(|o| o.base.created_at.date() == today)
-        .map(|o| o.total.to_f64().unwrap_or(0.0))
-        .sum();
-    let revenue_baseline: f64 = valid
-        .iter()
-        .filter(|o| o.base.created_at.date() == same_day_last_week)
-        .map(|o| o.total.to_f64().unwrap_or(0.0))
-        .sum();
-    let revenue_delta = pct_delta(revenue_today, revenue_baseline);
-
-    let orders_today: Vec<&&Order> = valid
-        .iter()
-        .filter(|o| o.base.created_at.date() == today)
-        .collect();
-    let orders_today_count = orders_today.len();
-    let pending_today = orders_today
-        .iter()
-        .filter(|o| o.status == OrderStatus::Pending)
-        .count();
-    let preparing_today = orders_today
-        .iter()
-        .filter(|o| o.status == OrderStatus::Preparing)
-        .count();
-
-    let avg_ticket_today = if orders_today_count > 0 {
-        revenue_today / orders_today_count as f64
-    } else {
-        0.0
-    };
-    // Ticket médio dos últimos 7 dias (excluindo hoje) — base de comparação.
-    let week_start = today - Duration::days(7);
-    let last7: Vec<&&Order> = valid
-        .iter()
-        .filter(|o| {
-            let d = o.base.created_at.date();
-            d >= week_start && d < today
-        })
-        .collect();
-    let last7_revenue: f64 = last7.iter().map(|o| o.total.to_f64().unwrap_or(0.0)).sum();
-    let last7_avg = if !last7.is_empty() {
-        last7_revenue / last7.len() as f64
-    } else {
-        0.0
-    };
-    let ticket_delta = pct_delta(avg_ticket_today, last7_avg);
-    // Pedidos hoje vs mesmo dia da semana passada (delta % pro KPI).
-    let orders_baseline = valid
-        .iter()
-        .filter(|o| o.base.created_at.date() == same_day_last_week)
-        .count();
-    let orders_delta = pct_delta(orders_today_count as f64, orders_baseline as f64);
-    let _ = (pending_today, preparing_today); // mantidos p/ uso futuro
-
-    // Estado do sync: Aguardando (offline, vermelho) > Sincronizando
-    // (ativo/pendências, laranja) > Sincronizado (verde).
+    // Estado do sync: Aguardando (offline) > Sincronizando > Sincronizado.
     let (sync_text, sync_tone) = if !online {
         ("Aguardando", "neg")
     } else if syncing || sync_pending > 0 {
@@ -127,305 +72,164 @@ pub(crate) fn build_snapshot(
     } else {
         ("Sincronizado", "pos")
     };
-
     let kpis = vec![
         kpi(
             "RECEITA HOJE",
-            &money_br(revenue_today),
-            &format_delta(revenue_delta, "vs semana"),
-            delta_tone(revenue_delta),
+            &money_br(m.revenue_today),
+            &format_delta(m.revenue_today_delta, "vs semana"),
+            delta_tone(m.revenue_today_delta),
         ),
-        // [1] PEDIDOS HOJE — valor = contagem, sub = delta % (curto).
         kpi(
             "PEDIDOS HOJE",
-            &orders_today_count.to_string(),
-            &format_delta_short(orders_delta),
-            delta_tone(orders_delta),
+            &m.orders_today.to_string(),
+            &format_delta_short(m.orders_today_delta),
+            delta_tone(m.orders_today_delta),
         ),
-        // [2] TICKET MÉDIO — sub = delta % (curto).
         kpi(
             "TICKET MÉDIO",
-            &money_br(avg_ticket_today),
-            &format_delta_short(ticket_delta),
-            delta_tone(ticket_delta),
+            &money_br(m.avg_ticket_today),
+            &format_delta_short(m.avg_ticket_delta),
+            delta_tone(m.avg_ticket_delta),
         ),
-        // [3] SINCRONIZAÇÃO — valor = status curto, sub = nº pendentes.
         kpi("SINCRONIZAÇÃO", sync_text, &sync_pending.to_string(), sync_tone),
     ];
 
-    // ── Vendas da semana — segunda a domingo (fixo) ─────────
-    // Pega a segunda-feira da semana CORRENTE e itera 7 dias.
-    // Dias futuros (depois de hoje) entram com valor 0 — barra ausente.
-    let monday_this_week = today
-        - Duration::days(today.weekday().num_days_from_monday() as i64);
-    let mut sales_bars: Vec<(NaiveDate, f64)> = Vec::with_capacity(7);
-    for i in 0..7 {
-        let d = monday_this_week + Duration::days(i);
-        let v: f64 = valid
-            .iter()
-            .filter(|o| o.base.created_at.date() == d)
-            .map(|o| o.total.to_f64().unwrap_or(0.0))
-            .sum();
-        sales_bars.push((d, v));
-    }
-    let max_bar = sales_bars
+    // ── Vendas da semana (barras seg..dom) ──────────────────
+    let max_bar = m.sales_week.iter().map(|b| f(b.revenue)).fold(0.0_f64, f64::max);
+    let sales_bars: Vec<DashboardBarPoint> = m
+        .sales_week
         .iter()
-        .map(|(_, v)| *v)
-        .fold(0.0_f64, f64::max);
-    let sales_bar_rows: Vec<DashboardBarPoint> = sales_bars
-        .into_iter()
-        .map(|(d, v)| DashboardBarPoint {
-            label: SharedString::from(weekday_short(d.weekday())),
-            value_display: SharedString::from(money_compact(v)),
-            progress: if max_bar > 0.0 { (v / max_bar) as f32 } else { 0.0 },
-            highlight: d == today,
+        .map(|b| {
+            let v = f(b.revenue);
+            DashboardBarPoint {
+                label: SharedString::from(weekday_short(b.date.weekday())),
+                value_display: SharedString::from(money_compact(v)),
+                progress: if max_bar > 0.0 { (v / max_bar) as f32 } else { 0.0 },
+                highlight: b.date == today,
+            }
         })
         .collect();
 
-    // ── Comparativo (período atual vs anterior) ─────────────
-    // Buckets conforme o filtro: hoje→horas, semana→dias, mês→dias.
-    let day_rev = |d: NaiveDate| -> f64 {
-        valid.iter().filter(|o| o.base.created_at.date() == d).map(|o| o.total.to_f64().unwrap_or(0.0)).sum()
+    // ── Comparativo (rótulo do bucket depende do período) ───
+    let compare_label_of = |date: NaiveDate, hour: Option<u32>| -> String {
+        match per {
+            DashboardPeriod::Today => format!("{:02}h", hour.unwrap_or(0)),
+            DashboardPeriod::Month => format!("{}", date.day()),
+            DashboardPeriod::Week => weekday_short(date.weekday()).to_string(),
+        }
     };
-    let hour_rev = |d: NaiveDate, h: u32| -> f64 {
-        valid
-            .iter()
-            .filter(|o| o.base.created_at.date() == d && o.base.created_at.hour() == h)
-            .map(|o| o.total.to_f64().unwrap_or(0.0))
-            .sum()
-    };
-    let mut compare: Vec<(String, f64, f64)> = Vec::new();
-    let compare_label: &str;
-    match period {
-        "today" => {
-            compare_label = "Hoje vs ontem";
-            let yest = today - Duration::days(1);
-            for h in 0..24u32 {
-                compare.push((format!("{:02}h", h), hour_rev(today, h), hour_rev(yest, h)));
-            }
-        }
-        "month" => {
-            compare_label = "Este mês vs anterior";
-            let first = today.with_day(1).unwrap_or(today);
-            let prev_last = first - Duration::days(1);
-            let prev_first = prev_last.with_day(1).unwrap_or(prev_last);
-            let days = days_in_month(today.year(), today.month());
-            let prev_days = days_in_month(prev_first.year(), prev_first.month());
-            for d in 1..=days {
-                let cur = first.with_day(d).unwrap_or(first);
-                let prev = prev_first.with_day(d.min(prev_days)).unwrap_or(prev_first);
-                compare.push((d.to_string(), day_rev(cur), day_rev(prev)));
-            }
-        }
-        _ => {
-            compare_label = "Esta semana vs anterior";
-            for i in 0..7 {
-                let cur = monday_this_week + Duration::days(i);
-                let prev = cur - Duration::days(7);
-                compare.push((weekday_short(cur.weekday()).to_string(), day_rev(cur), day_rev(prev)));
-            }
-        }
-    }
-    let max_cmp = compare
+    let max_cmp = m
+        .compare
         .iter()
-        .flat_map(|(_, c, p)| [*c, *p])
+        .flat_map(|c| [f(c.current), f(c.previous)])
         .fold(0.0_f64, f64::max);
-    let compare_points: Vec<DashboardComparePoint> = compare
-        .into_iter()
-        .map(|(lbl, c, p)| DashboardComparePoint {
-            label: SharedString::from(lbl),
-            current_progress: if max_cmp > 0.0 { (c / max_cmp) as f32 } else { 0.0 },
-            previous_progress: if max_cmp > 0.0 { (p / max_cmp) as f32 } else { 0.0 },
-            current_display: SharedString::from(money_compact(c)),
-            previous_display: SharedString::from(money_compact(p)),
+    let compare_points: Vec<DashboardComparePoint> = m
+        .compare
+        .iter()
+        .map(|c| {
+            let (cur, prev) = (f(c.current), f(c.previous));
+            DashboardComparePoint {
+                label: SharedString::from(compare_label_of(c.date, c.hour)),
+                current_progress: if max_cmp > 0.0 { (cur / max_cmp) as f32 } else { 0.0 },
+                previous_progress: if max_cmp > 0.0 { (prev / max_cmp) as f32 } else { 0.0 },
+                current_display: SharedString::from(money_compact(cur)),
+                previous_display: SharedString::from(money_compact(prev)),
+            }
         })
         .collect();
-
-    // ── Hero: agregados do PERÍODO selecionado ──────────────
-    // Série do gráfico em 7 buckets, conforme o filtro: HOJE por faixa
-    // de hora (08h–22h), SEMANA por dia (seg..dom), MÊS por faixa de dias.
-    let mut series_labels: Vec<SharedString> = Vec::with_capacity(7);
-    let week_daily: Vec<f64> = match period {
-        "today" => (0..7)
-            .map(|i| {
-                let h0 = 8 + i * 2;
-                series_labels.push(SharedString::from(format!("{}h", h0)));
-                valid
-                    .iter()
-                    .filter(|o| {
-                        let dt = o.base.created_at;
-                        dt.date() == today
-                            && (dt.hour() as i64) >= h0
-                            && (dt.hour() as i64) < h0 + 2
-                    })
-                    .map(|o| o.total.to_f64().unwrap_or(0.0))
-                    .sum()
-            })
-            .collect(),
-        "month" => {
-            let first = today.with_day(1).unwrap_or(today);
-            let span = (((today.day() as i64) + 6) / 7).max(1);
-            (0..7)
-                .map(|i| {
-                    let d0 = first + Duration::days(i * span);
-                    let d1 = first + Duration::days((i + 1) * span);
-                    series_labels.push(SharedString::from(format!("{}", d0.day())));
-                    valid
-                        .iter()
-                        .filter(|o| {
-                            let d = o.base.created_at.date();
-                            d >= d0 && d < d1 && d <= today
-                        })
-                        .map(|o| o.total.to_f64().unwrap_or(0.0))
-                        .sum()
-                })
-                .collect()
-        }
-        _ => (0..7)
-            .map(|i| {
-                let d = monday_this_week + Duration::days(i);
-                series_labels.push(SharedString::from(weekday_short(d.weekday())));
-                valid.iter().filter(|o| o.base.created_at.date() == d).map(|o| o.total.to_f64().unwrap_or(0.0)).sum()
-            })
-            .collect(),
+    let compare_label = match per {
+        DashboardPeriod::Today => "Hoje vs ontem",
+        DashboardPeriod::Month => "Este mês vs anterior",
+        DashboardPeriod::Week => "Esta semana vs anterior",
     };
 
-    // Janela do período (start..hoje) + janela anterior equivalente.
-    let win_start = match period {
-        "today" => today,
-        "month" => today.with_day(1).unwrap_or(today),
-        _ => monday_this_week, // "week"
-    };
-    let in_win = |d: NaiveDate| d >= win_start && d <= today;
-    let (prev_start, prev_end) = match period {
-        "today" => (today - Duration::days(1), today - Duration::days(1)),
-        "month" => {
-            let first = today.with_day(1).unwrap_or(today);
-            let prev_last = first - Duration::days(1);
-            (prev_last.with_day(1).unwrap_or(prev_last), prev_last)
+    // ── Hero: série do período (linha + área + marcadores) ──
+    let series_label = |b: &TimeBucket| -> SharedString {
+        match per {
+            DashboardPeriod::Today => SharedString::from(format!("{}h", b.hour.unwrap_or(0))),
+            DashboardPeriod::Month => SharedString::from(format!("{}", b.date.day())),
+            DashboardPeriod::Week => SharedString::from(weekday_short(b.date.weekday())),
         }
-        _ => (monday_this_week - Duration::days(7), monday_this_week - Duration::days(1)),
     };
-    let win_label = match period {
-        "today" => "RECEITA DO DIA",
-        "month" => "RECEITA DO MÊS",
-        _ => "RECEITA DA SEMANA",
-    };
-
-    let week_revenue_val: f64 = valid
-        .iter()
-        .filter(|o| in_win(o.base.created_at.date()))
-        .map(|o| o.total.to_f64().unwrap_or(0.0))
-        .sum();
-    let prev_rev: f64 = valid
-        .iter()
-        .filter(|o| {
-            let d = o.base.created_at.date();
-            d >= prev_start && d <= prev_end
-        })
-        .map(|o| o.total.to_f64().unwrap_or(0.0))
-        .sum();
-    let week_delta = pct_delta(week_revenue_val, prev_rev);
-    let week_orders_count = valid.iter().filter(|o| in_win(o.base.created_at.date())).count();
-    let week_ticket_val = if week_orders_count > 0 {
-        week_revenue_val / week_orders_count as f64
-    } else {
-        0.0
-    };
-    // Melhor dia: "Hoje" no período diário; senão o dia de maior receita.
-    let week_best_day = if period == "today" {
-        "Hoje".to_string()
-    } else {
-        let mut by_day: HashMap<NaiveDate, f64> = HashMap::new();
-        for o in valid.iter().filter(|o| in_win(o.base.created_at.date())) {
-            *by_day.entry(o.base.created_at.date()).or_insert(0.0) += o.total.to_f64().unwrap_or(0.0);
-        }
-        by_day
-            .into_iter()
-            .max_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal))
-            .filter(|(_, v)| *v > 0.0)
-            .map(|(d, _)| weekday_full(d.weekday()).to_string())
-            .unwrap_or_else(|| "".to_string())
-    };
-    let week_line_path = build_line_path(&week_daily);
-    let week_area_path = build_area_path(&week_daily);
-    // Pontos (x,y em fração 0..1 da área) p/ os marcadores + hover.
-    let line_max = week_daily.iter().cloned().fold(0.0_f64, f64::max);
-    let line_points: Vec<DashboardLinePoint> = week_daily
+    let series: Vec<f64> = m.period_series.iter().map(|b| f(b.revenue)).collect();
+    let week_line_path = build_line_path(&series);
+    let week_area_path = build_area_path(&series);
+    let line_max = series.iter().cloned().fold(0.0_f64, f64::max);
+    let line_points: Vec<DashboardLinePoint> = m
+        .period_series
         .iter()
         .enumerate()
-        .map(|(i, v)| {
-            let norm = if line_max > 0.0 { v / line_max } else { 0.0 };
+        .map(|(i, b)| {
+            let norm = if line_max > 0.0 { f(b.revenue) / line_max } else { 0.0 };
             DashboardLinePoint {
                 x: (i as f32) / 6.0,
                 y: (0.9 - norm * 0.8) as f32, // espelha build_line_path (margem 10/10)
-                value_display: SharedString::from(money_br(*v)),
-                label: series_labels.get(i).cloned().unwrap_or_default(),
+                value_display: SharedString::from(money_br(b.revenue)),
+                label: series_label(b),
             }
         })
         .collect();
-    let week_has_chart = week_daily.iter().any(|v| *v > 0.0001);
+    let week_has_chart = series.iter().any(|v| *v > 0.0001);
 
-    // ── Top Produtos (semana) ───────────────────────────────
-    let mut prod: HashMap<String, (f64, f64)> = HashMap::new(); // nome -> (receita, qtd)
-    for o in valid.iter().filter(|o| in_win(o.base.created_at.date())) {
-        for it in &o.items {
-            let e = prod.entry(it.product_name.clone()).or_insert((0.0, 0.0));
-            e.0 += it.subtotal.to_f64().unwrap_or(0.0);
-            e.1 += it.quantity;
-        }
-    }
-    let mut prod_vec: Vec<(String, f64, f64)> =
-        prod.into_iter().map(|(n, (r, q))| (n, r, q)).collect();
-    prod_vec.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
-    prod_vec.truncate(5);
-    let top_max_rev = prod_vec.first().map(|x| x.1).unwrap_or(0.0);
-    let top_products: Vec<DashboardTopProduct> = prod_vec
+    let win_label = match per {
+        DashboardPeriod::Today => "RECEITA DO DIA",
+        DashboardPeriod::Month => "RECEITA DO MÊS",
+        DashboardPeriod::Week => "RECEITA DA SEMANA",
+    };
+    let delta_suffix = match per {
+        DashboardPeriod::Today => "vs dia anterior",
+        DashboardPeriod::Month => "vs mês anterior",
+        DashboardPeriod::Week => "vs semana anterior",
+    };
+    // Melhor dia: "Hoje" no período diário; senão o dia de maior receita.
+    let week_best_day = if per == DashboardPeriod::Today {
+        "Hoje".to_string()
+    } else {
+        m.period_best_day
+            .map(|d| weekday_full(d.weekday()).to_string())
+            .unwrap_or_default()
+    };
+
+    // ── Top Produtos ────────────────────────────────────────
+    let top_max_rev = m.top_products.first().map(|p| f(p.revenue)).unwrap_or(0.0);
+    let top_products: Vec<DashboardTopProduct> = m
+        .top_products
         .iter()
         .enumerate()
-        .map(|(i, (n, r, q))| {
-            let progress = if top_max_rev > 0.0 { (*r / top_max_rev) as f32 } else { 0.0 };
+        .map(|(i, p)| {
+            let progress = if top_max_rev > 0.0 { (f(p.revenue) / top_max_rev) as f32 } else { 0.0 };
             DashboardTopProduct {
                 rank: (i + 1) as i32,
-                name: SharedString::from(n.as_str()),
-                revenue_display: SharedString::from(money_br(*r)),
-                sales_display: SharedString::from(format!("{} vendas", *q as i64)),
+                name: SharedString::from(p.name.as_str()),
+                revenue_display: SharedString::from(money_br(p.revenue)),
+                sales_display: SharedString::from(format!("{} vendas", p.quantity as i64)),
                 progress,
                 arc_commands: SharedString::from(donut_arc(0.0, progress as f64)),
             }
         })
         .collect();
 
-    // ── Formas de Pagamento (período) ───────────────────────
-    // Cores FIXAS por forma — iguais nos dois temas (vêm do snapshot,
-    // não do tema): Pix azul, Crédito vermelho, Débito amarelo,
-    // Dinheiro verde. Cartão é separado em Crédito e Débito.
-    let (mut pix, mut credit, mut debit, mut cash) = (0.0_f64, 0.0_f64, 0.0_f64, 0.0_f64);
-    for o in valid.iter().filter(|o| in_win(o.base.created_at.date())) {
-        match o.payment_method.as_deref() {
-            Some("pix") => pix += o.total.to_f64().unwrap_or(0.0),
-            Some("credit") => credit += o.total.to_f64().unwrap_or(0.0),
-            Some("debit") => debit += o.total.to_f64().unwrap_or(0.0),
-            Some("cash") => cash += o.total.to_f64().unwrap_or(0.0),
-            _ => {} // carteira / sem método — fora do donut
-        }
-    }
-    let pay_total = pix + credit + debit + cash;
+    // ── Formas de Pagamento ─────────────────────────────────
+    // Cores FIXAS por forma (iguais nos dois temas): Pix azul, Crédito
+    // vermelho, Débito amarelo, Dinheiro verde.
+    let pay = &m.payments;
+    let pay_total = pay.pix + pay.credit + pay.debit + pay.cash;
     let pal = [
-        ("Pix", pix, Color::from_rgb_u8(0x1E, 0x88, 0xE5), "pay-pix"),
-        ("Cartão Crédito", credit, Color::from_rgb_u8(0xE5, 0x39, 0x35), "pay-cartao-credito"),
-        ("Cartão Débito", debit, Color::from_rgb_u8(0xF9, 0xA8, 0x25), "pay-cartao-debito"),
-        ("Dinheiro", cash, Color::from_rgb_u8(0x2E, 0x7D, 0x32), "pay-dinheiro"),
+        ("Pix", pay.pix, Color::from_rgb_u8(0x1E, 0x88, 0xE5), "pay-pix"),
+        ("Cartão Crédito", pay.credit, Color::from_rgb_u8(0xE5, 0x39, 0x35), "pay-cartao-credito"),
+        ("Cartão Débito", pay.debit, Color::from_rgb_u8(0xF9, 0xA8, 0x25), "pay-cartao-debito"),
+        ("Dinheiro", pay.cash, Color::from_rgb_u8(0x2E, 0x7D, 0x32), "pay-dinheiro"),
     ];
     // Só inclui as formas com valor; se nada foi recebido, lista todas
     // zeradas (mostra os métodos aceitos).
-    let has_payments = pay_total > 0.0;
+    let pay_total_f = f(pay_total);
+    let has_payments = pay_total_f > 0.0;
     let mut acc = 0.0_f64;
     let payment_slices: Vec<DashboardPaymentSlice> = pal
         .iter()
-        .filter(|(_, val, _, _)| !has_payments || *val > 0.0)
+        .filter(|(_, val, _, _)| !has_payments || f(*val) > 0.0)
         .map(|(label, val, color, icon_key)| {
-            let frac = if pay_total > 0.0 { val / pay_total } else { 0.0 };
+            let frac = if pay_total_f > 0.0 { f(*val) / pay_total_f } else { 0.0 };
             let arc = donut_arc(acc, acc + frac);
             acc += frac;
             DashboardPaymentSlice {
@@ -441,20 +245,16 @@ pub(crate) fn build_snapshot(
 
     Snapshot {
         kpis,
-        sales_bars: sales_bar_rows,
+        sales_bars,
         compare_points,
         compare_label: compare_label.to_string(),
-        week_revenue: money_br(week_revenue_val),
+        week_revenue: money_br(m.period_revenue),
         week_revenue_label: win_label.to_string(),
-        week_delta: format_delta(week_delta, match period {
-            "today" => "vs dia anterior",
-            "month" => "vs mês anterior",
-            _ => "vs semana anterior",
-        }),
-        week_delta_tone: delta_tone(week_delta).to_string(),
+        week_delta: format_delta(m.period_revenue_delta, delta_suffix),
+        week_delta_tone: delta_tone(m.period_revenue_delta).to_string(),
         week_has_chart,
-        week_orders: week_orders_count.to_string(),
-        week_ticket: money_br(week_ticket_val),
+        week_orders: m.period_orders.to_string(),
+        week_ticket: money_br(m.period_ticket),
         week_best_day,
         week_line_path,
         week_area_path,
@@ -488,7 +288,7 @@ pub(crate) fn apply_to_ui(ui: &MainWindow, s: &Snapshot) {
     ui.set_dashboard_payment_total(SharedString::from(s.payment_total.as_str()));
 }
 
-// ── Helpers ──────────────────────────────────────────────────────
+// ── Helpers de apresentação ──────────────────────────────────────
 
 pub(crate) fn kpi(label: &str, value: &str, sub: &str, tone: &str) -> DashboardKpi {
     DashboardKpi {
@@ -496,18 +296,6 @@ pub(crate) fn kpi(label: &str, value: &str, sub: &str, tone: &str) -> DashboardK
         value_display: SharedString::from(value),
         sub_text: SharedString::from(sub),
         sub_tone: SharedString::from(tone),
-    }
-}
-
-pub(crate) fn pct_delta(current: f64, baseline: f64) -> Option<f64> {
-    if baseline.abs() < 0.005 {
-        if current.abs() < 0.005 {
-            Some(0.0)
-        } else {
-            None
-        }
-    } else {
-        Some((current - baseline) / baseline * 100.0)
     }
 }
 
@@ -574,21 +362,6 @@ pub(crate) fn weekday_full(w: Weekday) -> &'static str {
     }
 }
 
-fn days_in_month(year: i32, month: u32) -> u32 {
-    match month {
-        1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
-        4 | 6 | 9 | 11 => 30,
-        2 => {
-            if (year % 4 == 0 && year % 100 != 0) || year % 400 == 0 {
-                29
-            } else {
-                28
-            }
-        }
-        _ => 30,
-    }
-}
-
 fn month_pt(m: u32) -> &'static str {
     match m {
         1 => "janeiro", 2 => "fevereiro", 3 => "março", 4 => "abril",
@@ -603,9 +376,10 @@ fn subtitle_today(d: NaiveDate) -> String {
 }
 
 /// Moeda compacta com sufixo "k" para o centro do donut. Ex.: 11770 → "R$11,8k".
-fn money_k(v: f64) -> String {
-    if v >= 1000.0 {
-        format!("R${:.1}k", v / 1000.0).replace('.', ",")
+fn money_k(v: Decimal) -> String {
+    let vf = f(v);
+    if vf >= 1000.0 {
+        format!("R${:.1}k", vf / 1000.0).replace('.', ",")
     } else {
         money_br(v)
     }
