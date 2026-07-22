@@ -196,7 +196,7 @@ pub(crate) fn setup_sync_listener(
             if cycle_done.changed().await.is_err() { break; }
             let visible = {
                 let ui_weak2 = ui_weak.clone();
-                let (tx, rx) = std::sync::mpsc::channel();
+                let (tx, rx) = tokio::sync::oneshot::channel();
                 let _ = slint::invoke_from_event_loop(move || {
                     let active = ui_weak2
                         .upgrade()
@@ -204,7 +204,7 @@ pub(crate) fn setup_sync_listener(
                         .unwrap_or_default();
                     let _ = tx.send(active == "finance");
                 });
-                rx.recv().unwrap_or(false)
+                rx.await.unwrap_or(false)
             };
             if !visible {
                 continue;

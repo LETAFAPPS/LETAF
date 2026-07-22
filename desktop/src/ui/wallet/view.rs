@@ -59,7 +59,7 @@ pub(crate) fn setup_select_listener(
         loop {
             tokio::time::sleep(std::time::Duration::from_millis(500)).await;
             let current = {
-                let (tx, rx) = std::sync::mpsc::channel();
+                let (tx, rx) = tokio::sync::oneshot::channel();
                 let ui_weak2 = ui_weak.clone();
                 let _ = slint::invoke_from_event_loop(move || {
                     let id = ui_weak2
@@ -68,7 +68,7 @@ pub(crate) fn setup_select_listener(
                         .unwrap_or_default();
                     let _ = tx.send(id);
                 });
-                rx.recv().unwrap_or_default()
+                rx.await.unwrap_or_default()
             };
             let changed = {
                 let mut g = last_seen.lock().unwrap();

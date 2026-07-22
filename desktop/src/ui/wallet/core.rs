@@ -49,7 +49,7 @@ pub(crate) fn refresh_for_selected(
     let state = state.clone();
     handle.spawn(async move {
         let selected_id = {
-            let (tx, rx) = std::sync::mpsc::channel();
+            let (tx, rx) = tokio::sync::oneshot::channel();
             let ui_weak2 = ui_weak.clone();
             let _ = slint::invoke_from_event_loop(move || {
                 let id = ui_weak2
@@ -58,7 +58,7 @@ pub(crate) fn refresh_for_selected(
                     .unwrap_or_default();
                 let _ = tx.send(id);
             });
-            rx.recv().unwrap_or_default()
+            rx.await.unwrap_or_default()
         };
         let summary = build_summary(&state, &selected_id).await;
         let movements = if summary.has_account {

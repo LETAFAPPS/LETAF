@@ -1491,6 +1491,11 @@ export component MainWindow inherits Window {
                     root.dashboard-refresh();
                 } else if tab == "reports" {
                     root.report-refresh();
+                } else if tab == "subscription" {
+                    // Refresca ao ABRIR: o listener de sync só recomputa com a
+                    // aba visível (evitava requisição HTTP a cada 30s com a
+                    // tela fechada).
+                    root.subscription-refresh();
                 } else if tab == "admin-overview" || tab == "admin-companies"
                        || tab == "admin-subscriptions" || tab == "admin-admins"
                        || tab == "admin-plans" {
