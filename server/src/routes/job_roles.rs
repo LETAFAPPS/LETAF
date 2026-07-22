@@ -83,6 +83,7 @@ async fn create(
 ) -> Result<(StatusCode, Json<JobRole>), ServerError> {
     auth.verify_company(tenant.company_id)?;
     auth.require_permission(PERM_EDIT)?;
+    auth.require_can_grant(&body.permissions)?;
     let item = state
         .job_role_service
         .create(tenant.company_id, body.name, body.permissions)
@@ -99,6 +100,7 @@ async fn update(
 ) -> Result<Json<JobRole>, ServerError> {
     auth.verify_company(tenant.company_id)?;
     auth.require_permission(PERM_EDIT)?;
+    auth.require_can_grant(&body.permissions)?;
     let item = state
         .job_role_service
         .update(tenant.company_id, id, body.name, body.permissions)

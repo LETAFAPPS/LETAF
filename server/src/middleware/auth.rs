@@ -83,6 +83,66 @@ impl AuthClaims {
             Err(ServerError::Forbidden("Permissão insuficiente".into()))
         }
     }
+
+    /// Impede escalada de privilégio por delegação (§11): ao criar/editar uma
+    /// Função, o chamador só pode conceder permissões que ELE MESMO possui.
+    /// Sem isto, um gerente (Employee com `collaborators.edit`) montava uma
+    /// Função com `finance.*`/`cash.*`/`subscription.edit`, atribuía a si e
+    /// re-logava, ganhando acesso que nunca teve. Admin/SuperAdmin (acesso
+    /// total) podem conceder qualquer permissão.
+    pub fn require_can_grant(&self, perms: &[String]) -> Result<(), ServerError> {
+        if self.0.role == ROLE_ADMIN || self.0.role == ROLE_SUPER_ADMIN {
+            return Ok(());
+        }
+        if let Some(p) = perms.iter().find(|p| !self.0.perms.contains(p)) {
+            return Err(ServerError::Forbidden(format!(
+                "Você não pode conceder uma permissão que não possui: {p}"
+            )));
+        }
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::jwt::{Claims, ROLE_ADMIN, ROLE_EMPLOYEE};
+    use uuid::Uuid;
+
+    fn claims(role: &str, perms: &[&str]) -> AuthClaims {
+        AuthClaims(Claims {
+            sub: Uuid::new_v4(),
+            company_id: Uuid::new_v4(),
+            role: role.to_string(),
+            perms: perms.iter().map(|s| s.to_string()).collect(),
+            tv: 0,
+            exp: 0,
+        })
+    }
+
+    #[test]
+    fn funcionario_nao_concede_permissao_que_nao_tem() {
+        let gerente = claims(ROLE_EMPLOYEE, &["collaborators.view", "collaborators.edit"]);
+        // Tenta montar uma Função com finance.edit (que ele NÃO possui).
+        let err = gerente.require_can_grant(&["finance.edit".to_string()]);
+        assert!(err.is_err(), "escalada deveria ser bloqueada");
+    }
+
+    #[test]
+    fn funcionario_concede_o_que_possui() {
+        let gerente = claims(ROLE_EMPLOYEE, &["collaborators.view", "collaborators.edit", "orders.view"]);
+        assert!(gerente
+            .require_can_grant(&["orders.view".to_string(), "collaborators.view".to_string()])
+            .is_ok());
+    }
+
+    #[test]
+    fn admin_concede_qualquer_permissao() {
+        let admin = claims(ROLE_ADMIN, &[]);
+        assert!(admin
+            .require_can_grant(&["finance.edit".to_string(), "cash.view".to_string()])
+            .is_ok());
+    }
 }
 
 impl FromRequestParts<AppState> for AuthClaims {
