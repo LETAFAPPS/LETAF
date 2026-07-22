@@ -154,7 +154,7 @@ export component Sidebar inherits Rectangle {
                     clicked => { root.navigate("dashboard"); }
                 }
                 if root.store-access || root.nav.reports: SidebarItem {
-                    icon-source: @image-url("../assets/icons/1.2/reports.svg");
+                    icon-source: @image-url("../assets/icons/1.2/grafico.svg");
                     label: "Relatórios";
                     compact: !root.expanded;
                     active: root.active-tab == "reports";
