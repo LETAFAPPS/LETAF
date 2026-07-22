@@ -361,12 +361,6 @@ export component CustomersPage inherits Rectangle {
                     VerticalLayout {
                         alignment: start;
                         spacing: 4px;
-                        if root.customers.length == 0: EmptyState {
-                            art-size: 116px;
-                            source: @image-url("../assets/empty/passport.svg");
-                            title: "Nenhum cliente";
-                            subtitle: "Os clientes cadastrados aparecerão aqui";
-                        }
                         for c in root.customers: row-ta := TouchArea {
                             property <bool> sel: c.id == root.selected-customer-id;
                             height: 64px;
@@ -435,7 +429,15 @@ export component CustomersPage inherits Rectangle {
                 width: detail-rect.width;
                 height: detail-rect.height;
                 alignment: center;
-                Text {
+                // Base VAZIA → ilustração no centro da tela (não na lista).
+                if root.customers.length == 0: EmptyState {
+                    art-size: 140px;
+                    source: @image-url("../assets/empty/passport.svg");
+                    title: "Nenhum cliente";
+                    subtitle: "Cadastre o primeiro para começar";
+                }
+                // Há clientes, mas nenhum selecionado → instrução.
+                if root.customers.length > 0: Text {
                     text: "Selecione um cliente à esquerda para ver os detalhes.";
                     font-size: 14px; color: Theme.text-secondary;
                     horizontal-alignment: center;

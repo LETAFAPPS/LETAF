@@ -373,12 +373,6 @@ export component ProductsPage inherits Rectangle {
                     VerticalLayout {
                         alignment: start;
                         spacing: 2px;
-                        if root.products.length == 0: EmptyState {
-                            source: @image-url("../assets/empty/out-of-stock.svg");
-                            title: "Nenhum produto";
-                            subtitle: "Cadastre o primeiro para começar";
-                            art-size: 140px;
-                        }
                         for p in root.products: ProductRow {
                             data: p;
                             selected: p.id == root.selected-product-id;
@@ -400,7 +394,15 @@ export component ProductsPage inherits Rectangle {
                 height: detail-rect.height;
                 alignment: center;
                 spacing: 12px;
-                Text {
+                // Base VAZIA → ilustração no centro da tela (não na lista).
+                if root.products.length == 0: EmptyState {
+                    source: @image-url("../assets/empty/out-of-stock.svg");
+                    title: "Nenhum produto";
+                    subtitle: "Cadastre o primeiro para começar";
+                    art-size: 140px;
+                }
+                // Há produtos, mas nenhum selecionado → instrução.
+                if root.products.length > 0: Text {
                     text: "Selecione um produto à esquerda para ver os detalhes.";
                     font-size: 14px; color: Theme.text-secondary;
                     horizontal-alignment: center;

@@ -78,14 +78,15 @@ export component CouponsPage inherits Rectangle {
                 padding-left: 12px; padding-right: 12px;
                 padding-top: 12px; padding-bottom: 12px;
 
-                if root.coupons.length == 0: Card {
-                    VerticalLayout {
-                        padding: 24px;
-                        EmptyState {
-                            source: @image-url("../assets/empty/discount-voucher.svg");
-                            title: "Nenhum cupom";
-                            subtitle: "Crie cupons de desconto";
-                        }
+                // Estado vazio SEM Card: o card branco representa um item da
+                // lista — com a lista vazia ele viraria uma moldura sem
+                // conteúdo. A ilustração fica direto sobre o fundo.
+                if root.coupons.length == 0: VerticalLayout {
+                    padding: 24px;
+                    EmptyState {
+                        source: @image-url("../assets/empty/discount-voucher.svg");
+                        title: "Nenhum cupom";
+                        subtitle: "Crie cupons de desconto";
                     }
                 }
 

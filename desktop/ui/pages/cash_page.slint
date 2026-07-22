@@ -227,8 +227,11 @@ export component CashPage inherits VerticalLayout {
                             Text { text: s.status-label; font-size: 11px; color: Theme.text-secondary; width: 80px; horizontal-alignment: right; vertical-alignment: center; }
                         }
                     }
-                    if root.sessions.length == 0: Rectangle {
-                        height: 130px;
+                    // Respiro acima da ilustração: sem ele, a arte cola no
+                    // cabeçalho da tabela.
+                    if root.sessions.length == 0: VerticalLayout {
+                        padding-top: 48px;
+                        alignment: start;
                         EmptyState {
                             source: @image-url("../assets/empty/cash-register.svg");
                             title: "Caixa fechado";

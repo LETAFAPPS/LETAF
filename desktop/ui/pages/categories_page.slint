@@ -358,13 +358,23 @@ export component CategoriesPage inherits Rectangle {
         }
 
         // ── Vazio: nenhuma categoria selecionada ──
-        if root.selected-category-id == "": Rectangle {
+        // Layout centralizado de verdade (`alignment: center`) — antes o texto
+        // dependia de `height: parent.height` e acabava colado no rodapé.
+        if root.selected-category-id == "": VerticalLayout {
             vertical-stretch: 1;
-            Text {
+            alignment: center;
+            // Nenhuma categoria cadastrada → ilustração.
+            if root.category-tree.length == 0: EmptyState {
+                source: @image-url("../assets/empty/index.svg");
+                title: "Nenhuma categoria";
+                subtitle: "Crie a primeira para organizar seus produtos";
+                art-size: 140px;
+            }
+            // Existem categorias, mas nenhuma selecionada → instrução.
+            if root.category-tree.length > 0: Text {
                 text: "Selecione uma categoria acima para ver os detalhes.";
                 font-size: 14px; color: Theme.text-secondary;
-                horizontal-alignment: center; vertical-alignment: center;
-                width: parent.width; height: parent.height;
+                horizontal-alignment: center;
             }
         }
 
