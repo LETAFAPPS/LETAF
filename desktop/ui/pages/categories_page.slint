@@ -312,6 +312,9 @@ export component CategoriesPage inherits Rectangle {
 
         // ── Cabeçalho ──
         HorizontalLayout {
+            // Sem isto o cabeçalho (layout) assume stretch 1 e rouba parte do
+            // espaço livre, desalinhando o bloco central.
+            vertical-stretch: 0;
             spacing: 12px;
             VerticalLayout {
                 horizontal-stretch: 1;
@@ -348,6 +351,10 @@ export component CategoriesPage inherits Rectangle {
 
         // ── Chips de categoria ──
         HorizontalLayout {
+            // stretch 0: sem categorias esta linha fica VAZIA e, com o stretch
+            // padrão dos layouts (1), engolia metade do espaço livre — era o
+            // que jogava o estado vazio para o rodapé em vez do centro.
+            vertical-stretch: 0;
             spacing: 10px;
             alignment: start;
             for n in root.category-tree: CategoryChip {
