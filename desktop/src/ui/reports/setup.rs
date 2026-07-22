@@ -14,7 +14,7 @@ pub(crate) fn setup_reports(
     ui: &MainWindow,
     state: &DesktopState,
     handle: &tokio::runtime::Handle,
-    sync_cycle_done: Arc<tokio::sync::Notify>,
+    sync_cycle_done: tokio::sync::watch::Receiver<u64>,
 ) {
     let rs: Shared<ReportState> = Arc::new(std::sync::Mutex::new(ReportState::default()));
     let caches = Caches {
@@ -91,7 +91,7 @@ pub(crate) fn setup_sync_listener(
     ui: &MainWindow,
     state: &DesktopState,
     handle: &tokio::runtime::Handle,
-    cycle_done: Arc<tokio::sync::Notify>,
+    mut cycle_done: tokio::sync::watch::Receiver<u64>,
     rs: Shared<ReportState>,
     caches: Caches,
 ) {
@@ -99,7 +99,7 @@ pub(crate) fn setup_sync_listener(
     let state = state.clone();
     handle.spawn(async move {
         loop {
-            cycle_done.notified().await;
+            if cycle_done.changed().await.is_err() { break; }
             let visible = {
                 let ui_weak2 = ui_weak.clone();
                 let (tx, rx) = std::sync::mpsc::channel();

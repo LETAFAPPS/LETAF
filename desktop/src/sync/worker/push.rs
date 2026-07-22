@@ -91,12 +91,19 @@ impl SyncWorker {
         Ok(())
     }
 
-    /// Sincroniza empresas pendentes com o servidor.
+    /// Sincroniza a PRÓPRIA empresa pendente com o servidor.
+    ///
+    /// §Desktop: esta instalação representa UMA empresa. O SQLite local pode
+    /// conter outras `companies` (ex.: a empresa da plataforma, vinda do
+    /// seed), e empurrá-las é rejeitado com 400 — o tenant vem do JWT, não do
+    /// corpo (§11). Sem este filtro elas viravam registro "veneno": reenviadas
+    /// a cada ciclo, para sempre, mantendo a fila presa em ">0".
     pub(super) async fn sync_companies(&self, token: &str) -> Result<(), CoreError> {
+        let cid = self.state.company_id();
         let items = self.state.company_service
             .find_unsynced().await?;
 
-        for item in &items {
+        for item in items.iter().filter(|c| c.id == cid) {
             if self.send_one(token, "/sync/companies", item.id, item).await {
                 if let Err(e) = self.state.company_service.mark_synced(item.id).await {
                     tracing::warn!("mark_synced company {}: {e}", item.id);

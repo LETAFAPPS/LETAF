@@ -2,7 +2,7 @@ use std::collections::HashSet;
 use std::sync::Arc;
 
 use slint::{ComponentHandle, Model, SharedString, VecModel};
-use tokio::sync::Notify;
+use tokio::sync::{watch, Notify};
 use uuid::Uuid;
 
 
@@ -31,13 +31,13 @@ pub(crate) fn setup_sync_listener(
     state: &DesktopState,
     handle: &tokio::runtime::Handle,
     cache: Arc<std::sync::Mutex<Vec<DecodedProduct>>>,
-    cycle_done: Arc<Notify>,
+    mut cycle_done: watch::Receiver<u64>,
 ) {
     let ui_weak = ui.as_weak();
     let state = state.clone();
     handle.spawn(async move {
         loop {
-            cycle_done.notified().await;
+            if cycle_done.changed().await.is_err() { break; }
             // Lê IDs pendentes do banco (cheap — sem decodificar imagens).
             let cid = state.company_id();
             let pending_ids: HashSet<String> = match state.product_service.find_unsynced(cid).await {

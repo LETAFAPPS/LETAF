@@ -287,14 +287,14 @@ pub(crate) fn setup_sync_listener(
     ui: &MainWindow,
     state: &DesktopState,
     handle: &tokio::runtime::Handle,
-    cycle_done: Arc<tokio::sync::Notify>,
+    mut cycle_done: tokio::sync::watch::Receiver<u64>,
 ) {
     let ui_weak = ui.as_weak();
     let state = state.clone();
     let handle_inner = handle.clone();
     handle.spawn(async move {
         loop {
-            cycle_done.notified().await;
+            if cycle_done.changed().await.is_err() { break; }
             let visible = {
                 let (tx, rx) = std::sync::mpsc::channel();
                 let ui_weak2 = ui_weak.clone();

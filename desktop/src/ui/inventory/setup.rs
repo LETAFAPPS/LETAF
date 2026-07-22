@@ -21,7 +21,7 @@ pub(crate) fn setup_inventory(
     state: &DesktopState,
     handle: &tokio::runtime::Handle,
     sync_notify: Arc<tokio::sync::Notify>,
-    sync_cycle_done: Arc<tokio::sync::Notify>,
+    sync_cycle_done: tokio::sync::watch::Receiver<u64>,
 ) {
     let cache: SharedCache = Arc::new(std::sync::Mutex::new(Vec::new()));
     let cats_cache: SharedCategories = Arc::new(std::sync::Mutex::new(Vec::new()));
@@ -99,13 +99,13 @@ pub(crate) fn setup_sync_listener(
     ui: &MainWindow,
     state: &DesktopState,
     handle: &tokio::runtime::Handle,
-    cycle_done: Arc<tokio::sync::Notify>,
+    mut cycle_done: tokio::sync::watch::Receiver<u64>,
 ) {
     let ui_weak = ui.as_weak();
     let state = state.clone();
     handle.spawn(async move {
         loop {
-            cycle_done.notified().await;
+            if cycle_done.changed().await.is_err() { break; }
             // Apenas atualiza o contador de pendentes (cheap) — não
             // precisa redecodificar imagens nem reordenar a lista.
             let cid = state.company_id();

@@ -4,7 +4,7 @@ use rust_decimal::prelude::ToPrimitive;
 use chrono::{Datelike, Local, NaiveDate};
 use serde::Deserialize;
 use slint::{ComponentHandle, ModelRc, SharedString, VecModel};
-use tokio::sync::{Notify, RwLock};
+use tokio::sync::{watch, Notify, RwLock};
 
 use letaf_core::payment_method::model::PaymentMethod;
 use letaf_core::subscription::model::{Invoice, PlanKind, Subscription, SubscriptionStatus};
@@ -43,7 +43,7 @@ pub(crate) fn setup_subscription(
     state: &DesktopState,
     handle: &tokio::runtime::Handle,
     sync_notify: Arc<Notify>,
-    sync_cycle_done: Arc<Notify>,
+    sync_cycle_done: watch::Receiver<u64>,
     auth_token: Arc<RwLock<Option<String>>>,
     server_url: String,
 ) {
@@ -131,7 +131,7 @@ fn setup_sync_listener(
     ui: &MainWindow,
     state: &DesktopState,
     handle: &tokio::runtime::Handle,
-    sync_cycle_done: Arc<Notify>,
+    mut sync_cycle_done: watch::Receiver<u64>,
     auth_token: Arc<RwLock<Option<String>>>,
     server_url: String,
     catalog_cache: Arc<std::sync::Mutex<Vec<CatalogPlan>>>,
@@ -140,7 +140,7 @@ fn setup_sync_listener(
     let state = state.clone();
     handle.spawn(async move {
         loop {
-            sync_cycle_done.notified().await;
+            if sync_cycle_done.changed().await.is_err() { break; }
             reapply(&ui_weak, &state, &auth_token, &server_url, &catalog_cache).await;
         }
     });

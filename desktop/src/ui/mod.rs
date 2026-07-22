@@ -40,7 +40,7 @@ mod wallet;
 use std::sync::Arc;
 
 use slint::{ComponentHandle, SharedString};
-use tokio::sync::{Notify, RwLock};
+use tokio::sync::{watch, Notify, RwLock};
 use uuid::Uuid;
 
 use crate::MainWindow;
@@ -63,7 +63,7 @@ pub fn setup_callbacks(
     state: &DesktopState,
     handle: &tokio::runtime::Handle,
     sync_notify: Arc<Notify>,
-    sync_cycle_done: Arc<Notify>,
+    sync_cycle_done: watch::Receiver<u64>,
     badges_dirty: Arc<Notify>,
     auth_token: Arc<RwLock<Option<String>>>,
     server_url: String,

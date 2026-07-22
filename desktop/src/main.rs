@@ -114,7 +114,10 @@ fn main() {
     // Notify disparado pelo worker ao fim de cada ciclo — a UI usa
     // para atualizar o rótulo "Sincronizado/Aguardando sync" sem o
     // operador precisar sair/voltar na tela.
-    let sync_cycle_done = Arc::new(Notify::new());
+    // `watch` (não `Notify`): ~7 telas escutam o fim de ciclo. Com
+    // `notify_one` só UMA acordava por ciclo (rodízio) e a UI parecia
+    // "congelada"; com `watch` cada tela tem seu cursor e todas acordam.
+    let (sync_cycle_done, sync_cycle_rx) = tokio::sync::watch::channel(0u64);
     // Notify dedicado ao recompute dos badges da sidebar (ouvinte único),
     // separado do `cycle_done` para nunca perder um ciclo.
     let badges_dirty = Arc::new(Notify::new());
@@ -134,7 +137,7 @@ fn main() {
     }
 
     let initial_last_pull_at = rt.block_on(state.session.load_last_pull_at());
-    let worker = SyncWorker::new(state.clone(), server_url.clone(), auth_token.clone(), sync_notify.clone(), sync_cycle_done.clone(), badges_dirty.clone(), initial_last_pull_at);
+    let worker = SyncWorker::new(state.clone(), server_url.clone(), auth_token.clone(), sync_notify.clone(), sync_cycle_done, badges_dirty.clone(), initial_last_pull_at);
     rt.spawn(async move { worker.start().await });
     tracing::info!("SyncWorker spawned");
 
@@ -211,7 +214,7 @@ fn main() {
         &state,
         rt.handle(),
         sync_notify,
-        sync_cycle_done,
+        sync_cycle_rx,
         badges_dirty,
         auth_token,
         server_url,

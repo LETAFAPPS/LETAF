@@ -1,4 +1,3 @@
-use std::sync::Arc;
 
 use slint::ComponentHandle;
 
@@ -11,7 +10,7 @@ pub(crate) fn setup_dashboard(
     ui: &MainWindow,
     state: &DesktopState,
     handle: &tokio::runtime::Handle,
-    sync_cycle_done: Arc<tokio::sync::Notify>,
+    sync_cycle_done: tokio::sync::watch::Receiver<u64>,
 ) {
     setup_refresh(ui, state, handle);
     setup_sync_listener(ui, state, handle, sync_cycle_done);
@@ -56,12 +55,12 @@ pub(crate) fn setup_sync_listener(
     ui: &MainWindow,
     _state: &DesktopState,
     handle: &tokio::runtime::Handle,
-    cycle_done: Arc<tokio::sync::Notify>,
+    mut cycle_done: tokio::sync::watch::Receiver<u64>,
 ) {
     let ui_weak = ui.as_weak();
     handle.spawn(async move {
         loop {
-            cycle_done.notified().await;
+            if cycle_done.changed().await.is_err() { break; }
             let ui_weak2 = ui_weak.clone();
             let _ = slint::invoke_from_event_loop(move || {
                 if let Some(ui) = ui_weak2.upgrade() {

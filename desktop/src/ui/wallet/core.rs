@@ -18,7 +18,7 @@ pub(crate) fn setup_wallet(
     state: &DesktopState,
     handle: &tokio::runtime::Handle,
     sync_notify: Arc<tokio::sync::Notify>,
-    sync_cycle_done: Arc<tokio::sync::Notify>,
+    sync_cycle_done: tokio::sync::watch::Receiver<u64>,
 ) {
     setup_select_listener(ui, state, handle);
     setup_open_modals(ui);

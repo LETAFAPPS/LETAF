@@ -6,7 +6,7 @@ use chrono::NaiveDateTime;
 use reqwest::Client;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
-use tokio::sync::{Notify, RwLock};
+use tokio::sync::{watch, Notify, RwLock};
 use uuid::Uuid;
 
 use letaf_core::error::CoreError;
@@ -59,15 +59,15 @@ pub struct SyncWorker {
     http: Client,
     auth_token: Arc<RwLock<Option<String>>>,
     notify: Arc<Notify>,
-    /// Disparado ao final de cada ciclo (sucesso ou falha) — a UI usa
-    /// para refrescar telas que dependem do flag `synced` (ex.: rótulo
-    /// "Sincronizado" / "Aguardando sync" na master-detail de Produtos).
-    /// `notify_waiters` acorda todos os listeners; se ninguém estiver
-    /// escutando, é no-op.
-    cycle_done: Arc<Notify>,
+    /// Contador de ciclos difundido para TODAS as telas ao final de cada
+    /// ciclo (sucesso ou falha). É um `watch` — e não um `Notify` — porque
+    /// há ~7 ouvintes: `notify_one` acordaria só UM por ciclo (rodízio, cada
+    /// tela atualizando a cada 7 ciclos) e `notify_waiters` PERDERIA o aviso
+    /// para quem estivesse ocupado processando o ciclo anterior. Com `watch`
+    /// cada ouvinte tem seu próprio cursor: ninguém é preterido e nada se
+    /// perde (ciclos múltiplos coalescem num refresh só, que é o desejado).
+    cycle_done: watch::Sender<u64>,
     /// Notify DEDICADO ao recompute dos badges da sidebar (um só ouvinte).
-    /// Separado do `cycle_done` (7 ouvintes com `notify_one` rotativo) para
-    /// nunca perder um ciclo — dá o "tempo real" dos badges.
     badges_dirty: Arc<Notify>,
     /// Cursor de pull POR ENTIDADE (§7): cada entidade avança independente
     /// pelo próprio `max(updated_at)`. Um cursor global (único) fazia um
@@ -96,7 +96,7 @@ impl SyncWorker {
         server_url: String,
         auth_token: Arc<RwLock<Option<String>>>,
         notify: Arc<Notify>,
-        cycle_done: Arc<Notify>,
+        cycle_done: watch::Sender<u64>,
         badges_dirty: Arc<Notify>,
         initial_last_pull_at: Option<NaiveDateTime>,
     ) -> Self {
@@ -190,14 +190,11 @@ impl SyncWorker {
         // Notifica a UI para refrescar telas dependentes do `synced`
         // (master-detail de Produtos atualiza o rótulo abaixo do nome).
         //
-        // `notify_one` (em vez de `notify_waiters`) bufferiza um permit
-        // quando o listener está ocupado — `notify_waiters` PERDIA
-        // notificações se o listener estivesse no meio do trabalho
-        // anterior (find_unsynced + invoke_from_event_loop). Resultado
-        // visível: produto com imagem ficava "Aguardando sync" porque
-        // o ciclo do worker fechava enquanto o listener ainda
-        // processava o ciclo anterior.
-        self.cycle_done.notify_one();
+        // Incrementa o contador: acorda TODAS as telas (cada uma com seu
+        // próprio cursor no `watch`), inclusive as que estavam ocupadas
+        // processando o ciclo anterior. `send_modify` não falha quando não
+        // há nenhum receptor vivo.
+        self.cycle_done.send_modify(|v| *v = v.wrapping_add(1));
         // Badges da sidebar (ouvinte único e dedicado) — recompute a cada
         // ciclo, refletindo mudanças locais e vindas do pull em tempo real.
         self.badges_dirty.notify_one();
@@ -347,7 +344,14 @@ impl SyncWorker {
         add!(self.state.product_service.find_unsynced_stock_movements(cid), "stock_movements");
         add!(self.state.auth_service.find_unsynced(cid),          "users");
         add!(self.state.job_role_service.find_unsynced(cid),      "job_roles");
-        add!(self.state.company_service.find_unsynced(),          "companies");
+        // companies: conta SÓ a própria empresa — as demais nunca sobem
+        // (ver `sync_companies`), então não podem inflar a fila para sempre.
+        match self.state.company_service.find_unsynced().await {
+            Ok(items) => {
+                total = total.saturating_add(items.iter().filter(|c| c.id == cid).count() as u32)
+            }
+            Err(e) => tracing::debug!("count_pending companies: {e}"),
+        }
         add!(self.state.customer_service.find_unsynced(cid),      "customers");
         add!(self.state.category_service.find_unsynced(cid),      "categories");
         add!(self.state.subcategory_service.find_unsynced(cid),   "subcategories");

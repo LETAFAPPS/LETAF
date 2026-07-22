@@ -19,7 +19,7 @@ pub(crate) fn setup_finance(
     state: &DesktopState,
     handle: &tokio::runtime::Handle,
     sync_notify: Arc<tokio::sync::Notify>,
-    sync_cycle_done: Arc<tokio::sync::Notify>,
+    sync_cycle_done: tokio::sync::watch::Receiver<u64>,
 ) {
     let cal_state: CalStateHandle = Arc::new(std::sync::Mutex::new(CalState::today()));
     let due_cal: DueCalStateHandle = Arc::new(std::sync::Mutex::new(DueCalState::today()));
@@ -186,14 +186,14 @@ pub(crate) fn setup_sync_listener(
     ui: &MainWindow,
     state: &DesktopState,
     handle: &tokio::runtime::Handle,
-    cycle_done: Arc<tokio::sync::Notify>,
+    mut cycle_done: tokio::sync::watch::Receiver<u64>,
     cal: CalStateHandle,
 ) {
     let ui_weak = ui.as_weak();
     let state = state.clone();
     handle.spawn(async move {
         loop {
-            cycle_done.notified().await;
+            if cycle_done.changed().await.is_err() { break; }
             let visible = {
                 let ui_weak2 = ui_weak.clone();
                 let (tx, rx) = std::sync::mpsc::channel();
