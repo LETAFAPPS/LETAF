@@ -102,7 +102,11 @@ pub(crate) async fn sync_stock_movement(
     Json(movement): Json<StockMovement>,
 ) -> Result<Json<Value>, ServerError> {
     auth.verify_any_role(ROLES_OPERATORS)?;
-    auth.require_permission("products.edit")?;
+    // Ledger de estoque: carrega só delta + motivo (sem preço/nome), então o
+    // ESTOQUISTA (`stock.edit`) pode sincronizar seus ajustes — não precisa de
+    // `products.edit`. A guarda por delta idempotente mantém o servidor como
+    // autoridade do `stock_quantity`. §11.
+    auth.require_any_permission(&["stock.edit", "products.edit"])?;
     state
         .product_service
         .apply_stock_movement(auth.0.company_id, movement)

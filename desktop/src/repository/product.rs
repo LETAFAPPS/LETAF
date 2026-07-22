@@ -569,19 +569,24 @@ impl ProductRepository for SqliteProductRepository {
     ) -> Result<StockAdjustResult, CoreError> {
         let now = ts(chrono::Utc::now().naive_utc());
         let mut tx = self.pool.begin().await.map_err(map_db)?;
+        // Atualiza SÓ o materializado local de estoque. NÃO marca o produto
+        // `synced=0` nem bumpa `updated_at`: a mudança de estoque é carregada
+        // pelo LEDGER (StockMovement, inserido abaixo) — o servidor deriva o
+        // `stock_quantity` do delta (idempotente). Empurrar o produto seria
+        // redundante, além de exigir `products.edit` (o estoquista só tem
+        // `stock.edit`) e de reintroduzir o risco de double-count sobre o
+        // absoluto. Manter `updated_at` estável evita a reconciliação
+        // re-disparar o push do produto. §7.
         let result = sqlx::query(
             "UPDATE products
-                SET stock_quantity = stock_quantity + ?1,
-                    updated_at = ?2,
-                    synced = 0
-              WHERE company_id = ?3
-                AND id = ?4
+                SET stock_quantity = stock_quantity + ?1
+              WHERE company_id = ?2
+                AND id = ?3
                 AND deleted_at IS NULL
                 AND unlimited_stock = 0
                 AND stock_quantity + ?1 >= 0",
         )
         .bind(delta)
-        .bind(&now)
         .bind(company_id.to_string())
         .bind(product_id.to_string())
         .execute(&mut *tx)
@@ -879,5 +884,49 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(stock_of(&pool, id).await, 10.0, "sem pendência, converge ao servidor");
+    }
+
+    /// Ajuste de estoque atualiza o materializado local mas NÃO marca o produto
+    /// `synced=0` nem bumpa `updated_at` — a mudança viaja pelo ledger
+    /// (StockMovement). Isso evita o push redundante do produto (que exigiria
+    /// `products.edit` e reintroduziria double-count) e a reconciliação
+    /// re-disparando o push. O movimento é que fica pendente.
+    #[tokio::test]
+    async fn ajuste_de_estoque_nao_marca_produto_para_push() {
+        let (cid, id) = (Uuid::new_v4(), Uuid::new_v4());
+        let pool = mem_pool().await;
+        let repo = SqliteProductRepository::new(pool.clone());
+        repo.sync_upsert(&product_at(cid, id, 10.0, "2026-01-05 12:00:00.000000", true))
+            .await
+            .unwrap();
+
+        let r = repo.try_adjust_stock(cid, id, 5.0).await.unwrap();
+        assert!(matches!(r, StockAdjustResult::Adjusted));
+
+        // Estoque local subiu.
+        assert_eq!(stock_of(&pool, id).await, 15.0);
+
+        // Produto continua synced=1 e com updated_at estável → NÃO entra no push
+        // nem na reconciliação.
+        let (synced, updated): (bool, String) = sqlx::query_as(
+            "SELECT synced, updated_at FROM products WHERE id = ?1",
+        )
+        .bind(id.to_string())
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+        assert!(synced, "produto não deve ser marcado para push");
+        assert_eq!(updated, "2026-01-05 12:00:00.000000", "updated_at deve permanecer estável");
+
+        // Nenhum produto pendente; UM movimento pendente carrega a mudança.
+        assert!(repo.find_unsynced(cid).await.unwrap().is_empty(), "sem produto pendente");
+        let mv_pending: i64 = sqlx::query_scalar(
+            "SELECT count(*) FROM stock_movements WHERE product_id = ?1 AND synced = 0",
+        )
+        .bind(id.to_string())
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+        assert_eq!(mv_pending, 1, "o movimento (ledger) é que fica pendente");
     }
 }
