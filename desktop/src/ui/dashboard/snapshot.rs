@@ -1,5 +1,5 @@
 
-use chrono::{Datelike, Local, NaiveDate, Weekday};
+use chrono::{Datelike, NaiveDate, Weekday};
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use slint::{Color, ModelRc, SharedString, VecModel};
@@ -58,10 +58,16 @@ pub(crate) fn build_snapshot(
     online: bool,
     syncing: bool,
     period: &str,
+    utc_offset_minutes: i32,
 ) -> Snapshot {
-    let today = Local::now().date_naive();
+    // "Hoje" no fuso da LOJA — não no da máquina. `created_at` é UTC, então o
+    // core converte os pedidos com o mesmo offset; usar `Local::now()` aqui
+    // misturaria dois relógios.
+    let today = (chrono::Utc::now().naive_utc()
+        + chrono::Duration::minutes(utc_offset_minutes as i64))
+    .date();
     let per = DashboardPeriod::from_str(period);
-    let m = dashboard::compute(orders, today, per);
+    let m = dashboard::compute(orders, today, per, utc_offset_minutes);
 
     // ── KPIs ────────────────────────────────────────────────
     // Estado do sync: Aguardando (offline) > Sincronizando > Sincronizado.

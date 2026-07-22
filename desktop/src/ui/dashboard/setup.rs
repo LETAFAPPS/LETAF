@@ -33,13 +33,26 @@ pub(crate) fn setup_refresh(ui: &MainWindow, state: &DesktopState, handle: &toki
         handle.spawn(async move {
             let cid = state.company_id();
             let orders = state.order_service.find_all(cid).await.unwrap_or_default();
+            // Fuso da LOJA (mesmo campo que o servidor usa em
+            // `availability::local_now`): `created_at` é UTC, e sem converter
+            // uma venda das 21h em BRT cairia no dia seguinte. `_light` não
+            // carrega os blobs de logo/capa (§13).
+            let utc_offset = state
+                .company_service
+                .find_by_id_light(cid)
+                .await
+                .ok()
+                .flatten()
+                .map(|c| c.utc_offset_minutes)
+                .unwrap_or(0);
             // Estado do SyncWorker (online/fase/pendentes) — fonte do
             // card "Sincronização" (Sincronizado/Sincronizando/Aguardando).
             let st = state.sync_status.snapshot();
             let pending = st.pending_count as i32;
             let online = st.online;
             let syncing = st.phase == crate::sync::status::SyncPhase::Syncing;
-            let snapshot = build_snapshot(&orders, pending, online, syncing, &period);
+            let snapshot =
+                build_snapshot(&orders, pending, online, syncing, &period, utc_offset);
             let _ = slint::invoke_from_event_loop(move || {
                 if let Some(ui) = ui_weak.upgrade() {
                     apply_to_ui(&ui, &snapshot);
