@@ -22,9 +22,13 @@ pub(crate) async fn sync_order(
     Json(order): Json<Order>,
 ) -> Result<Json<Value>, ServerError> {
     auth.verify_any_role(ROLES_OPERATORS)?;
-    // Mesma barra do POST /orders (operar o PDV = orders.view): permite que o
-    // caixa sincronize as vendas que criou offline (§11).
-    auth.require_permission("orders.view")?;
+    // Criar/sincronizar pedido é capacidade tanto do gestor (`orders.view`)
+    // quanto do CAIXA que operou o PDV (`pdv.view`). O desktop libera o PDV por
+    // `pdv.view`; sem aceitá-lo aqui, um caixa com `pdv.view` sem `orders.view`
+    // criava a venda offline mas o push voltava 403 para sempre — dado preso.
+    // Não concede leitura (o pull segue gateado); só permite subir o que ele já
+    // podia criar no PDV. §11.
+    auth.require_any_permission(&["orders.view", "pdv.view"])?;
     state
         .order_service
         .sync_upsert(auth.0.company_id, order)

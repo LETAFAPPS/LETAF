@@ -84,6 +84,21 @@ impl AuthClaims {
         }
     }
 
+    /// Aceita se o token concede QUALQUER uma das permissões (RBAC).
+    /// Admin/SuperAdmin passam sempre. Usado quando uma mesma operação é
+    /// legítima por caminhos diferentes — ex.: sincronizar um pedido serve
+    /// tanto ao gestor (`orders.view`) quanto ao caixa que o criou (`pdv.view`).
+    pub fn require_any_permission(&self, perms: &[&str]) -> Result<(), ServerError> {
+        if self.0.role == ROLE_ADMIN || self.0.role == ROLE_SUPER_ADMIN {
+            return Ok(());
+        }
+        if perms.iter().any(|perm| self.0.perms.iter().any(|p| p == perm)) {
+            Ok(())
+        } else {
+            Err(ServerError::Forbidden("Permissão insuficiente".into()))
+        }
+    }
+
     /// Impede escalada de privilégio por delegação (§11): ao criar/editar uma
     /// Função, o chamador só pode conceder permissões que ELE MESMO possui.
     /// Sem isto, um gerente (Employee com `collaborators.edit`) montava uma
@@ -100,48 +115,6 @@ impl AuthClaims {
             )));
         }
         Ok(())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::jwt::{Claims, ROLE_ADMIN, ROLE_EMPLOYEE};
-    use uuid::Uuid;
-
-    fn claims(role: &str, perms: &[&str]) -> AuthClaims {
-        AuthClaims(Claims {
-            sub: Uuid::new_v4(),
-            company_id: Uuid::new_v4(),
-            role: role.to_string(),
-            perms: perms.iter().map(|s| s.to_string()).collect(),
-            tv: 0,
-            exp: 0,
-        })
-    }
-
-    #[test]
-    fn funcionario_nao_concede_permissao_que_nao_tem() {
-        let gerente = claims(ROLE_EMPLOYEE, &["collaborators.view", "collaborators.edit"]);
-        // Tenta montar uma Função com finance.edit (que ele NÃO possui).
-        let err = gerente.require_can_grant(&["finance.edit".to_string()]);
-        assert!(err.is_err(), "escalada deveria ser bloqueada");
-    }
-
-    #[test]
-    fn funcionario_concede_o_que_possui() {
-        let gerente = claims(ROLE_EMPLOYEE, &["collaborators.view", "collaborators.edit", "orders.view"]);
-        assert!(gerente
-            .require_can_grant(&["orders.view".to_string(), "collaborators.view".to_string()])
-            .is_ok());
-    }
-
-    #[test]
-    fn admin_concede_qualquer_permissao() {
-        let admin = claims(ROLE_ADMIN, &[]);
-        assert!(admin
-            .require_can_grant(&["finance.edit".to_string(), "cash.view".to_string()])
-            .is_ok());
     }
 }
 
@@ -189,5 +162,58 @@ impl FromRequestParts<AppState> for AuthClaims {
             }
         }
         Ok(AuthClaims(claims))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::jwt::{Claims, ROLE_ADMIN, ROLE_EMPLOYEE};
+    use uuid::Uuid;
+
+    fn claims(role: &str, perms: &[&str]) -> AuthClaims {
+        AuthClaims(Claims {
+            sub: Uuid::new_v4(),
+            company_id: Uuid::new_v4(),
+            role: role.to_string(),
+            perms: perms.iter().map(|s| s.to_string()).collect(),
+            tv: 0,
+            exp: 0,
+        })
+    }
+
+    #[test]
+    fn funcionario_nao_concede_permissao_que_nao_tem() {
+        let gerente = claims(ROLE_EMPLOYEE, &["collaborators.view", "collaborators.edit"]);
+        // Tenta montar uma Função com finance.edit (que ele NÃO possui).
+        let err = gerente.require_can_grant(&["finance.edit".to_string()]);
+        assert!(err.is_err(), "escalada deveria ser bloqueada");
+    }
+
+    #[test]
+    fn funcionario_concede_o_que_possui() {
+        let gerente = claims(ROLE_EMPLOYEE, &["collaborators.view", "collaborators.edit", "orders.view"]);
+        assert!(gerente
+            .require_can_grant(&["orders.view".to_string(), "collaborators.view".to_string()])
+            .is_ok());
+    }
+
+    #[test]
+    fn admin_concede_qualquer_permissao() {
+        let admin = claims(ROLE_ADMIN, &[]);
+        assert!(admin
+            .require_can_grant(&["finance.edit".to_string(), "cash.view".to_string()])
+            .is_ok());
+    }
+
+    #[test]
+    fn caixa_com_pdv_view_pode_sincronizar_pedido() {
+        // Caixa sem orders.view mas com pdv.view: o push de pedido deve passar
+        // (operar o PDV inclui criar/sincronizar a venda).
+        let caixa = claims(ROLE_EMPLOYEE, &["pdv.view", "cash.view"]);
+        assert!(caixa.require_any_permission(&["orders.view", "pdv.view"]).is_ok());
+        // Sem nenhuma das duas → bloqueado.
+        let estoquista = claims(ROLE_EMPLOYEE, &["stock.view"]);
+        assert!(estoquista.require_any_permission(&["orders.view", "pdv.view"]).is_err());
     }
 }
