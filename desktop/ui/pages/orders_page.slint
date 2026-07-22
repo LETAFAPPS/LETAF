@@ -210,8 +210,9 @@ component KanbanColumn inherits VerticalLayout {
                     advance-order => { root.advance-order(o.id); }
                 }
             }
-            // Estado vazio da coluna: ilustração compacta tingida com o
-            // accent do status (mantém o código de cor por coluna).
+            // Estado vazio da coluna: ilustração compacta (cores próprias da
+            // arte). O código de cor por status fica na BORDA da caixa, não na
+            // ilustração.
             if root.data.orders.length == 0: Rectangle {
                 height: 140px;
                 border-radius: 10px;
@@ -219,7 +220,7 @@ component KanbanColumn inherits VerticalLayout {
                 border-color: root.accent.transparentize(0.55);
                 background: transparent;
                 EmptyState {
-                    source: @image-url("../assets/empty/purchase.svg");
+                    source: @image-url("../assets/empty/papers.svg");
                     art-size: 90px;
                 }
             }
