@@ -4,11 +4,18 @@ use rust_decimal::prelude::ToPrimitive;
 use slint::{Color, ModelRc, SharedString, VecModel};
 use uuid::Uuid;
 
+use letaf_core::finance::analytics;
 use letaf_core::finance::model::{
     FinanceEntry, FinanceKind, FinanceStatus,
 };
 use letaf_core::finance_category::model::FinanceCategory;
-use letaf_core::order::model::{Order, OrderStatus};
+use letaf_core::order::model::Order;
+
+/// `Decimal` → `f64` só para formatação/geometria (o dinheiro exato vem do
+/// analytics do core).
+fn f(v: rust_decimal::Decimal) -> f64 {
+    v.to_f64().unwrap_or(0.0)
+}
 
 fn money_br(v: f64) -> String {
     crate::format::money_br_f64(v)
@@ -126,38 +133,15 @@ pub(crate) fn build_snapshot(
 ) -> Snapshot {
     let today = Local::now().date_naive();
 
-    // KPIs agregados em cima do conjunto inteiro (não-filtrado por aba/busca).
-    let mut to_receive = 0.0_f64;
-    let mut to_pay = 0.0_f64;
-    let mut overdue = 0.0_f64;
-    let mut overdue_count = 0_i64;
-    let mut count_receivable_open = 0_i64;
-    let mut count_payable_open = 0_i64;
-    let mut total_receivable_open = 0.0_f64;
-    let mut total_payable_open = 0.0_f64;
-
-    for e in entries {
-        if e.status == FinanceStatus::Cancelled || e.status.is_settled() {
-            continue;
-        }
-        match e.kind {
-            FinanceKind::Receivable => {
-                to_receive += e.amount.to_f64().unwrap_or(0.0);
-                count_receivable_open += 1;
-                total_receivable_open += e.amount.to_f64().unwrap_or(0.0);
-            }
-            FinanceKind::Payable => {
-                to_pay += e.amount.to_f64().unwrap_or(0.0);
-                count_payable_open += 1;
-                total_payable_open += e.amount.to_f64().unwrap_or(0.0);
-            }
-        }
-        if e.is_overdue(today) {
-            overdue += e.amount.to_f64().unwrap_or(0.0);
-            overdue_count += 1;
-        }
-    }
-    let expected_balance = to_receive - to_pay;
+    // KPIs: toda a agregação (dinheiro exato em Decimal) vem do core (§3).
+    let s = analytics::summary(entries, today);
+    let to_receive = f(s.to_receive);
+    let to_pay = f(s.to_pay);
+    let overdue = f(s.overdue);
+    let overdue_count = s.overdue_count as i64;
+    let count_receivable_open = s.count_receivable_open as i64;
+    let count_payable_open = s.count_payable_open as i64;
+    let expected_balance = f(s.expected_balance());
 
     // SALDO PREVISTO e VENCIDOS neutros (text-primary, seguem o tema);
     // VENCIDOS é o 2º card. A cor passada é ignorada (value_neutral).
@@ -197,18 +181,8 @@ pub(crate) fn build_snapshot(
     ];
 
     let tabs = vec![
-        tab(
-            "receivable",
-            "A Receber",
-            count_receivable_open,
-            total_receivable_open,
-        ),
-        tab(
-            "payable",
-            "A Pagar",
-            count_payable_open,
-            total_payable_open,
-        ),
+        tab("receivable", "A Receber", count_receivable_open, to_receive),
+        tab("payable", "A Pagar", count_payable_open, to_pay),
     ];
 
     // Lista crua (filtragem por aba/busca acontece no apply via UI props).
@@ -265,33 +239,21 @@ pub(crate) fn build_calendar(entries: &[FinanceEntry], today: NaiveDate, cal: &C
     let month = cal.month;
     let first_of_month = NaiveDate::from_ymd_opt(year, month, 1)
         .unwrap_or_else(|| Local::now().date_naive());
-    let days_in_month = days_in_month(year, month) as i64;
     // Início do grid = domingo da semana que contém o dia 1.
     let weekday_of_first = first_of_month.weekday();
     let offset = weekday_of_first.num_days_from_sunday() as i64;
     let grid_start = first_of_month - Duration::days(offset);
 
-    let mut by_day: std::collections::HashMap<NaiveDate, (i64, f64, f64)> =
-        std::collections::HashMap::new();
-    for e in entries {
-        if e.status == FinanceStatus::Cancelled || e.base.deleted_at.is_some() {
-            continue;
-        }
-        let entry = by_day.entry(e.due_date).or_insert((0, 0.0, 0.0));
-        entry.0 += 1;
-        match e.kind {
-            FinanceKind::Receivable => entry.1 += e.amount.to_f64().unwrap_or(0.0),
-            FinanceKind::Payable => entry.2 += e.amount.to_f64().unwrap_or(0.0),
-        }
-    }
+    // Agregação por dia (exata, no core §3); a UI só monta o grid e formata.
+    let by_day = analytics::day_aggregates(entries);
 
     let cells: Vec<CalendarCellRaw> = (0..42)
         .map(|i| {
             let d = grid_start + Duration::days(i as i64);
             let in_month = d.month() == month && d.year() == year;
-            let agg = by_day.get(&d).copied().unwrap_or((0, 0.0, 0.0));
-            let (count, inflow, outflow) = agg;
-            let net = inflow - outflow;
+            let agg = by_day.get(&d);
+            let count = agg.map(|a| a.count as i64).unwrap_or(0);
+            let net = agg.map(|a| f(a.net())).unwrap_or(0.0);
             let (total_display, total_tone) = if count == 0 {
                 (String::new(), "neutral".to_string())
             } else if net > 0.0 {
@@ -319,7 +281,7 @@ pub(crate) fn build_calendar(entries: &[FinanceEntry], today: NaiveDate, cal: &C
     let month_net: f64 = by_day
         .iter()
         .filter(|(d, _)| d.year() == year && d.month() == month)
-        .map(|(_, (_, inflow, outflow))| inflow - outflow)
+        .map(|(_, agg)| f(agg.net()))
         .sum();
     let month_total = money_signed(month_net);
     let title = format!("{} · {}", month_pt(month), year);
@@ -406,11 +368,6 @@ pub(crate) fn build_calendar(entries: &[FinanceEntry], today: NaiveDate, cal: &C
         }
     }
 
-    // `days_in_month` é informativo para os logs; pra evitar warning,
-    // referencia o valor (cobre garantia de range correto se mudar de
-    // estratégia de geração do grid no futuro).
-    let _ = days_in_month;
-
     CalendarBundle {
         title,
         month_total,
@@ -420,13 +377,6 @@ pub(crate) fn build_calendar(entries: &[FinanceEntry], today: NaiveDate, cal: &C
         detail_rows,
         selected_key,
     }
-}
-
-pub(crate) fn days_in_month(year: i32, month: u32) -> u32 {
-    let (ny, nm) = if month == 12 { (year + 1, 1) } else { (year, month + 1) };
-    let first_next = NaiveDate::from_ymd_opt(ny, nm, 1).unwrap();
-    let last_this = first_next - Duration::days(1);
-    last_this.day()
 }
 
 pub(crate) fn month_pt(m: u32) -> &'static str {
@@ -455,82 +405,25 @@ pub(crate) fn build_cash_flow(
     today: NaiveDate,
     days: i64,
 ) -> (Vec<CashFlowRaw>, String) {
-    let span = days.max(1) as usize;
-    let mut inflows = vec![0.0_f64; span];
-    let mut outflows = vec![0.0_f64; span];
+    // Os NÚMEROS (entradas/saídas/saldo por dia, exatos) vêm do core; aqui só
+    // normalizamos para barras e formatamos rótulo/tooltip (§3).
+    let flow = analytics::cash_flow(entries, orders, today, days);
 
-    let in_range = |d: NaiveDate| -> Option<usize> {
-        let i = (d - today).num_days();
-        if (0..span as i64).contains(&i) {
-            Some(i as usize)
-        } else {
-            None
-        }
-    };
-
-    for e in entries {
-        if e.status == FinanceStatus::Cancelled {
-            continue;
-        }
-        // Liquidado → conta no dia da baixa.
-        if e.status.is_settled() {
-            if let Some(paid) = e.paid_at {
-                if let Some(idx) = in_range(paid.date()) {
-                    match e.kind {
-                        FinanceKind::Receivable => inflows[idx] += e.amount.to_f64().unwrap_or(0.0),
-                        FinanceKind::Payable => outflows[idx] += e.amount.to_f64().unwrap_or(0.0),
-                    }
-                }
-            }
-        } else {
-            // Pendente/agendado → previsão na due_date.
-            if let Some(idx) = in_range(e.due_date) {
-                match e.kind {
-                    FinanceKind::Receivable => inflows[idx] += e.amount.to_f64().unwrap_or(0.0),
-                    FinanceKind::Payable => outflows[idx] += e.amount.to_f64().unwrap_or(0.0),
-                }
-            }
-        }
-    }
-
-    // Vendas pagas do PDV — entrada no dia do pedido.
-    for o in orders {
-        if o.base.deleted_at.is_some() || o.status == OrderStatus::Cancelled {
-            continue;
-        }
-        if o.payment_method.is_none() {
-            continue;
-        }
-        let day = o.base.created_at.date();
-        if let Some(idx) = in_range(day) {
-            inflows[idx] += o.total.to_f64().unwrap_or(0.0);
-        }
-    }
-
-    // Saldo cumulativo a partir de 0 (caixa começa zerado para fins
-    // de gráfico relativo; o "saldo previsto" absoluto vai no header).
-    let mut balance = vec![0.0_f64; span];
-    let mut acc = 0.0_f64;
-    for i in 0..span {
-        acc += inflows[i] - outflows[i];
-        balance[i] = acc;
-    }
-
-    let max_flow = inflows
+    let max_flow = flow
         .iter()
-        .chain(outflows.iter())
-        .copied()
+        .flat_map(|d| [f(d.inflow), f(d.outflow)])
         .fold(0.0_f64, f64::max);
-    let min_balance = balance.iter().copied().fold(0.0_f64, f64::min);
-    let max_balance = balance.iter().copied().fold(0.0_f64, f64::max);
+    let min_balance = flow.iter().map(|d| f(d.balance)).fold(0.0_f64, f64::min);
+    let max_balance = flow.iter().map(|d| f(d.balance)).fold(0.0_f64, f64::max);
     let balance_range = (max_balance - min_balance).max(0.001);
 
-    let points = (0..span)
-        .map(|i| {
-            let day = today + Duration::days(i as i64);
-            let inflow = inflows[i];
-            let outflow = outflows[i];
-            let bal = balance[i];
+    let points = flow
+        .iter()
+        .enumerate()
+        .map(|(i, d)| {
+            let inflow = f(d.inflow);
+            let outflow = f(d.outflow);
+            let bal = f(d.balance);
             let label = if i == 0 || (i + 1) % 7 == 0 {
                 format!("d{}", i + 1)
             } else {
@@ -539,26 +432,18 @@ pub(crate) fn build_cash_flow(
             let tooltip = if inflow > 0.0 || outflow > 0.0 {
                 format!(
                     "{} · Entradas {} · Saídas {} · Saldo {}",
-                    day.format("%d/%m"),
+                    d.date.format("%d/%m"),
                     money_br(inflow),
                     money_signed(-outflow),
                     money_signed(bal),
                 )
             } else {
-                format!("{} · sem movimentos", day.format("%d/%m"))
+                format!("{} · sem movimentos", d.date.format("%d/%m"))
             };
             CashFlowRaw {
                 label,
-                inflow_progress: if max_flow > 0.0 {
-                    (inflow / max_flow) as f32
-                } else {
-                    0.0
-                },
-                outflow_progress: if max_flow > 0.0 {
-                    (outflow / max_flow) as f32
-                } else {
-                    0.0
-                },
+                inflow_progress: if max_flow > 0.0 { (inflow / max_flow) as f32 } else { 0.0 },
+                outflow_progress: if max_flow > 0.0 { (outflow / max_flow) as f32 } else { 0.0 },
                 balance_progress: ((bal - min_balance) / balance_range) as f32,
                 tooltip,
                 today: i == 0,
@@ -566,9 +451,10 @@ pub(crate) fn build_cash_flow(
         })
         .collect();
 
+    let final_balance = flow.last().map(|d| f(d.balance)).unwrap_or(0.0);
     let summary = format!(
         "Projeção com base nos lançamentos atuais · saldo previsto {}",
-        money_signed(balance[span - 1]),
+        money_signed(final_balance),
     );
     (points, summary)
 }

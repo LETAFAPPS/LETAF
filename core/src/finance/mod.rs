@@ -7,6 +7,7 @@
 //!   pai → filhos com cópia dos campos imutáveis), permitindo cancelar
 //!   apenas uma parcela sem perder o cabeçalho.
 
+pub mod analytics;
 pub mod model;
 pub mod repository;
 pub mod service;
