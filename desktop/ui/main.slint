@@ -1451,6 +1451,7 @@ export component MainWindow inherits Window {
             sync-status-label: root.sync-status-label;
             sync-last-label: root.sync-last-label;
             sync-pending-count: root.sync-pending-count;
+            dark-mode-changed(d) => { root.dark-mode-changed(d); }
             navigate(tab) => {
                 root.active-tab = tab;
                 root.show-modal = false;
@@ -2300,7 +2301,6 @@ export component MainWindow inherits Window {
                 format-store-phone(t) => { root.format-store-phone(t) }
                 format-store-document(t) => { root.format-store-document(t) }
                 format-store-zip(t) => { root.format-store-zip(t) }
-                dark-mode-changed(d) => { root.dark-mode-changed(d); }
                 request-edit-bh(bh) => {
                     root.bh-editing-day = bh.day-of-week;
                     root.bh-editing-day-name = bh.day-name;

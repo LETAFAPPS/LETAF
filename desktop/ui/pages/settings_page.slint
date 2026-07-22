@@ -157,7 +157,6 @@ export component SettingsPage inherits VerticalLayout {
     callback format-store-phone(string) -> string;
     callback format-store-document(string) -> string;
     callback format-store-zip(string) -> string;
-    callback dark-mode-changed(bool);
 
     private property <int> logo-tick: 0;
     private property <int> cover-tick: 0;
@@ -204,8 +203,7 @@ export component SettingsPage inherits VerticalLayout {
         VerticalLayout {
             alignment: center;
             save-all-ta := TouchArea {
-                // Largura ajustada ao texto curto ("Salvar Alterações");
-                // altura igual ao toggle de tema à direita.
+                // Largura ajustada ao texto curto ("Salvar Alterações").
                 width: 140px; height: 28px;
                 clicked => { root.save-store-info(); }
                 Rectangle {
@@ -222,34 +220,6 @@ export component SettingsPage inherits VerticalLayout {
             }
         }
 
-        VerticalLayout {
-            alignment: center;
-            theme-btn := TouchArea {
-                width: 28px;
-                height: 28px;
-                clicked => {
-                    Theme.dark-mode = !Theme.dark-mode;
-                    root.dark-mode-changed(Theme.dark-mode);
-                }
-                Rectangle {
-                    width: parent.width;
-                    height: parent.height;
-                    border-radius: 6px;
-                    border-width: 1px;
-                    border-color: theme-btn.has-hover ? Theme.primary : Theme.border;
-                    background: theme-btn.has-hover ? Theme.row-hover : transparent;
-                    Text {
-                        text: Theme.dark-mode ? "\u{263C}" : "\u{263D}";
-                        font-size: 14px;
-                        width: parent.width;
-                        height: parent.height;
-                        horizontal-alignment: center;
-                        vertical-alignment: center;
-                        color: Theme.text-primary;
-                    }
-                }
-            }
-        }
     }
 
     // ── Layout em 2 linhas ────────────────────────────────────────────────
