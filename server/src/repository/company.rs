@@ -289,7 +289,12 @@ impl CompanyRepository for PgCompanyRepository {
                  products_per_page = EXCLUDED.products_per_page,
                  orders_per_page = EXCLUDED.orders_per_page,
                  updated_at = EXCLUDED.updated_at,
-                 deleted_at = EXCLUDED.deleted_at,
+                 -- deleted_at NÃO é atualizado no conflito: excluir a empresa é
+                 -- operação de plataforma/admin, nunca algo que um cliente de
+                 -- sync empurra. Aceitá-lo permitia a um operador com apenas
+                 -- `orders.view` marcar a própria empresa como excluída — e,
+                 -- como `find_id_by_subdomain` filtra `deleted_at IS NULL`, o
+                 -- tenant INTEIRO saía do ar (cardápio, login, checkout). §11.
                  synced = EXCLUDED.synced
              WHERE EXCLUDED.updated_at > companies.updated_at",
         )
