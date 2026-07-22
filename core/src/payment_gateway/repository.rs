@@ -15,12 +15,6 @@ pub trait PaymentChargeRepository: Send + Sync {
         id: Uuid,
     ) -> Result<Option<PaymentCharge>, CoreError>;
 
-    async fn find_by_txid(
-        &self,
-        company_id: Uuid,
-        txid: &str,
-    ) -> Result<Option<PaymentCharge>, CoreError>;
-
     async fn create(&self, charge: &PaymentCharge) -> Result<(), CoreError>;
     async fn update(&self, charge: &PaymentCharge) -> Result<(), CoreError>;
 }

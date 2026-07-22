@@ -88,23 +88,6 @@ impl PaymentChargeRepository for PgPaymentChargeRepository {
         .map_err(map_db)
     }
 
-    async fn find_by_txid(
-        &self,
-        company_id: Uuid,
-        txid: &str,
-    ) -> Result<Option<PaymentCharge>, CoreError> {
-        sqlx::query_as::<_, PaymentChargeRow>(
-            "SELECT * FROM payment_charges
-             WHERE company_id = $1 AND txid = $2 AND deleted_at IS NULL",
-        )
-        .bind(company_id)
-        .bind(txid)
-        .fetch_optional(&self.pool)
-        .await
-        .map(|opt| opt.map(PaymentCharge::from))
-        .map_err(map_db)
-    }
-
     async fn create(&self, c: &PaymentCharge) -> Result<(), CoreError> {
         sqlx::query(
             "INSERT INTO payment_charges
