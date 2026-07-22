@@ -222,6 +222,9 @@ component KanbanColumn inherits VerticalLayout {
                 EmptyState {
                     source: @image-url("../assets/empty/papers.svg");
                     art-size: 90px;
+                    // Levemente apagada: a coluna vazia é estado de repouso —
+                    // não deve competir por atenção com os cards de pedido.
+                    opacity: 0.6;
                 }
             }
         }
