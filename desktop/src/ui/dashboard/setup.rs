@@ -49,10 +49,11 @@ pub(crate) fn setup_refresh(ui: &MainWindow, state: &DesktopState, handle: &toki
             // card "Sincronização" (Sincronizado/Sincronizando/Aguardando).
             let st = state.sync_status.snapshot();
             let pending = st.pending_count as i32;
+            let rejected = st.rejected_count as i32;
             let online = st.online;
             let syncing = st.phase == crate::sync::status::SyncPhase::Syncing;
             let snapshot =
-                build_snapshot(&orders, pending, online, syncing, &period, utc_offset);
+                build_snapshot(&orders, pending, rejected, online, syncing, &period, utc_offset);
             let _ = slint::invoke_from_event_loop(move || {
                 if let Some(ui) = ui_weak.upgrade() {
                     apply_to_ui(&ui, &snapshot);

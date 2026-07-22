@@ -84,6 +84,10 @@ pub struct SyncWorker {
     /// de rede (timeout, DNS, conexão recusada) — diferenciando de erros de
     /// status HTTP (4xx/5xx) que indicam servidor acessível mas com problema.
     network_failed: Mutex<bool>,
+    /// Nº de registros rejeitados com erro de cliente (4xx, exceto 401) no
+    /// ciclo corrente — dado preso que não sobe sem intervenção. Reiniciado a
+    /// cada ciclo; publicado no `SyncStatus` para a UI mostrar o estado de erro.
+    push_rejected: std::sync::atomic::AtomicU32,
 }
 
 mod push;
@@ -120,6 +124,7 @@ impl SyncWorker {
             ),
             reconcile_tick: std::sync::atomic::AtomicU64::new(0),
             network_failed: Mutex::new(false),
+            push_rejected: std::sync::atomic::AtomicU32::new(0),
         }
     }
 
@@ -164,6 +169,7 @@ impl SyncWorker {
 
         // Início do ciclo
         if let Ok(mut g) = self.network_failed.lock() { *g = false; }
+        self.push_rejected.store(0, std::sync::atomic::Ordering::Relaxed);
         self.state.sync_status.mark_syncing();
 
         // Reconciliação (anti-entropia §7): no 1º ciclo (login) e a cada N
@@ -185,8 +191,9 @@ impl SyncWorker {
         let had_network_fail = self.network_failed.lock().map(|g| *g).unwrap_or(false);
         let online = !had_network_fail;
         let pending = self.count_pending().await;
+        let rejected = self.push_rejected.load(std::sync::atomic::Ordering::Relaxed);
         let now = chrono::Utc::now().naive_utc();
-        self.state.sync_status.mark_finished(online, now, pending);
+        self.state.sync_status.mark_finished(online, now, pending, rejected);
         // Notifica a UI para refrescar telas dependentes do `synced`
         // (master-detail de Produtos atualiza o rótulo abaixo do nome).
         //
@@ -583,7 +590,15 @@ impl SyncWorker {
                 false
             }
             Ok(resp) => {
-                tracing::warn!("Sync {endpoint} {id}: status {}", resp.status());
+                let status = resp.status();
+                // 4xx (exceto 401) = rejeição PERMANENTE: dado inválido ou
+                // permissão insuficiente. Reenviar a cada ciclo não resolve —
+                // conta como rejeitado para a UI sinalizar "há dado preso"
+                // (§7.6), em vez de mascarar como pendente/sincronizado.
+                if status.is_client_error() {
+                    self.push_rejected.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                }
+                tracing::warn!("Sync {endpoint} {id}: status {status}");
                 false
             }
             Err(e) => {

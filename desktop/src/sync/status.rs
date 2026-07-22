@@ -27,6 +27,12 @@ pub struct SyncStatus {
     pub online: bool,
     pub last_sync_at: Option<NaiveDateTime>,
     pub pending_count: u32,
+    /// Registros REJEITADOS pelo servidor com erro de cliente (4xx) no último
+    /// ciclo — dado que nunca vai subir sem intervenção (ex.: permissão
+    /// insuficiente, dado inválido). Diferente de `pending_count`, que pode ser
+    /// só "ainda não enviado". `> 0` acende o estado de erro para o operador ver
+    /// que há dado preso, em vez de um "Sincronizado" enganoso (§7.6).
+    pub rejected_count: u32,
 }
 
 impl Default for SyncStatus {
@@ -36,6 +42,7 @@ impl Default for SyncStatus {
             online: true,
             last_sync_at: None,
             pending_count: 0,
+            rejected_count: 0,
         }
     }
 }
@@ -70,14 +77,22 @@ impl SyncStatusHandle {
         online: bool,
         last_sync_at: NaiveDateTime,
         pending_count: u32,
+        rejected_count: u32,
     ) {
         if let Ok(mut g) = self.0.write() {
             g.online = online;
-            g.phase = if online { SyncPhase::Idle } else { SyncPhase::Error };
+            // Erro quando a rede caiu OU quando há dado rejeitado (4xx) preso —
+            // ambos são situações que o operador precisa enxergar.
+            g.phase = if !online || rejected_count > 0 {
+                SyncPhase::Error
+            } else {
+                SyncPhase::Idle
+            };
             if online {
                 g.last_sync_at = Some(last_sync_at);
             }
             g.pending_count = pending_count;
+            g.rejected_count = rejected_count;
         }
     }
 

@@ -52,9 +52,11 @@ pub(crate) struct Snapshot {
 /// Monta o snapshot de exibição do dashboard: chama o analytics do CORE
 /// (`dashboard::compute`, toda a regra de negócio, §3) e apenas MAPEIA o
 /// resultado para os tipos da UI — formatação pt-BR, cores e geometria (SVG).
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn build_snapshot(
     orders: &[Order],
     sync_pending: i32,
+    sync_rejected: i32,
     online: bool,
     syncing: bool,
     period: &str,
@@ -70,8 +72,11 @@ pub(crate) fn build_snapshot(
     let m = dashboard::compute(orders, today, per, utc_offset_minutes);
 
     // ── KPIs ────────────────────────────────────────────────
-    // Estado do sync: Aguardando (offline) > Sincronizando > Sincronizado.
-    let (sync_text, sync_tone) = if !online {
+    // Estado do sync: Erro (dado rejeitado/preso) > Aguardando (offline) >
+    // Sincronizando > Sincronizado.
+    let (sync_text, sync_tone) = if sync_rejected > 0 {
+        ("Falha no envio", "neg")
+    } else if !online {
         ("Aguardando", "neg")
     } else if syncing || sync_pending > 0 {
         ("Sincronizando", "warn")
