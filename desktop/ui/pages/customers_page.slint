@@ -80,7 +80,7 @@ component OrdersCard inherits Rectangle {
         // NÃO havia pedidos (com pedidos, as linhas têm largura
         // delimitada), empurrando a coluna InfoPanel para fora da tela.
         if root.orders.length == 0: EmptyState {
-            source: @image-url("../assets/empty/empty-orders.svg");
+            source: @image-url("../assets/empty/purchase.svg");
             title: "Nenhum pedido";
             art-size: 120px;
         }
@@ -182,7 +182,7 @@ component InfoPanel inherits Rectangle {
                 spacing: 10px;
                 Text { text: "Endereços"; font-size: Theme.fs-section; font-weight: Theme.fw-strong; color: Theme.text-primary; }
                 if root.addresses.length == 0: EmptyState {
-                    source: @image-url("../assets/empty/empty-addresses.svg");
+                    source: @image-url("../assets/empty/map.svg");
                     title: "Nenhum endereço";
                     art-size: 110px;
                 }
@@ -363,7 +363,7 @@ export component CustomersPage inherits Rectangle {
                         spacing: 4px;
                         if root.customers.length == 0: EmptyState {
                             art-size: 116px;
-                            source: @image-url("../assets/empty/empty-customers.svg");
+                            source: @image-url("../assets/empty/passport.svg");
                             title: "Nenhum cliente";
                             subtitle: "Os clientes cadastrados aparecerão aqui";
                         }

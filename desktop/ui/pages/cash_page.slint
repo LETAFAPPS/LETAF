@@ -230,7 +230,7 @@ export component CashPage inherits VerticalLayout {
                     if root.sessions.length == 0: Rectangle {
                         height: 130px;
                         EmptyState {
-                            source: @image-url("../assets/empty/empty-cash.svg");
+                            source: @image-url("../assets/empty/cash-register.svg");
                             title: "Caixa fechado";
                             subtitle: "Abra o caixa para operar";
                             art-size: 108px;
@@ -583,7 +583,7 @@ export component CashPage inherits VerticalLayout {
                         if root.movements.length == 0: Rectangle {
                             height: 130px;
                             EmptyState {
-                                source: @image-url("../assets/empty/empty-movements.svg");
+                                source: @image-url("../assets/empty/report-statement.svg");
                                 title: "Sem movimentações";
                                 art-size: 108px;
                             }

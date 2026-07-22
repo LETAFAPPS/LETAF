@@ -155,6 +155,14 @@ export component CustomerModal inherits Rectangle {
                     if root.editing-id != "": VerticalLayout {
                         spacing: 8px;
 
+                        // Cliente já salvo, porém sem endereços: mesma dica em
+                        // texto do caso acima (o modal é compacto — ilustração
+                        // de estado vazio ficaria desproporcional aqui).
+                        if root.customer-addresses.length == 0: Text {
+                            text: "Nenhum endereço cadastrado.";
+                            font-size: 11px; color: Theme.text-secondary;
+                        }
+
                         for a in root.customer-addresses: HorizontalLayout {
                             spacing: 8px;
                             VerticalLayout {

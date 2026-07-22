@@ -219,8 +219,7 @@ component KanbanColumn inherits VerticalLayout {
                 border-color: root.accent.transparentize(0.55);
                 background: transparent;
                 EmptyState {
-                    source: @image-url("../assets/empty/empty-orders.svg");
-                    tint: root.accent;
+                    source: @image-url("../assets/empty/purchase.svg");
                     art-size: 90px;
                 }
             }
@@ -492,7 +491,7 @@ export component OrdersPage inherits VerticalLayout {
     if root.order-detail-id == "" && root.order-filter-status != "all" && root.orders.length == 0: Rectangle {
         vertical-stretch: 1;
         EmptyState {
-            source: @image-url("../assets/empty/empty-orders.svg");
+            source: @image-url("../assets/empty/purchase.svg");
             title: "Nenhum pedido";
             subtitle: "Os pedidos aparecerão aqui";
         }

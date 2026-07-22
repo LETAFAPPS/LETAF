@@ -349,7 +349,7 @@ export component CollaboratorsPage inherits Rectangle {
                 spacing: 12px;
                 AddBtn { label: "Nova função"; clicked => { root.new-role(); } }
                 if root.roles.length == 0: EmptyState {
-                    source: @image-url("../assets/empty/empty-roles.svg");
+                    source: @image-url("../assets/empty/protection.svg");
                     title: "Nenhuma função";
                     subtitle: "Crie funções para organizar acessos";
                     art-size: 130px;
@@ -475,7 +475,7 @@ export component CollaboratorsPage inherits Rectangle {
                 spacing: 12px;
                 AddBtn { label: "Novo funcionário"; clicked => { root.new-employee(); } }
                 if root.employees.length == 0: EmptyState {
-                    source: @image-url("../assets/empty/empty-employees.svg");
+                    source: @image-url("../assets/empty/virtual-assistant.svg");
                     title: "Nenhum colaborador";
                     subtitle: "Cadastre a equipe do seu negócio";
                     art-size: 130px;

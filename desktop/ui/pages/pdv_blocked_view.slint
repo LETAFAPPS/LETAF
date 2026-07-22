@@ -14,7 +14,7 @@ import { EmptyState } from "../components/empty_state.slint";
 // - UI sem lógica de negócio; só renderiza e dispara `go-to-cash()`.
 // - Reusa o `EmptyState` do sistema (ilustração + título + apoio) em vez de
 //   reimplementar o layout — mesma linguagem visual das demais telas vazias.
-// - Só arte do sistema: `assets/empty/empty-cash.svg`. NADA de emoji (a fonte
+// - Só arte do sistema: `assets/empty/cash-register.svg`. NADA de emoji (a fonte
 //   não os renderiza de forma consistente e o glifo saía quebrado).
 // - O CTA replica o estilo das abas de Relatórios (contorno na cor de
 //   destaque, sem preenchimento), sem ícone.
@@ -39,7 +39,7 @@ export component PdvBlockedView inherits Rectangle {
 
                     // Ilustração + textos no padrão de estado vazio do sistema.
                     EmptyState {
-                        source: @image-url("../assets/empty/empty-cash.svg");
+                        source: @image-url("../assets/empty/cash-register.svg");
                         art-size: 128px;
                         title: "Caixa fechado";
                         subtitle: "Para registrar vendas no PDV é necessário abrir o caixa.";

@@ -643,8 +643,8 @@ export component PdvPage inherits VerticalLayout {
                 if root.products.length == 0: Rectangle {
                     EmptyState {
                         source: root.search-text != ""
-                            ? @image-url("../assets/empty/empty-search.svg")
-                            : @image-url("../assets/empty/empty-products.svg");
+                            ? @image-url("../assets/empty/not-found.svg")
+                            : @image-url("../assets/empty/out-of-stock.svg");
                         title: root.search-text != "" ? "Nada encontrado" : "Sem produtos";
                         subtitle: root.search-text != "" ? "Tente outro termo de busca" : "";
                         art-size: 130px;

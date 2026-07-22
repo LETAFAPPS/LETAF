@@ -1,16 +1,16 @@
-// Estado vazio reutilizável: ilustração monocromática (SVG de
-// `../assets/empty/`, arte quadrada de traço preto) + um rótulo curto
+// Estado vazio reutilizável: ilustração (SVG de `../assets/empty/`, arte
+// quadrada bicolor — traço cinza + acentos laranja da marca) + um rótulo curto
 // renderizado como texto Slint. O texto NÃO é embutido no SVG.
 //
 // Regras (AI_RULES.md §3, §8):
 // - Componente sem lógica de negócio; só renderiza a imagem e o texto.
-// - `colorize` tinge a arte pelo `tint` (segue o tema claro/escuro); as
-//   variações de opacidade do SVG (contorno x preenchimento) são
-//   preservadas, mantendo o efeito de duas tonalidades.
+// - Por padrão NÃO há `colorize`: a arte aparece com as cores originais. O
+//   `tint` existe só para casos que queiram forçar uma cor única (o que
+//   achata a ilustração para monocromática).
 //
 // Uso:
 //   EmptyState {
-//       source: @image-url("../assets/empty/empty-products.svg");
+//       source: @image-url("../assets/empty/out-of-stock.svg");
 //       title: "Nenhum produto";
 //       subtitle: "Cadastre o primeiro para começar";
 //   }
@@ -21,8 +21,10 @@ export component EmptyState inherits Rectangle {
     // Rótulo principal (curto) e apoio (opcional). Vazios → não aparecem.
     in property <string> title;
     in property <string> subtitle;
-    // Cor da ilustração; por padrão segue o tema (adapta claro/escuro).
-    in property <color> tint: Theme.text-secondary;
+    // Tingimento OPCIONAL da ilustração. Padrão `transparent` = SEM colorize,
+    // preservando as cores originais da arte (cinza + laranja da marca). Só
+    // defina se quiser forçar uma cor única (achata a arte para monocromática).
+    in property <color> tint: transparent;
     // Lado da ilustração (arte quadrada). Ajustável por local
     // (áreas grandes x painéis pequenos).
     in property <length> art-size: 132px;
