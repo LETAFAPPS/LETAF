@@ -158,17 +158,25 @@ pub(crate) fn setup_profile(
             let ui_weak = ui_weak.clone();
             handle.spawn_blocking(move || {
                 let Some(path) = pick_image_file() else { return };
-                let Some(encoded) = process_image_file(&path) else {
-                    tracing::error!("Falha ao processar avatar: {}", path.display());
-                    return;
-                };
-                let pixel = decode_pixel_buffer(&encoded);
+                // Feedback imediato: liga o spinner assim que o arquivo é
+                // escolhido (o processamento a seguir pode levar ~1s).
+                let uw = ui_weak.clone();
+                let _ = slint::invoke_from_event_loop(move || {
+                    if let Some(ui) = uw.upgrade() { ui.set_profile_avatar_loading(true); }
+                });
+                let encoded = process_image_file(&path);
+                let pixel = encoded.as_deref().and_then(decode_pixel_buffer);
                 let _ = slint::invoke_from_event_loop(move || {
                     let Some(ui) = ui_weak.upgrade() else { return };
-                    ui.set_profile_avatar(
-                        pixel.map(slint::Image::from_rgba8).unwrap_or_default(),
-                    );
-                    ui.set_profile_avatar_data(SharedString::from(encoded));
+                    ui.set_profile_avatar_loading(false);
+                    if let Some(enc) = encoded {
+                        ui.set_profile_avatar(
+                            pixel.map(slint::Image::from_rgba8).unwrap_or_default(),
+                        );
+                        ui.set_profile_avatar_data(SharedString::from(enc));
+                    } else {
+                        tracing::error!("Falha ao processar avatar: {}", path.display());
+                    }
                 });
             });
         });

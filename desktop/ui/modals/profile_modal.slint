@@ -22,6 +22,10 @@ export component ProfileModal inherits Rectangle {
     in property <bool> busy;
     /// Foto de perfil decodificada (vazia = sem foto → placeholder).
     in property <image> avatar;
+    /// `true` enquanto a foto escolhida está sendo processada.
+    in property <bool> avatar-loading: false;
+    // Ângulo do spinner de carregamento (girado por um Timer).
+    property <angle> spin: 0deg;
     callback save();
     callback close();
     /// Abre o seletor de arquivo nativo para escolher a foto (Rust).
@@ -54,8 +58,12 @@ export component ProfileModal inherits Rectangle {
                     HorizontalLayout {
                         spacing: 16px;
 
-                        // Avatar clicável (troca a foto).
-                        avatar-ta := TouchArea {
+                        // Avatar clicável (troca a foto). Envolto em
+                        // VerticalLayout p/ tamanho fixo dentro do layout
+                        // (mesmo padrão dos botões do rodapé do sidebar).
+                        VerticalLayout {
+                            alignment: center;
+                            avatar-ta := TouchArea {
                             width: 64px; height: 64px;
                             clicked => { root.pick-avatar(); }
                             Rectangle {
@@ -72,12 +80,29 @@ export component ProfileModal inherits Rectangle {
                                     width: 64px; height: 64px;
                                     source: root.avatar;
                                     image-fit: cover;
+                                    // Esmaece enquanto processa uma nova foto.
+                                    opacity: root.avatar-loading ? 0.35 : 1.0;
                                 }
                                 // Placeholder (sem foto): ícone de usuário.
-                                if root.avatar.width == 0: AssetIcon {
+                                if root.avatar.width == 0 && !root.avatar-loading: AssetIcon {
                                     width: 64px; height: 64px; icon-size: 30px;
                                     icon-color: Theme.btn-accent;
                                     source: @image-url("../assets/icons/1.2/user.svg");
+                                }
+                                // Spinner enquanto a imagem é processada.
+                                if root.avatar-loading: Image {
+                                    width: 24px; height: 24px;
+                                    x: (parent.width - self.width) / 2;
+                                    y: (parent.height - self.height) / 2;
+                                    source: @image-url("../assets/icons/1.2/atualizar.svg");
+                                    colorize: Theme.btn-accent;
+                                    image-fit: contain;
+                                    transform-rotation: root.spin;
+                                }
+                                Timer {
+                                    interval: 16ms;
+                                    running: root.avatar-loading;
+                                    triggered => { root.spin += 8deg; }
                                 }
                             }
                             // Selo de câmera no canto (indica "trocar foto").
@@ -94,6 +119,7 @@ export component ProfileModal inherits Rectangle {
                                     icon-color: white;
                                     source: @image-url("../assets/icons/1.2/camera.svg");
                                 }
+                            }
                             }
                         }
 
@@ -143,11 +169,14 @@ export component ProfileModal inherits Rectangle {
                     HorizontalLayout {
                         alignment: end;
                         OutlineBtn {
-                            label: root.busy ? "Salvando…" : "Salvar";
+                            label: root.avatar-loading ? "Processando…"
+                                : (root.busy ? "Salvando…" : "Salvar");
                             accent: true;
                             btn-color: Theme.btn-accent;
-                            width: 120px; height: 40px;
-                            clicked => { root.save(); }
+                            width: 130px; height: 40px;
+                            // Não salva enquanto a foto ainda processa — evita
+                            // gravar o avatar antigo (corrida).
+                            clicked => { if (!root.avatar-loading && !root.busy) { root.save(); } }
                         }
                     }
                 }

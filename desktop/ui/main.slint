@@ -167,6 +167,8 @@ export component MainWindow inherits Window {
     in-out property <image> profile-avatar;
     // Base64 da foto atual (reenviado no save; "" = sem foto).
     in-out property <string> profile-avatar-data: "";
+    // `true` enquanto a foto escolhida está sendo processada.
+    in-out property <bool> profile-avatar-loading: false;
     callback open-profile();
     callback profile-save();
     // Abre o seletor de arquivo e envia a nova foto (Rust).
@@ -2620,6 +2622,7 @@ export component MainWindow inherits Window {
         status: root.profile-status;
         busy: root.profile-busy;
         avatar: root.profile-avatar;
+        avatar-loading: root.profile-avatar-loading;
         save => { root.profile-save(); }
         pick-avatar => { root.profile-pick-avatar(); }
         close => { root.profile-open = false; }
