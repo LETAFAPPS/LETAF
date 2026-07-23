@@ -26,7 +26,11 @@ use super::helpers::show_toast;
 struct OverviewDto {
     companies: i64,
     active_subscriptions: i64,
+    overdue_subscriptions: i64,
+    cancelled_subscriptions: i64,
     super_admins: i64,
+    new_companies_month: i64,
+    mrr: String,
 }
 
 #[derive(Deserialize)]
@@ -157,7 +161,11 @@ fn setup_refresh(
                 if let Some(o) = overview {
                     ui.set_admin_companies_count(o.companies as i32);
                     ui.set_admin_active_subs(o.active_subscriptions as i32);
+                    ui.set_admin_overdue_subs(o.overdue_subscriptions as i32);
+                    ui.set_admin_cancelled_subs(o.cancelled_subscriptions as i32);
                     ui.set_admin_admins_count(o.super_admins as i32);
+                    ui.set_admin_new_companies_month(o.new_companies_month as i32);
+                    ui.set_admin_mrr(SharedString::from(o.mrr));
                 }
                 let company_rows: Vec<AdminCompanyRow> = companies
                     .into_iter()

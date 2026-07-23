@@ -3,16 +3,18 @@
 // que os busca online em GET /admin/overview.
 import { Theme } from "../theme.slint";
 
+// Card de contagem (número grande + rótulo). `accent` pinta o número na
+// cor de destaque (usado no cartão de receita).
 component KpiCard inherits Rectangle {
     in property <string> label;
-    in property <int> value;
-    in property <string> icon;
+    in property <string> value;
+    in property <bool> accent: false;
     horizontal-stretch: 1;
     height: 108px;
     background: Theme.surface;
     border-radius: 12px;
     border-width: 1px;
-    border-color: Theme.card-border;
+    border-color: root.accent ? Theme.btn-accent : Theme.card-border;
     drop-shadow-blur: 12px;
     drop-shadow-offset-y: 0px;
     drop-shadow-color: Theme.card-shadow;
@@ -22,8 +24,9 @@ component KpiCard inherits Rectangle {
         alignment: center;
         Text {
             text: root.value;
-            font-size: 30px; font-weight: 800;
-            color: Theme.text-primary;
+            font-size: root.accent ? 26px : 30px;
+            font-weight: 800;
+            color: root.accent ? Theme.btn-accent : Theme.text-primary;
         }
         Text {
             text: root.label;
@@ -32,10 +35,37 @@ component KpiCard inherits Rectangle {
     }
 }
 
+// Item da quebra de status (bolinha colorida + contagem + rótulo).
+component StatusItem inherits HorizontalLayout {
+    in property <string> label;
+    in property <int> value;
+    in property <color> dot;
+    spacing: 8px;
+    Rectangle {
+        width: 10px; height: 10px; border-radius: 5px;
+        background: root.dot;
+        y: (parent.height - self.height) / 2;
+    }
+    Text {
+        text: root.value;
+        font-size: 14px; font-weight: 800; color: Theme.text-primary;
+        vertical-alignment: center;
+    }
+    Text {
+        text: root.label;
+        font-size: 13px; color: Theme.text-secondary;
+        vertical-alignment: center;
+    }
+}
+
 export component AdminOverviewPage inherits VerticalLayout {
     in property <int> companies;
     in property <int> active-subs;
+    in property <int> overdue-subs;
+    in property <int> cancelled-subs;
     in property <int> admins;
+    in property <int> new-companies-month;
+    in property <string> mrr: "R$ 0,00";
     spacing: 8px;
 
     Text {
@@ -46,13 +76,44 @@ export component AdminOverviewPage inherits VerticalLayout {
         text: "Visão geral de todas as empresas do sistema.";
         font-size: 13px; color: Theme.text-secondary;
     }
+
+    // Linha primária: receita (destaque) + empresas + novas no mês.
     HorizontalLayout {
         padding-top: 12px;
         spacing: 16px;
-        KpiCard { label: "Empresas"; value: root.companies; }
-        KpiCard { label: "Assinaturas ativas"; value: root.active-subs; }
-        KpiCard { label: "Administradores"; value: root.admins; }
+        KpiCard { label: "Receita mensal (MRR)"; value: root.mrr; accent: true; }
+        KpiCard { label: "Empresas"; value: "\{root.companies}"; }
+        KpiCard { label: "Novas no mês"; value: "\{root.new-companies-month}"; }
+        KpiCard { label: "Administradores"; value: "\{root.admins}"; }
     }
-    // Empurra os cards para o topo.
+
+    // Quebra de status das assinaturas.
+    Rectangle {
+        height: 92px;
+        background: Theme.surface;
+        border-radius: 12px;
+        border-width: 1px;
+        border-color: Theme.card-border;
+        drop-shadow-blur: 12px;
+        drop-shadow-offset-y: 0px;
+        drop-shadow-color: Theme.card-shadow;
+        VerticalLayout {
+            padding: 18px;
+            spacing: 12px;
+            Text {
+                text: "Assinaturas por status";
+                font-size: 13px; font-weight: 700; color: Theme.text-secondary;
+            }
+            HorizontalLayout {
+                spacing: 32px;
+                alignment: start;
+                StatusItem { label: "Ativas"; value: root.active-subs; dot: #2E7D32; }
+                StatusItem { label: "Vencidas"; value: root.overdue-subs; dot: #E65100; }
+                StatusItem { label: "Canceladas"; value: root.cancelled-subs; dot: Theme.text-secondary; }
+            }
+        }
+    }
+
+    // Empurra o conteúdo para o topo.
     Rectangle { vertical-stretch: 1; }
 }

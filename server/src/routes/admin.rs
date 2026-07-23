@@ -73,7 +73,29 @@ async fn tenants(state: &AppState) -> Result<Vec<Company>, ServerError> {
 struct OverviewResponse {
     companies: usize,
     active_subscriptions: usize,
+    overdue_subscriptions: usize,
+    cancelled_subscriptions: usize,
     super_admins: usize,
+    /// Empresas (tenants) criadas no mês corrente.
+    new_companies_month: usize,
+    /// Receita mensal recorrente (MRR) das assinaturas ATIVAS, já em
+    /// pt-BR ("R$ 1.234,56"). Normaliza cada ciclo para o valor por mês.
+    mrr: String,
+}
+
+/// Formata um valor em reais no padrão pt-BR: "R$ 1.234,56".
+fn brl(v: Decimal) -> String {
+    let s = format!("{:.2}", v.max(Decimal::ZERO).to_f64().unwrap_or(0.0));
+    let (int_part, dec_part) = s.split_once('.').unwrap_or((s.as_str(), "00"));
+    let digits: Vec<char> = int_part.chars().collect();
+    let mut grouped = String::new();
+    for (i, c) in digits.iter().enumerate() {
+        if i > 0 && (digits.len() - i).is_multiple_of(3) {
+            grouped.push('.');
+        }
+        grouped.push(*c);
+    }
+    format!("R$ {grouped},{dec_part}")
 }
 
 async fn overview(
@@ -84,12 +106,43 @@ async fn overview(
     let tenants = tenants(&state).await?;
     let ids: Vec<Uuid> = tenants.iter().map(|c| c.id).collect();
     let subs = state.subscription_service.find_current_for_companies(&ids).await?;
-    let active = subs.iter().filter(|s| s.status.as_str() == "active").count();
+
+    let mut active = 0usize;
+    let mut overdue = 0usize;
+    let mut cancelled = 0usize;
+    let mut mrr = Decimal::ZERO;
+    for s in &subs {
+        match s.status.as_str() {
+            "active" => {
+                active += 1;
+                // Valor líquido do ciclo ÷ meses do ciclo = valor/mês.
+                let terms = state.subscription_service.terms(s);
+                mrr += terms.amount / Decimal::from(terms.months.max(1));
+            }
+            "overdue" => overdue += 1,
+            "cancelled" => cancelled += 1,
+            _ => {}
+        }
+    }
+
+    // Novas empresas no mês corrente.
+    let now = chrono::Utc::now().naive_utc();
+    let new_companies_month = tenants
+        .iter()
+        .filter(|c| {
+            c.created_at.format("%Y-%m").to_string() == now.format("%Y-%m").to_string()
+        })
+        .count();
+
     let admins = state.auth_service.find_all(auth.0.company_id).await?;
     Ok(Json(OverviewResponse {
         companies: tenants.len(),
         active_subscriptions: active,
+        overdue_subscriptions: overdue,
+        cancelled_subscriptions: cancelled,
         super_admins: admins.len(),
+        new_companies_month,
+        mrr: brl(mrr),
     }))
 }
 

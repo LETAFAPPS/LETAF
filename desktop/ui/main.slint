@@ -1025,7 +1025,11 @@ export component MainWindow inherits Window {
     // pelo Rust (ui/admin). O acesso é gateado no backend (§11).
     in-out property <int> admin-companies-count: 0;
     in-out property <int> admin-active-subs: 0;
+    in-out property <int> admin-overdue-subs: 0;
+    in-out property <int> admin-cancelled-subs: 0;
     in-out property <int> admin-admins-count: 0;
+    in-out property <int> admin-new-companies-month: 0;
+    in-out property <string> admin-mrr: "R$ 0,00";
     in-out property <[AdminCompanyRow]> admin-companies: [];
     in-out property <[AdminSubscriptionRow]> admin-subscriptions: [];
     in-out property <[AdminUserRow]> admin-users: [];
@@ -1637,7 +1641,11 @@ export component MainWindow inherits Window {
                 if root.active-tab == "admin-overview": AdminOverviewPage {
                     companies: root.admin-companies-count;
                     active-subs: root.admin-active-subs;
+                    overdue-subs: root.admin-overdue-subs;
+                    cancelled-subs: root.admin-cancelled-subs;
                     admins: root.admin-admins-count;
+                    new-companies-month: root.admin-new-companies-month;
+                    mrr: root.admin-mrr;
                 }
                 if root.active-tab == "admin-companies": AdminCompaniesPage {
                     companies: root.admin-companies;
