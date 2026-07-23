@@ -192,8 +192,13 @@ export component ActionBtn inherits TouchArea {
     in property <color> text-color: bg-color;
     /// Ícone opcional à esquerda do label (vazio = sem ícone).
     in property <image> icon;
-    height: 32px;
-    min-width: 80px;
+    height: 36px;
+    // Espaçamento texto↔borda IGUAL nos 4 lados: o padding horizontal é a
+    // própria folga vertical ((altura − altura da linha de texto) / 2). Usa
+    // uma constante para a altura da linha (fonte 14px ≈ 19px) — ler o
+    // `preferred-height` do layout aqui criaria loop com o padding. Sem
+    // `min-width` (que inflaria só as laterais) → o botão abraça o conteúdo.
+    property <length> gap: max(0px, (root.height - 19px) / 2);
 
     Rectangle {
         x: 0; y: 0;
@@ -207,9 +212,11 @@ export component ActionBtn inherits TouchArea {
             ? root.bg-color.transparentize(0.80)
             : root.bg-color.transparentize(0.90);
 
-        HorizontalLayout {
+        content := HorizontalLayout {
             alignment: center;
             spacing: 8px;
+            padding-left: root.gap;
+            padding-right: root.gap;
             if root.icon.width > 0: AssetIcon {
                 width: 18px; height: parent.height; icon-size: 16px;
                 icon-color: root.text-color;
@@ -245,8 +252,13 @@ export component OutlineBtn inherits TouchArea {
     in property <bool> neutral: false;
     // Cor efetiva de destaque: neutro → cinza (borda/texto); senão → btn-color.
     property <color> hl: root.neutral ? Theme.text-secondary : root.btn-color;
-    height: 32px;
-    min-width: 80px;
+    height: 36px;
+    // Espaçamento texto↔borda IGUAL nos 4 lados: o padding horizontal é a
+    // própria folga vertical ((altura − altura da linha de texto) / 2). Usa
+    // uma constante para a altura da linha (fonte 14px ≈ 19px) — ler o
+    // `preferred-height` do layout aqui criaria loop com o padding. Sem
+    // `min-width` (que inflaria só as laterais) → o botão abraça o conteúdo.
+    property <length> gap: max(0px, (root.height - 19px) / 2);
 
     Rectangle {
         x: 0; y: 0;
@@ -260,9 +272,11 @@ export component OutlineBtn inherits TouchArea {
             ? (root.has-hover ? Theme.row-hover : transparent)
             : (root.has-hover ? root.hl.transparentize(0.80) : root.hl.transparentize(0.90));
 
-        HorizontalLayout {
+        content := HorizontalLayout {
             alignment: center;
             spacing: 8px;
+            padding-left: root.gap;
+            padding-right: root.gap;
             if root.icon.width > 0: AssetIcon {
                 width: 16px; height: parent.height; icon-size: 16px;
                 icon-color: root.hl;

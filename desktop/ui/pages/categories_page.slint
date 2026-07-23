@@ -20,9 +20,12 @@ component IconBtn inherits TouchArea {
     in property <image> icon;
     in property <bool> filled: false;
     in property <color> accent: Theme.btn-accent;
-    height: 32px;
+    height: 36px;
     // Abraça o conteúdo (não estica): largura = rótulo + ícone.
     width: inner.preferred-width;
+    // Espaçamento texto↔borda igual nos 4 lados (padding = folga vertical;
+    // altura da linha de texto ≈ 19px para a fonte 14px).
+    property <length> gap: max(0px, (root.height - 19px) / 2);
     Rectangle {
         border-radius: 8px;
         border-width: 1.5px;
@@ -31,7 +34,7 @@ component IconBtn inherits TouchArea {
             ? root.accent.transparentize(0.80)
             : root.accent.transparentize(0.90);
         inner := HorizontalLayout {
-            padding-left: 16px; padding-right: 16px; spacing: 8px;
+            padding-left: root.gap; padding-right: root.gap; spacing: 8px;
             alignment: center;
             VerticalLayout {
                 alignment: center;
