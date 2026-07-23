@@ -16,7 +16,8 @@ use slint::{ComponentHandle, Model, ModelRc, SharedString, VecModel};
 use tokio::sync::RwLock;
 
 use crate::{
-    AdminCompanyRow, AdminPlanRow, AdminSubscriptionRow, AdminUserRow, MainWindow, HTTP_CLIENT,
+    AdminCompanyRow, AdminInvoiceRow, AdminPlanRow, AdminSubscriptionRow, AdminUserRow, MainWindow,
+    HTTP_CLIENT,
 };
 
 use super::helpers::show_toast;
@@ -42,6 +43,18 @@ struct CompanyDto {
     plan: String,
     status: String,
     active: bool,
+}
+
+#[derive(Deserialize)]
+struct InvoiceDto {
+    id: String,
+    number: String,
+    description: String,
+    amount: String,
+    status: String,
+    issued_at: String,
+    paid_at: String,
+    method: String,
 }
 
 #[derive(Deserialize)]
@@ -462,6 +475,90 @@ fn setup_persist(
                     .send()
                     .await;
                 report(ui_weak, result, "Administrador removido").await;
+            });
+        });
+    }
+    // Faturas: carregar o histórico da empresa em edição.
+    {
+        let ui_weak = ui.as_weak();
+        let handle = handle.clone();
+        let auth_token = auth_token.clone();
+        let server_url = server_url.to_string();
+        ui.on_admin_load_invoices(move |company_id| {
+            let company_id = company_id.to_string();
+            if company_id.is_empty() {
+                return;
+            }
+            let ui_weak = ui_weak.clone();
+            let auth_token = auth_token.clone();
+            let server_url = server_url.clone();
+            handle.spawn(async move {
+                let Some(token) = auth_token.read().await.clone() else { return };
+                let invoices: Vec<InvoiceDto> = get_json(
+                    &format!("{server_url}/admin/companies/{company_id}/invoices"),
+                    &token,
+                )
+                .await
+                .unwrap_or_default();
+                let _ = slint::invoke_from_event_loop(move || {
+                    let Some(ui) = ui_weak.upgrade() else { return };
+                    let rows: Vec<AdminInvoiceRow> = invoices
+                        .into_iter()
+                        .map(|i| AdminInvoiceRow {
+                            id: i.id.into(),
+                            number: i.number.into(),
+                            description: i.description.into(),
+                            amount: i.amount.into(),
+                            status: i.status.into(),
+                            issued_at: i.issued_at.into(),
+                            paid_at: i.paid_at.into(),
+                            method: i.method.into(),
+                        })
+                        .collect();
+                    ui.set_admin_invoices(ModelRc::new(VecModel::from(rows)));
+                });
+            });
+        });
+    }
+    // Faturas: baixa manual de uma fatura pendente.
+    {
+        let ui_weak = ui.as_weak();
+        let handle = handle.clone();
+        let auth_token = auth_token.clone();
+        let server_url = server_url.to_string();
+        ui.on_admin_mark_invoice_paid(move |invoice_id| {
+            let Some(ui) = ui_weak.upgrade() else { return };
+            let company_id = ui.get_admin_sub_edit_company_id().to_string();
+            let invoice_id = invoice_id.to_string();
+            if company_id.is_empty() || invoice_id.is_empty() {
+                return;
+            }
+            let ui_weak = ui.as_weak();
+            let auth_token = auth_token.clone();
+            let server_url = server_url.clone();
+            handle.spawn(async move {
+                let Some(token) = auth_token.read().await.clone() else { return };
+                let result = HTTP_CLIENT
+                    .put(format!(
+                        "{server_url}/admin/companies/{company_id}/invoices/{invoice_id}/paid"
+                    ))
+                    .bearer_auth(&token)
+                    .send()
+                    .await;
+                let outcome = write_outcome(result).await;
+                let _ = slint::invoke_from_event_loop(move || {
+                    let Some(ui) = ui_weak.upgrade() else { return };
+                    match outcome {
+                        Ok(()) => {
+                            show_toast(&ui, "Fatura marcada como paga", "success");
+                            // Recarrega faturas e listas (o status da
+                            // assinatura pode ter voltado a "ativa").
+                            ui.invoke_admin_load_invoices(SharedString::from(company_id.as_str()));
+                            ui.invoke_admin_refresh();
+                        }
+                        Err(msg) => show_toast(&ui, &msg, "error"),
+                    }
+                });
             });
         });
     }

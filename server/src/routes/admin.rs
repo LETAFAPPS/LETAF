@@ -51,6 +51,11 @@ pub fn routes() -> Router<AppState> {
         .route("/admin/companies/{id}/active", put(set_company_active))
         .route("/admin/subscriptions", get(list_subscriptions))
         .route("/admin/subscriptions/{company_id}", put(update_subscription))
+        .route("/admin/companies/{id}/invoices", get(list_invoices))
+        .route(
+            "/admin/companies/{id}/invoices/{invoice_id}/paid",
+            put(mark_invoice_paid),
+        )
         .route("/admin/admins", get(list_admins).post(create_admin))
         .route("/admin/admins/{id}", put(update_admin).delete(delete_admin))
         .route("/admin/plans", get(list_plans).post(create_plan))
@@ -469,6 +474,63 @@ async fn update_subscription(
         state.subscription_service.set_plan_discount(company_id, dec).await?;
     }
     Ok(StatusCode::OK)
+}
+
+// ── Faturas de uma empresa ───────────────────────────────────────────────
+#[derive(Serialize)]
+struct InvoiceRow {
+    id: Uuid,
+    number: String,
+    description: String,
+    /// Valor já formatado em pt-BR ("R$ 200,00").
+    amount: String,
+    status: String,
+    issued_at: String,
+    paid_at: String,
+    method: String,
+}
+
+/// Histórico de faturas do tenant (mais recentes primeiro).
+async fn list_invoices(
+    State(state): State<AppState>,
+    auth: AuthClaims,
+    Path(id): Path<Uuid>,
+) -> Result<Json<Vec<InvoiceRow>>, ServerError> {
+    require_super_admin(&auth)?;
+    let mut invoices = state.subscription_service.find_invoices(id).await?;
+    invoices.sort_by_key(|i| std::cmp::Reverse(i.issued_at));
+    let rows = invoices
+        .into_iter()
+        .map(|i| InvoiceRow {
+            id: i.base.id,
+            number: i.number,
+            description: i.description,
+            amount: brl(i.amount),
+            status: i.status.as_str().to_string(),
+            issued_at: i.issued_at.format("%d/%m/%Y").to_string(),
+            paid_at: i
+                .paid_at
+                .map(|d| d.format("%d/%m/%Y").to_string())
+                .unwrap_or_default(),
+            method: i.method_label,
+        })
+        .collect();
+    Ok(Json(rows))
+}
+
+/// Baixa manual de uma fatura (ex.: pagamento fora do gateway). O service
+/// é idempotente e reativa a assinatura se não restarem pendências.
+async fn mark_invoice_paid(
+    State(state): State<AppState>,
+    auth: AuthClaims,
+    Path((id, invoice_id)): Path<(Uuid, Uuid)>,
+) -> Result<Json<Value>, ServerError> {
+    require_super_admin(&auth)?;
+    state
+        .subscription_service
+        .mark_invoice_paid(id, invoice_id, None)
+        .await?;
+    Ok(Json(json!({ "ok": true })))
 }
 
 // ── Administradores (gestão dos super admins) ────────────────────────────

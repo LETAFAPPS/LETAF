@@ -10,7 +10,7 @@ import { ProductsPage } from "pages/products_page.slint";
 import { CategoriesPage } from "pages/categories_page.slint";
 import { CollaboratorsPage } from "pages/collaborators_page.slint";
 import { CollabPermRow, CollabRoleRow, CollabEmployeeRow } from "types.slint";
-import { AdminCompanyRow, AdminSubscriptionRow, AdminUserRow, AdminPlanRow } from "types.slint";
+import { AdminCompanyRow, AdminSubscriptionRow, AdminInvoiceRow, AdminUserRow, AdminPlanRow } from "types.slint";
 import { CustomersPage } from "pages/customers_page.slint";
 import { OrdersPage, CalendarPopup } from "pages/orders_page.slint";
 import { SettingsPage } from "pages/settings_page.slint";
@@ -1042,6 +1042,10 @@ export component MainWindow inherits Window {
     in-out property <string> admin-sub-edit-status: "active";
     in-out property <string> admin-sub-edit-discount: "0";
     callback admin-save-subscription();
+    // Faturas da empresa em edição (carregadas ao abrir o modal).
+    in-out property <[AdminInvoiceRow]> admin-invoices: [];
+    callback admin-load-invoices(string);
+    callback admin-mark-invoice-paid(string);
     // Exclusão de empresa (confirmação do super admin).
     in-out property <bool> admin-del-company-open: false;
     in-out property <string> admin-del-company-id: "";
@@ -1705,7 +1709,9 @@ export component MainWindow inherits Window {
                         root.admin-sub-edit-plan = s.plan;
                         root.admin-sub-edit-status = s.status;
                         root.admin-sub-edit-discount = s.discount;
+                        root.admin-invoices = [];
                         root.admin-sub-edit-open = true;
+                        root.admin-load-invoices(s.company-id);
                     }
                 }
                 if root.active-tab == "admin-admins": AdminAdminsPage {
@@ -2666,7 +2672,9 @@ export component MainWindow inherits Window {
         status <=> root.admin-sub-edit-status;
         discount <=> root.admin-sub-edit-discount;
         busy: root.admin-sub-edit-busy;
+        invoices: root.admin-invoices;
         save => { root.admin-save-subscription(); }
+        mark-paid(id) => { root.admin-mark-invoice-paid(id); }
         close => { root.admin-sub-edit-open = false; }
     }
 

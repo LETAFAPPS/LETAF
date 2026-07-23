@@ -38,6 +38,17 @@ export struct AdminCompanyRow {
     active: bool,
 }
 
+export struct AdminInvoiceRow {
+    id: string,
+    number: string,
+    description: string,
+    amount: string,
+    status: string,
+    issued-at: string,
+    paid-at: string,
+    method: string,
+}
+
 export struct AdminSubscriptionRow {
     company-id: string,
     company-name: string,
