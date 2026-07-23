@@ -351,14 +351,7 @@ export component Sidebar inherits Rectangle {
                 }
             }
         }
-        // Colapsada: perfil + sair, no MESMO tamanho dos itens de
-        // navegação (reusa SidebarItem em modo compacto).
-        if !root.expanded: SidebarItem {
-            icon-source: @image-url("../assets/icons/1.2/customers.svg");
-            label: "Perfil";
-            compact: true;
-            clicked => { root.open-profile(); }
-        }
+        // Colapsada: só "Sair" (o Perfil só aparece no menu normal — a pedido).
         if !root.expanded: SidebarItem {
             icon-source: @image-url("../assets/icons/1.2/logout.svg");
             label: "Sair";
@@ -384,7 +377,8 @@ export component Sidebar inherits Rectangle {
     // NÃO desloca a logo. Ícone vem da pasta do projeto (modo-claro/escuro):
     // sol para voltar ao claro quando escuro; lua para ir ao escuro quando
     // claro. Só apresentação — a persistência é no Rust via `dark-mode-changed`.
-    theme-toggle := TouchArea {
+    // Só aparece com o menu normal (escondido quando minimizado — a pedido).
+    if root.expanded: theme-toggle := TouchArea {
         x: 8px;
         y: 8px;
         width: 26px;
