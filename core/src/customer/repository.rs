@@ -17,6 +17,16 @@ use crate::error::CoreError;
 pub trait CustomerRepository: Send + Sync {
     async fn find_by_id(&self, company_id: Uuid, id: Uuid) -> Result<Option<Customer>, CoreError>;
     async fn find_all(&self, company_id: Uuid) -> Result<Vec<Customer>, CoreError>;
+
+    /// Conta os registros ATIVOS da empresa (para o painel do super admin).
+    ///
+    /// Implementação padrão carrega a lista — suficiente para o SQLite
+    /// local, que é pequeno. O PostgreSQL sobrescreve com `COUNT(*)` para
+    /// não trazer blobs/linhas inteiras só para contar (§13).
+    async fn count_all(&self, company_id: Uuid) -> Result<i64, CoreError> {
+        Ok(self.find_all(company_id).await?.len() as i64)
+    }
+
     async fn find_by_email(&self, company_id: Uuid, email: &str) -> Result<Option<Customer>, CoreError>;
     async fn create(&self, customer: &Customer) -> Result<(), CoreError>;
     async fn update(&self, customer: &Customer) -> Result<(), CoreError>;

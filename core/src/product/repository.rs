@@ -18,6 +18,16 @@ use crate::error::CoreError;
 pub trait ProductRepository: Send + Sync {
     async fn find_by_id(&self, company_id: Uuid, id: Uuid) -> Result<Option<Product>, CoreError>;
     async fn find_all(&self, company_id: Uuid) -> Result<Vec<Product>, CoreError>;
+
+    /// Conta os registros ATIVOS da empresa (para o painel do super admin).
+    ///
+    /// Implementação padrão carrega a lista — suficiente para o SQLite
+    /// local, que é pequeno. O PostgreSQL sobrescreve com `COUNT(*)` para
+    /// não trazer blobs/linhas inteiras só para contar (§13).
+    async fn count_all(&self, company_id: Uuid) -> Result<i64, CoreError> {
+        Ok(self.find_all(company_id).await?.len() as i64)
+    }
+
     /// Busca vários produtos por id numa única query (evita N+1, ex.: no
     /// checkout ao validar preços de um carrinho). Ignora ids inexistentes.
     async fn find_by_ids(&self, company_id: Uuid, ids: &[Uuid]) -> Result<Vec<Product>, CoreError>;

@@ -25,6 +25,11 @@ impl CustomerService {
         self.repo.find_by_id(company_id, id).await
     }
 
+    /// Total de registros ativos da empresa (painel do super admin).
+    pub async fn count_all(&self, company_id: Uuid) -> Result<i64, CoreError> {
+        self.repo.count_all(company_id).await
+    }
+
     pub async fn find_all(&self, company_id: Uuid) -> Result<Vec<Customer>, CoreError> {
         self.repo.find_all(company_id).await
     }

@@ -379,6 +379,12 @@ struct CompanyDetail {
     // Faturas
     invoices_total: usize,
     invoices_pending: usize,
+    // Uso operacional (diagnóstico de suporte)
+    orders_count: i64,
+    products_count: i64,
+    customers_count: i64,
+    /// Data do pedido mais recente ("" se nunca vendeu).
+    last_order_at: String,
 }
 
 /// Consolida cadastro + assinatura + faturas de um tenant numa só resposta
@@ -426,6 +432,20 @@ async fn company_detail(
         .filter(|i| i.status.as_str() != "paid")
         .count();
 
+    // Uso operacional — contagens por query dedicada (§13) e só o último
+    // pedido (1 linha), nunca a lista inteira.
+    let orders_count = state.order_service.count_all(id).await.unwrap_or(0);
+    let products_count = state.product_service.count_all(id).await.unwrap_or(0);
+    let customers_count = state.customer_service.count_all(id).await.unwrap_or(0);
+    let last_order_at = state
+        .order_service
+        .find_all_paged(id, 1, 0)
+        .await
+        .ok()
+        .and_then(|v| v.into_iter().next())
+        .map(|o| o.base.created_at.format("%d/%m/%Y %H:%M").to_string())
+        .unwrap_or_default();
+
     let city_uf = match (c.city.as_deref(), c.uf.as_deref()) {
         (Some(city), Some(uf)) if !city.is_empty() && !uf.is_empty() => format!("{city}/{uf}"),
         (Some(city), _) => city.to_string(),
@@ -453,6 +473,10 @@ async fn company_detail(
         payment_method,
         invoices_total: invoices.len(),
         invoices_pending,
+        orders_count,
+        products_count,
+        customers_count,
+        last_order_at,
     }))
 }
 

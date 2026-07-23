@@ -44,6 +44,16 @@ pub trait OrderRepository: Send + Sync {
     /// Lista todos os pedidos de uma empresa (sem itens, para listagem).
     async fn find_all(&self, company_id: Uuid) -> Result<Vec<Order>, CoreError>;
 
+    /// Conta os registros ATIVOS da empresa (para o painel do super admin).
+    ///
+    /// Implementação padrão carrega a lista — suficiente para o SQLite
+    /// local, que é pequeno. O PostgreSQL sobrescreve com `COUNT(*)` para
+    /// não trazer blobs/linhas inteiras só para contar (§13).
+    async fn count_all(&self, company_id: Uuid) -> Result<i64, CoreError> {
+        Ok(self.find_all(company_id).await?.len() as i64)
+    }
+
+
     /// Página da listagem de operador (mais recentes primeiro), com `limit`/
     /// `offset` — evita materializar TODO o histórico numa listagem que cresce
     /// sem teto (§13). Default delega a `find_all` (desktop lê do SQLite local,

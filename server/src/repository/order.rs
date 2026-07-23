@@ -342,6 +342,18 @@ impl OrderRepository for PgOrderRepository {
         }
     }
 
+    /// Override eficiente: `COUNT(*)` em vez de materializar as linhas (§13).
+    async fn count_all(&self, company_id: Uuid) -> Result<i64, CoreError> {
+        let row: (i64,) = sqlx::query_as(
+            "SELECT COUNT(*) FROM orders WHERE company_id = $1 AND deleted_at IS NULL",
+        )
+        .bind(company_id)
+        .fetch_one(&self.pool)
+        .await
+        .map_err(map_db)?;
+        Ok(row.0)
+    }
+
     async fn find_all(&self, company_id: Uuid) -> Result<Vec<Order>, CoreError> {
         let rows = sqlx::query_as::<_, OrderRow>(
             "SELECT * FROM orders WHERE company_id = $1 AND deleted_at IS NULL ORDER BY created_at DESC",

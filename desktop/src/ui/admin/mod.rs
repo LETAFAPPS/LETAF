@@ -91,6 +91,10 @@ struct CompanyDetailDto {
     payment_method: String,
     invoices_total: i64,
     invoices_pending: i64,
+    orders_count: i64,
+    products_count: i64,
+    customers_count: i64,
+    last_order_at: String,
 }
 
 #[derive(Deserialize)]
@@ -656,6 +660,10 @@ fn setup_persist(
                         payment_method: d.payment_method.into(),
                         invoices_total: d.invoices_total as i32,
                         invoices_pending: d.invoices_pending as i32,
+                        orders_count: d.orders_count as i32,
+                        products_count: d.products_count as i32,
+                        customers_count: d.customers_count as i32,
+                        last_order_at: d.last_order_at.into(),
                     });
                     ui.set_admin_detail_open(true);
                 });

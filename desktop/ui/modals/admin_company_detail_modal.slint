@@ -94,6 +94,14 @@ export component AdminCompanyDetailModal inherits Rectangle {
 
             Rectangle { height: 1px; background: Theme.border; }
 
+            SectionTitle { text: "USO"; }
+            InfoLine { label: "Pedidos"; value: root.data.orders-count; }
+            InfoLine { label: "Último pedido"; value: root.data.last-order-at; }
+            InfoLine { label: "Produtos"; value: root.data.products-count; }
+            InfoLine { label: "Clientes"; value: root.data.customers-count; }
+
+            Rectangle { height: 1px; background: Theme.border; }
+
             SectionTitle { text: "FATURAS"; }
             InfoLine {
                 label: "Emitidas";
