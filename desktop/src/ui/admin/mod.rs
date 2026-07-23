@@ -34,7 +34,7 @@ struct OverviewDto {
     mrr: String,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Clone)]
 struct CompanyDto {
     id: String,
     name: String,
@@ -57,7 +57,7 @@ struct InvoiceDto {
     method: String,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Clone)]
 struct SubscriptionDto {
     company_id: String,
     company_name: String,
@@ -97,6 +97,63 @@ fn brl(v: f64) -> String {
 /// Cache dos planos crus (para o "editar" preencher o form com os valores
 /// numéricos, já que o modelo Slint só guarda os textos de exibição).
 type PlansCache = Arc<Mutex<Vec<PlanDto>>>;
+/// Listas COMPLETAS vindas da API; a busca/filtro é aplicada sobre elas
+/// para montar o modelo exibido (§13 — sem novo round-trip por tecla).
+type CompaniesCache = Arc<Mutex<Vec<CompanyDto>>>;
+type SubsCache = Arc<Mutex<Vec<SubscriptionDto>>>;
+
+/// `true` se `haystack` contém `needle` ignorando caixa (busca simples).
+fn matches(haystack: &str, needle: &str) -> bool {
+    needle.is_empty() || haystack.to_lowercase().contains(&needle.to_lowercase())
+}
+
+/// Aplica busca (nome/subdomínio) + filtro de acesso às empresas.
+fn apply_company_filter(ui: &MainWindow, cache: &CompaniesCache) {
+    let search = ui.get_admin_company_search().to_string();
+    let filter = ui.get_admin_company_filter().to_string();
+    let Ok(all) = cache.lock() else { return };
+    let rows: Vec<AdminCompanyRow> = all
+        .iter()
+        .filter(|c| matches(&c.name, &search) || matches(&c.subdomain, &search))
+        .filter(|c| match filter.as_str() {
+            "active" => c.active,
+            "suspended" => !c.active,
+            _ => true,
+        })
+        .map(|c| AdminCompanyRow {
+            id: c.id.clone().into(),
+            name: c.name.clone().into(),
+            subdomain: c.subdomain.clone().into(),
+            created_at: c.created_at.clone().into(),
+            plan: c.plan.clone().into(),
+            status: c.status.clone().into(),
+            active: c.active,
+        })
+        .collect();
+    ui.set_admin_companies(ModelRc::new(VecModel::from(rows)));
+}
+
+/// Aplica busca (nome da empresa) + filtro de status às assinaturas.
+fn apply_sub_filter(ui: &MainWindow, cache: &SubsCache) {
+    let search = ui.get_admin_sub_search().to_string();
+    let filter = ui.get_admin_sub_filter().to_string();
+    let Ok(all) = cache.lock() else { return };
+    let rows: Vec<AdminSubscriptionRow> = all
+        .iter()
+        .filter(|s| matches(&s.company_name, &search))
+        .filter(|s| filter == "all" || s.status == filter)
+        .map(|s| AdminSubscriptionRow {
+            company_id: s.company_id.clone().into(),
+            company_name: s.company_name.clone().into(),
+            plan: s.plan.clone().into(),
+            status: s.status.clone().into(),
+            next_charge: s.next_charge.clone().into(),
+            payment_kind: s.payment_kind.clone().into(),
+            discount: s.discount.clone().into(),
+        })
+        .collect();
+    ui.set_admin_subscriptions(ModelRc::new(VecModel::from(rows)));
+}
 
 /// Registra todos os callbacks do painel do administrador.
 pub(crate) fn setup_admin(
@@ -106,7 +163,18 @@ pub(crate) fn setup_admin(
     server_url: String,
 ) {
     let plans_cache: PlansCache = Arc::new(Mutex::new(Vec::new()));
-    setup_refresh(ui, handle, &auth_token, &server_url, &plans_cache);
+    let companies_cache: CompaniesCache = Arc::new(Mutex::new(Vec::new()));
+    let subs_cache: SubsCache = Arc::new(Mutex::new(Vec::new()));
+    setup_refresh(
+        ui,
+        handle,
+        &auth_token,
+        &server_url,
+        &plans_cache,
+        &companies_cache,
+        &subs_cache,
+    );
+    setup_filters(ui, &companies_cache, &subs_cache);
     setup_form(ui);
     setup_persist(ui, handle, &auth_token, &server_url);
     setup_company_persist(ui, handle, &auth_token, &server_url);
@@ -130,24 +198,53 @@ async fn get_json<T: DeserializeOwned>(url: &str, token: &str) -> Option<T> {
     }
 }
 
+/// Busca/filtro das listas — reaplica sobre o cache, sem ir à rede.
+fn setup_filters(ui: &MainWindow, companies_cache: &CompaniesCache, subs_cache: &SubsCache) {
+    {
+        let ui_weak = ui.as_weak();
+        let cache = companies_cache.clone();
+        ui.on_admin_filter_companies(move || {
+            if let Some(ui) = ui_weak.upgrade() {
+                apply_company_filter(&ui, &cache);
+            }
+        });
+    }
+    {
+        let ui_weak = ui.as_weak();
+        let cache = subs_cache.clone();
+        ui.on_admin_filter_subscriptions(move || {
+            if let Some(ui) = ui_weak.upgrade() {
+                apply_sub_filter(&ui, &cache);
+            }
+        });
+    }
+}
+
 /// Carrega painel + empresas + assinaturas + administradores.
+#[allow(clippy::too_many_arguments)]
 fn setup_refresh(
     ui: &MainWindow,
     handle: &tokio::runtime::Handle,
     auth_token: &Arc<RwLock<Option<String>>>,
     server_url: &str,
     plans_cache: &PlansCache,
+    companies_cache: &CompaniesCache,
+    subs_cache: &SubsCache,
 ) {
     let ui_weak = ui.as_weak();
     let handle = handle.clone();
     let auth_token = auth_token.clone();
     let server_url = server_url.to_string();
     let plans_cache = plans_cache.clone();
+    let companies_cache = companies_cache.clone();
+    let subs_cache = subs_cache.clone();
     ui.on_admin_refresh(move || {
         let ui_weak = ui_weak.clone();
         let auth_token = auth_token.clone();
         let server_url = server_url.clone();
         let plans_cache = plans_cache.clone();
+        let companies_cache = companies_cache.clone();
+        let subs_cache = subs_cache.clone();
         handle.spawn(async move {
             let Some(token) = auth_token.read().await.clone() else { return };
 
@@ -184,33 +281,17 @@ fn setup_refresh(
                     ui.set_admin_new_companies_month(o.new_companies_month as i32);
                     ui.set_admin_mrr(SharedString::from(o.mrr));
                 }
-                let company_rows: Vec<AdminCompanyRow> = companies
-                    .into_iter()
-                    .map(|c| AdminCompanyRow {
-                        id: c.id.into(),
-                        name: c.name.into(),
-                        subdomain: c.subdomain.into(),
-                        created_at: c.created_at.into(),
-                        plan: c.plan.into(),
-                        status: c.status.into(),
-                        active: c.active,
-                    })
-                    .collect();
-                ui.set_admin_companies(ModelRc::new(VecModel::from(company_rows)));
+                // Guarda as listas completas e exibe já filtradas pela
+                // busca/filtro correntes (mantém o estado da UI no refresh).
+                if let Ok(mut c) = companies_cache.lock() {
+                    *c = companies;
+                }
+                apply_company_filter(&ui, &companies_cache);
 
-                let sub_rows: Vec<AdminSubscriptionRow> = subs
-                    .into_iter()
-                    .map(|s| AdminSubscriptionRow {
-                        company_id: s.company_id.into(),
-                        company_name: s.company_name.into(),
-                        plan: s.plan.into(),
-                        status: s.status.into(),
-                        next_charge: s.next_charge.into(),
-                        payment_kind: s.payment_kind.into(),
-                        discount: s.discount.into(),
-                    })
-                    .collect();
-                ui.set_admin_subscriptions(ModelRc::new(VecModel::from(sub_rows)));
+                if let Ok(mut s) = subs_cache.lock() {
+                    *s = subs;
+                }
+                apply_sub_filter(&ui, &subs_cache);
 
                 let admin_rows: Vec<AdminUserRow> = admins
                     .into_iter()

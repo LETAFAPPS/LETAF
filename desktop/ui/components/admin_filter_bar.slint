@@ -1,0 +1,69 @@
+// Barra de busca + chips de filtro das listas do painel do super admin.
+// UI sem lógica (§1/§3): só coleta o texto/opção e avisa via `changed()`;
+// a filtragem acontece no Rust sobre a lista completa em cache.
+import { Theme } from "../theme.slint";
+import { SearchIcon } from "icons.slint";
+
+// Chip selecionável (estilo tênue quando ativo — padrão do sistema).
+export component FilterChipSm inherits TouchArea {
+    in property <string> label;
+    in property <bool> active: false;
+    height: 32px;
+    Rectangle {
+        border-radius: 8px;
+        border-width: root.active ? 1.5px : 1px;
+        border-color: root.active ? Theme.btn-accent : Theme.border;
+        background: root.active
+            ? Theme.btn-accent.transparentize(0.90)
+            : (root.has-hover ? Theme.row-hover : Theme.surface);
+        HorizontalLayout {
+            padding-left: 12px; padding-right: 12px;
+            Text {
+                text: root.label;
+                font-size: 12.5px;
+                font-weight: root.active ? 700 : 500;
+                color: root.active ? Theme.btn-accent : Theme.text-secondary;
+                vertical-alignment: center;
+            }
+        }
+    }
+}
+
+// Campo de busca (ícone + input) usado nas listas do painel.
+export component AdminSearchBox inherits Rectangle {
+    in-out property <string> value;
+    in property <string> placeholder: "Buscar...";
+    callback changed();
+    height: 32px;
+    border-radius: 8px;
+    border-width: 1px;
+    border-color: input.has-focus ? Theme.btn-accent : Theme.border;
+    background: Theme.surface;
+
+    SearchIcon {
+        x: 10px;
+        y: (parent.height - 14px) / 2;
+        icon-size: 14px;
+        icon-color: Theme.text-secondary;
+    }
+    input := TextInput {
+        x: 32px;
+        width: parent.width - 42px;
+        height: parent.height;
+        vertical-alignment: center;
+        text <=> root.value;
+        font-size: 13px;
+        color: Theme.text-primary;
+        single-line: true;
+        edited => { root.changed(); }
+    }
+    if root.value == "": Text {
+        x: 32px;
+        width: parent.width - 42px;
+        height: parent.height;
+        text: root.placeholder;
+        font-size: 13px;
+        color: Theme.text-secondary;
+        vertical-alignment: center;
+    }
+}

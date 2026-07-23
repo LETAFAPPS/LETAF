@@ -3,10 +3,15 @@
 import { Theme } from "../theme.slint";
 import { AdminSubscriptionRow } from "../types.slint";
 import { EmptyState } from "../components/empty_state.slint";
+import { AdminSearchBox, FilterChipSm } from "../components/admin_filter_bar.slint";
 
 export component AdminSubscriptionsPage inherits VerticalLayout {
     in property <[AdminSubscriptionRow]> subscriptions;
     callback manage(AdminSubscriptionRow);
+    // Busca/filtro (aplicados no Rust sobre a lista completa).
+    in-out property <string> search;
+    in-out property <string> filter: "all";
+    callback filters-changed();
     spacing: 12px;
 
     Text {
@@ -16,6 +21,33 @@ export component AdminSubscriptionsPage inherits VerticalLayout {
     Text {
         text: root.subscriptions.length + " assinatura(s).";
         font-size: 13px; color: Theme.text-secondary;
+    }
+
+    // Busca + filtro de status.
+    HorizontalLayout {
+        spacing: 8px;
+        AdminSearchBox {
+            horizontal-stretch: 1;
+            value <=> root.search;
+            placeholder: "Buscar por empresa...";
+            changed => { root.filters-changed(); }
+        }
+        FilterChipSm {
+            label: "Todas"; active: root.filter == "all";
+            clicked => { root.filter = "all"; root.filters-changed(); }
+        }
+        FilterChipSm {
+            label: "Ativas"; active: root.filter == "active";
+            clicked => { root.filter = "active"; root.filters-changed(); }
+        }
+        FilterChipSm {
+            label: "Vencidas"; active: root.filter == "overdue";
+            clicked => { root.filter = "overdue"; root.filters-changed(); }
+        }
+        FilterChipSm {
+            label: "Canceladas"; active: root.filter == "cancelled";
+            clicked => { root.filter = "cancelled"; root.filters-changed(); }
+        }
     }
 
     if root.subscriptions.length == 0: EmptyState {
