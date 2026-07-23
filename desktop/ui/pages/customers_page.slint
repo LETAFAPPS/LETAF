@@ -308,14 +308,16 @@ export component CustomersPage inherits Rectangle {
                             clicked => { root.request-new(); }
                             Rectangle {
                                 border-radius: 8px;
-                                // Estilo outline (Relatórios): contorno + ícone de destaque.
-                                border-width: 1px;
-                                border-color: Theme.sidebar-sel-bg;
-                                background: new-ta.has-hover ? Theme.row-hover : transparent;
+                                // Estilo tênue de ação: borda + tint fraco + ícone de destaque.
+                                border-width: 1.5px;
+                                border-color: Theme.btn-accent;
+                                background: new-ta.has-hover
+                                    ? Theme.btn-accent.transparentize(0.80)
+                                    : Theme.btn-accent.transparentize(0.90);
                                 AssetIcon {
                                     width: parent.width; height: parent.height;
                                     icon-size: 16px;
-                                    icon-color: Theme.sidebar-sel-bg;
+                                    icon-color: Theme.btn-accent;
                                     source: @image-url("../assets/icons/1.2/adicionar.svg");
                                 }
                             }

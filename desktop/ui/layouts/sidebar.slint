@@ -213,7 +213,7 @@ export component Sidebar inherits Rectangle {
                     clicked => { root.navigate("products"); }
                 }
                 if root.store-access || root.nav.inventory: SidebarItem {
-                    icon-source: @image-url("../assets/icons/1.2/inventory.svg");
+                    icon-source: @image-url("../assets/icons/1.2/lote.svg");
                     label: "Estoque";
                     compact: !root.expanded;
                     badge: root.stock-out-count > 0 ? root.stock-out-count : "";
@@ -265,7 +265,7 @@ export component Sidebar inherits Rectangle {
                 }
                 if root.store-access || root.nav.collaborators: SidebarItem {
                     icon-source: @image-url("../assets/icons/1.2/user.svg");
-                    label: "Colaboradores";
+                    label: "Usuários";
                     compact: !root.expanded;
                     active: root.active-tab == "collaborators";
                     clicked => { root.navigate("collaborators"); }

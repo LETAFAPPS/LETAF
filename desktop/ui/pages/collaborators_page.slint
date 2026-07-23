@@ -80,21 +80,24 @@ component AddBtn inherits TouchArea {
     in property <string> label;
     height: 46px;
     Rectangle {
+        // Estilo tênue de ação do sistema.
         border-radius: 10px;
-        border-width: 1px;
-        border-color: root.has-hover ? Theme.accent : Theme.border;
-        background: root.has-hover ? Theme.row-hover : Theme.surface;
+        border-width: 1.5px;
+        border-color: Theme.btn-accent;
+        background: root.has-hover
+            ? Theme.btn-accent.transparentize(0.80)
+            : Theme.btn-accent.transparentize(0.90);
         HorizontalLayout {
             alignment: center; spacing: 8px;
             AssetIcon {
                 width: 16px; height: parent.height; icon-size: 15px;
-                icon-color: root.has-hover ? Theme.accent : Theme.text-secondary;
+                icon-color: Theme.btn-accent;
                 source: @image-url("../assets/icons/1.2/adicionar.svg");
             }
             Text {
                 text: root.label;
-                font-size: 13px; font-weight: 600;
-                color: root.has-hover ? Theme.accent : Theme.text-secondary;
+                font-size: 14px; font-weight: 700;
+                color: Theme.btn-accent;
                 vertical-alignment: center;
             }
         }
@@ -286,7 +289,7 @@ export component CollaboratorsPage inherits Rectangle {
                 horizontal-stretch: 1;
                 alignment: center;
                 spacing: 2px;
-                Text { text: "Colaboradores"; font-size: 24px; font-weight: 800; color: Theme.text-primary; }
+                Text { text: "Usuários"; font-size: 24px; font-weight: 800; color: Theme.text-primary; }
                 Text { text: "Funções (permissões) e funcionários com login"; font-size: 13px; color: Theme.text-secondary; }
             }
             VerticalLayout {
@@ -306,13 +309,15 @@ export component CollaboratorsPage inherits Rectangle {
                             clicked => { root.tab = "roles"; }
                             Rectangle {
                                 border-radius: 7px;
-                                background: root.tab == "roles" ? Theme.primary
+                                border-width: root.tab == "roles" ? 1.5px : 0px;
+                                border-color: Theme.btn-accent;
+                                background: root.tab == "roles" ? Theme.btn-accent.transparentize(0.88)
                                     : (roles-ta.has-hover ? Theme.row-hover : transparent);
                                 Text {
                                     width: parent.width; height: parent.height;
                                     text: "Funções";
-                                    font-size: 12px; font-weight: 700;
-                                    color: root.tab == "roles" ? white : Theme.text-primary;
+                                    font-size: 13px; font-weight: 700;
+                                    color: root.tab == "roles" ? Theme.btn-accent : Theme.text-primary;
                                     horizontal-alignment: center; vertical-alignment: center;
                                 }
                             }
@@ -322,13 +327,15 @@ export component CollaboratorsPage inherits Rectangle {
                             clicked => { root.tab = "employees"; }
                             Rectangle {
                                 border-radius: 7px;
-                                background: root.tab == "employees" ? Theme.primary
+                                border-width: root.tab == "employees" ? 1.5px : 0px;
+                                border-color: Theme.btn-accent;
+                                background: root.tab == "employees" ? Theme.btn-accent.transparentize(0.88)
                                     : (emps-ta.has-hover ? Theme.row-hover : transparent);
                                 Text {
                                     width: parent.width; height: parent.height;
                                     text: "Funcionários";
-                                    font-size: 12px; font-weight: 700;
-                                    color: root.tab == "employees" ? white : Theme.text-primary;
+                                    font-size: 13px; font-weight: 700;
+                                    color: root.tab == "employees" ? Theme.btn-accent : Theme.text-primary;
                                     horizontal-alignment: center; vertical-alignment: center;
                                 }
                             }
@@ -453,7 +460,7 @@ export component CollaboratorsPage inherits Rectangle {
                     HorizontalLayout {
                         alignment: end;
                         spacing: 10px;
-                        OutlineBtn { label: "Cancelar"; width: 100px; height: 40px; clicked => { root.new-role(); } }
+                        OutlineBtn { label: "Cancelar"; neutral: true; width: 100px; height: 40px; clicked => { root.new-role(); } }
                         ActionBtn {
                             label: "Salvar Função"; bg-color: Theme.btn-accent; width: 144px; height: 40px;
                             icon: @image-url("../assets/icons/1.2/confirmar.svg");
@@ -577,7 +584,7 @@ export component CollaboratorsPage inherits Rectangle {
                     HorizontalLayout {
                         alignment: end;
                         spacing: 10px;
-                        OutlineBtn { label: "Cancelar"; width: 100px; height: 40px; clicked => { root.new-employee(); } }
+                        OutlineBtn { label: "Cancelar"; neutral: true; width: 100px; height: 40px; clicked => { root.new-employee(); } }
                         ActionBtn {
                             label: "Salvar Funcionário"; bg-color: Theme.btn-accent; width: 164px; height: 40px;
                             icon: @image-url("../assets/icons/1.2/confirmar.svg");

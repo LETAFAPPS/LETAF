@@ -457,14 +457,17 @@ component ViewToggle inherits HorizontalLayout {
                     x: 0; y: 0;
                     width: parent.width; height: parent.height;
                     border-radius: 7px;
+                    // Selecionado: estilo tênue de ação (borda + tint fraco).
+                    border-width: root.active == "list" ? 1.5px : 0px;
+                    border-color: Theme.btn-accent;
                     background: root.active == "list"
-                        ? Theme.primary
+                        ? Theme.btn-accent.transparentize(0.90)
                         : (list-ta.has-hover ? Theme.row-hover : transparent);
                     Text {
                         width: parent.width; height: parent.height;
                         text: "Lista";
-                        font-size: 12px; font-weight: 700;
-                        color: root.active == "list" ? white : Theme.text-primary;
+                        font-size: 13px; font-weight: 700;
+                        color: root.active == "list" ? Theme.btn-accent : Theme.text-primary;
                         horizontal-alignment: center; vertical-alignment: center;
                     }
                 }
@@ -476,14 +479,17 @@ component ViewToggle inherits HorizontalLayout {
                     x: 0; y: 0;
                     width: parent.width; height: parent.height;
                     border-radius: 7px;
+                    // Selecionado: estilo tênue de ação (borda + tint fraco).
+                    border-width: root.active == "calendar" ? 1.5px : 0px;
+                    border-color: Theme.btn-accent;
                     background: root.active == "calendar"
-                        ? Theme.primary
+                        ? Theme.btn-accent.transparentize(0.90)
                         : (cal-ta.has-hover ? Theme.row-hover : transparent);
                     Text {
                         width: parent.width; height: parent.height;
                         text: "Calendário";
-                        font-size: 12px; font-weight: 700;
-                        color: root.active == "calendar" ? white : Theme.text-primary;
+                        font-size: 13px; font-weight: 700;
+                        color: root.active == "calendar" ? Theme.btn-accent : Theme.text-primary;
                         horizontal-alignment: center; vertical-alignment: center;
                     }
                 }
@@ -505,17 +511,17 @@ component StatusFilterChip inherits TouchArea {
         x: 0; y: 0;
         width: parent.width; height: parent.height;
         border-radius: 6px;
-        // Selecionado = só CONTORNO na cor de destaque (estilo Relatórios).
+        // Selecionado = estilo tênue de ação (borda + tint fraco na cor de destaque).
         border-width: root.active ? 1.5px : 1px;
-        border-color: root.active ? Theme.sidebar-sel-bg : Theme.border;
+        border-color: root.active ? Theme.btn-accent : Theme.border;
         background: root.active
-            ? transparent
+            ? Theme.btn-accent.transparentize(0.90)
             : (root.has-hover ? Theme.row-hover : Theme.surface);
         txt := Text {
             width: parent.width; height: parent.height;
             text: root.label;
-            font-size: 12px; font-weight: root.active ? 700 : 400;
-            color: root.active ? Theme.sidebar-sel-bg : Theme.text-secondary;
+            font-size: 13px; font-weight: root.active ? 700 : 400;
+            color: root.active ? Theme.btn-accent : Theme.text-secondary;
             horizontal-alignment: center; vertical-alignment: center;
         }
     }

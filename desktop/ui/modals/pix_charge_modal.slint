@@ -209,6 +209,7 @@ export component PixChargeModal inherits Rectangle {
                         alignment: end;
                         OutlineBtn {
                             label: root.data.kind == "paid" ? "Fechar" : "Cancelar";
+                            neutral: true;
                             width: 120px;
                             clicked => { root.close(); }
                         }

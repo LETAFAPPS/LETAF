@@ -121,10 +121,9 @@ export component CalendarPopup inherits Rectangle {
                 }
             }
 
-            // Ações do calendário: "Limpar" e "Filtrar" são botões NEUTROS
-            // (contorno na cor do texto — preto no claro / branco no escuro —
-            // sem fundo), distintos dos botões de AÇÃO laranja. Dividem a
-            // largura meio a meio.
+            // Ações do calendário: "Limpar" é NEUTRO (contorno na cor do texto —
+            // preto no claro / branco no escuro — sem fundo). "Filtrar" é botão
+            // de AÇÃO (estilo tênue laranja). Dividem a largura meio a meio.
             HorizontalLayout {
                 spacing: 8px;
 
@@ -137,7 +136,6 @@ export component CalendarPopup inherits Rectangle {
                 }
                 OutlineBtn {
                     label: "Filtrar";
-                    neutral: true;
                     horizontal-stretch: 1;
                     height: 40px;
                     clicked => { root.close(); }
@@ -384,18 +382,23 @@ export component OrdersPage inherits VerticalLayout {
                 root.refresh-orders();
             }
             Rectangle {
+                // Preenche a TouchArea para o rótulo centralizar na altura.
+                x: 0; y: 0;
+                width: parent.width; height: parent.height;
                 border-radius: 6px;
-                // Selecionado = só CONTORNO na cor de destaque (estilo Relatórios).
+                // Selecionado = estilo tênue de ação (borda + tint fraco).
                 border-width: active ? 1.5px : 1px;
-                border-color: active ? Theme.sidebar-sel-bg : Theme.border;
-                background: active ? transparent : (hov ? Theme.row-hover : Theme.surface);
+                border-color: active ? Theme.btn-accent : Theme.border;
+                background: active
+                    ? Theme.btn-accent.transparentize(0.90)
+                    : (hov ? Theme.row-hover : Theme.surface);
                 chip-txt := Text {
                     text: chip-def.label;
                     width: parent.width; height: parent.height;
                     horizontal-alignment: center; vertical-alignment: center;
-                    font-size: 12px;
+                    font-size: 13px;
                     font-weight: active ? 700 : 400;
-                    color: active ? Theme.sidebar-sel-bg : Theme.text-secondary;
+                    color: active ? Theme.btn-accent : Theme.text-secondary;
                 }
             }
         }

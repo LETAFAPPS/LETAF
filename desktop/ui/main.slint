@@ -2841,9 +2841,10 @@ export component MainWindow inherits Window {
                                 clicked => { root.finance-close-settle-confirm(); }
                                 Rectangle {
                                     border-radius: 8px;
+                                    // Cancelar = neutro (borda na cor do texto, sem fundo).
                                     border-width: 1px;
-                                    border-color: Theme.card-border;
-                                    background: cancel-ta.has-hover ? Theme.row-hover : Theme.surface;
+                                    border-color: Theme.text-primary;
+                                    background: cancel-ta.has-hover ? Theme.row-hover : transparent;
                                     Text {
                                         width: parent.width; height: parent.height;
                                         text: "Cancelar";
@@ -2949,9 +2950,10 @@ export component MainWindow inherits Window {
                                 clicked => { root.finance-close-delete-confirm(); }
                                 Rectangle {
                                     border-radius: 8px;
+                                    // Cancelar = neutro (borda na cor do texto, sem fundo).
                                     border-width: 1px;
-                                    border-color: Theme.card-border;
-                                    background: del-cancel-ta.has-hover ? Theme.row-hover : Theme.surface;
+                                    border-color: Theme.text-primary;
+                                    background: del-cancel-ta.has-hover ? Theme.row-hover : transparent;
                                     Text {
                                         width: parent.width; height: parent.height;
                                         text: "Cancelar";

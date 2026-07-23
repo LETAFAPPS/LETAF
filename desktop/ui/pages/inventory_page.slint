@@ -85,17 +85,18 @@ component FilterChip inherits TouchArea {
     height: 32px;
     Rectangle {
         border-radius: 8px;
-        // Selecionado = só CONTORNO na cor de destaque (estilo Relatórios).
+        // Selecionado = estilo tênue de ação: borda + tint fraco + texto na cor
+        // de destaque.
         border-width: root.active ? 1.5px : 1px;
-        border-color: root.active ? Theme.sidebar-sel-bg : Theme.border;
-        background: root.active ? transparent
+        border-color: root.active ? Theme.btn-accent : Theme.border;
+        background: root.active ? Theme.btn-accent.transparentize(0.90)
             : (root.has-hover ? Theme.row-hover : Theme.surface);
         HorizontalLayout {
             padding-left: 16px; padding-right: 16px;
             Text {
                 text: root.label;
-                font-size: 13px; font-weight: root.active ? 700 : 600;
-                color: root.active ? Theme.sidebar-sel-bg : Theme.text-secondary;
+                font-size: 14px; font-weight: root.active ? 700 : 600;
+                color: root.active ? Theme.btn-accent : Theme.text-secondary;
                 vertical-alignment: center;
             }
         }
@@ -237,13 +238,16 @@ component InventoryRow inherits Rectangle {
                 clicked => { root.add(); }
                 Rectangle {
                     border-radius: 8px;
-                    border-width: 1px;
-                    border-color: Theme.sidebar-sel-bg;
-                    background: repor-ta.has-hover ? Theme.row-hover : transparent;
+                    // Estilo tênue de ação: borda + tint fraco + ícone de destaque.
+                    border-width: 1.5px;
+                    border-color: Theme.btn-accent;
+                    background: repor-ta.has-hover
+                        ? Theme.btn-accent.transparentize(0.80)
+                        : Theme.btn-accent.transparentize(0.90);
                     AssetIcon {
                         width: parent.width; height: parent.height;
                         icon-size: 16px;
-                        icon-color: Theme.sidebar-sel-bg;
+                        icon-color: Theme.btn-accent;
                         source: @image-url("../assets/icons/1.2/adicionar.svg");
                     }
                 }
@@ -304,10 +308,13 @@ export component InventoryPage inherits VerticalLayout {
                 }
                 Rectangle {
                     border-radius: 8px;
-                    // Estilo outline (Relatórios): contorno + conteúdo na cor de destaque.
-                    border-width: 1px;
-                    border-color: Theme.sidebar-sel-bg;
-                    background: sync-ta.has-hover ? Theme.row-hover : transparent;
+                    // Estilo tênue de ação: borda + tint fraco + conteúdo na cor
+                    // de destaque.
+                    border-width: 1.5px;
+                    border-color: Theme.btn-accent;
+                    background: sync-ta.has-hover
+                        ? Theme.btn-accent.transparentize(0.80)
+                        : Theme.btn-accent.transparentize(0.90);
                     HorizontalLayout {
                         alignment: center;
                         spacing: 8px;
@@ -317,14 +324,14 @@ export component InventoryPage inherits VerticalLayout {
                             Image {
                                 width: 15px; height: 15px;
                                 source: @image-url("../assets/icons/1.2/atualizar.svg");
-                                colorize: Theme.sidebar-sel-bg;
+                                colorize: Theme.btn-accent;
                                 image-fit: contain;
                                 transform-rotation: root.sync-angle;
                             }
                         }
                         Text {
                             text: root.syncing ? "Sincronizando…" : "Sincronizar";
-                            font-size: 12px; font-weight: 700; color: Theme.sidebar-sel-bg;
+                            font-size: 14px; font-weight: 700; color: Theme.btn-accent;
                             vertical-alignment: center;
                         }
                     }
