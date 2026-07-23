@@ -60,12 +60,52 @@ pub fn routes() -> Router<AppState> {
         .route("/admin/admins/{id}", put(update_admin).delete(delete_admin))
         .route("/admin/plans", get(list_plans).post(create_plan))
         .route("/admin/plans/{id}", put(update_plan).delete(delete_plan))
+        .route("/admin/audit", get(list_audit))
 }
 
 /// Guard: exige `super_admin`. `verify_role` NÃO checa `company_id`
 /// (cross-tenant) — correto para o painel de plataforma.
 fn require_super_admin(auth: &AuthClaims) -> Result<(), ServerError> {
     auth.verify_role(ROLE_SUPER_ADMIN)
+}
+
+/// Registra uma ação na trilha de auditoria (§11).
+///
+/// BEST-EFFORT de propósito: uma falha ao gravar o log NUNCA derruba a
+/// operação já concluída — apenas loga o erro. O nome do ator é buscado
+/// pelo `sub` do JWT (cai em "super admin" se não resolver).
+async fn audit(
+    state: &AppState,
+    auth: &AuthClaims,
+    action: &str,
+    target_type: &str,
+    target_id: Option<Uuid>,
+    target_label: impl Into<String>,
+    details: impl Into<String>,
+) {
+    let actor_name = state
+        .auth_service
+        .find_by_id(auth.0.company_id, auth.0.sub)
+        .await
+        .ok()
+        .flatten()
+        .map(|u| u.name)
+        .unwrap_or_else(|| "super admin".to_string());
+    if let Err(e) = state
+        .audit_service
+        .record(
+            auth.0.sub,
+            actor_name,
+            action,
+            target_type,
+            target_id,
+            target_label.into(),
+            details.into(),
+        )
+        .await
+    {
+        tracing::error!("Falha ao registrar auditoria ({action}): {e}");
+    }
 }
 
 /// Empresas reais (tenants) — exclui a empresa-plataforma.
@@ -302,6 +342,12 @@ async fn create_company(
         }
     }
 
+    audit(
+        &state, &auth, "company.create", "company", Some(company.id),
+        format!("{} ({})", company.name, subdomain), String::new(),
+    )
+    .await;
+
     Ok((
         StatusCode::CREATED,
         Json(json!({ "id": company.id, "subdomain": subdomain })),
@@ -318,14 +364,17 @@ async fn delete_company(
 ) -> Result<Json<Value>, ServerError> {
     require_super_admin(&auth)?;
     // Nunca deixar excluir a própria empresa-plataforma.
+    let mut label = String::new();
     if let Some(c) = state.company_service.find_by_id(id).await? {
         if c.subdomain == PLATFORM_SUBDOMAIN {
             return Err(ServerError::Core(CoreError::Validation(
                 "A empresa-plataforma não pode ser excluída".into(),
             )));
         }
+        label = c.name;
     }
     state.company_service.soft_delete(id).await?;
+    audit(&state, &auth, "company.delete", "company", Some(id), label, String::new()).await;
     Ok(Json(json!({ "ok": true })))
 }
 
@@ -351,7 +400,14 @@ async fn set_company_active(
             )));
         }
     }
-    state.company_service.set_active(id, body.active).await?;
+    let company = state.company_service.set_active(id, body.active).await?;
+    audit(
+        &state, &auth,
+        if body.active { "company.reactivate" } else { "company.suspend" },
+        "company", Some(id), company.name,
+        if body.active { "acesso liberado" } else { "acesso bloqueado" },
+    )
+    .await;
     Ok(Json(json!({ "ok": true })))
 }
 
@@ -457,22 +513,37 @@ async fn update_subscription(
     // Ordem: plano → status → desconto. `change_plan` reativa a assinatura
     // e recalcula a próxima cobrança; aplicar o status depois preserva a
     // intenção (ex.: cancelar após trocar de plano).
+    let mut changes: Vec<String> = Vec::new();
     if let Some(plan) = body.plan {
         state
             .subscription_service
             .change_plan(company_id, PlanKind::from_str(&plan), today)
             .await?;
+        changes.push(format!("plano: {plan}"));
     }
     if let Some(status) = body.status {
         state
             .subscription_service
             .set_status(company_id, SubscriptionStatus::from_str(&status))
             .await?;
+        changes.push(format!("status: {status}"));
     }
     if let Some(discount) = body.discount {
         let dec = Decimal::from_f64(discount).unwrap_or_default().max(Decimal::ZERO);
         state.subscription_service.set_plan_discount(company_id, dec).await?;
+        changes.push(format!("desconto: {dec}"));
     }
+    let label = state
+        .company_service
+        .find_by_id(company_id)
+        .await?
+        .map(|c| c.name)
+        .unwrap_or_default();
+    audit(
+        &state, &auth, "subscription.update", "subscription", Some(company_id),
+        label, changes.join(" · "),
+    )
+    .await;
     Ok(StatusCode::OK)
 }
 
@@ -526,11 +597,48 @@ async fn mark_invoice_paid(
     Path((id, invoice_id)): Path<(Uuid, Uuid)>,
 ) -> Result<Json<Value>, ServerError> {
     require_super_admin(&auth)?;
-    state
+    let inv = state
         .subscription_service
         .mark_invoice_paid(id, invoice_id, None)
         .await?;
+    audit(
+        &state, &auth, "invoice.paid", "invoice", Some(invoice_id),
+        inv.number.clone(), format!("baixa manual · {}", brl(inv.amount)),
+    )
+    .await;
     Ok(Json(json!({ "ok": true })))
+}
+
+// ── Auditoria ────────────────────────────────────────────────────────────
+#[derive(Serialize)]
+struct AuditRowOut {
+    actor: String,
+    action: String,
+    target: String,
+    details: String,
+    /// "DD/MM/AAAA HH:MM".
+    at: String,
+}
+
+/// Trilha das últimas ações do super admin (somente leitura — §11).
+async fn list_audit(
+    State(state): State<AppState>,
+    auth: AuthClaims,
+) -> Result<Json<Vec<AuditRowOut>>, ServerError> {
+    require_super_admin(&auth)?;
+    let entries = state.audit_service.find_recent(200).await?;
+    Ok(Json(
+        entries
+            .into_iter()
+            .map(|e| AuditRowOut {
+                actor: e.actor_name,
+                action: e.action,
+                target: e.target_label,
+                details: e.details,
+                at: e.created_at.format("%d/%m/%Y %H:%M").to_string(),
+            })
+            .collect(),
+    ))
 }
 
 // ── Administradores (gestão dos super admins) ────────────────────────────
@@ -803,6 +911,7 @@ async fn delete_plan(
         ))));
     }
     state.plan_service.soft_delete(id).await?;
+    audit(&state, &auth, "plan.delete", "plan", Some(id), String::new(), String::new()).await;
     Ok(Json(json!({ "ok": true })))
 }
 

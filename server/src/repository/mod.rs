@@ -1,5 +1,6 @@
 pub mod addon;
 pub mod addon_group;
+pub mod audit;
 pub mod auth;
 pub mod password_reset;
 pub mod plan;

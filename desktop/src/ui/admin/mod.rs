@@ -16,7 +16,8 @@ use slint::{ComponentHandle, Model, ModelRc, SharedString, VecModel};
 use tokio::sync::RwLock;
 
 use crate::{
-    AdminCompanyRow, AdminInvoiceRow, AdminPlanRow, AdminSubscriptionRow, AdminUserRow, MainWindow,
+    AdminAuditRow, AdminCompanyRow, AdminInvoiceRow, AdminPlanRow, AdminSubscriptionRow,
+    AdminUserRow, MainWindow,
     HTTP_CLIENT,
 };
 
@@ -66,6 +67,15 @@ struct SubscriptionDto {
     next_charge: String,
     payment_kind: String,
     discount: String,
+}
+
+#[derive(Deserialize)]
+struct AuditDto {
+    actor: String,
+    action: String,
+    target: String,
+    details: String,
+    at: String,
 }
 
 #[derive(Deserialize)]
@@ -269,6 +279,10 @@ fn setup_refresh(
                 get_json(&format!("{server_url}/admin/plans"), &token)
                     .await
                     .unwrap_or_default();
+            let audit: Vec<AuditDto> =
+                get_json(&format!("{server_url}/admin/audit"), &token)
+                    .await
+                    .unwrap_or_default();
             if let Ok(mut g) = plans_cache.lock() {
                 *g = plans.clone();
             }
@@ -322,6 +336,18 @@ fn setup_refresh(
                     })
                     .collect();
                 ui.set_admin_plans(ModelRc::new(VecModel::from(plan_rows)));
+
+                let audit_rows: Vec<AdminAuditRow> = audit
+                    .into_iter()
+                    .map(|a| AdminAuditRow {
+                        actor: a.actor.into(),
+                        action: a.action.into(),
+                        target: a.target.into(),
+                        details: a.details.into(),
+                        at: a.at.into(),
+                    })
+                    .collect();
+                ui.set_admin_audit_entries(ModelRc::new(VecModel::from(audit_rows)));
             });
         });
     });

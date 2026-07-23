@@ -12,6 +12,7 @@
 
 pub mod addon;
 pub mod addon_group;
+pub mod audit;
 pub mod auth;
 pub mod availability;
 pub mod banner;

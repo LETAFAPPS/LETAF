@@ -59,6 +59,14 @@ export struct AdminSubscriptionRow {
     discount: string,
 }
 
+export struct AdminAuditRow {
+    actor: string,
+    action: string,
+    target: string,
+    details: string,
+    at: string,
+}
+
 export struct AdminUserRow {
     id: string,
     name: string,

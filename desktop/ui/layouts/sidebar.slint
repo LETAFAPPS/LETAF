@@ -147,6 +147,13 @@ export component Sidebar inherits Rectangle {
                     active: root.active-tab == "admin-admins";
                     clicked => { root.navigate("admin-admins"); }
                 }
+                if root.nav.is-super-admin: SidebarItem {
+                    icon-source: @image-url("../assets/icons/1.2/seguranca.svg");
+                    label: "Auditoria";
+                    compact: !root.expanded;
+                    active: root.active-tab == "admin-audit";
+                    clicked => { root.navigate("admin-audit"); }
+                }
 
                 // ── PRINCIPAL ─────────────────────────────
                 if root.store-access || root.nav.dashboard || root.nav.reports:
