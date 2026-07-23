@@ -6,6 +6,7 @@ import { EmptyState } from "../components/empty_state.slint";
 
 export component AdminSubscriptionsPage inherits VerticalLayout {
     in property <[AdminSubscriptionRow]> subscriptions;
+    callback manage(AdminSubscriptionRow);
     spacing: 12px;
 
     Text {
@@ -41,16 +42,36 @@ export component AdminSubscriptionsPage inherits VerticalLayout {
                 Text { text: "STATUS"; horizontal-stretch: 1; font-size: 11px; font-weight: 700; color: Theme.text-secondary; }
                 Text { text: "PAGAMENTO"; horizontal-stretch: 1; font-size: 11px; font-weight: 700; color: Theme.text-secondary; }
                 Text { text: "PRÓX. COBRANÇA"; horizontal-stretch: 1; font-size: 11px; font-weight: 700; color: Theme.text-secondary; horizontal-alignment: right; }
+                Text { text: ""; width: 104px; }
             }
             Rectangle { height: 1px; background: Theme.border; }
             for s in root.subscriptions: HorizontalLayout {
                 padding: 10px;
                 spacing: 12px;
                 Text { text: s.company-name; horizontal-stretch: 2; font-size: 13px; font-weight: 600; color: Theme.text-primary; overflow: elide; vertical-alignment: center; }
-                Text { text: s.plan == "monthly" ? "Mensal" : (s.plan == "yearly" ? "Anual" : s.plan); horizontal-stretch: 1; font-size: 13px; color: Theme.text-primary; vertical-alignment: center; }
-                Text { text: s.status == "active" ? "Ativa" : "Cancelada"; horizontal-stretch: 1; font-size: 13px; font-weight: 700; color: s.status == "active" ? #2E7D32 : Theme.text-secondary; vertical-alignment: center; }
+                Text { text: s.plan == "monthly" ? "Mensal" : (s.plan == "semestral" ? "Semestral" : (s.plan == "annual" ? "Anual" : s.plan)); horizontal-stretch: 1; font-size: 13px; color: Theme.text-primary; vertical-alignment: center; }
+                Text { text: s.status == "active" ? "Ativa" : (s.status == "overdue" ? "Vencida" : "Cancelada"); horizontal-stretch: 1; font-size: 13px; font-weight: 700; color: s.status == "active" ? #2E7D32 : (s.status == "overdue" ? #E65100 : Theme.text-secondary); vertical-alignment: center; }
                 Text { text: s.payment-kind == "" ? "—" : s.payment-kind; horizontal-stretch: 1; font-size: 13px; color: Theme.text-secondary; vertical-alignment: center; }
                 Text { text: s.next-charge == "" ? "—" : s.next-charge; horizontal-stretch: 1; font-size: 13px; color: Theme.text-secondary; horizontal-alignment: right; vertical-alignment: center; }
+                // Ação: gerenciar (estilo tênue de ação).
+                manage-ta := TouchArea {
+                    width: 104px; height: 32px;
+                    clicked => { root.manage(s); }
+                    Rectangle {
+                        border-radius: 8px;
+                        border-width: 1.5px;
+                        border-color: Theme.btn-accent;
+                        background: manage-ta.has-hover
+                            ? Theme.btn-accent.transparentize(0.80)
+                            : Theme.btn-accent.transparentize(0.90);
+                        Text {
+                            text: "Gerenciar";
+                            font-size: 13px; font-weight: 700; color: Theme.btn-accent;
+                            horizontal-alignment: center; vertical-alignment: center;
+                            width: parent.width; height: parent.height;
+                        }
+                    }
+                }
             }
         }
     }

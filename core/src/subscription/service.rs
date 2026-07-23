@@ -165,6 +165,33 @@ impl SubscriptionService {
         Ok(sub)
     }
 
+    /// Define o status da assinatura CORRENTE de uma empresa (painel do
+    /// super admin). Diferente de `mark_active`/`mark_overdue` (que operam
+    /// por `subscription_id`), aqui a chave é o `company_id`, alinhado às
+    /// demais rotas `/admin/*`.
+    ///
+    /// Regras (§7/§11): `synced = false` para o SyncWorker propagar; a
+    /// autoridade é o backend — o painel só solicita a transição.
+    pub async fn set_status(
+        &self,
+        company_id: Uuid,
+        status: SubscriptionStatus,
+    ) -> Result<Subscription, CoreError> {
+        let mut sub = self
+            .repo
+            .find_current(company_id)
+            .await?
+            .ok_or_else(|| CoreError::NotFound("Assinatura não encontrada".into()))?;
+        if sub.status == status {
+            return Ok(sub);
+        }
+        sub.status = status;
+        sub.base.updated_at = chrono::Utc::now().naive_utc();
+        sub.base.synced = false;
+        self.repo.update_subscription(&sub).await?;
+        Ok(sub)
+    }
+
     /// Assina um plano do CATÁLOGO (gerido pelo super admin): grava o
     /// snapshot dos termos na assinatura e aplica o período gratuito
     /// (trial) na 1ª cobrança. Recorrência ativa (cartão/PIX) deve ser

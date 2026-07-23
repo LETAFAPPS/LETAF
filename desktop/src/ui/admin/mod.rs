@@ -44,11 +44,13 @@ struct CompanyDto {
 
 #[derive(Deserialize)]
 struct SubscriptionDto {
+    company_id: String,
     company_name: String,
     plan: String,
     status: String,
     next_charge: String,
     payment_kind: String,
+    discount: String,
 }
 
 #[derive(Deserialize)]
@@ -183,11 +185,13 @@ fn setup_refresh(
                 let sub_rows: Vec<AdminSubscriptionRow> = subs
                     .into_iter()
                     .map(|s| AdminSubscriptionRow {
+                        company_id: s.company_id.into(),
                         company_name: s.company_name.into(),
                         plan: s.plan.into(),
                         status: s.status.into(),
                         next_charge: s.next_charge.into(),
                         payment_kind: s.payment_kind.into(),
+                        discount: s.discount.into(),
                     })
                     .collect();
                 ui.set_admin_subscriptions(ModelRc::new(VecModel::from(sub_rows)));
@@ -455,6 +459,59 @@ fn setup_persist(
                     .send()
                     .await;
                 report(ui_weak, result, "Administrador removido").await;
+            });
+        });
+    }
+    // Gestão da assinatura de uma empresa (plano, status e desconto).
+    {
+        let ui_weak = ui.as_weak();
+        let handle = handle.clone();
+        let auth_token = auth_token.clone();
+        let server_url = server_url.to_string();
+        ui.on_admin_save_subscription(move || {
+            let Some(ui) = ui_weak.upgrade() else { return };
+            let company_id = ui.get_admin_sub_edit_company_id().to_string();
+            if company_id.is_empty() {
+                return;
+            }
+            let plan = ui.get_admin_sub_edit_plan().to_string();
+            let status = ui.get_admin_sub_edit_status().to_string();
+            // Aceita vírgula ou ponto como separador decimal.
+            let discount: f64 = ui
+                .get_admin_sub_edit_discount()
+                .replace('.', "")
+                .replace(',', ".")
+                .trim()
+                .parse()
+                .unwrap_or(0.0);
+            ui.set_admin_sub_edit_busy(true);
+            let body = serde_json::json!({
+                "plan": plan, "status": status, "discount": discount,
+            });
+            let ui_weak = ui.as_weak();
+            let auth_token = auth_token.clone();
+            let server_url = server_url.clone();
+            handle.spawn(async move {
+                let Some(token) = auth_token.read().await.clone() else { return };
+                let result = HTTP_CLIENT
+                    .put(format!("{server_url}/admin/subscriptions/{company_id}"))
+                    .bearer_auth(&token)
+                    .json(&body)
+                    .send()
+                    .await;
+                let outcome = write_outcome(result).await;
+                let _ = slint::invoke_from_event_loop(move || {
+                    let Some(ui) = ui_weak.upgrade() else { return };
+                    ui.set_admin_sub_edit_busy(false);
+                    match outcome {
+                        Ok(()) => {
+                            show_toast(&ui, "Assinatura atualizada", "success");
+                            ui.set_admin_sub_edit_open(false);
+                            ui.invoke_admin_refresh();
+                        }
+                        Err(msg) => show_toast(&ui, &msg, "error"),
+                    }
+                });
             });
         });
     }

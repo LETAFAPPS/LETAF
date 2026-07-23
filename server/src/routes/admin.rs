@@ -26,6 +26,7 @@ use letaf_core::company::model::Company;
 use letaf_core::error::CoreError;
 use letaf_core::plan::model::Plan;
 use letaf_core::plan::service::PlanInput;
+use letaf_core::subscription::model::{PlanKind, SubscriptionStatus};
 
 use crate::context::AppState;
 use crate::error::ServerError;
@@ -47,6 +48,7 @@ pub fn routes() -> Router<AppState> {
         .route("/admin/overview", get(overview))
         .route("/admin/companies", get(list_companies).post(create_company))
         .route("/admin/subscriptions", get(list_subscriptions))
+        .route("/admin/subscriptions/{company_id}", put(update_subscription))
         .route("/admin/admins", get(list_admins).post(create_admin))
         .route("/admin/admins/{id}", put(update_admin).delete(delete_admin))
         .route("/admin/plans", get(list_plans).post(create_plan))
@@ -334,6 +336,8 @@ struct SubscriptionRow {
     status: String,
     next_charge: String,
     payment_kind: String,
+    /// Desconto comercial em R$/mês (número puro, ex.: "10").
+    discount: String,
 }
 
 async fn list_subscriptions(
@@ -359,10 +363,60 @@ async fn list_subscriptions(
                     .map(|d| d.format("%d/%m/%Y").to_string())
                     .unwrap_or_default(),
                 payment_kind: sub.payment_method.kind.clone(),
+                discount: sub.plan_discount_monthly.normalize().to_string(),
             });
         }
     }
     Ok(Json(rows))
+}
+
+/// Gestão da assinatura de uma empresa pelo super admin. Aplica apenas os
+/// campos presentes: trocar plano, mudar status e/ou ajustar o desconto
+/// comercial. A autoridade é o backend (§11) — a UI só solicita.
+#[derive(Deserialize)]
+struct UpdateSubscriptionRequest {
+    /// "monthly" | "semestral" | "annual".
+    #[serde(default)]
+    plan: Option<String>,
+    /// "active" | "overdue" | "cancelled".
+    #[serde(default)]
+    status: Option<String>,
+    /// Desconto comercial em R$/mês (>= 0).
+    #[serde(default)]
+    discount: Option<f64>,
+}
+
+async fn update_subscription(
+    State(state): State<AppState>,
+    auth: AuthClaims,
+    Path(company_id): Path<Uuid>,
+    Json(body): Json<UpdateSubscriptionRequest>,
+) -> Result<StatusCode, ServerError> {
+    require_super_admin(&auth)?;
+    let today = chrono::Utc::now().date_naive();
+    // Garante que a assinatura exista (empresas antigas podem não ter seed).
+    state.subscription_service.ensure_seed(company_id, today).await?;
+
+    // Ordem: plano → status → desconto. `change_plan` reativa a assinatura
+    // e recalcula a próxima cobrança; aplicar o status depois preserva a
+    // intenção (ex.: cancelar após trocar de plano).
+    if let Some(plan) = body.plan {
+        state
+            .subscription_service
+            .change_plan(company_id, PlanKind::from_str(&plan), today)
+            .await?;
+    }
+    if let Some(status) = body.status {
+        state
+            .subscription_service
+            .set_status(company_id, SubscriptionStatus::from_str(&status))
+            .await?;
+    }
+    if let Some(discount) = body.discount {
+        let dec = Decimal::from_f64(discount).unwrap_or_default().max(Decimal::ZERO);
+        state.subscription_service.set_plan_discount(company_id, dec).await?;
+    }
+    Ok(StatusCode::OK)
 }
 
 // ── Administradores (gestão dos super admins) ────────────────────────────

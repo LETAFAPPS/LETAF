@@ -40,6 +40,7 @@ import { PdvPage } from "pages/pdv_page.slint";
 import { AdminOverviewPage } from "pages/admin_overview_page.slint";
 import { AdminCompaniesPage } from "pages/admin_companies_page.slint";
 import { AdminSubscriptionsPage } from "pages/admin_subscriptions_page.slint";
+import { AdminSubscriptionModal } from "modals/admin_subscription_modal.slint";
 import { AdminAdminsPage } from "pages/admin_admins_page.slint";
 import { AdminPlansPage } from "pages/admin_plans_page.slint";
 import { PdvSoldModal } from "modals/pdv_sold_modal.slint";
@@ -1032,6 +1033,15 @@ export component MainWindow inherits Window {
     in-out property <string> admin-mrr: "R$ 0,00";
     in-out property <[AdminCompanyRow]> admin-companies: [];
     in-out property <[AdminSubscriptionRow]> admin-subscriptions: [];
+    // Edição da assinatura (modal do super admin).
+    in-out property <bool> admin-sub-edit-open: false;
+    in-out property <bool> admin-sub-edit-busy: false;
+    in-out property <string> admin-sub-edit-company-id: "";
+    in-out property <string> admin-sub-edit-company-name: "";
+    in-out property <string> admin-sub-edit-plan: "monthly";
+    in-out property <string> admin-sub-edit-status: "active";
+    in-out property <string> admin-sub-edit-discount: "0";
+    callback admin-save-subscription();
     in-out property <[AdminUserRow]> admin-users: [];
     // Formulário de administrador (criar/editar credenciais).
     in-out property <string> admin-form-id: "";
@@ -1676,6 +1686,14 @@ export component MainWindow inherits Window {
                 }
                 if root.active-tab == "admin-subscriptions": AdminSubscriptionsPage {
                     subscriptions: root.admin-subscriptions;
+                    manage(s) => {
+                        root.admin-sub-edit-company-id = s.company-id;
+                        root.admin-sub-edit-company-name = s.company-name;
+                        root.admin-sub-edit-plan = s.plan;
+                        root.admin-sub-edit-status = s.status;
+                        root.admin-sub-edit-discount = s.discount;
+                        root.admin-sub-edit-open = true;
+                    }
                 }
                 if root.active-tab == "admin-admins": AdminAdminsPage {
                     users: root.admin-users;
@@ -2621,6 +2639,16 @@ export component MainWindow inherits Window {
     if root.show-logout-confirm: LogoutConfirmModal {
         close => { root.show-logout-confirm = false; }
         do-logout => { root.do-logout(); }
+    }
+
+    if root.admin-sub-edit-open: AdminSubscriptionModal {
+        company-name: root.admin-sub-edit-company-name;
+        plan <=> root.admin-sub-edit-plan;
+        status <=> root.admin-sub-edit-status;
+        discount <=> root.admin-sub-edit-discount;
+        busy: root.admin-sub-edit-busy;
+        save => { root.admin-save-subscription(); }
+        close => { root.admin-sub-edit-open = false; }
     }
 
     if root.profile-open: ProfileModal {

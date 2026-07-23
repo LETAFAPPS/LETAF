@@ -38,11 +38,13 @@ export struct AdminCompanyRow {
 }
 
 export struct AdminSubscriptionRow {
+    company-id: string,
     company-name: string,
     plan: string,
     status: string,
     next-charge: string,
     payment-kind: string,
+    discount: string,
 }
 
 export struct AdminUserRow {

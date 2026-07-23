@@ -1,0 +1,102 @@
+// Modal do super admin: gerencia a assinatura de uma empresa (plano,
+// status e desconto comercial). UI sem lógica (§1/§3): as transições são
+// aplicadas pelo backend em PUT /admin/subscriptions/{company_id}.
+import { Theme } from "../theme.slint";
+import { FormField } from "../components/form_fields.slint";
+import { OutlineBtn } from "../components/buttons.slint";
+import { ModalShell } from "../components/modal_shell.slint";
+
+// Chip selecionável (estilo tênue quando ativo — padrão do sistema).
+component SelectChip inherits TouchArea {
+    in property <string> label;
+    in property <bool> active: false;
+    height: 34px;
+    Rectangle {
+        border-radius: 8px;
+        border-width: root.active ? 1.5px : 1px;
+        border-color: root.active ? Theme.btn-accent : Theme.border;
+        background: root.active
+            ? Theme.btn-accent.transparentize(0.90)
+            : (root.has-hover ? Theme.row-hover : Theme.surface);
+        HorizontalLayout {
+            padding-left: 14px; padding-right: 14px;
+            Text {
+                text: root.label;
+                font-size: 13px;
+                font-weight: root.active ? 700 : 500;
+                color: root.active ? Theme.btn-accent : Theme.text-secondary;
+                vertical-alignment: center;
+            }
+        }
+    }
+}
+
+export component AdminSubscriptionModal inherits Rectangle {
+    in property <string> company-name;
+    in-out property <string> plan;      // "monthly" | "semestral" | "annual"
+    in-out property <string> status;    // "active" | "overdue" | "cancelled"
+    in-out property <string> discount;  // R$/mês (número puro)
+    in property <bool> busy;
+    callback save();
+    callback close();
+
+    width: 100%;
+    height: 100%;
+
+    ModalShell {
+        width: 100%;
+        height: 100%;
+        icon: @image-url("../assets/icons/1.2/financeiro.svg");
+        icon-color: Theme.btn-accent;
+        title: "Gerenciar assinatura";
+        message: root.company-name;
+        card-width: 460px;
+        close => { root.close(); }
+
+        VerticalLayout {
+            spacing: 14px;
+
+            // Plano.
+            VerticalLayout {
+                spacing: 6px;
+                Text { text: "Plano"; font-size: 12.5px; font-weight: 600; color: Theme.text-secondary; }
+                HorizontalLayout {
+                    spacing: 8px;
+                    SelectChip { label: "Mensal"; active: root.plan == "monthly"; clicked => { root.plan = "monthly"; } }
+                    SelectChip { label: "Semestral"; active: root.plan == "semestral"; clicked => { root.plan = "semestral"; } }
+                    SelectChip { label: "Anual"; active: root.plan == "annual"; clicked => { root.plan = "annual"; } }
+                }
+            }
+
+            // Status.
+            VerticalLayout {
+                spacing: 6px;
+                Text { text: "Status"; font-size: 12.5px; font-weight: 600; color: Theme.text-secondary; }
+                HorizontalLayout {
+                    spacing: 8px;
+                    SelectChip { label: "Ativa"; active: root.status == "active"; clicked => { root.status = "active"; } }
+                    SelectChip { label: "Vencida"; active: root.status == "overdue"; clicked => { root.status = "overdue"; } }
+                    SelectChip { label: "Cancelada"; active: root.status == "cancelled"; clicked => { root.status = "cancelled"; } }
+                }
+            }
+
+            FormField {
+                label: "Desconto (R$/mês)";
+                value <=> root.discount;
+                placeholder: "0";
+            }
+
+            // Ação alinhada à direita.
+            HorizontalLayout {
+                alignment: end;
+                OutlineBtn {
+                    label: root.busy ? "Salvando…" : "Salvar";
+                    accent: true;
+                    btn-color: Theme.btn-accent;
+                    width: 130px; height: 40px;
+                    clicked => { if (!root.busy) { root.save(); } }
+                }
+            }
+        }
+    }
+}
