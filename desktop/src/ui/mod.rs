@@ -50,6 +50,19 @@ use self::helpers::show_toast;
 use self::products::{DecodedProduct, remove_from_cache, remove_product_from_model};
 use self::customers::DecodedCustomer;
 
+/// Exibe a foto de perfil em cache (base64) na janela, decodificando-a.
+/// Chamado sincronamente no restore da sessão (main thread, antes do loop)
+/// para o card da sidebar já aparecer com a foto ao abrir o app.
+pub(crate) fn set_cached_avatar(window: &MainWindow, b64: &str) {
+    if b64.is_empty() {
+        return;
+    }
+    if let Some(buf) = image::decode_pixel_buffer(b64) {
+        window.set_profile_avatar(slint::Image::from_rgba8(buf));
+        window.set_profile_avatar_data(slint::SharedString::from(b64));
+    }
+}
+
 /// Conecta callbacks da UI Slint aos services do dominio.
 ///
 /// Regras aplicadas (AI_RULES.md §1, §3, §11, §14):

@@ -32,25 +32,8 @@ pub(crate) fn setup_profile(
     auth_token: Arc<RwLock<Option<String>>>,
     server_url: String,
 ) {
-    // Ao iniciar: carrega a foto em cache (base64 no SessionStore) e a exibe
-    // no card da sidebar — funciona offline e antes de abrir o perfil.
-    {
-        let ui_weak = ui.as_weak();
-        let state = state.clone();
-        let handle = handle.clone();
-        handle.spawn(async move {
-            let Some(b64) = state.session.load_user_avatar().await else { return };
-            let b64c = b64.clone();
-            let pixel = tokio::task::spawn_blocking(move || decode_pixel_buffer(&b64c))
-                .await
-                .unwrap_or(None);
-            let _ = slint::invoke_from_event_loop(move || {
-                let Some(ui) = ui_weak.upgrade() else { return };
-                ui.set_profile_avatar(pixel.map(slint::Image::from_rgba8).unwrap_or_default());
-                ui.set_profile_avatar_data(SharedString::from(b64));
-            });
-        });
-    }
+    // (A foto em cache é exibida no card da sidebar de forma síncrona no
+    // restore da sessão — ver `ui::set_cached_avatar` chamado em main.rs.)
     // Abrir o perfil: mostra o modal e busca os dados atuais.
     {
         let ui_weak = ui.as_weak();

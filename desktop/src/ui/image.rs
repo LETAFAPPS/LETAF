@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 /// Regras aplicadas (AI_RULES.md §8):
 /// - Função com responsabilidade única: apenas decode de bytes
 /// - Retorna None em caso de erro (sem panic)
-pub(super) fn decode_pixel_buffer(b64: &str) -> Option<slint::SharedPixelBuffer<slint::Rgba8Pixel>> {
+pub(crate) fn decode_pixel_buffer(b64: &str) -> Option<slint::SharedPixelBuffer<slint::Rgba8Pixel>> {
     use base64::Engine;
     let bytes = base64::engine::general_purpose::STANDARD.decode(b64).ok()?;
     let img = image::load_from_memory(&bytes).ok()?;

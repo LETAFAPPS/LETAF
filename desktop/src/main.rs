@@ -166,6 +166,10 @@ fn main() {
         if let Some(name) = rt.block_on(state.session.load_user_name()) {
             window.set_user_name(slint::SharedString::from(name));
         }
+        // Foto de perfil em cache → card da sidebar já na abertura (offline).
+        if let Some(avatar) = rt.block_on(state.session.load_user_avatar()) {
+            ui::set_cached_avatar(&window, &avatar);
+        }
         // Abre a primeira aba acessível ao operador restaurado — adiada
         // para depois do primeiro frame (evita recursão de layout no
         // startup ao montar telas que usam `root.height`, ex.: PDV).
