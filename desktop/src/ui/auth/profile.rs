@@ -32,9 +32,29 @@ pub(crate) fn setup_profile(
     auth_token: Arc<RwLock<Option<String>>>,
     server_url: String,
 ) {
+    // Ao iniciar: carrega a foto em cache (base64 no SessionStore) e a exibe
+    // no card da sidebar — funciona offline e antes de abrir o perfil.
+    {
+        let ui_weak = ui.as_weak();
+        let state = state.clone();
+        let handle = handle.clone();
+        handle.spawn(async move {
+            let Some(b64) = state.session.load_user_avatar().await else { return };
+            let b64c = b64.clone();
+            let pixel = tokio::task::spawn_blocking(move || decode_pixel_buffer(&b64c))
+                .await
+                .unwrap_or(None);
+            let _ = slint::invoke_from_event_loop(move || {
+                let Some(ui) = ui_weak.upgrade() else { return };
+                ui.set_profile_avatar(pixel.map(slint::Image::from_rgba8).unwrap_or_default());
+                ui.set_profile_avatar_data(SharedString::from(b64));
+            });
+        });
+    }
     // Abrir o perfil: mostra o modal e busca os dados atuais.
     {
         let ui_weak = ui.as_weak();
+        let state = state.clone();
         let handle = handle.clone();
         let auth_token = auth_token.clone();
         let url = server_url.clone();
@@ -44,6 +64,7 @@ pub(crate) fn setup_profile(
             ui.set_profile_new_password(SharedString::default());
             ui.set_profile_open(true);
             let ui_weak = ui.as_weak();
+            let state = state.clone();
             let auth_token = auth_token.clone();
             let url = url.clone();
             handle.spawn(async move {
@@ -66,6 +87,11 @@ pub(crate) fn setup_profile(
                         .unwrap_or(None),
                     None => None,
                 };
+                // Atualiza o cache local só quando o /auth/me respondeu
+                // (offline não sobrescreve a foto guardada).
+                if me.is_some() {
+                    state.session.save_user_avatar(avatar_b64.as_deref().unwrap_or("")).await;
+                }
                 let _ = slint::invoke_from_event_loop(move || {
                     let Some(ui) = ui_weak.upgrade() else { return };
                     if let Some(me) = me {
@@ -129,9 +155,11 @@ pub(crate) fn setup_profile(
                     }
                     Err(_) => Err("Sem conexão com o servidor.".into()),
                 };
-                // Nome atualizado sobrevive a restart offline (rodapé da sidebar).
+                // Nome e foto atualizados sobrevivem a restart offline
+                // (card da sidebar).
                 if outcome.is_ok() {
                     state.session.save_user_name(&name).await;
+                    state.session.save_user_avatar(&avatar).await;
                 }
                 let _ = slint::invoke_from_event_loop(move || {
                     let Some(ui) = ui_weak.upgrade() else { return };

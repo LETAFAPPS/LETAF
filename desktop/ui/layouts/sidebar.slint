@@ -33,6 +33,8 @@ export component Sidebar inherits Rectangle {
     in property <string> user-role;
     in property <string> user-name: "Minha conta";
     in property <image>  store-logo-image;
+    /// Foto de perfil do operador logado (vazia = usa logo/ícone).
+    in property <image>  user-avatar;
 
     // Badges numéricos
     in property <int> orders-count: 0;
@@ -316,13 +318,19 @@ export component Sidebar inherits Rectangle {
                             width: 30px; height: 30px; border-radius: 8px;
                             background: profile-ta.has-hover ? #FFFFFF24 : #FFFFFF14;
                             clip: true;
-                            // Imagem do estabelecimento; fallback no ícone de pessoa.
-                            if root.store-logo-image.width > 0: Image {
+                            // Prioridade: foto do usuário → logo do
+                            // estabelecimento → ícone de pessoa (fallback).
+                            if root.user-avatar.width > 0: Image {
+                                source: root.user-avatar;
+                                width: parent.width; height: parent.height;
+                                image-fit: cover;
+                            }
+                            if root.user-avatar.width <= 0 && root.store-logo-image.width > 0: Image {
                                 source: root.store-logo-image;
                                 width: parent.width; height: parent.height;
                                 image-fit: cover;
                             }
-                            if root.store-logo-image.width <= 0: PersonIcon {
+                            if root.user-avatar.width <= 0 && root.store-logo-image.width <= 0: PersonIcon {
                                 icon-size: 18px; icon-color: Theme.sidebar-text;
                                 x: (parent.width - self.width) / 2;
                                 y: (parent.height - self.height) / 2;

@@ -26,6 +26,7 @@ const KEY_PERMS: &str = "nav_perms";
 const KEY_IS_ADMIN: &str = "is_admin";
 const KEY_IS_SUPER_ADMIN: &str = "is_super_admin";
 const KEY_USER_NAME: &str = "user_name";
+const KEY_USER_AVATAR: &str = "user_avatar";
 const TS_FMT: &str = "%Y-%m-%d %H:%M:%S%.6f";
 
 impl SessionStore {
@@ -162,6 +163,17 @@ impl SessionStore {
     /// Carrega o nome do operador logado, se houver.
     pub async fn load_user_name(&self) -> Option<String> {
         self.get(KEY_USER_NAME).await.filter(|s| !s.is_empty())
+    }
+
+    /// Persiste a foto de perfil (base64) do operador logado, para exibir
+    /// no card da sidebar mesmo offline / logo na abertura. "" remove.
+    pub async fn save_user_avatar(&self, avatar: &str) {
+        self.set(KEY_USER_AVATAR, avatar).await;
+    }
+
+    /// Carrega a foto de perfil (base64) do operador, se houver.
+    pub async fn load_user_avatar(&self) -> Option<String> {
+        self.get(KEY_USER_AVATAR).await.filter(|s| !s.is_empty())
     }
 
     /// Carrega `(is_admin, is_super_admin, perms)` salvos. Default: sem

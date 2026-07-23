@@ -83,6 +83,9 @@ pub(crate) fn setup_login(
                     let is_admin = login.role.is_admin();
                     state.session.save_perms(is_admin, login.role.is_super_admin(), &login.perms).await;
                     state.session.save_user_name(&login.name).await;
+                    // Limpa a foto em cache do operador anterior (a resposta de
+                    // login não traz avatar; será buscada no /auth/me).
+                    state.session.save_user_avatar("").await;
                     update_ui_after_login(ui_weak, login.role, login.perms, login.name);
                 }
                 Err(e) => {
@@ -332,6 +335,10 @@ pub(crate) fn update_ui_after_login(ui_weak: slint::Weak<MainWindow>, role: User
         ui.set_logged_in(true);
         ui.set_user_role(SharedString::from(role.label_pt_br()));
         ui.set_user_name(SharedString::from(name));
+        // Zera a foto do operador anterior; a do novo é carregada ao abrir
+        // o perfil (GET /auth/me) e então cacheada.
+        ui.set_profile_avatar(slint::Image::default());
+        ui.set_profile_avatar_data(SharedString::default());
         ui.set_nav_perms(crate::nav_perms::nav_perms_from(role.is_admin(), role.is_super_admin(), &perms));
         // Abre a primeira aba que o operador pode acessar (evita cair
         // numa tela sem permissão após o login). Super admin → painel.
