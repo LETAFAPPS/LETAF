@@ -694,7 +694,7 @@ export component FinancePage inherits Rectangle {
         // ── Lista de lançamentos ─────────────────────────
         // Lista agrupada por status (Vencidos / Pendentes / Liquidados),
         // com cada lançamento num card próprio — como no mockup.
-        if root.view-mode == "list": ScrollView { vertical-scrollbar-policy: ScrollBarPolicy.always-off; horizontal-scrollbar-policy: ScrollBarPolicy.always-off;
+        if root.view-mode == "list" && root.entries.length > 0: ScrollView { vertical-scrollbar-policy: ScrollBarPolicy.always-off; horizontal-scrollbar-policy: ScrollBarPolicy.always-off;
             vertical-stretch: 1;
             VerticalLayout {
                 alignment: start;
@@ -762,14 +762,16 @@ export component FinancePage inherits Rectangle {
                         }
                     }
                 }
-                if root.entries.length == 0: Rectangle {
-                    height: 150px;
-                    EmptyState {
-                        source: @image-url("../assets/empty/calculator.svg");
-                        title: "Sem lançamentos";
-                        subtitle: "Registre entradas e saídas";
-                    }
-                }
+            }
+        }
+        // Estado vazio CENTRALIZADO — irmão do ScrollView (que ancora no topo).
+        if root.view-mode == "list" && root.entries.length == 0: VerticalLayout {
+            vertical-stretch: 1;
+            alignment: center;
+            EmptyState {
+                source: @image-url("../assets/empty/calculator.svg");
+                title: "Sem lançamentos";
+                subtitle: "Registre entradas e saídas";
             }
         }
 

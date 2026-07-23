@@ -204,7 +204,7 @@ export component CashPage inherits VerticalLayout {
                 }
             }
             // Linhas
-            ScrollView { vertical-scrollbar-policy: ScrollBarPolicy.always-off; horizontal-scrollbar-policy: ScrollBarPolicy.always-off;
+            if root.sessions.length > 0: ScrollView { vertical-scrollbar-policy: ScrollBarPolicy.always-off; horizontal-scrollbar-policy: ScrollBarPolicy.always-off;
                 vertical-stretch: 1;
                 VerticalLayout {
                     for s in root.sessions: Rectangle {
@@ -227,18 +227,18 @@ export component CashPage inherits VerticalLayout {
                             Text { text: s.status-label; font-size: 11px; color: Theme.text-secondary; width: 80px; horizontal-alignment: right; vertical-alignment: center; }
                         }
                     }
-                    // Respiro acima da ilustração: sem ele, a arte cola no
-                    // cabeçalho da tabela.
-                    if root.sessions.length == 0: VerticalLayout {
-                        padding-top: 48px;
-                        alignment: start;
-                        EmptyState {
-                            source: @image-url("../assets/empty/cash-register.svg");
-                            title: "Caixa fechado";
-                            subtitle: "Abra o caixa para operar";
-                            art-size: 108px;
-                        }
-                    }
+                }
+            }
+            // Estado vazio CENTRALIZADO no card — irmão do ScrollView (que
+            // ancora no topo), ocupando a área abaixo do cabeçalho da tabela.
+            if root.sessions.length == 0: VerticalLayout {
+                vertical-stretch: 1;
+                alignment: center;
+                EmptyState {
+                    source: @image-url("../assets/empty/cash-register.svg");
+                    title: "Caixa fechado";
+                    subtitle: "Abra o caixa para operar";
+                    art-size: 108px;
                 }
             }
         }

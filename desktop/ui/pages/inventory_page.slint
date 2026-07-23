@@ -428,7 +428,7 @@ export component InventoryPage inherits VerticalLayout {
     }
 
     // ── Lista agrupada ─────────────────────────────────────────────
-    ScrollView { vertical-scrollbar-policy: ScrollBarPolicy.always-off; horizontal-scrollbar-policy: ScrollBarPolicy.always-off;
+    if root.products.length > 0: ScrollView { vertical-scrollbar-policy: ScrollBarPolicy.always-off; horizontal-scrollbar-policy: ScrollBarPolicy.always-off;
         vertical-stretch: 1;
         VerticalLayout {
             alignment: start;
@@ -472,10 +472,16 @@ export component InventoryPage inherits VerticalLayout {
                     add => { root.request-add-stock(p.id); }
                 }
             }
-            if root.products.length == 0: EmptyState {
-                source: @image-url("../assets/empty/out-of-stock.svg");
-                title: "Nenhum produto";
-            }
+        }
+    }
+    // Estado vazio CENTRALIZADO — irmão do ScrollView (que ancora no topo),
+    // ocupando o espaço vertical restante.
+    if root.products.length == 0: VerticalLayout {
+        vertical-stretch: 1;
+        alignment: center;
+        EmptyState {
+            source: @image-url("../assets/empty/out-of-stock.svg");
+            title: "Nenhum produto";
         }
     }
 }

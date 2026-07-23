@@ -73,8 +73,21 @@ export component BannersPage inherits Rectangle {
 
         Rectangle { height: 1px; background: Theme.border; }
 
+        // Estado vazio CENTRALIZADO (sem Card): irmão do ScrollView, ocupa a
+        // sobra vertical e centraliza. O card branco representa um item da
+        // lista — com a lista vazia viraria moldura sem conteúdo.
+        if root.banners.length == 0: VerticalLayout {
+            vertical-stretch: 1;
+            alignment: center;
+            EmptyState {
+                source: @image-url("../assets/empty/illustration.svg");
+                title: "Nenhum banner";
+                subtitle: "Adicione o primeiro para divulgar";
+            }
+        }
+
         // Lista rolável — absorve a sobra vertical (vertical-stretch).
-        ScrollView { vertical-scrollbar-policy: ScrollBarPolicy.always-off; horizontal-scrollbar-policy: ScrollBarPolicy.always-off;
+        if root.banners.length > 0: ScrollView { vertical-scrollbar-policy: ScrollBarPolicy.always-off; horizontal-scrollbar-policy: ScrollBarPolicy.always-off;
             vertical-stretch: 1;
             VerticalLayout {
                 alignment: start;
@@ -83,18 +96,6 @@ export component BannersPage inherits Rectangle {
                 // (laterais e topo do 1º card).
                 padding-left: 12px; padding-right: 12px;
                 padding-top: 12px; padding-bottom: 12px;
-
-                // Estado vazio SEM Card: o card branco representa um item da
-                // lista — com a lista vazia ele viraria uma moldura sem
-                // conteúdo. A ilustração fica direto sobre o fundo.
-                if root.banners.length == 0: VerticalLayout {
-                    padding: 24px;
-                    EmptyState {
-                        source: @image-url("../assets/empty/illustration.svg");
-                        title: "Nenhum banner";
-                        subtitle: "Adicione o primeiro para divulgar";
-                    }
-                }
 
                 // Lista — cada banner em um Card individual.
                 // Altura fixa (miniatura 54px + padding 12×2 ≈ 78px):
