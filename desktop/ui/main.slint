@@ -2841,15 +2841,15 @@ export component MainWindow inherits Window {
                                 clicked => { root.finance-close-settle-confirm(); }
                                 Rectangle {
                                     border-radius: 8px;
-                                    // Cancelar = neutro (borda na cor do texto, sem fundo).
+                                    // Cancelar = neutro (borda/texto cinza, sem fundo).
                                     border-width: 1px;
-                                    border-color: Theme.text-primary;
+                                    border-color: Theme.text-secondary;
                                     background: cancel-ta.has-hover ? Theme.row-hover : transparent;
                                     Text {
                                         width: parent.width; height: parent.height;
                                         text: "Cancelar";
                                         font-size: 13px; font-weight: 700;
-                                        color: Theme.text-primary;
+                                        color: Theme.text-secondary;
                                         horizontal-alignment: center; vertical-alignment: center;
                                     }
                                 }
@@ -2950,15 +2950,15 @@ export component MainWindow inherits Window {
                                 clicked => { root.finance-close-delete-confirm(); }
                                 Rectangle {
                                     border-radius: 8px;
-                                    // Cancelar = neutro (borda na cor do texto, sem fundo).
+                                    // Cancelar = neutro (borda/texto cinza, sem fundo).
                                     border-width: 1px;
-                                    border-color: Theme.text-primary;
+                                    border-color: Theme.text-secondary;
                                     background: del-cancel-ta.has-hover ? Theme.row-hover : transparent;
                                     Text {
                                         width: parent.width; height: parent.height;
                                         text: "Cancelar";
                                         font-size: 13px; font-weight: 700;
-                                        color: Theme.text-primary;
+                                        color: Theme.text-secondary;
                                         horizontal-alignment: center; vertical-alignment: center;
                                     }
                                 }

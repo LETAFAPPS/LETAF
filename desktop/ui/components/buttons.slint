@@ -243,8 +243,8 @@ export component OutlineBtn inherits TouchArea {
     // cor do texto (preto no claro / branco no escuro), SEM fundo. Distingue
     // esses botões dos de AÇÃO (que usam o estilo tênue laranja).
     in property <bool> neutral: false;
-    // Cor efetiva de destaque: neutro → cor do texto; senão → btn-color.
-    property <color> hl: root.neutral ? Theme.text-primary : root.btn-color;
+    // Cor efetiva de destaque: neutro → cinza (borda/texto); senão → btn-color.
+    property <color> hl: root.neutral ? Theme.text-secondary : root.btn-color;
     height: 32px;
     min-width: 80px;
 
