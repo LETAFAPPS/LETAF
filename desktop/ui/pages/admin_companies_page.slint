@@ -55,6 +55,8 @@ export component AdminCompaniesPage inherits VerticalLayout {
     callback delete-company(string, string);
     // Suspender/reativar acesso do tenant. (id, novo-active)
     callback set-company-active(string, bool);
+    // Abre o detalhe consolidado da empresa. (id)
+    callback open-detail(string);
     // Busca/filtro (aplicados no Rust sobre a lista completa).
     in-out property <string> search;
     in-out property <string> filter: "all";
@@ -136,7 +138,17 @@ export component AdminCompaniesPage inherits VerticalLayout {
                     HorizontalLayout {
                         horizontal-stretch: 2;
                         spacing: 6px;
-                        Text { text: c.name; font-size: 13px; font-weight: 600; color: c.active ? Theme.text-primary : Theme.text-secondary; overflow: elide; vertical-alignment: center; }
+                        name-ta := TouchArea {
+                            width: name-txt.preferred-width;
+                            clicked => { root.open-detail(c.id); }
+                            name-txt := Text {
+                                text: c.name; font-size: 13px; font-weight: 600;
+                                color: name-ta.has-hover ? Theme.btn-accent
+                                    : (c.active ? Theme.text-primary : Theme.text-secondary);
+                                overflow: elide; vertical-alignment: center;
+                                width: parent.width; height: parent.height;
+                            }
+                        }
                         // Selo de "Suspensa" quando o acesso está bloqueado.
                         if !c.active: Rectangle {
                             width: susp.preferred-width + 12px; height: 18px;

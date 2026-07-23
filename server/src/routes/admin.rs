@@ -15,7 +15,7 @@ use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use axum::http::StatusCode;
-use axum::routing::{delete, get, put};
+use axum::routing::{get, put};
 use axum::{Json, Router};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -47,7 +47,7 @@ pub fn routes() -> Router<AppState> {
     Router::new()
         .route("/admin/overview", get(overview))
         .route("/admin/companies", get(list_companies).post(create_company))
-        .route("/admin/companies/{id}", delete(delete_company))
+        .route("/admin/companies/{id}", get(company_detail).delete(delete_company))
         .route("/admin/companies/{id}/active", put(set_company_active))
         .route("/admin/subscriptions", get(list_subscriptions))
         .route("/admin/subscriptions/{company_id}", put(update_subscription))
@@ -352,6 +352,108 @@ async fn create_company(
         StatusCode::CREATED,
         Json(json!({ "id": company.id, "subdomain": subdomain })),
     ))
+}
+
+// ── Detalhe da empresa (central de suporte) ──────────────────────────────
+#[derive(Serialize)]
+struct CompanyDetail {
+    id: Uuid,
+    name: String,
+    subdomain: String,
+    created_at: String,
+    active: bool,
+    // Cadastro
+    document: String,
+    phone: String,
+    whatsapp: String,
+    email: String,
+    address: String,
+    city_uf: String,
+    // Assinatura corrente
+    plan: String,
+    plan_amount: String,
+    status: String,
+    next_charge: String,
+    discount: String,
+    payment_method: String,
+    // Faturas
+    invoices_total: usize,
+    invoices_pending: usize,
+}
+
+/// Consolida cadastro + assinatura + faturas de um tenant numa só resposta
+/// (evita 3 round-trips do painel). Somente leitura.
+async fn company_detail(
+    State(state): State<AppState>,
+    auth: AuthClaims,
+    Path(id): Path<Uuid>,
+) -> Result<Json<CompanyDetail>, ServerError> {
+    require_super_admin(&auth)?;
+    let c = state
+        .company_service
+        .find_by_id(id)
+        .await?
+        .ok_or_else(|| ServerError::Core(CoreError::NotFound("Empresa não encontrada".into())))?;
+
+    let sub = state.subscription_service.find_current(id).await?;
+    let (plan, plan_amount, status, next_charge, discount, payment_method) = match &sub {
+        Some(s) => {
+            let terms = state.subscription_service.terms(s);
+            (
+                terms.name.clone(),
+                brl(terms.amount),
+                s.status.as_str().to_string(),
+                s.next_charge_date
+                    .map(|d| d.format("%d/%m/%Y").to_string())
+                    .unwrap_or_default(),
+                brl(s.plan_discount_monthly),
+                s.payment_method.label.clone(),
+            )
+        }
+        None => (
+            String::new(),
+            String::new(),
+            "none".into(),
+            String::new(),
+            brl(Decimal::ZERO),
+            String::new(),
+        ),
+    };
+
+    let invoices = state.subscription_service.find_invoices(id).await?;
+    let invoices_pending = invoices
+        .iter()
+        .filter(|i| i.status.as_str() != "paid")
+        .count();
+
+    let city_uf = match (c.city.as_deref(), c.uf.as_deref()) {
+        (Some(city), Some(uf)) if !city.is_empty() && !uf.is_empty() => format!("{city}/{uf}"),
+        (Some(city), _) => city.to_string(),
+        (_, Some(uf)) => uf.to_string(),
+        _ => String::new(),
+    };
+
+    Ok(Json(CompanyDetail {
+        id: c.id,
+        name: c.name,
+        subdomain: c.subdomain,
+        created_at: c.created_at.format("%d/%m/%Y").to_string(),
+        active: c.active,
+        document: c.document.unwrap_or_default(),
+        phone: c.phone.unwrap_or_default(),
+        whatsapp: c.whatsapp.unwrap_or_default(),
+        email: c.email.unwrap_or_default(),
+        address: c.address.unwrap_or_default(),
+        city_uf,
+        plan,
+        plan_amount,
+        status,
+        next_charge,
+        discount,
+        payment_method,
+        invoices_total: invoices.len(),
+        invoices_pending,
+    }))
 }
 
 /// Exclusão LÓGICA (soft delete) de uma empresa (tenant) pelo super admin.

@@ -10,7 +10,7 @@ import { ProductsPage } from "pages/products_page.slint";
 import { CategoriesPage } from "pages/categories_page.slint";
 import { CollaboratorsPage } from "pages/collaborators_page.slint";
 import { CollabPermRow, CollabRoleRow, CollabEmployeeRow } from "types.slint";
-import { AdminCompanyRow, AdminSubscriptionRow, AdminInvoiceRow, AdminAuditRow, AdminUserRow, AdminPlanRow } from "types.slint";
+import { AdminCompanyRow, AdminCompanyDetail, AdminSubscriptionRow, AdminInvoiceRow, AdminAuditRow, AdminUserRow, AdminPlanRow } from "types.slint";
 import { CustomersPage } from "pages/customers_page.slint";
 import { OrdersPage, CalendarPopup } from "pages/orders_page.slint";
 import { SettingsPage } from "pages/settings_page.slint";
@@ -41,6 +41,7 @@ import { AdminOverviewPage } from "pages/admin_overview_page.slint";
 import { AdminCompaniesPage } from "pages/admin_companies_page.slint";
 import { AdminSubscriptionsPage } from "pages/admin_subscriptions_page.slint";
 import { AdminAuditPage } from "pages/admin_audit_page.slint";
+import { AdminCompanyDetailModal } from "modals/admin_company_detail_modal.slint";
 import { AdminSubscriptionModal } from "modals/admin_subscription_modal.slint";
 import { AdminAdminsPage } from "pages/admin_admins_page.slint";
 import { AdminPlansPage } from "pages/admin_plans_page.slint";
@@ -1035,6 +1036,10 @@ export component MainWindow inherits Window {
     in-out property <[AdminCompanyRow]> admin-companies: [];
     in-out property <[AdminSubscriptionRow]> admin-subscriptions: [];
     in-out property <[AdminAuditRow]> admin-audit-entries: [];
+    // Detalhe da empresa (modal do painel).
+    in-out property <bool> admin-detail-open: false;
+    in-out property <AdminCompanyDetail> admin-detail;
+    callback admin-open-company-detail(string);
     // Edição da assinatura (modal do super admin).
     in-out property <bool> admin-sub-edit-open: false;
     in-out property <bool> admin-sub-edit-busy: false;
@@ -1709,6 +1714,7 @@ export component MainWindow inherits Window {
                         root.admin-del-company-open = true;
                     }
                     set-company-active(id, active) => { root.admin-set-company-active(id, active); }
+                    open-detail(id) => { root.admin-open-company-detail(id); }
                     search <=> root.admin-company-search;
                     filter <=> root.admin-company-filter;
                     filters-changed => { root.admin-filter-companies(); }
@@ -2676,6 +2682,11 @@ export component MainWindow inherits Window {
     if root.show-logout-confirm: LogoutConfirmModal {
         close => { root.show-logout-confirm = false; }
         do-logout => { root.do-logout(); }
+    }
+
+    if root.admin-detail-open: AdminCompanyDetailModal {
+        data: root.admin-detail;
+        close => { root.admin-detail-open = false; }
     }
 
     if root.admin-del-company-open: DeleteConfirmModal {

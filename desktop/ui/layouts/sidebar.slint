@@ -148,7 +148,7 @@ export component Sidebar inherits Rectangle {
                     clicked => { root.navigate("admin-admins"); }
                 }
                 if root.nav.is-super-admin: SidebarItem {
-                    icon-source: @image-url("../assets/icons/1.2/seguranca.svg");
+                    icon-source: @image-url("../assets/icons/1.2/auditoria.svg");
                     label: "Auditoria";
                     compact: !root.expanded;
                     active: root.active-tab == "admin-audit";

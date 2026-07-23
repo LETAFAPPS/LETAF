@@ -59,6 +59,29 @@ export struct AdminSubscriptionRow {
     discount: string,
 }
 
+// Detalhe consolidado de uma empresa (painel super admin).
+export struct AdminCompanyDetail {
+    id: string,
+    name: string,
+    subdomain: string,
+    created-at: string,
+    active: bool,
+    document: string,
+    phone: string,
+    whatsapp: string,
+    email: string,
+    address: string,
+    city-uf: string,
+    plan: string,
+    plan-amount: string,
+    status: string,
+    next-charge: string,
+    discount: string,
+    payment-method: string,
+    invoices-total: int,
+    invoices-pending: int,
+}
+
 export struct AdminAuditRow {
     actor: string,
     action: string,

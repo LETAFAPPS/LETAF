@@ -16,7 +16,8 @@ use slint::{ComponentHandle, Model, ModelRc, SharedString, VecModel};
 use tokio::sync::RwLock;
 
 use crate::{
-    AdminAuditRow, AdminCompanyRow, AdminInvoiceRow, AdminPlanRow, AdminSubscriptionRow,
+    AdminAuditRow, AdminCompanyDetail, AdminCompanyRow, AdminInvoiceRow, AdminPlanRow,
+    AdminSubscriptionRow,
     AdminUserRow, MainWindow,
     HTTP_CLIENT,
 };
@@ -67,6 +68,29 @@ struct SubscriptionDto {
     next_charge: String,
     payment_kind: String,
     discount: String,
+}
+
+#[derive(Deserialize)]
+struct CompanyDetailDto {
+    id: String,
+    name: String,
+    subdomain: String,
+    created_at: String,
+    active: bool,
+    document: String,
+    phone: String,
+    whatsapp: String,
+    email: String,
+    address: String,
+    city_uf: String,
+    plan: String,
+    plan_amount: String,
+    status: String,
+    next_charge: String,
+    discount: String,
+    payment_method: String,
+    invoices_total: i64,
+    invoices_pending: i64,
 }
 
 #[derive(Deserialize)]
@@ -586,6 +610,55 @@ fn setup_persist(
                     .send()
                     .await;
                 report(ui_weak, result, "Administrador removido").await;
+            });
+        });
+    }
+    // Detalhe consolidado de uma empresa (modal de suporte).
+    {
+        let ui_weak = ui.as_weak();
+        let handle = handle.clone();
+        let auth_token = auth_token.clone();
+        let server_url = server_url.to_string();
+        ui.on_admin_open_company_detail(move |id| {
+            let id = id.to_string();
+            if id.is_empty() {
+                return;
+            }
+            let ui_weak = ui_weak.clone();
+            let auth_token = auth_token.clone();
+            let server_url = server_url.clone();
+            handle.spawn(async move {
+                let Some(token) = auth_token.read().await.clone() else { return };
+                let Some(d): Option<CompanyDetailDto> =
+                    get_json(&format!("{server_url}/admin/companies/{id}"), &token).await
+                else {
+                    return;
+                };
+                let _ = slint::invoke_from_event_loop(move || {
+                    let Some(ui) = ui_weak.upgrade() else { return };
+                    ui.set_admin_detail(AdminCompanyDetail {
+                        id: d.id.into(),
+                        name: d.name.into(),
+                        subdomain: d.subdomain.into(),
+                        created_at: d.created_at.into(),
+                        active: d.active,
+                        document: d.document.into(),
+                        phone: d.phone.into(),
+                        whatsapp: d.whatsapp.into(),
+                        email: d.email.into(),
+                        address: d.address.into(),
+                        city_uf: d.city_uf.into(),
+                        plan: d.plan.into(),
+                        plan_amount: d.plan_amount.into(),
+                        status: d.status.into(),
+                        next_charge: d.next_charge.into(),
+                        discount: d.discount.into(),
+                        payment_method: d.payment_method.into(),
+                        invoices_total: d.invoices_total as i32,
+                        invoices_pending: d.invoices_pending as i32,
+                    });
+                    ui.set_admin_detail_open(true);
+                });
             });
         });
     }
