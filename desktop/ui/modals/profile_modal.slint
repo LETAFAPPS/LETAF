@@ -72,7 +72,7 @@ export component ProfileModal inherits Rectangle {
                 OutlineBtn {
                     label: root.busy ? "Salvando…" : "Salvar";
                     accent: true;
-                    btn-color: Theme.sidebar-sel-bg;
+                    btn-color: Theme.btn-accent;
                     width: 120px; height: 40px;
                     clicked => { root.save(); }
                 }

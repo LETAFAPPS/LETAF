@@ -80,7 +80,7 @@ export component UpdateModal inherits Rectangle {
                 OutlineBtn {
                     label: root.busy ? root.status : "Atualizar agora";
                     accent: true;
-                    btn-color: Theme.sidebar-sel-bg;
+                    btn-color: Theme.btn-accent;
                     width: 180px; height: 40px;
                     clicked => { if !root.busy { root.update-now(); } }
                 }

@@ -12,26 +12,24 @@ import { EmptyState } from "../components/empty_state.slint";
 // UI sem lógica (§1/§3): métricas/listas vêm prontas do Rust.
 
 // ── Botão com ícone + rótulo (contorno ou sólido marrom) ──────────────
+// Estilo tênue unificado do sistema (ver ActionBtn/OutlineBtn): borda + tint
+// fraco + ícone/texto na cor `accent` (padrão laranja secundário). `filled`
+// mantido só por compatibilidade dos chamadores. Destrutivo passa vermelho.
 component IconBtn inherits TouchArea {
     in property <string> label;
     in property <image> icon;
     in property <bool> filled: false;
-    in property <color> accent: Theme.text-primary;
+    in property <color> accent: Theme.btn-accent;
     height: 32px;
     // Abraça o conteúdo (não estica): largura = rótulo + ícone.
     width: inner.preferred-width;
-    // `filled` = botão de destaque no estilo dos Relatórios: contorno
-    // 1.5px na cor de destaque, fundo transparente, ícone/texto de destaque.
-    property <color> hl: Theme.sidebar-sel-bg;
     Rectangle {
         border-radius: 8px;
-        border-width: root.filled ? 1.5px : 1px;
-        border-color: root.filled
-            ? root.hl
-            : (root.has-hover ? root.accent : Theme.border);
-        background: root.filled
-            ? (root.has-hover ? Theme.row-hover : transparent)
-            : (root.has-hover ? #00000008 : Theme.surface);
+        border-width: 1.5px;
+        border-color: root.accent;
+        background: root.has-hover
+            ? root.accent.transparentize(0.80)
+            : root.accent.transparentize(0.90);
         inner := HorizontalLayout {
             padding-left: 16px; padding-right: 16px; spacing: 8px;
             alignment: center;
@@ -39,14 +37,14 @@ component IconBtn inherits TouchArea {
                 alignment: center;
                 AssetIcon {
                     width: 16px; height: 16px; icon-size: 16px;
-                    icon-color: root.filled ? root.hl : root.accent;
+                    icon-color: root.accent;
                     source: root.icon;
                 }
             }
             Text {
                 text: root.label;
-                font-size: 13px; font-weight: root.filled ? 700 : 600;
-                color: root.filled ? root.hl : root.accent;
+                font-size: 14px; font-weight: 700;
+                color: root.accent;
                 vertical-alignment: center;
             }
         }

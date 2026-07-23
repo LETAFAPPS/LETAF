@@ -135,7 +135,7 @@ export component CalendarPopup inherits Rectangle {
                 OutlineBtn {
                     label: "Filtrar";
                     accent: true;
-                    btn-color: Theme.sidebar-sel-bg;
+                    btn-color: Theme.btn-accent;
                     horizontal-stretch: 1;
                     height: 40px;
                     clicked => { root.close(); }
@@ -916,7 +916,7 @@ export component OrdersPage inherits VerticalLayout {
                                         o.status == "pending"   ? "Confirmar" :
                                         o.status == "confirmed" ? "Preparar"  :
                                         o.status == "preparing" ? "Pronto"    : "Entregar";
-                                    bg-color: o.status == "ready" ? #2E7D32 : Theme.sidebar-sel-bg;
+                                    bg-color: o.status == "ready" ? #2E7D32 : Theme.btn-accent;
                                     height: 40px;
                                     clicked => { root.advance-order-status(o.id); }
                                 }

@@ -191,7 +191,7 @@ export component AddonsPage inherits HorizontalLayout {
                 OutlineBtn {
                     label: "+ Novo Grupo";
                     accent: true;
-                    btn-color: Theme.sidebar-sel-bg;
+                    btn-color: Theme.btn-accent;
                     width: 150px;
                     clicked => { root.request-new-group(); }
                 }
@@ -267,7 +267,7 @@ export component AddonsPage inherits HorizontalLayout {
                 OutlineBtn {
                     label: "+ Novo Adicional";
                     accent: true;
-                    btn-color: root.selected-group-id != "" ? Theme.sidebar-sel-bg : #BDBDBD;
+                    btn-color: root.selected-group-id != "" ? Theme.btn-accent : #BDBDBD;
                     width: 170px;
                     enabled: root.selected-group-id != "";
                     clicked => { root.request-new-addon(); }

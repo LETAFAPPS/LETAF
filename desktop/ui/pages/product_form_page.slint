@@ -265,7 +265,7 @@ export component ProductFormPage inherits VerticalLayout {
         }
         ActionBtn {
             label: "Salvar Produto";
-            bg-color: root.product-image-loading ? #BDBDBD : Theme.sidebar-sel-bg;
+            bg-color: root.product-image-loading ? #BDBDBD : Theme.btn-accent;
             width: 150px;
             enabled: !root.product-image-loading;
             clicked => {

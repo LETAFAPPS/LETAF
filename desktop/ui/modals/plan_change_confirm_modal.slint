@@ -38,7 +38,7 @@ export component PlanChangeConfirmModal inherits Rectangle {
             OutlineBtn {
                 label: root.loading ? "Processando…" : "Cancelar e trocar";
                 accent: true;
-                btn-color: Theme.sidebar-sel-bg;
+                btn-color: Theme.btn-accent;
                 width: 190px; height: 40px;
                 clicked => {
                     if !root.loading {

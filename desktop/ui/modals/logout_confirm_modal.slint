@@ -32,7 +32,7 @@ export component LogoutConfirmModal inherits Rectangle {
             OutlineBtn {
                 label: "Sair";
                 accent: true;
-                btn-color: Theme.sidebar-sel-bg;
+                btn-color: Theme.btn-accent;
                 width: 120px; height: 40px;
                 clicked => { root.close(); root.do-logout(); }
             }

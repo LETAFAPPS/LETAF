@@ -455,7 +455,7 @@ export component CollaboratorsPage inherits Rectangle {
                         spacing: 10px;
                         OutlineBtn { label: "Cancelar"; width: 100px; height: 40px; clicked => { root.new-role(); } }
                         ActionBtn {
-                            label: "Salvar Função"; bg-color: Theme.sidebar-sel-bg; width: 144px; height: 40px;
+                            label: "Salvar Função"; bg-color: Theme.btn-accent; width: 144px; height: 40px;
                             icon: @image-url("../assets/icons/1.2/confirmar.svg");
                             clicked => { root.save-role(root.editing-role-id, root.role-name); }
                         }
@@ -579,7 +579,7 @@ export component CollaboratorsPage inherits Rectangle {
                         spacing: 10px;
                         OutlineBtn { label: "Cancelar"; width: 100px; height: 40px; clicked => { root.new-employee(); } }
                         ActionBtn {
-                            label: "Salvar Funcionário"; bg-color: Theme.sidebar-sel-bg; width: 164px; height: 40px;
+                            label: "Salvar Funcionário"; bg-color: Theme.btn-accent; width: 164px; height: 40px;
                             icon: @image-url("../assets/icons/1.2/confirmar.svg");
                             clicked => { root.save-employee(root.emp-id, root.emp-name, root.emp-email, root.emp-password, root.emp-role-index); }
                         }

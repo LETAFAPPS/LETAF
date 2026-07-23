@@ -499,7 +499,7 @@ export component CustomersPage inherits Rectangle {
                                     HorizontalLayout {
                                         spacing: 10px;
                                         OutlineBtn { label: "Editar"; icon: @image-url("../assets/icons/1.2/editar.svg"); width: 110px; height: 32px; clicked => { root.request-edit(root.detail-customer); } }
-                                        OutlineBtn { label: "+ Novo pedido"; accent: true; btn-color: Theme.sidebar-sel-bg; width: 140px; height: 32px; clicked => { root.new-order(root.detail-customer.id); } }
+                                        OutlineBtn { label: "+ Novo pedido"; accent: true; btn-color: Theme.btn-accent; width: 140px; height: 32px; clicked => { root.new-order(root.detail-customer.id); } }
                                     }
                                 }
                             }
@@ -507,7 +507,7 @@ export component CustomersPage inherits Rectangle {
                         if root.narrow: HorizontalLayout {
                             spacing: 10px;
                             OutlineBtn { label: "Editar"; icon: @image-url("../assets/icons/1.2/editar.svg"); horizontal-stretch: 1; height: 32px; clicked => { root.request-edit(root.detail-customer); } }
-                            OutlineBtn { label: "+ Novo pedido"; accent: true; btn-color: Theme.sidebar-sel-bg; horizontal-stretch: 1; height: 32px; clicked => { root.new-order(root.detail-customer.id); } }
+                            OutlineBtn { label: "+ Novo pedido"; accent: true; btn-color: Theme.btn-accent; horizontal-stretch: 1; height: 32px; clicked => { root.new-order(root.detail-customer.id); } }
                         }
                     }
 

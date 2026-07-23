@@ -320,7 +320,7 @@ export component ProductConfiguratorModal inherits Rectangle {
                             // que esta é a ação principal.
                             ActionBtn {
                                 label: root.config-edit-idx >= 0 ? "Atualizar" : "Adicionar";
-                                bg-color: Theme.sidebar-sel-bg;
+                                bg-color: Theme.btn-accent;
                                 horizontal-stretch: 1; height: 32px;
                                 clicked => { root.config-confirm(); }
                             }

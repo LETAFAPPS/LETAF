@@ -302,7 +302,7 @@ export component BannerModal inherits Rectangle {
                         OutlineBtn { label: "Cancelar"; width: 110px; clicked => { root.close(); } }
                         ActionBtn {
                             label: "Salvar";
-                            bg-color: Theme.sidebar-sel-bg;
+                            bg-color: Theme.btn-accent;
                             width: 130px;
                             clicked => {
                                 if root.editing-id != "" { root.update-banner(); } else { root.add-banner(); }

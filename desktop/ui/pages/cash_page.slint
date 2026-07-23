@@ -114,7 +114,7 @@ export component CashPage inherits VerticalLayout {
                 alignment: center;
                 ActionBtn {
                     label: "Abrir Caixa";
-                    bg-color: Theme.sidebar-sel-bg;
+                    bg-color: Theme.btn-accent;
                     width: 130px; height: 32px;
                     clicked => { root.request-open(); }
                 }
@@ -125,21 +125,21 @@ export component CashPage inherits VerticalLayout {
                     spacing: 8px;
                     OutlineBtn {
                         label: "Sangria";
-                        btn-color: Theme.text-primary;
+                        btn-color: Theme.danger;
                         hover-color: Theme.danger;
                         width: 120px; height: 32px;
                         clicked => { root.request-sangria(); }
                     }
                     OutlineBtn {
                         label: "Suprimento";
-                        btn-color: Theme.text-primary;
+                        btn-color: Theme.btn-accent;
                         hover-color: #2E7D32;
                         width: 120px; height: 32px;
                         clicked => { root.request-suprimento(); }
                     }
                     ActionBtn {
                         label: "Fechar Caixa";
-                        bg-color: Theme.sidebar-sel-bg;
+                        bg-color: Theme.btn-accent;
                         width: 140px; height: 32px;
                         clicked => { root.request-close(); }
                     }
