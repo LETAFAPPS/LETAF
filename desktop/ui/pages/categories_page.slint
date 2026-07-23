@@ -2,6 +2,7 @@ import { ScrollView } from "std-widgets.slint";
 import { Theme } from "../theme.slint";
 import { CategoryData, SubcategoryData, CatTreeRow, CatProduct, CatSub } from "../types.slint";
 import { AssetIcon } from "../components/icons.slint";
+import { OutlineBtn } from "../components/buttons.slint";
 import { PaginationBar } from "../components/pagination.slint";
 import { EmptyState } from "../components/empty_state.slint";
 
@@ -343,8 +344,14 @@ export component CategoriesPage inherits Rectangle {
             }
             VerticalLayout {
                 alignment: center;
-                IconBtn {
-                    label: "+ Nova Categoria"; filled: true;
+                // Mesmo componente/estilo do botão "Novo Banner": largura fixa
+                // com texto centralizado → mesmo espaçamento lateral (160px p/
+                // acomodar o rótulo ~3 chars mais longo que "Novo Banner").
+                OutlineBtn {
+                    label: "+ Nova Categoria";
+                    accent: true;
+                    btn-color: Theme.btn-accent;
+                    width: 160px;
                     clicked => { root.request-new-category(); }
                 }
             }
