@@ -60,6 +60,10 @@ impl TryFrom<CompanyRow> for Company {
             products_per_page: r.products_per_page as i32,
             orders_per_page: r.orders_per_page as i32,
             utc_offset_minutes: r.utc_offset_minutes as i32,
+            // `active` é controle de plataforma (server-authoritative). O
+            // SQLite local não guarda a coluna; o bloqueio é aplicado no gate
+            // de login (server). Localmente a empresa é sempre "ativa".
+            active: true,
             created_at: parse_timestamp(&r.created_at)?,
             updated_at: parse_timestamp(&r.updated_at)?,
             deleted_at: r.deleted_at.as_deref().map(parse_timestamp).transpose()?,

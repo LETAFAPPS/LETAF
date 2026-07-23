@@ -48,6 +48,7 @@ pub fn routes() -> Router<AppState> {
         .route("/admin/overview", get(overview))
         .route("/admin/companies", get(list_companies).post(create_company))
         .route("/admin/companies/{id}", delete(delete_company))
+        .route("/admin/companies/{id}/active", put(set_company_active))
         .route("/admin/subscriptions", get(list_subscriptions))
         .route("/admin/subscriptions/{company_id}", put(update_subscription))
         .route("/admin/admins", get(list_admins).post(create_admin))
@@ -158,6 +159,8 @@ struct CompanyRow {
     created_at: String,
     plan: String,
     status: String,
+    /// Acesso do tenant: `true` = ativa, `false` = suspensa.
+    active: bool,
 }
 
 /// Cadastro de um novo estabelecimento (tenant) + seu administrador
@@ -321,6 +324,32 @@ async fn delete_company(
     Ok(Json(json!({ "ok": true })))
 }
 
+/// Suspende (active=false) ou reativa (active=true) o acesso de um tenant.
+/// O bloqueio é aplicado no gate de login (§11). Não permite suspender a
+/// empresa-plataforma.
+#[derive(Deserialize)]
+struct SetActiveRequest {
+    active: bool,
+}
+
+async fn set_company_active(
+    State(state): State<AppState>,
+    auth: AuthClaims,
+    Path(id): Path<Uuid>,
+    Json(body): Json<SetActiveRequest>,
+) -> Result<Json<Value>, ServerError> {
+    require_super_admin(&auth)?;
+    if let Some(c) = state.company_service.find_by_id(id).await? {
+        if c.subdomain == PLATFORM_SUBDOMAIN {
+            return Err(ServerError::Core(CoreError::Validation(
+                "A empresa-plataforma não pode ser suspensa".into(),
+            )));
+        }
+    }
+    state.company_service.set_active(id, body.active).await?;
+    Ok(Json(json!({ "ok": true })))
+}
+
 async fn list_companies(
     State(state): State<AppState>,
     auth: AuthClaims,
@@ -344,6 +373,7 @@ async fn list_companies(
             created_at: c.created_at.format("%d/%m/%Y").to_string(),
             plan,
             status,
+            active: c.active,
         });
     }
     Ok(Json(rows))

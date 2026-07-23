@@ -371,6 +371,13 @@ async fn login_desktop(
         .await?
         .ok_or(ServerError::TenantNotFound)?;
 
+    // Gate de bloqueio: empresa suspensa pela plataforma não loga (§11).
+    if !company.active {
+        return Err(ServerError::Core(letaf_core::error::CoreError::Validation(
+            "Empresa suspensa. Contate o suporte.".into(),
+        )));
+    }
+
     let perms = resolve_perms(&state, &user).await;
     let tv = state
         .auth_service
@@ -405,6 +412,17 @@ async fn login(
 ) -> Result<Json<AuthResponse>, ServerError> {
     if !state.login_rate_limiter.check(ip.0) {
         return Err(ServerError::TooManyRequests(RATE_LIMIT_MSG));
+    }
+    // Gate de bloqueio: empresa suspensa pela plataforma não loga (§11).
+    let company = state
+        .company_service
+        .find_by_id(tenant.company_id)
+        .await?
+        .ok_or(ServerError::TenantNotFound)?;
+    if !company.active {
+        return Err(ServerError::Core(letaf_core::error::CoreError::Validation(
+            "Empresa suspensa. Contate o suporte.".into(),
+        )));
     }
     let user = state
         .auth_service

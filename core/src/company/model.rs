@@ -23,6 +23,8 @@ fn default_products_per_page() -> i32 { 20 }
 fn default_orders_per_page() -> i32 { 20 }
 /// Offset padrão: -180 min = horário de Brasília (BRT, UTC-3).
 fn default_utc_offset() -> i32 { -180 }
+/// Empresas são ATIVAS por padrão (compatível com payloads sem o campo).
+fn default_true() -> bool { true }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Company {
@@ -78,6 +80,11 @@ pub struct Company {
     /// fixo é suficiente no Brasil (sem horário de verão). Default -180.
     #[serde(default = "default_utc_offset")]
     pub utc_offset_minutes: i32,
+    /// Acesso do tenant. `false` = suspenso: o login é recusado (gate no
+    /// server). É controle de PLATAFORMA (super admin) — server-authoritative:
+    /// o sync do desktop nunca sobrescreve este campo.
+    #[serde(default = "default_true")]
+    pub active: bool,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
     pub deleted_at: Option<NaiveDateTime>,
@@ -107,6 +114,7 @@ impl Company {
             products_per_page: 20,
             orders_per_page: 20,
             utc_offset_minutes: default_utc_offset(),
+            active: true,
             created_at: now,
             updated_at: now,
             deleted_at: None,

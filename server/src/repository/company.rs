@@ -31,6 +31,7 @@ struct CompanyRow {
     products_per_page: i32,
     orders_per_page: i32,
     utc_offset_minutes: i32,
+    active: bool,
     created_at: NaiveDateTime,
     updated_at: NaiveDateTime,
     deleted_at: Option<NaiveDateTime>,
@@ -59,6 +60,7 @@ impl From<CompanyRow> for Company {
             products_per_page: r.products_per_page,
             orders_per_page: r.orders_per_page,
             utc_offset_minutes: r.utc_offset_minutes,
+            active: r.active,
             created_at: r.created_at,
             updated_at: r.updated_at,
             deleted_at: r.deleted_at,
@@ -105,7 +107,7 @@ impl CompanyRepository for PgCompanyRepository {
                     instagram, document, neighborhood, zip_code, city, uf,
                     CASE WHEN logo_data IS NOT NULL THEN '1' END AS logo_data,
                     CASE WHEN cover_data IS NOT NULL THEN '1' END AS cover_data,
-                    products_per_page, orders_per_page, utc_offset_minutes,
+                    products_per_page, orders_per_page, utc_offset_minutes, active,
                     created_at, updated_at, deleted_at, synced
                FROM companies WHERE id = $1 AND deleted_at IS NULL",
         )
@@ -178,8 +180,8 @@ impl CompanyRepository for PgCompanyRepository {
              address = $4, phone = $5, whatsapp = $6, email = $7, instagram = $8,
              document = $9, neighborhood = $10, zip_code = $11, city = $12, uf = $13,
              logo_data = $14, cover_data = $15,
-             products_per_page = $16, orders_per_page = $17, updated_at = $18, synced = $19
-             WHERE id = $20 AND deleted_at IS NULL",
+             products_per_page = $16, orders_per_page = $17, active = $18, updated_at = $19, synced = $20
+             WHERE id = $21 AND deleted_at IS NULL",
         )
         .bind(&company.name)
         .bind(&company.subdomain)
@@ -198,6 +200,7 @@ impl CompanyRepository for PgCompanyRepository {
         .bind(&company.cover_data)
         .bind(company.products_per_page)
         .bind(company.orders_per_page)
+        .bind(company.active)
         .bind(company.updated_at)
         .bind(company.synced)
         .bind(company.id)

@@ -1047,6 +1047,8 @@ export component MainWindow inherits Window {
     in-out property <string> admin-del-company-id: "";
     in-out property <string> admin-del-company-name: "";
     callback admin-confirm-delete-company();
+    // Suspender/reativar acesso do tenant. (id, novo-active)
+    callback admin-set-company-active(string, bool);
     in-out property <[AdminUserRow]> admin-users: [];
     // Formulário de administrador (criar/editar credenciais).
     in-out property <string> admin-form-id: "";
@@ -1693,6 +1695,7 @@ export component MainWindow inherits Window {
                         root.admin-del-company-name = name;
                         root.admin-del-company-open = true;
                     }
+                    set-company-active(id, active) => { root.admin-set-company-active(id, active); }
                 }
                 if root.active-tab == "admin-subscriptions": AdminSubscriptionsPage {
                     subscriptions: root.admin-subscriptions;

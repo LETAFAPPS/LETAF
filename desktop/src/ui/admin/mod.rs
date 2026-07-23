@@ -41,6 +41,7 @@ struct CompanyDto {
     created_at: String,
     plan: String,
     status: String,
+    active: bool,
 }
 
 #[derive(Deserialize)]
@@ -179,6 +180,7 @@ fn setup_refresh(
                         created_at: c.created_at.into(),
                         plan: c.plan.into(),
                         status: c.status.into(),
+                        active: c.active,
                     })
                     .collect();
                 ui.set_admin_companies(ModelRc::new(VecModel::from(company_rows)));
@@ -460,6 +462,33 @@ fn setup_persist(
                     .send()
                     .await;
                 report(ui_weak, result, "Administrador removido").await;
+            });
+        });
+    }
+    // Suspender/reativar acesso do tenant (super admin).
+    {
+        let ui_weak = ui.as_weak();
+        let handle = handle.clone();
+        let auth_token = auth_token.clone();
+        let server_url = server_url.to_string();
+        ui.on_admin_set_company_active(move |id, active| {
+            let id = id.to_string();
+            if id.is_empty() {
+                return;
+            }
+            let ui_weak = ui_weak.clone();
+            let auth_token = auth_token.clone();
+            let server_url = server_url.clone();
+            handle.spawn(async move {
+                let Some(token) = auth_token.read().await.clone() else { return };
+                let result = HTTP_CLIENT
+                    .put(format!("{server_url}/admin/companies/{id}/active"))
+                    .bearer_auth(&token)
+                    .json(&serde_json::json!({ "active": active }))
+                    .send()
+                    .await;
+                let msg = if active { "Empresa reativada" } else { "Empresa suspensa" };
+                report(ui_weak, result, msg).await;
             });
         });
     }

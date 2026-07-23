@@ -126,6 +126,20 @@ impl CompanyService {
         self.repo.soft_delete(id).await
     }
 
+    /// Suspende/reativa o acesso de um tenant (painel do super admin). O
+    /// bloqueio é aplicado no gate de login (§11). `synced = false` para o
+    /// SyncWorker propagar; é controle server-authoritative (o push do
+    /// desktop não sobrescreve `active` — ver repositório).
+    pub async fn set_active(&self, id: Uuid, active: bool) -> Result<Company, CoreError> {
+        let mut company = self.repo.find_by_id(id).await?
+            .ok_or_else(|| CoreError::NotFound("Company not found".into()))?;
+        company.active = active;
+        company.updated_at = chrono::Utc::now().naive_utc();
+        company.synced = false;
+        self.repo.update(&company).await?;
+        Ok(company)
+    }
+
     /// Busca empresas ainda não sincronizadas (§7).
     pub async fn find_unsynced(&self) -> Result<Vec<Company>, CoreError> {
         self.repo.find_unsynced().await
@@ -231,6 +245,7 @@ impl CompanyService {
             products_per_page: 20,
             orders_per_page: 20,
             utc_offset_minutes: -180,
+            active: true,
             created_at: epoch,
             updated_at: epoch,
             deleted_at: None,
