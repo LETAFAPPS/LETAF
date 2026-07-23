@@ -688,13 +688,46 @@ pub(crate) fn plan_payload(p: Plan) -> PlanPayload {
     }
 }
 
+/// Plano + quantas empresas o usam. `flatten` preserva o formato de
+/// `PlanPayload` (que também serve a vitrine das lojas) e só acrescenta a
+/// contagem, exclusiva do painel.
+#[derive(Serialize)]
+struct AdminPlanPayload {
+    #[serde(flatten)]
+    plan: PlanPayload,
+    companies: usize,
+}
+
+/// Quantas empresas usam cada plano do catálogo (assinatura corrente).
+async fn plan_usage(state: &AppState) -> Result<std::collections::HashMap<Uuid, usize>, ServerError> {
+    let tenants = tenants(state).await?;
+    let ids: Vec<Uuid> = tenants.iter().map(|c| c.id).collect();
+    let subs = state.subscription_service.find_current_for_companies(&ids).await?;
+    let mut usage: std::collections::HashMap<Uuid, usize> = std::collections::HashMap::new();
+    for s in subs {
+        if let Some(plan_id) = s.plan_id {
+            *usage.entry(plan_id).or_insert(0) += 1;
+        }
+    }
+    Ok(usage)
+}
+
 async fn list_plans(
     State(state): State<AppState>,
     auth: AuthClaims,
-) -> Result<Json<Vec<PlanPayload>>, ServerError> {
+) -> Result<Json<Vec<AdminPlanPayload>>, ServerError> {
     require_super_admin(&auth)?;
     let plans = state.plan_service.find_all().await?;
-    Ok(Json(plans.into_iter().map(plan_payload).collect()))
+    let usage = plan_usage(&state).await?;
+    Ok(Json(
+        plans
+            .into_iter()
+            .map(|p| {
+                let companies = usage.get(&p.id).copied().unwrap_or(0);
+                AdminPlanPayload { plan: plan_payload(p), companies }
+            })
+            .collect(),
+    ))
 }
 
 fn default_true() -> bool {
@@ -760,6 +793,15 @@ async fn delete_plan(
     Path(id): Path<Uuid>,
 ) -> Result<Json<Value>, ServerError> {
     require_super_admin(&auth)?;
+    // Não excluir plano em uso: as assinaturas guardam o snapshot dos
+    // termos, mas perder o plano do catálogo quebraria a gestão (§11 — a
+    // autoridade é o backend, não a UI).
+    let in_use = plan_usage(&state).await?.get(&id).copied().unwrap_or(0);
+    if in_use > 0 {
+        return Err(ServerError::Core(CoreError::Validation(format!(
+            "Plano em uso por {in_use} empresa(s). Migre-as para outro plano antes de excluir."
+        ))));
+    }
     state.plan_service.soft_delete(id).await?;
     Ok(Json(json!({ "ok": true })))
 }

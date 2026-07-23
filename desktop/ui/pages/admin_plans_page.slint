@@ -94,6 +94,15 @@ export component AdminPlansPage inherits VerticalLayout {
                                     + " · " + p.monthly-display + (p.trial-days > 0 ? " · " + p.trial-days + " dias grátis" : "");
                                 font-size: 11px; color: Theme.text-secondary; overflow: elide;
                             }
+                            // Uso do plano — planos em uso não podem ser
+                            // excluídos (o backend recusa).
+                            Text {
+                                text: p.companies == 0 ? "Nenhuma empresa usa este plano"
+                                    : (p.companies == 1 ? "1 empresa usa este plano"
+                                        : p.companies + " empresas usam este plano");
+                                font-size: 11px; font-weight: p.companies > 0 ? 700 : 400;
+                                color: p.companies > 0 ? Theme.btn-accent : Theme.text-secondary;
+                            }
                         }
                         VerticalLayout { alignment: center; OutlineBtn { label: "Editar"; clicked => { root.edit-plan(p.id); } } }
                         VerticalLayout { alignment: center; OutlineBtn { label: "Excluir"; btn-color: #C62828; clicked => { root.delete-plan(p.id); } } }

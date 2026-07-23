@@ -86,6 +86,9 @@ struct PlanDto {
     highlight_label: String,
     active: bool,
     monthly_price: f64,
+    /// Quantas empresas usam este plano (0 para payloads sem o campo).
+    #[serde(default)]
+    companies: i64,
 }
 
 /// Formata um valor em reais ("R$ 2.000,00"). Delega ao helper canônico
@@ -315,6 +318,7 @@ fn setup_refresh(
                         description: p.description.into(),
                         highlight_label: p.highlight_label.into(),
                         active: p.active,
+                        companies: p.companies as i32,
                     })
                     .collect();
                 ui.set_admin_plans(ModelRc::new(VecModel::from(plan_rows)));
