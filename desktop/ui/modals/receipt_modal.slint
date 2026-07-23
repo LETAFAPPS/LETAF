@@ -67,20 +67,6 @@ export component ReceiptModal inherits Rectangle {
                                         color: Theme.text-secondary;
                                     }
                                 }
-                                close-ta := TouchArea {
-                                    width: 28px; height: 28px;
-                                    clicked => { root.close(); }
-                                    Rectangle {
-                                        border-radius: 4px;
-                                        background: close-ta.has-hover ? Theme.row-hover : transparent;
-                                        AssetIcon {
-                                            width: parent.width; height: parent.height;
-                                            icon-size: 14px;
-                                            icon-color: Theme.text-secondary;
-                                            source: @image-url("../assets/icons/1.2/fechar.svg");
-                                        }
-                                    }
-                                }
                             }
                         }
                     }

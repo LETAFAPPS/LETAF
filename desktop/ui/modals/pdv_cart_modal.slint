@@ -48,15 +48,6 @@ export component PdvCartModal inherits Rectangle {
                     horizontal-stretch: 1;
                     vertical-alignment: center;
                 }
-                close-ta := TouchArea {
-                    width: 30px; height: 30px;
-                    clicked => { root.close(); }
-                    Rectangle {
-                        border-radius: 8px;
-                        background: close-ta.has-hover ? Theme.row-hover : transparent;
-                        AssetIcon { width: 100%; height: 100%; icon-size: 14px; icon-color: Theme.text-secondary; source: @image-url("../assets/icons/1.2/fechar.svg"); }
-                    }
-                }
             }
 
             if root.cart.length == 0: Rectangle {
@@ -123,16 +114,6 @@ export component PdvCartModal inherits Rectangle {
                                     }
                                 }
                                 Rectangle { horizontal-stretch: 1; }
-                                rem-ta := TouchArea {
-                                    width: 32px; height: 28px;
-                                    clicked => { root.remove(it.line-id); }
-                                    Rectangle {
-                                        border-radius: 6px; border-width: 1px;
-                                        border-color: rem-ta.has-hover ? #EF5350 : Theme.border;
-                                        background: rem-ta.has-hover ? #FFEBEE : Theme.surface;
-                                        AssetIcon { width: parent.width; height: parent.height; icon-size: 12px; icon-color: rem-ta.has-hover ? #C62828 : Theme.text-secondary; source: @image-url("../assets/icons/1.2/fechar.svg"); }
-                                    }
-                                }
                             }
                         }
                     }

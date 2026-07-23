@@ -153,15 +153,6 @@ export component FinanceEntryModal inherits Rectangle {
                                         font-size: 11px; color: Theme.text-secondary;
                                     }
                                 }
-                                close-ta := TouchArea {
-                                    width: 28px; height: 28px;
-                                    clicked => { root.close(); }
-                                    Rectangle {
-                                        border-radius: 4px;
-                                        background: close-ta.has-hover ? Theme.row-hover : transparent;
-                                        AssetIcon { width: parent.width; height: parent.height; icon-size: 14px; icon-color: Theme.text-secondary; source: @image-url("../assets/icons/1.2/fechar.svg"); }
-                                    }
-                                }
                             }
                         }
                     }
@@ -233,20 +224,6 @@ export component FinanceEntryModal inherits Rectangle {
                                                     vertical-alignment: center;
                                                 }
                                             }
-                                        }
-                                    }
-                                    if root.party != "": clear-ta := TouchArea {
-                                        width: 40px; height: 40px;
-                                        clicked => { root.clear-party(); }
-                                        Rectangle {
-                                            border-radius: 8px;
-                                            border-width: 1px;
-                                            border-color: Theme.card-border;
-                                            drop-shadow-blur: 12px;
-                                            drop-shadow-offset-y: 0px;
-                                            drop-shadow-color: Theme.card-shadow;
-                                            background: clear-ta.has-hover ? Theme.row-hover : Theme.surface;
-                                            AssetIcon { width: parent.width; height: parent.height; icon-size: 14px; icon-color: Theme.text-secondary; source: @image-url("../assets/icons/1.2/fechar.svg"); }
                                         }
                                     }
                                 }
@@ -475,10 +452,6 @@ export component FinanceEntryModal inherits Rectangle {
                             HorizontalLayout {
                                 spacing: 10px;
                                 alignment: end;
-                                OutlineBtn {
-                                    label: "Cancelar";
-                                    clicked => { root.close(); }
-                                }
                                 ActionBtn {
                                     label: "Salvar";
                                     clicked => { root.save(); }

@@ -56,21 +56,6 @@ export component PdvCustomerPickerModal inherits Rectangle {
                                         font-size: 11px; color: Theme.text-secondary;
                                     }
                                 }
-                                close-ta := TouchArea {
-                                    width: 28px; height: 28px;
-                                    clicked => { root.close(); }
-                                    Rectangle {
-                                        border-radius: 4px;
-                                        background: close-ta.has-hover ? Theme.row-hover : transparent;
-                                        HorizontalLayout {
-                                            alignment: center;
-                                            VerticalLayout {
-                                                alignment: center;
-                                                AssetIcon { width: 14px; height: 14px; icon-size: 14px; icon-color: Theme.text-secondary; source: @image-url("../assets/icons/1.2/fechar.svg"); }
-                                            }
-                                        }
-                                    }
-                                }
                             }
                         }
                     }

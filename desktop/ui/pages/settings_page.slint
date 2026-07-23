@@ -207,12 +207,18 @@ export component SettingsPage inherits VerticalLayout {
                 width: 140px; height: 28px;
                 clicked => { root.save-store-info(); }
                 Rectangle {
+                    // Estilo tênue do sistema (contorno + tint fraco + texto na
+                    // cor de destaque), igual aos demais botões de ação.
                     border-radius: 6px;
-                    background: save-all-ta.has-hover ? #FF9800 : Theme.btn-accent;
+                    border-width: 1.5px;
+                    border-color: Theme.btn-accent;
+                    background: save-all-ta.has-hover
+                        ? Theme.btn-accent.transparentize(0.80)
+                        : Theme.btn-accent.transparentize(0.90);
                     Text {
                         text: "Salvar Alterações";
-                        font-size: 12px; font-weight: 700;
-                        color: white;
+                        font-size: 13px; font-weight: 700;
+                        color: Theme.btn-accent;
                         horizontal-alignment: center; vertical-alignment: center;
                         width: parent.width; height: parent.height;
                     }

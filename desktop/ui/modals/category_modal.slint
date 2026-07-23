@@ -44,16 +44,6 @@ export component CategoryModal inherits Rectangle {
                             color: Theme.text-primary;
                             horizontal-stretch: 1; vertical-alignment: center;
                         }
-                        TouchArea {
-                            width: 28px; height: 28px;
-                            clicked => { root.close(); }
-                            property <bool> hov: self.has-hover;
-                            Rectangle {
-                                border-radius: 6px;
-                                background: parent.hov ? #f0f0f0 : transparent;
-                                AssetIcon { width: 16px; height: 16px; icon-size: 16px; icon-color: Theme.text-secondary; source: @image-url("../assets/icons/1.2/fechar.svg"); }
-                            }
-                        }
                     }
 
                     Rectangle { height: 1px; background: Theme.border; }
@@ -131,7 +121,6 @@ export component CategoryModal inherits Rectangle {
                     HorizontalLayout {
                         alignment: end;
                         spacing: 10px;
-                        OutlineBtn { label: "Cancelar"; width: 110px; clicked => { root.close(); } }
                         ActionBtn {
                             label: "Salvar"; bg-color: Theme.btn-accent; width: 130px;
                             clicked => { if root.editing-id != "" { root.update-category(); } else { root.add-category(); } }
@@ -186,16 +175,6 @@ export component SubcategoryModal inherits Rectangle {
                             font-size: 18px; font-weight: 700;
                             color: Theme.text-primary;
                             horizontal-stretch: 1; vertical-alignment: center;
-                        }
-                        TouchArea {
-                            width: 28px; height: 28px;
-                            clicked => { root.subcategory-category-open = false; root.close(); }
-                            property <bool> hov: self.has-hover;
-                            Rectangle {
-                                border-radius: 6px;
-                                background: parent.hov ? #f0f0f0 : transparent;
-                                AssetIcon { width: 16px; height: 16px; icon-size: 16px; icon-color: Theme.text-secondary; source: @image-url("../assets/icons/1.2/fechar.svg"); }
-                            }
                         }
                     }
 
@@ -266,10 +245,6 @@ export component SubcategoryModal inherits Rectangle {
                     HorizontalLayout {
                         alignment: end;
                         spacing: 10px;
-                        OutlineBtn {
-                            label: "Cancelar"; width: 110px;
-                            clicked => { root.subcategory-category-open = false; root.close(); }
-                        }
                         ActionBtn {
                             label: "Salvar"; bg-color: Theme.btn-accent; width: 130px;
                             clicked => {

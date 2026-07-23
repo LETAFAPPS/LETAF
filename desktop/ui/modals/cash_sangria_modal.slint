@@ -49,15 +49,6 @@ export component CashSangriaModal inherits Rectangle {
                                         wrap: word-wrap;
                                     }
                                 }
-                                close-ta := TouchArea {
-                                    width: 28px; height: 28px;
-                                    clicked => { root.close(); }
-                                    Rectangle {
-                                        border-radius: 4px;
-                                        background: close-ta.has-hover ? Theme.row-hover : transparent;
-                                        AssetIcon { width: parent.width; height: parent.height; icon-size: 14px; icon-color: Theme.text-secondary; source: @image-url("../assets/icons/1.2/fechar.svg"); }
-                                    }
-                                }
                             }
                         }
                     }
@@ -222,11 +213,6 @@ export component CashSangriaModal inherits Rectangle {
                             HorizontalLayout {
                                 spacing: 10px;
                                 alignment: end;
-                                OutlineBtn {
-                                    label: "Cancelar";
-                                    min-width: 110px; height: 40px;
-                                    clicked => { root.close(); }
-                                }
                                 ActionBtn {
                                     label: "Registrar Sangria";
                                     bg-color: Theme.danger;

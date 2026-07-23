@@ -52,16 +52,6 @@ export component PixChargeModal inherits Rectangle {
                                 color: Theme.text-secondary;
                             }
                         }
-                        TouchArea {
-                            width: 28px; height: 28px;
-                            clicked => { root.close(); }
-                            property <bool> hov: self.has-hover;
-                            Rectangle {
-                                border-radius: 6px;
-                                background: parent.hov ? #f0f0f0 : transparent;
-                                AssetIcon { width: 16px; height: 16px; icon-size: 16px; icon-color: Theme.text-secondary; source: @image-url("../assets/icons/1.2/fechar.svg"); }
-                            }
-                        }
                     }
 
                     Rectangle { height: 1px; background: Theme.border; }

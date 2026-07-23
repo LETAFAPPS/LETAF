@@ -119,12 +119,18 @@ component PrimaryBtn inherits TouchArea {
     Rectangle {
         width: 100%; height: 100%;
         border-radius: 10px;
-        background: root.has-hover ? Theme.primary-dark : Theme.primary;
+        // Estilo tênue do sistema: contorno + tint fraco + texto na cor de
+        // destaque (laranja secundário), em vez de preenchido sólido.
+        border-width: 1.5px;
+        border-color: Theme.btn-accent;
+        background: root.has-hover
+            ? Theme.btn-accent.transparentize(0.80)
+            : Theme.btn-accent.transparentize(0.90);
         Text {
             text: root.label;
             font-size: 15px;
             font-weight: 700;
-            color: #ffffff;
+            color: Theme.btn-accent;
             horizontal-alignment: center;
             vertical-alignment: center;
         }

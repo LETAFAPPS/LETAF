@@ -55,15 +55,6 @@ export component StockAdjustModal inherits Rectangle {
                                 overflow: elide;
                             }
                         }
-                        close-ta := TouchArea {
-                            width: 28px; height: 28px;
-                            clicked => { root.close(); }
-                            Rectangle {
-                                border-radius: 4px;
-                                background: close-ta.has-hover ? Theme.row-hover : transparent;
-                                AssetIcon { width: parent.width; height: parent.height; icon-size: 14px; icon-color: Theme.text-secondary; source: @image-url("../assets/icons/1.2/fechar.svg"); }
-                            }
-                        }
                     }
 
                     Rectangle { height: 1px; background: Theme.border; }
@@ -157,12 +148,6 @@ export component StockAdjustModal inherits Rectangle {
                     HorizontalLayout {
                         alignment: end;
                         spacing: 8px;
-                        OutlineBtn {
-                            label: "Cancelar";
-                            btn-color: Theme.btn-accent;
-                            width: 100px; height: 32px;
-                            clicked => { root.close(); }
-                        }
                         ActionBtn {
                             label: "Confirmar";
                             bg-color: Theme.btn-accent;

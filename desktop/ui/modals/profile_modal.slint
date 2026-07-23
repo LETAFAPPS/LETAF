@@ -65,11 +65,6 @@ export component ProfileModal inherits Rectangle {
                 spacing: 10px;
 
                 OutlineBtn {
-                    label: "Cancelar";
-                    width: 120px; height: 40px;
-                    clicked => { root.close(); }
-                }
-                OutlineBtn {
                     label: root.busy ? "Salvando…" : "Salvar";
                     accent: true;
                     btn-color: Theme.btn-accent;

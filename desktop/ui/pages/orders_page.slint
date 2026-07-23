@@ -101,16 +101,19 @@ export component CalendarPopup inherits Rectangle {
                     clicked => { if (cell-ta.d.ymd != "") { root.pick(cell-ta.d.ymd); } }
                     Rectangle {
                         border-radius: 6px;
-                        background: cell-ta.d.selected ? Theme.sidebar-sel-bg
-                            : (cell-ta.d.in-range ? #F57C0026
+                        // Dia selecionado (início/fim) = MESMO estilo dos botões
+                        // de ação (tênue): borda + tint fraco + texto na cor de
+                        // destaque. Dias no intervalo: tint ainda mais fraco.
+                        background: cell-ta.d.selected ? Theme.btn-accent.transparentize(0.85)
+                            : (cell-ta.d.in-range ? Theme.btn-accent.transparentize(0.92)
                             : ((cell-ta.has-hover && cell-ta.d.label != "") ? Theme.row-hover : transparent));
-                        border-width: cell-ta.d.today ? 1px : 0px;
-                        border-color: Theme.primary;
+                        border-width: (cell-ta.d.selected || cell-ta.d.today) ? 1.5px : 0px;
+                        border-color: cell-ta.d.selected ? Theme.btn-accent : Theme.primary;
                         Text {
                             text: cell-ta.d.label;
                             font-size: 12px;
                             font-weight: cell-ta.d.selected ? 700 : 400;
-                            color: cell-ta.d.selected ? white : Theme.text-primary;
+                            color: cell-ta.d.selected ? Theme.btn-accent : Theme.text-primary;
                             horizontal-alignment: center; vertical-alignment: center;
                             width: parent.width; height: parent.height;
                         }
@@ -118,24 +121,23 @@ export component CalendarPopup inherits Rectangle {
                 }
             }
 
-            // Ações do calendário: "Limpar" (neutro) e "Filtrar" (ação
-            // principal) dividem a largura do modal MEIO A MEIO — cada um com
-            // `horizontal-stretch: 1`, sem largura fixa. "Filtrar" usa o padrão
-            // do sistema: `OutlineBtn` em modo `accent` (contorno na cor de
-            // destaque, sem preencher), o mesmo das abas de Relatórios.
+            // Ações do calendário: "Limpar" e "Filtrar" são botões NEUTROS
+            // (contorno na cor do texto — preto no claro / branco no escuro —
+            // sem fundo), distintos dos botões de AÇÃO laranja. Dividem a
+            // largura meio a meio.
             HorizontalLayout {
                 spacing: 8px;
 
                 OutlineBtn {
                     label: "Limpar";
+                    neutral: true;
                     horizontal-stretch: 1;
                     height: 40px;
                     clicked => { root.clear(); }
                 }
                 OutlineBtn {
                     label: "Filtrar";
-                    accent: true;
-                    btn-color: Theme.btn-accent;
+                    neutral: true;
                     horizontal-stretch: 1;
                     height: 40px;
                     clicked => { root.close(); }

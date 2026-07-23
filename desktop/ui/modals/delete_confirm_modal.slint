@@ -29,11 +29,6 @@ export component DeleteConfirmModal inherits Rectangle {
             spacing: 10px;
 
             OutlineBtn {
-                label: "Cancelar";
-                width: 120px; height: 40px;
-                clicked => { root.close(); }
-            }
-            OutlineBtn {
                 label: "Excluir";
                 accent: true;
                 btn-color: Theme.danger;

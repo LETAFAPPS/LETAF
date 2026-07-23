@@ -55,15 +55,6 @@ component WalletFormModal inherits Rectangle {
                                     Text { text: root.title; font-size: 16px; font-weight: 700; color: Theme.text-primary; }
                                     Text { text: root.subtitle; font-size: 11px; color: Theme.text-secondary; }
                                 }
-                                close-ta := TouchArea {
-                                    width: 28px; height: 28px;
-                                    clicked => { root.close(); }
-                                    Rectangle {
-                                        border-radius: 4px;
-                                        background: close-ta.has-hover ? Theme.row-hover : transparent;
-                                        AssetIcon { width: parent.width; height: parent.height; icon-size: 14px; icon-color: Theme.text-secondary; source: @image-url("../assets/icons/1.2/fechar.svg"); }
-                                    }
-                                }
                             }
                         }
                     }
@@ -171,10 +162,6 @@ component WalletFormModal inherits Rectangle {
                             HorizontalLayout {
                                 spacing: 10px;
                                 alignment: end;
-                                OutlineBtn {
-                                    label: "Cancelar";
-                                    clicked => { root.close(); }
-                                }
                                 ActionBtn {
                                     label: root.confirm-label;
                                     clicked => { root.confirm(); }

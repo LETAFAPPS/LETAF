@@ -239,6 +239,12 @@ export component OutlineBtn inherits TouchArea {
     /// Ícone opcional à esquerda do label (vazio = sem ícone).
     in property <image> icon;
     in property <bool> accent: false;
+    // Botão NEUTRO (secundário puro: Cancelar/Filtrar/Limpar): só contorno na
+    // cor do texto (preto no claro / branco no escuro), SEM fundo. Distingue
+    // esses botões dos de AÇÃO (que usam o estilo tênue laranja).
+    in property <bool> neutral: false;
+    // Cor efetiva de destaque: neutro → cor do texto; senão → btn-color.
+    property <color> hl: root.neutral ? Theme.text-primary : root.btn-color;
     height: 32px;
     min-width: 80px;
 
@@ -248,24 +254,25 @@ export component OutlineBtn inherits TouchArea {
         height: parent.height;
         border-radius: 8px;
         border-width: 1.5px;
-        border-color: root.btn-color;
-        background: root.has-hover
-            ? root.btn-color.transparentize(0.80)
-            : root.btn-color.transparentize(0.90);
+        border-color: root.hl;
+        // Neutro: sem fundo (leve realce no hover). Ação/destrutivo: tint fraco.
+        background: root.neutral
+            ? (root.has-hover ? Theme.row-hover : transparent)
+            : (root.has-hover ? root.hl.transparentize(0.80) : root.hl.transparentize(0.90));
 
         HorizontalLayout {
             alignment: center;
             spacing: 8px;
             if root.icon.width > 0: AssetIcon {
                 width: 16px; height: parent.height; icon-size: 16px;
-                icon-color: root.btn-color;
+                icon-color: root.hl;
                 source: root.icon;
             }
             Text {
                 text: root.label;
                 font-size: 14px;
                 font-weight: 700;
-                color: root.btn-color;
+                color: root.hl;
                 vertical-alignment: center;
             }
         }
