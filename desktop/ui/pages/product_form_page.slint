@@ -1747,7 +1747,7 @@ export component ProductFormPage inherits VerticalLayout {
                         Rectangle {
                             border-radius: 8px; border-width: 1px;
                             border-color: root.product-image-loading
-                                ? #E65100
+                                ? #FB8C00
                                 : (parent.hov
                                     ? Theme.primary
                                     : (root.product-image-data != "" ? #66BB6A : #BDBDBD));
@@ -1763,7 +1763,7 @@ export component ProductFormPage inherits VerticalLayout {
                                     if root.product-image-loading: Text {
                                         text: Math.mod(root.load-tick, 4) == 0 ? "◐" : (Math.mod(root.load-tick, 4) == 1 ? "◓" : (Math.mod(root.load-tick, 4) == 2 ? "◑" : "◒"));
                                         font-size: 28px;
-                                        color: #E65100;
+                                        color: #FB8C00;
                                     }
                                     if !root.product-image-loading: Text {
                                         text: "\u{1F5BC}";
@@ -1778,7 +1778,7 @@ export component ProductFormPage inherits VerticalLayout {
                                             ? "Imagem Selecionada"
                                             : "Arraste uma imagem ou selecione");
                                     font-size: 13px;
-                                    color: root.product-image-loading ? #E65100
+                                    color: root.product-image-loading ? #FB8C00
                                         : (root.product-image-data != "" ? #2E7D32 : Theme.text-primary);
                                     horizontal-alignment: center;
                                 }
