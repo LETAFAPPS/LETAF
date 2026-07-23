@@ -33,7 +33,8 @@ component LoginField inherits VerticalLayout {
         height: 52px;
         border-radius: 10px;
         border-width: 1.5px;
-        border-color: fld.has-focus ? Theme.primary : #e4dfd8;
+        // Focado = laranja de destaque (mesmo do botão Entrar).
+        border-color: fld.has-focus ? Theme.btn-accent : #e4dfd8;
         background: #ffffff;
         drop-shadow-blur: fld.has-focus ? 8px : 0px;
         drop-shadow-color: #e8731c22;
@@ -119,18 +120,16 @@ component PrimaryBtn inherits TouchArea {
     Rectangle {
         width: 100%; height: 100%;
         border-radius: 10px;
-        // Estilo tênue do sistema: contorno + tint fraco + texto na cor de
-        // destaque (laranja secundário), em vez de preenchido sólido.
+        // Normal por padrão (contorno/texto cinza, sem fundo); fica laranja
+        // (estilo tênue de destaque) apenas quando selecionado (hover/press).
         border-width: 1.5px;
-        border-color: Theme.btn-accent;
-        background: root.has-hover
-            ? Theme.btn-accent.transparentize(0.80)
-            : Theme.btn-accent.transparentize(0.90);
+        border-color: root.has-hover ? Theme.btn-accent : #d8d2ca;
+        background: root.has-hover ? Theme.btn-accent.transparentize(0.85) : transparent;
         Text {
             text: root.label;
             font-size: 15px;
             font-weight: 700;
-            color: Theme.btn-accent;
+            color: root.has-hover ? Theme.btn-accent : #4a4640;
             horizontal-alignment: center;
             vertical-alignment: center;
         }
@@ -202,7 +201,7 @@ component CodeBoxes inherits Rectangle {
 
         Rectangle {
             width: 48px; height: 56px; border-radius: 10px;
-            border-width: 1.5px; border-color: d0.has-focus ? Theme.primary : #e4dfd8;
+            border-width: 1.5px; border-color: d0.has-focus ? Theme.btn-accent : #e4dfd8;
             background: #ffffff;
             d0 := TextInput { width: 100%; height: 100%; horizontal-alignment: center; vertical-alignment: center; input-type: number; font-size: 22px; font-weight: 700; color: #1c1a18; single-line: true;
                 edited => { root.refresh(); if d0.text != "" { d1.focus(); } } }
@@ -210,7 +209,7 @@ component CodeBoxes inherits Rectangle {
         }
         Rectangle {
             width: 48px; height: 56px; border-radius: 10px;
-            border-width: 1.5px; border-color: d1.has-focus ? Theme.primary : #e4dfd8;
+            border-width: 1.5px; border-color: d1.has-focus ? Theme.btn-accent : #e4dfd8;
             background: #ffffff;
             d1 := TextInput { width: 100%; height: 100%; horizontal-alignment: center; vertical-alignment: center; input-type: number; font-size: 22px; font-weight: 700; color: #1c1a18; single-line: true;
                 edited => { root.refresh(); if d1.text != "" { d2.focus(); } else { d0.focus(); d0.select-all(); } } }
@@ -218,7 +217,7 @@ component CodeBoxes inherits Rectangle {
         }
         Rectangle {
             width: 48px; height: 56px; border-radius: 10px;
-            border-width: 1.5px; border-color: d2.has-focus ? Theme.primary : #e4dfd8;
+            border-width: 1.5px; border-color: d2.has-focus ? Theme.btn-accent : #e4dfd8;
             background: #ffffff;
             d2 := TextInput { width: 100%; height: 100%; horizontal-alignment: center; vertical-alignment: center; input-type: number; font-size: 22px; font-weight: 700; color: #1c1a18; single-line: true;
                 edited => { root.refresh(); if d2.text != "" { d3.focus(); } else { d1.focus(); d1.select-all(); } } }
@@ -226,7 +225,7 @@ component CodeBoxes inherits Rectangle {
         }
         Rectangle {
             width: 48px; height: 56px; border-radius: 10px;
-            border-width: 1.5px; border-color: d3.has-focus ? Theme.primary : #e4dfd8;
+            border-width: 1.5px; border-color: d3.has-focus ? Theme.btn-accent : #e4dfd8;
             background: #ffffff;
             d3 := TextInput { width: 100%; height: 100%; horizontal-alignment: center; vertical-alignment: center; input-type: number; font-size: 22px; font-weight: 700; color: #1c1a18; single-line: true;
                 edited => { root.refresh(); if d3.text != "" { d4.focus(); } else { d2.focus(); d2.select-all(); } } }
@@ -234,7 +233,7 @@ component CodeBoxes inherits Rectangle {
         }
         Rectangle {
             width: 48px; height: 56px; border-radius: 10px;
-            border-width: 1.5px; border-color: d4.has-focus ? Theme.primary : #e4dfd8;
+            border-width: 1.5px; border-color: d4.has-focus ? Theme.btn-accent : #e4dfd8;
             background: #ffffff;
             d4 := TextInput { width: 100%; height: 100%; horizontal-alignment: center; vertical-alignment: center; input-type: number; font-size: 22px; font-weight: 700; color: #1c1a18; single-line: true;
                 edited => { root.refresh(); if d4.text != "" { d5.focus(); } else { d3.focus(); d3.select-all(); } } }
@@ -242,7 +241,7 @@ component CodeBoxes inherits Rectangle {
         }
         Rectangle {
             width: 48px; height: 56px; border-radius: 10px;
-            border-width: 1.5px; border-color: d5.has-focus ? Theme.primary : #e4dfd8;
+            border-width: 1.5px; border-color: d5.has-focus ? Theme.btn-accent : #e4dfd8;
             background: #ffffff;
             d5 := TextInput { width: 100%; height: 100%; horizontal-alignment: center; vertical-alignment: center; input-type: number; font-size: 22px; font-weight: 700; color: #1c1a18; single-line: true;
                 edited => { root.refresh(); if d5.text == "" { d4.focus(); d4.select-all(); } } }
@@ -470,8 +469,8 @@ export component LoginPage inherits Rectangle {
                                 width: 20px; height: 20px;
                                 border-radius: 6px;
                                 border-width: 1.5px;
-                                border-color: #cfc9c1;
-                                background: root.remember-me ? Theme.primary : #ffffff;
+                                border-color: root.remember-me ? Theme.btn-accent : #cfc9c1;
+                                background: root.remember-me ? Theme.btn-accent : #ffffff;
                                 if root.remember-me: Path {
                                     x: (parent.width - 12px) / 2;
                                     y: (parent.height - 9px) / 2;
