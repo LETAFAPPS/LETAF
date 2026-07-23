@@ -15,7 +15,7 @@ use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use axum::http::StatusCode;
-use axum::routing::{get, put};
+use axum::routing::{delete, get, put};
 use axum::{Json, Router};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -47,6 +47,7 @@ pub fn routes() -> Router<AppState> {
     Router::new()
         .route("/admin/overview", get(overview))
         .route("/admin/companies", get(list_companies).post(create_company))
+        .route("/admin/companies/{id}", delete(delete_company))
         .route("/admin/subscriptions", get(list_subscriptions))
         .route("/admin/subscriptions/{company_id}", put(update_subscription))
         .route("/admin/admins", get(list_admins).post(create_admin))
@@ -297,6 +298,27 @@ async fn create_company(
         StatusCode::CREATED,
         Json(json!({ "id": company.id, "subdomain": subdomain })),
     ))
+}
+
+/// Exclusão LÓGICA (soft delete) de uma empresa (tenant) pelo super admin.
+/// Não remove fisicamente (§6): marca `deleted_at`. O login do tenant deixa
+/// de resolver a empresa (find_by_subdomain filtra `deleted_at IS NULL`).
+async fn delete_company(
+    State(state): State<AppState>,
+    auth: AuthClaims,
+    Path(id): Path<Uuid>,
+) -> Result<Json<Value>, ServerError> {
+    require_super_admin(&auth)?;
+    // Nunca deixar excluir a própria empresa-plataforma.
+    if let Some(c) = state.company_service.find_by_id(id).await? {
+        if c.subdomain == PLATFORM_SUBDOMAIN {
+            return Err(ServerError::Core(CoreError::Validation(
+                "A empresa-plataforma não pode ser excluída".into(),
+            )));
+        }
+    }
+    state.company_service.soft_delete(id).await?;
+    Ok(Json(json!({ "ok": true })))
 }
 
 async fn list_companies(

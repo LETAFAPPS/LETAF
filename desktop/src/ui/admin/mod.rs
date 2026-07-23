@@ -35,6 +35,7 @@ struct OverviewDto {
 
 #[derive(Deserialize)]
 struct CompanyDto {
+    id: String,
     name: String,
     subdomain: String,
     created_at: String,
@@ -172,7 +173,7 @@ fn setup_refresh(
                 let company_rows: Vec<AdminCompanyRow> = companies
                     .into_iter()
                     .map(|c| AdminCompanyRow {
-                        id: SharedString::new(),
+                        id: c.id.into(),
                         name: c.name.into(),
                         subdomain: c.subdomain.into(),
                         created_at: c.created_at.into(),
@@ -459,6 +460,33 @@ fn setup_persist(
                     .send()
                     .await;
                 report(ui_weak, result, "Administrador removido").await;
+            });
+        });
+    }
+    // Excluir empresa (soft delete via API admin, cross-tenant).
+    {
+        let ui_weak = ui.as_weak();
+        let handle = handle.clone();
+        let auth_token = auth_token.clone();
+        let server_url = server_url.to_string();
+        ui.on_admin_confirm_delete_company(move || {
+            let Some(ui) = ui_weak.upgrade() else { return };
+            let id = ui.get_admin_del_company_id().to_string();
+            ui.set_admin_del_company_open(false);
+            if id.is_empty() {
+                return;
+            }
+            let ui_weak = ui.as_weak();
+            let auth_token = auth_token.clone();
+            let server_url = server_url.clone();
+            handle.spawn(async move {
+                let Some(token) = auth_token.read().await.clone() else { return };
+                let result = HTTP_CLIENT
+                    .delete(format!("{server_url}/admin/companies/{id}"))
+                    .bearer_auth(&token)
+                    .send()
+                    .await;
+                report(ui_weak, result, "Empresa excluída").await;
             });
         });
     }

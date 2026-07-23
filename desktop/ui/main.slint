@@ -1042,6 +1042,11 @@ export component MainWindow inherits Window {
     in-out property <string> admin-sub-edit-status: "active";
     in-out property <string> admin-sub-edit-discount: "0";
     callback admin-save-subscription();
+    // Exclusão de empresa (confirmação do super admin).
+    in-out property <bool> admin-del-company-open: false;
+    in-out property <string> admin-del-company-id: "";
+    in-out property <string> admin-del-company-name: "";
+    callback admin-confirm-delete-company();
     in-out property <[AdminUserRow]> admin-users: [];
     // Formulário de administrador (criar/editar credenciais).
     in-out property <string> admin-form-id: "";
@@ -1683,6 +1688,11 @@ export component MainWindow inherits Window {
                     save-company => { root.admin-save-company(); }
                     pick-logo => { root.admin-pick-company-logo(); }
                     pick-cover => { root.admin-pick-company-cover(); }
+                    delete-company(id, name) => {
+                        root.admin-del-company-id = id;
+                        root.admin-del-company-name = name;
+                        root.admin-del-company-open = true;
+                    }
                 }
                 if root.active-tab == "admin-subscriptions": AdminSubscriptionsPage {
                     subscriptions: root.admin-subscriptions;
@@ -2639,6 +2649,12 @@ export component MainWindow inherits Window {
     if root.show-logout-confirm: LogoutConfirmModal {
         close => { root.show-logout-confirm = false; }
         do-logout => { root.do-logout(); }
+    }
+
+    if root.admin-del-company-open: DeleteConfirmModal {
+        delete-target-name <=> root.admin-del-company-name;
+        close => { root.admin-del-company-open = false; }
+        confirm-delete => { root.admin-confirm-delete-company(); }
     }
 
     if root.admin-sub-edit-open: AdminSubscriptionModal {

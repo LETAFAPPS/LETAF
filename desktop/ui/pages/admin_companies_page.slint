@@ -50,6 +50,8 @@ export component AdminCompaniesPage inherits VerticalLayout {
     callback save-company();
     callback pick-logo();
     callback pick-cover();
+    // Exclusão lógica de uma empresa (super admin). (id, nome)
+    callback delete-company(string, string);
     spacing: 12px;
 
     Text {
@@ -92,6 +94,7 @@ export component AdminCompaniesPage inherits VerticalLayout {
                     Text { text: "PLANO"; horizontal-stretch: 1; font-size: 11px; font-weight: 700; color: Theme.text-secondary; }
                     Text { text: "STATUS"; horizontal-stretch: 1; font-size: 11px; font-weight: 700; color: Theme.text-secondary; }
                     Text { text: "CRIADA"; horizontal-stretch: 1; font-size: 11px; font-weight: 700; color: Theme.text-secondary; horizontal-alignment: right; }
+                    Text { text: ""; width: 40px; }
                 }
                 Rectangle { height: 1px; background: Theme.border; }
                 for c in root.companies: HorizontalLayout {
@@ -99,9 +102,30 @@ export component AdminCompaniesPage inherits VerticalLayout {
                     spacing: 12px;
                     Text { text: c.name; horizontal-stretch: 2; font-size: 13px; font-weight: 600; color: Theme.text-primary; overflow: elide; vertical-alignment: center; }
                     Text { text: c.subdomain; horizontal-stretch: 2; font-size: 13px; color: Theme.text-secondary; overflow: elide; vertical-alignment: center; }
-                    Text { text: c.plan == "monthly" ? "Mensal" : (c.plan == "yearly" ? "Anual" : "—"); horizontal-stretch: 1; font-size: 13px; color: Theme.text-primary; vertical-alignment: center; }
+                    Text { text: c.plan == "monthly" ? "Mensal" : (c.plan == "semestral" ? "Semestral" : (c.plan == "annual" ? "Anual" : "—")); horizontal-stretch: 1; font-size: 13px; color: Theme.text-primary; vertical-alignment: center; }
                     HorizontalLayout { horizontal-stretch: 1; alignment: start; StatusBadge { status: c.status; } }
                     Text { text: c.created-at; horizontal-stretch: 1; font-size: 13px; color: Theme.text-secondary; horizontal-alignment: right; vertical-alignment: center; }
+                    // Excluir empresa (soft delete). Confirmação vem do fluxo pai.
+                    VerticalLayout {
+                        alignment: center;
+                        del-ta := TouchArea {
+                            width: 30px; height: 30px;
+                            clicked => { root.delete-company(c.id, c.name); }
+                            Rectangle {
+                                border-radius: 6px;
+                                border-width: 1px;
+                                border-color: del-ta.has-hover ? Theme.danger : transparent;
+                                background: del-ta.has-hover ? #FFEBEE : transparent;
+                                Text {
+                                    text: "\u{2715}";
+                                    font-size: 13px;
+                                    color: del-ta.has-hover ? Theme.danger : Theme.text-secondary;
+                                    horizontal-alignment: center; vertical-alignment: center;
+                                    width: parent.width; height: parent.height;
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
