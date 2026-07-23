@@ -450,7 +450,7 @@ export component OrderCard inherits Rectangle {
     property <color> dtype-bg: transparent;
     // PDV = verde; senão Retirada (laranja) ou Entrega (azul).
     property <color> dtype-fg: is-pdv ? #2E7D32
-        : (order.delivery-type == "pickup" ? #FB8C00 : #1565C0);
+        : (order.delivery-type == "pickup" ? #FF9800 : #1565C0);
     property <string> dtype-text: is-pdv ? "PDV"
         : (order.delivery-type == "pickup" ? "Retirada" : "Entrega");
 
