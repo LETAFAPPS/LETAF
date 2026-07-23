@@ -104,25 +104,31 @@ component AddBtn inherits TouchArea {
     }
 }
 
-// Botão "Marcar tudo" (contorno + check).
+// Botão "Marcar tudo" — MESMO estilo/comportamento dos chips de filtro do
+// Estoque: quando TODAS as permissões estão ativas ele fica "selecionado"
+// (borda + tint na cor de destaque); clicar alterna marcar/desmarcar tudo.
 component MarkAllBtn inherits TouchArea {
-    width: 128px; height: 36px;
+    in property <bool> active: false;
+    height: 36px;
     Rectangle {
         border-radius: 8px;
-        border-width: 1px;
-        border-color: root.has-hover ? Theme.accent : Theme.border;
-        background: root.has-hover ? Theme.row-hover : Theme.surface;
+        border-width: root.active ? 1.5px : 1px;
+        border-color: root.active ? Theme.btn-accent : Theme.border;
+        background: root.active
+            ? Theme.btn-accent.transparentize(0.90)
+            : (root.has-hover ? Theme.row-hover : Theme.surface);
         HorizontalLayout {
-            alignment: center; spacing: 8px;
+            padding-left: 14px; padding-right: 14px; spacing: 8px;
+            alignment: center;
             AssetIcon {
                 width: 16px; height: parent.height; icon-size: 14px;
-                icon-color: root.has-hover ? Theme.accent : Theme.text-secondary;
+                icon-color: root.active ? Theme.btn-accent : Theme.text-secondary;
                 source: @image-url("../assets/icons/1.2/confirmar.svg");
             }
             Text {
-                text: "Marcar tudo";
-                font-size: 12px; font-weight: 600;
-                color: root.has-hover ? Theme.accent : Theme.text-primary;
+                text: root.active ? "Desmarcar tudo" : "Marcar tudo";
+                font-size: 14px; font-weight: root.active ? 700 : 600;
+                color: root.active ? Theme.btn-accent : Theme.text-secondary;
                 vertical-alignment: center;
             }
         }
@@ -431,7 +437,10 @@ export component CollaboratorsPage inherits Rectangle {
                         }
                         VerticalLayout {
                             alignment: center;
-                            MarkAllBtn { clicked => { root.mark-all-perms(); } }
+                            MarkAllBtn {
+                                active: root.perm-active == root.perm-total && root.perm-total > 0;
+                                clicked => { root.mark-all-perms(); }
+                            }
                         }
                     }
                     FormField {

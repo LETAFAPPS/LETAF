@@ -660,27 +660,32 @@ export component DashboardPage inherits VerticalLayout {
                 clicked => { period-popup.show(); }
                 Rectangle {
                     border-radius: 10px;
-                    border-width: 1px;
-                    border-color: period-ta.has-hover ? Theme.primary : Theme.border;
-                    background: Theme.surface;
+                    // Estilo tênue de ação (mesmo chip de filtro do Estoque):
+                    // borda + tint fraco na cor de destaque. Mantém o clique
+                    // que abre a lista (dropdown) abaixo.
+                    border-width: 1.5px;
+                    border-color: Theme.btn-accent;
+                    background: period-ta.has-hover
+                        ? Theme.btn-accent.transparentize(0.80)
+                        : Theme.btn-accent.transparentize(0.90);
                     HorizontalLayout {
                         padding-left: 12px; padding-right: 12px;
                         spacing: 8px;
                         AssetIcon {
                             width: 16px; height: parent.height; icon-size: 14px;
-                            icon-color: Theme.text-secondary;
+                            icon-color: Theme.btn-accent;
                             source: @image-url("../assets/icons/1.2/calendario.svg");
                         }
                         Text {
                             text: root.period-label;
-                            font-size: 13px; font-weight: 600;
-                            color: Theme.text-primary;
+                            font-size: 13px; font-weight: 700;
+                            color: Theme.btn-accent;
                             vertical-alignment: center;
                             horizontal-stretch: 1;
                         }
                         Text {
                             text: "▾";
-                            font-size: 12px; color: Theme.text-secondary;
+                            font-size: 12px; color: Theme.btn-accent;
                             vertical-alignment: center;
                         }
                     }

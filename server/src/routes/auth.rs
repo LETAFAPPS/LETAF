@@ -49,6 +49,9 @@ struct UpdateProfileRequest {
     /// Nova senha; vazia/ausente mantém a atual.
     #[serde(default)]
     password: Option<String>,
+    /// Foto de perfil (base64). `Some("")` remove; ausente mantém a atual.
+    #[serde(default)]
+    avatar: Option<String>,
 }
 
 async fn update_profile(
@@ -73,7 +76,14 @@ async fn update_profile(
     }
     state
         .auth_service
-        .update_credentials(auth.0.company_id, auth.0.sub, body.email, body.name, body.password)
+        .update_credentials(
+            auth.0.company_id,
+            auth.0.sub,
+            body.email,
+            body.name,
+            body.password,
+            body.avatar,
+        )
         .await?;
     Ok(StatusCode::OK)
 }
@@ -177,6 +187,8 @@ struct MeResponse {
     role: String,
     name: String,
     email: String,
+    /// Foto de perfil (base64) ou `null` se o operador não tiver foto.
+    avatar: Option<String>,
 }
 
 /// GET /auth/me — valida token e retorna claims.
@@ -203,6 +215,7 @@ async fn me(
         role: auth.0.role.clone(),
         name: user.name,
         email: user.email,
+        avatar: user.avatar,
     }))
 }
 

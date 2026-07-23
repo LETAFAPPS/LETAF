@@ -404,7 +404,8 @@ async fn update_admin(
     }
     state
         .auth_service
-        .update_credentials(auth.0.company_id, id, body.email, body.name, body.password)
+        // Painel do super admin não mexe na foto do operador → None.
+        .update_credentials(auth.0.company_id, id, body.email, body.name, body.password, None)
         .await?;
     Ok(Json(json!({ "ok": true })))
 }

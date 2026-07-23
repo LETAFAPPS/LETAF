@@ -163,8 +163,14 @@ export component MainWindow inherits Window {
     in-out property <string> profile-new-password: "";
     in-out property <string> profile-status: "";
     in-out property <bool> profile-busy: false;
+    // Foto de perfil decodificada (vazia = sem foto).
+    in-out property <image> profile-avatar;
+    // Base64 da foto atual (reenviado no save; "" = sem foto).
+    in-out property <string> profile-avatar-data: "";
     callback open-profile();
     callback profile-save();
+    // Abre o seletor de arquivo e envia a nova foto (Rust).
+    callback profile-pick-avatar();
     callback do-logout();
     callback dark-mode-changed(bool);
 
@@ -2613,7 +2619,9 @@ export component MainWindow inherits Window {
         new-password <=> root.profile-new-password;
         status: root.profile-status;
         busy: root.profile-busy;
+        avatar: root.profile-avatar;
         save => { root.profile-save(); }
+        pick-avatar => { root.profile-pick-avatar(); }
         close => { root.profile-open = false; }
     }
 

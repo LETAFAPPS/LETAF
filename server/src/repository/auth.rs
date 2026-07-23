@@ -20,6 +20,7 @@ struct UserRow {
     name: String,
     role: String,
     job_role_id: Option<Uuid>,
+    avatar: Option<String>,
     created_at: NaiveDateTime,
     updated_at: NaiveDateTime,
     deleted_at: Option<NaiveDateTime>,
@@ -47,6 +48,7 @@ impl From<UserRow> for User {
             name: r.name,
             role,
             job_role_id: r.job_role_id,
+            avatar: r.avatar,
         }
     }
 }
@@ -121,8 +123,8 @@ impl UserRepository for PgUserRepository {
 
     async fn create(&self, user: &User) -> Result<(), CoreError> {
         sqlx::query(
-            "INSERT INTO users (id, company_id, email, password_hash, name, role, job_role_id, created_at, updated_at, deleted_at, synced)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)",
+            "INSERT INTO users (id, company_id, email, password_hash, name, role, job_role_id, avatar, created_at, updated_at, deleted_at, synced)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)",
         )
         .bind(user.base.id)
         .bind(user.base.company_id)
@@ -131,6 +133,7 @@ impl UserRepository for PgUserRepository {
         .bind(&user.name)
         .bind(user.role.as_db_str())
         .bind(user.job_role_id)
+        .bind(&user.avatar)
         .bind(user.base.created_at)
         .bind(user.base.updated_at)
         .bind(user.base.deleted_at)
@@ -147,14 +150,15 @@ impl UserRepository for PgUserRepository {
         // comum (registro ativo → deleted_at NULL, no-op), permite REATIVAR
         // um funcionário excluído ao recriar com o mesmo e-mail.
         sqlx::query(
-            "UPDATE users SET email = $1, name = $2, password_hash = $3, role = $4, job_role_id = $5, updated_at = $6, synced = $7, deleted_at = $8
-             WHERE company_id = $9 AND id = $10",
+            "UPDATE users SET email = $1, name = $2, password_hash = $3, role = $4, job_role_id = $5, avatar = $6, updated_at = $7, synced = $8, deleted_at = $9
+             WHERE company_id = $10 AND id = $11",
         )
         .bind(&user.email)
         .bind(&user.name)
         .bind(&user.password_hash)
         .bind(user.role.as_db_str())
         .bind(user.job_role_id)
+        .bind(&user.avatar)
         .bind(user.base.updated_at)
         .bind(user.base.synced)
         .bind(user.base.deleted_at)
@@ -298,14 +302,15 @@ impl UserRepository for PgUserRepository {
 
     async fn sync_upsert(&self, user: &User) -> Result<(), CoreError> {
         sqlx::query(
-            "INSERT INTO users (id, company_id, email, password_hash, name, role, job_role_id, created_at, updated_at, deleted_at, synced)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+            "INSERT INTO users (id, company_id, email, password_hash, name, role, job_role_id, avatar, created_at, updated_at, deleted_at, synced)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
              ON CONFLICT (id) DO UPDATE SET
                  email = EXCLUDED.email,
                  password_hash = EXCLUDED.password_hash,
                  name = EXCLUDED.name,
                  role = EXCLUDED.role,
                  job_role_id = EXCLUDED.job_role_id,
+                 avatar = EXCLUDED.avatar,
                  updated_at = EXCLUDED.updated_at,
                  deleted_at = EXCLUDED.deleted_at,
                  synced = EXCLUDED.synced
@@ -318,6 +323,7 @@ impl UserRepository for PgUserRepository {
         .bind(&user.name)
         .bind(user.role.as_db_str())
         .bind(user.job_role_id)
+        .bind(&user.avatar)
         .bind(user.base.created_at)
         .bind(user.base.updated_at)
         .bind(user.base.deleted_at)

@@ -263,6 +263,9 @@ impl AuthService {
         email: String,
         name: String,
         new_password: Option<String>,
+        // Foto de perfil: `Some(_)` grava a nova foto (string vazia = remove);
+        // `None` mantém a foto atual inalterada (ex.: painel do super admin).
+        avatar: Option<String>,
     ) -> Result<User, CoreError> {
         if email.trim().is_empty() {
             return Err(CoreError::Validation("User email is required".into()));
@@ -282,6 +285,10 @@ impl AuthService {
 
         user.email = email;
         user.name = name;
+        // Some(_) → grava (vazio remove a foto); None → preserva a atual.
+        if let Some(a) = avatar {
+            user.avatar = if a.trim().is_empty() { None } else { Some(a) };
+        }
         let mut pw_changed = false;
         if let Some(pw) = new_password.filter(|p| !p.trim().is_empty()) {
             user.password_hash = crate::hashing::hash_password(pw).await?;

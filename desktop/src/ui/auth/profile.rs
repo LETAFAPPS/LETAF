@@ -14,11 +14,15 @@ use crate::context::DesktopState;
 use crate::{MainWindow, HTTP_CLIENT};
 
 use super::super::helpers::show_toast;
+use super::super::image::{decode_pixel_buffer, pick_image_file, process_image_file};
 
 #[derive(Deserialize)]
 struct MeDto {
     name: String,
     email: String,
+    /// Foto de perfil (base64) ou ausente/null se não houver.
+    #[serde(default)]
+    avatar: Option<String>,
 }
 
 pub(crate) fn setup_profile(
@@ -53,11 +57,24 @@ pub(crate) fn setup_profile(
                     Ok(r) if r.status().is_success() => r.json().await.ok(),
                     _ => None,
                 };
+                // Decodifica a foto (base64 → pixels) fora do event loop.
+                let avatar_b64 = me.as_ref().and_then(|m| m.avatar.clone())
+                    .filter(|s| !s.is_empty());
+                let pixel = match avatar_b64.clone() {
+                    Some(b64) => tokio::task::spawn_blocking(move || decode_pixel_buffer(&b64))
+                        .await
+                        .unwrap_or(None),
+                    None => None,
+                };
                 let _ = slint::invoke_from_event_loop(move || {
                     let Some(ui) = ui_weak.upgrade() else { return };
                     if let Some(me) = me {
                         ui.set_profile_name(SharedString::from(me.name));
                         ui.set_profile_email(SharedString::from(me.email));
+                        ui.set_profile_avatar(
+                            pixel.map(slint::Image::from_rgba8).unwrap_or_default(),
+                        );
+                        ui.set_profile_avatar_data(SharedString::from(avatar_b64.unwrap_or_default()));
                     } else {
                         ui.set_profile_status(SharedString::from(
                             "Não foi possível carregar seus dados (offline?).",
@@ -78,6 +95,7 @@ pub(crate) fn setup_profile(
             let name = ui.get_profile_name().trim().to_string();
             let email = ui.get_profile_email().trim().to_string();
             let password = ui.get_profile_new_password().to_string();
+            let avatar = ui.get_profile_avatar_data().to_string();
             if name.is_empty() || email.is_empty() {
                 ui.set_profile_status(SharedString::from("Informe nome e e-mail."));
                 return;
@@ -94,7 +112,9 @@ pub(crate) fn setup_profile(
                 let res = HTTP_CLIENT
                     .put(format!("{url}/auth/profile"))
                     .bearer_auth(&token)
-                    .json(&serde_json::json!({ "name": name, "email": email, "password": pw }))
+                    .json(&serde_json::json!({
+                        "name": name, "email": email, "password": pw, "avatar": avatar,
+                    }))
                     .send()
                     .await;
                 let outcome: Result<(), String> = match res {
@@ -125,6 +145,30 @@ pub(crate) fn setup_profile(
                         }
                         Err(msg) => ui.set_profile_status(SharedString::from(msg)),
                     }
+                });
+            });
+        });
+    }
+    // Trocar a foto de perfil: abre o seletor nativo, processa a imagem e
+    // exibe na hora (a persistência ocorre ao clicar em Salvar).
+    {
+        let ui_weak = ui.as_weak();
+        let handle = handle.clone();
+        ui.on_profile_pick_avatar(move || {
+            let ui_weak = ui_weak.clone();
+            handle.spawn_blocking(move || {
+                let Some(path) = pick_image_file() else { return };
+                let Some(encoded) = process_image_file(&path) else {
+                    tracing::error!("Falha ao processar avatar: {}", path.display());
+                    return;
+                };
+                let pixel = decode_pixel_buffer(&encoded);
+                let _ = slint::invoke_from_event_loop(move || {
+                    let Some(ui) = ui_weak.upgrade() else { return };
+                    ui.set_profile_avatar(
+                        pixel.map(slint::Image::from_rgba8).unwrap_or_default(),
+                    );
+                    ui.set_profile_avatar_data(SharedString::from(encoded));
                 });
             });
         });

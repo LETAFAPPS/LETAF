@@ -1,15 +1,17 @@
 // Modal "Meu perfil" — o próprio operador vê seus dados e altera as
-// credenciais (nome, e-mail e senha). Vale para admin, funcionário e super
-// admin. UI sem lógica (§1/§3): dados vêm do Rust (GET /auth/me) e o salvar
-// delega ao Rust (PUT /auth/profile). A autoridade é o backend (§11).
+// credenciais (nome, e-mail e senha) e a FOTO de perfil. Vale para admin,
+// funcionário e super admin. UI sem lógica (§1/§3): dados vêm do Rust
+// (GET /auth/me) e o salvar delega ao Rust (PUT /auth/profile). A escolha
+// da foto abre o seletor nativo no Rust (`pick-avatar`). A autoridade é o
+// backend (§11).
 //
-// Padrão do sistema (§3/§8): moldura via `ModalShell` (ícone do sistema, título,
-// mensagem, divisor) + ações em `OutlineBtn` — igual ao modal de caixa fechado.
-// Antes tinha header próprio (quadrado laranja com ícone) e "Salvar" preenchido.
+// Layout: cabeçalho com AVATAR à esquerda (clicável → troca a foto) e
+// título/subtítulo à direita; ações com "Salvar" alinhado à DIREITA do card.
 import { Theme } from "../theme.slint";
 import { FormField, PasswordField } from "../components/form_fields.slint";
 import { OutlineBtn } from "../components/buttons.slint";
-import { ModalShell } from "../components/modal_shell.slint";
+import { Card } from "../components/cards.slint";
+import { AssetIcon } from "../components/icons.slint";
 
 export component ProfileModal inherits Rectangle {
     in property <string> role-label;
@@ -18,58 +20,136 @@ export component ProfileModal inherits Rectangle {
     in-out property <string> new-password;
     in property <string> status;
     in property <bool> busy;
+    /// Foto de perfil decodificada (vazia = sem foto → placeholder).
+    in property <image> avatar;
     callback save();
     callback close();
+    /// Abre o seletor de arquivo nativo para escolher a foto (Rust).
+    callback pick-avatar();
 
     width: 100%;
     height: 100%;
+    background: #00000060;
 
-    ModalShell {
-        width: 100%;
-        height: 100%;
-        icon: @image-url("../assets/icons/1.2/user.svg");
-        title: "Meu perfil";
-        message: root.role-label;
-        card-width: 420px;
-        close => { root.close(); }
+    // Clique no fundo fecha o modal (padrão do sistema — sem X/Cancelar).
+    TouchArea { clicked => { root.close(); } }
 
-        VerticalLayout {
-            spacing: 12px;
+    VerticalLayout {
+        alignment: center;
+        HorizontalLayout {
+            alignment: center;
 
-            FormField {
-                label: "Nome";
-                value <=> root.name;
-                placeholder: "Seu nome";
-            }
-            FormField {
-                label: "E-mail";
-                value <=> root.email;
-                placeholder: "email@dominio.com";
-            }
-            PasswordField {
-                label: "Nova senha";
-                value <=> root.new-password;
-                placeholder: "Deixe em branco para manter";
-            }
+            Card {
+                width: 440px;
+                border-radius: Theme.radius-3xl;
 
-            if root.status != "": Text {
-                text: root.status;
-                font-size: 12px; color: Theme.primary;
-                wrap: word-wrap;
-                horizontal-alignment: center;
-            }
+                // Absorve cliques DENTRO do card (não fecha o modal).
+                TouchArea { }
 
-            // Ações juntas (Cancelar colado no Salvar), no padrão do sistema.
-            HorizontalLayout {
-                alignment: center;
-                spacing: 10px;
+                VerticalLayout {
+                    padding: 28px;
+                    spacing: 16px;
 
-                OutlineBtn {
-                    label: root.busy ? "Salvando…" : "Salvar";
-                    accent: true;
-                    btn-color: Theme.btn-accent;
-                    width: 120px; height: 40px;
-                    clicked => { root.save(); }
+                    // ── Cabeçalho: avatar (esq.) + título/subtítulo (dir.) ──
+                    HorizontalLayout {
+                        spacing: 16px;
+
+                        // Avatar clicável (troca a foto).
+                        avatar-ta := TouchArea {
+                            width: 64px; height: 64px;
+                            clicked => { root.pick-avatar(); }
+                            Rectangle {
+                                width: 64px; height: 64px;
+                                border-radius: 32px;
+                                clip: true;
+                                border-width: 1.5px;
+                                border-color: Theme.btn-accent;
+                                background: avatar-ta.has-hover
+                                    ? Theme.btn-accent.transparentize(0.80)
+                                    : Theme.btn-accent.transparentize(0.90);
+                                // Foto (quando houver) preenchendo o círculo.
+                                if root.avatar.width > 0: Image {
+                                    width: 64px; height: 64px;
+                                    source: root.avatar;
+                                    image-fit: cover;
+                                }
+                                // Placeholder (sem foto): ícone de usuário.
+                                if root.avatar.width == 0: AssetIcon {
+                                    width: 64px; height: 64px; icon-size: 30px;
+                                    icon-color: Theme.btn-accent;
+                                    source: @image-url("../assets/icons/1.2/user.svg");
+                                }
+                            }
+                            // Selo de câmera no canto (indica "trocar foto").
+                            Rectangle {
+                                width: 22px; height: 22px;
+                                border-radius: 11px;
+                                x: parent.width - self.width;
+                                y: parent.height - self.height;
+                                background: Theme.btn-accent;
+                                border-width: 2px;
+                                border-color: Theme.surface;
+                                AssetIcon {
+                                    width: parent.width; height: parent.height; icon-size: 11px;
+                                    icon-color: white;
+                                    source: @image-url("../assets/icons/1.2/camera.svg");
+                                }
+                            }
+                        }
+
+                        VerticalLayout {
+                            horizontal-stretch: 1;
+                            alignment: center;
+                            spacing: 2px;
+                            Text {
+                                text: "Meu perfil";
+                                font-size: 18px; font-weight: 700;
+                                color: Theme.text-primary;
+                            }
+                            Text {
+                                text: root.role-label;
+                                font-size: 13px;
+                                color: Theme.text-secondary;
+                            }
+                        }
+                    }
+
+                    Rectangle { height: 1px; background: Theme.border; }
+
+                    FormField {
+                        label: "Nome";
+                        value <=> root.name;
+                        placeholder: "Seu nome";
+                    }
+                    FormField {
+                        label: "E-mail";
+                        value <=> root.email;
+                        placeholder: "email@dominio.com";
+                    }
+                    PasswordField {
+                        label: "Nova senha";
+                        value <=> root.new-password;
+                        placeholder: "Deixe em branco para manter";
+                    }
+
+                    if root.status != "": Text {
+                        text: root.status;
+                        font-size: 12px; color: Theme.primary;
+                        wrap: word-wrap;
+                        horizontal-alignment: center;
+                    }
+
+                    // Ação principal alinhada à DIREITA do card.
+                    HorizontalLayout {
+                        alignment: end;
+                        OutlineBtn {
+                            label: root.busy ? "Salvando…" : "Salvar";
+                            accent: true;
+                            btn-color: Theme.btn-accent;
+                            width: 120px; height: 40px;
+                            clicked => { root.save(); }
+                        }
+                    }
                 }
             }
         }

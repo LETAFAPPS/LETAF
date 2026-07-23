@@ -98,6 +98,10 @@ pub struct User {
     /// função. Ver [`crate::job_role`] e [`crate::permission`].
     #[serde(default)]
     pub job_role_id: Option<Uuid>,
+    /// Foto de perfil (imagem JPEG/PNG em base64). `None` = sem foto.
+    /// Editável pelo próprio operador via `PUT /auth/profile`.
+    #[serde(default)]
+    pub avatar: Option<String>,
 }
 
 impl User {
@@ -115,6 +119,7 @@ impl User {
             name,
             role,
             job_role_id: None,
+            avatar: None,
         }
     }
 }
@@ -137,6 +142,8 @@ pub struct SyncUserPayload {
     pub role: UserRole,
     #[serde(default)]
     pub job_role_id: Option<Uuid>,
+    #[serde(default)]
+    pub avatar: Option<String>,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
     pub deleted_at: Option<NaiveDateTime>,
@@ -153,6 +160,7 @@ impl From<&User> for SyncUserPayload {
             name: u.name.clone(),
             role: u.role,
             job_role_id: u.job_role_id,
+            avatar: u.avatar.clone(),
             created_at: u.base.created_at,
             updated_at: u.base.updated_at,
             deleted_at: u.base.deleted_at,
@@ -178,6 +186,7 @@ impl SyncUserPayload {
             name: self.name,
             role: self.role,
             job_role_id: self.job_role_id,
+            avatar: self.avatar,
         }
     }
 }

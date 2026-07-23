@@ -487,18 +487,18 @@ export component ReportsPage inherits HorizontalLayout {
                         for p in root.periods: pseg := Rectangle {
                             width: 76px;
                             border-radius: 7px;
-                            // Selecionado = só CONTORNO (borda) na cor de
-                            // destaque, sem preencher o botão inteiro.
+                            // Selecionado = estilo tênue de ação (mesmo chip do
+                            // Estoque): borda + tint fraco na cor de destaque.
                             border-width: p.selected ? 1.5px : 0px;
-                            border-color: Theme.sidebar-sel-bg;
-                            background: p.selected ? transparent
+                            border-color: Theme.btn-accent;
+                            background: p.selected ? Theme.btn-accent.transparentize(0.90)
                                 : (pseg-ta.has-hover ? Theme.row-hover : transparent);
                             pseg-ta := TouchArea { clicked => { root.set-period(p.key); } }
                             Text {
                                 width: parent.width; height: parent.height;
                                 text: p.label;
-                                font-size: 12px; font-weight: 700;
-                                color: p.selected ? Theme.sidebar-sel-bg : Theme.text-primary;
+                                font-size: 13px; font-weight: 700;
+                                color: p.selected ? Theme.btn-accent : Theme.text-primary;
                                 horizontal-alignment: center; vertical-alignment: center;
                             }
                         }
@@ -521,12 +521,12 @@ export component ReportsPage inherits HorizontalLayout {
                         width: 116px;
                         height: 40px;
                         border-radius: 10px;
-                        // Selecionado = só CONTORNO na cor de destaque (mesmo
-                        // estilo dos botões de filtro), sem preencher o botão.
-                        background: t.selected ? transparent
+                        // Selecionado = estilo tênue de ação (mesmo chip do
+                        // Estoque): borda + tint fraco na cor de destaque.
+                        background: t.selected ? Theme.btn-accent.transparentize(0.90)
                             : (pill-ta.has-hover ? Theme.row-hover : Theme.surface);
                         border-width: t.selected ? 1.5px : 1px;
-                        border-color: t.selected ? Theme.sidebar-sel-bg : Theme.border;
+                        border-color: t.selected ? Theme.btn-accent : Theme.border;
                         pill-ta := TouchArea { clicked => { root.set-type(t.key); } }
                         HorizontalLayout {
                             alignment: center;
@@ -534,12 +534,12 @@ export component ReportsPage inherits HorizontalLayout {
                             ReportTypeIcon {
                                 width: 16px; height: parent.height;
                                 key: t.key;
-                                tint: t.selected ? Theme.sidebar-sel-bg : Theme.text-secondary;
+                                tint: t.selected ? Theme.btn-accent : Theme.text-secondary;
                             }
                             Text {
                                 text: t.label;
                                 font-size: 13px; font-weight: 700;
-                                color: t.selected ? Theme.sidebar-sel-bg : Theme.text-primary;
+                                color: t.selected ? Theme.btn-accent : Theme.text-primary;
                                 vertical-alignment: center;
                             }
                         }
