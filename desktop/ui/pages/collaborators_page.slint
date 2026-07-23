@@ -109,7 +109,9 @@ component AddBtn inherits TouchArea {
 // (borda + tint na cor de destaque); clicar alterna marcar/desmarcar tudo.
 component MarkAllBtn inherits TouchArea {
     in property <bool> active: false;
-    height: 36px;
+    height: 34px;
+    // Abraça o conteúdo (não estica na largura do container).
+    width: mark-row.preferred-width;
     Rectangle {
         border-radius: 8px;
         border-width: root.active ? 1.5px : 1px;
@@ -117,8 +119,8 @@ component MarkAllBtn inherits TouchArea {
         background: root.active
             ? Theme.btn-accent.transparentize(0.90)
             : (root.has-hover ? Theme.row-hover : Theme.surface);
-        HorizontalLayout {
-            padding-left: 14px; padding-right: 14px; spacing: 8px;
+        mark-row := HorizontalLayout {
+            padding-left: 12px; padding-right: 12px; spacing: 6px;
             alignment: center;
             AssetIcon {
                 width: 16px; height: parent.height; icon-size: 14px;

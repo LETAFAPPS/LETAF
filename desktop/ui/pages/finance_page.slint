@@ -264,13 +264,17 @@ component CalendarCell inherits TouchArea {
     clicked => { if (root.data.in-month) { root.selected(); } }
     Rectangle {
         border-radius: 8px;
-        border-width: root.data.selected ? 2px : 1px;
+        // Selecionado = estilo tênue de ação (mesmo chip de filtro do Estoque):
+        // borda + tint fraco na cor de destaque.
+        border-width: root.data.selected ? 1.5px : 1px;
         border-color: root.data.selected
-            ? Theme.primary
+            ? Theme.btn-accent
             : (root.data.today ? Theme.accent : Theme.border);
-        background: root.data.in-month
-            ? (root.has-hover ? Theme.row-hover : Theme.surface)
-            : #f5f5f4;
+        background: root.data.selected
+            ? Theme.btn-accent.transparentize(0.90)
+            : (root.data.in-month
+                ? (root.has-hover ? Theme.row-hover : Theme.surface)
+                : #f5f5f4);
         VerticalLayout {
             padding: 6px;
             spacing: 4px;
@@ -281,10 +285,12 @@ component CalendarCell inherits TouchArea {
                     horizontal-stretch: 1;
                     text: root.data.in-month ? root.data.day : "";
                     font-size: 12px;
-                    font-weight: root.data.today ? 800 : 600;
-                    color: root.data.today
-                        ? Theme.accent
-                        : (root.data.in-month ? Theme.text-primary : Theme.text-secondary);
+                    font-weight: (root.data.today || root.data.selected) ? 800 : 600;
+                    color: root.data.selected
+                        ? Theme.btn-accent
+                        : (root.data.today
+                            ? Theme.accent
+                            : (root.data.in-month ? Theme.text-primary : Theme.text-secondary));
                     horizontal-alignment: left;
                     vertical-alignment: top;
                 }

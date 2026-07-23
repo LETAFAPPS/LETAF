@@ -36,7 +36,8 @@ component IconBtn inherits TouchArea {
         inner := HorizontalLayout {
             padding-left: root.gap; padding-right: root.gap; spacing: 8px;
             alignment: center;
-            VerticalLayout {
+            // Ícone opcional: só ocupa espaço quando um SVG é passado.
+            if root.icon.width > 0: VerticalLayout {
                 alignment: center;
                 AssetIcon {
                     width: 16px; height: 16px; icon-size: 16px;
@@ -343,8 +344,7 @@ export component CategoriesPage inherits Rectangle {
             VerticalLayout {
                 alignment: center;
                 IconBtn {
-                    label: "Nova Categoria"; filled: true;
-                    icon: @image-url("../assets/icons/1.2/adicionar.svg");
+                    label: "+ Nova Categoria"; filled: true;
                     clicked => { root.request-new-category(); }
                 }
             }
