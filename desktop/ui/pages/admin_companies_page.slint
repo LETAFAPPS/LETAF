@@ -205,11 +205,14 @@ export component AdminCompaniesPage inherits VerticalLayout {
     callback cep-changed(string);
     in property <bool> cep-loading: false;
 
-    // `true` = tela de cadastro; `false` = lista. Estado puro de UI (§3).
-    property <bool> show-form: false;
-    // `true` após a 1ª tentativa de salvar: só então mostramos os erros,
-    // para o formulário não nascer todo vermelho.
-    property <bool> tentou-salvar: false;
+    // `true` = tela de cadastro; `false` = lista. Ligado ao AdminState pelo
+    // main.slint, para o Rust voltar à lista após salvar.
+    in-out property <bool> show-form: false;
+    // "+": abre o cadastro limpo (Rust zera os campos).
+    callback new-company();
+    // `true` após a 1ª tentativa de salvar: só então mostramos os erros.
+    // Ligado ao AdminState (o Rust zera após salvar).
+    in-out property <bool> tentou-salvar: false;
 
     // Máscara e verificação vêm do Rust (feedback de UX; §11 — backend é a
     // autoridade). O main.slint encaminha ao AdminState; puras para poderem
@@ -252,7 +255,7 @@ export component AdminCompaniesPage inherits VerticalLayout {
         alignment: start;
         back-ta := TouchArea {
             width: 30px; height: 30px;
-            clicked => { root.show-form = false; }
+            clicked => { root.show-form = false; root.tentou-salvar = false; }
             Rectangle {
                 x: 0; y: 0; width: parent.width; height: parent.height;
                 border-radius: 6px;
@@ -318,7 +321,7 @@ export component AdminCompaniesPage inherits VerticalLayout {
             }
             VerticalLayout {
                 alignment: center;
-                ListAddBtn { clicked => { root.show-form = true; } }
+                ListAddBtn { clicked => { root.new-company(); } }
             }
         }
     }

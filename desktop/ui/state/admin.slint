@@ -91,6 +91,11 @@ export global AdminState {
     // backend é a autoridade — §11). Puras: usadas em expressões.
     pure callback apply-mask(string, string) -> string;   // (kind, valor)
     pure callback field-error(string, string) -> string;  // (regra, valor)
+    // Tela/estado do formulário de empresa — no global para o Rust poder
+    // resetar após salvar (voltar à lista e limpar os erros).
+    in-out property <bool> company-show-form: false;
+    in-out property <bool> company-form-attempted: false;
+    callback company-new-form();   // "+": abre um cadastro limpo
     in-out property <[AdminPlanRow]> plans: [];
     in-out property <string> plan-id: "";
     in-out property <string> plan-name: "";

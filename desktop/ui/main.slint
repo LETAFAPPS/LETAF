@@ -1634,6 +1634,9 @@ export component MainWindow inherits Window {
                     // Encaminha máscara/verificação ao global (§11).
                     mask-field(k, v) => { AdminState.apply-mask(k, v) }
                     field-error(r, v) => { AdminState.field-error(r, v) }
+                    show-form <=> AdminState.company-show-form;
+                    tentou-salvar <=> AdminState.company-form-attempted;
+                    new-company => { AdminState.company-new-form(); }
                     delete-company(id, name) => {
                         AdminState.del-company-id = id;
                         AdminState.del-company-name = name;

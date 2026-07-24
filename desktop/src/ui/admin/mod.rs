@@ -998,6 +998,10 @@ fn setup_company_persist(
                     Ok(()) => {
                         show_toast(&ui, "Estabelecimento Cadastrado", "success");
                         clear_company_form(&ui);
+                        // Volta à lista e limpa os erros (senão o formulário
+                        // fica todo vermelho com os campos já zerados).
+                        ui.global::<AdminState>().set_company_form_attempted(false);
+                        ui.global::<AdminState>().set_company_show_form(false);
                         ui.global::<AdminState>().invoke_refresh();
                     }
                     Err(msg) => show_toast(&ui, &msg, "error"),
@@ -1005,6 +1009,18 @@ fn setup_company_persist(
             });
         });
     });
+
+    // "+": abre um cadastro LIMPO (sem sobras de uma edição anterior nem
+    // erros de uma tentativa passada).
+    {
+        let ui_weak = ui.as_weak();
+        ui.global::<AdminState>().on_company_new_form(move || {
+            let Some(ui) = ui_weak.upgrade() else { return };
+            clear_company_form(&ui);
+            ui.global::<AdminState>().set_company_form_attempted(false);
+            ui.global::<AdminState>().set_company_show_form(true);
+        });
+    }
 }
 
 /// Converte um valor monetário digitado (pt-BR ou simples) em `f64`.
