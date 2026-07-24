@@ -246,7 +246,7 @@ pub fn setup_callbacks(
     auth::setup_dark_mode(ui, state, handle);
 
     // Painel do administrador (super admin) — callbacks online /admin/*.
-    admin::setup_admin(ui, handle, auth_token.clone(), server_url.clone());
+    admin::setup_admin(ui, state, handle, sync_notify.clone(), auth_token.clone(), server_url.clone());
 
     // Status do SyncWorker → propriedades da sidebar (polling 1.5s).
     // Também detecta invalidação de sessão (401 limpa o token) e força logout.

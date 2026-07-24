@@ -9,6 +9,6 @@ mod login;
 mod profile;
 mod session;
 
-pub(crate) use login::{setup_login, setup_password_recovery};
+pub(crate) use login::{apply_login, setup_login, setup_password_recovery, update_ui_after_login};
 pub(crate) use profile::setup_profile;
 pub(crate) use session::{setup_dark_mode, setup_logout};

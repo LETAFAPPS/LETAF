@@ -10,11 +10,15 @@
 
 use std::sync::{Arc, Mutex};
 
+use letaf_core::auth::model::UserRole;
 use serde::de::DeserializeOwned;
 use serde::Deserialize;
 use slint::{ComponentHandle, Model, ModelRc, SharedString, VecModel};
-use tokio::sync::RwLock;
+use tokio::sync::{Notify, RwLock};
+use uuid::Uuid;
 
+use crate::context::DesktopState;
+use crate::ui::auth::{apply_login, update_ui_after_login};
 use crate::AdminState;
 use crate::{
     AdminAuditRow, AdminCompanyDetail, AdminCompanyOrderRow, AdminCompanyRow, AdminInvoiceRow,
@@ -251,7 +255,9 @@ fn apply_sub_filter(ui: &MainWindow, cache: &SubsCache) {
 /// Registra todos os callbacks do painel do administrador.
 pub(crate) fn setup_admin(
     ui: &MainWindow,
+    state: &DesktopState,
     handle: &tokio::runtime::Handle,
+    sync_notify: Arc<Notify>,
     auth_token: Arc<RwLock<Option<String>>>,
     server_url: String,
 ) {
@@ -276,6 +282,159 @@ pub(crate) fn setup_admin(
     setup_company_form_helpers(ui);
     setup_plan_form(ui, &plans_cache);
     setup_plan_persist(ui, handle, &auth_token, &server_url);
+    setup_impersonation(ui, state, handle, sync_notify, &auth_token, &server_url);
+}
+
+/// Snapshot da sessão do super admin, para restaurar ao sair da empresa.
+#[derive(Clone)]
+struct SaSession {
+    token: String,
+    company_id: Uuid,
+    subdomain: String,
+    name: String,
+    perms: Vec<String>,
+}
+
+/// Resposta de POST /admin/companies/{id}/impersonate (mesmo formato do
+/// login-desktop). Reaproveita o fluxo `apply_login`/`update_ui_after_login`.
+#[derive(Deserialize)]
+struct ImpersonateDto {
+    token: String,
+    user: ImpersonateUser,
+    subdomain: String,
+    company_name: String,
+    #[serde(default)]
+    perms: Vec<String>,
+}
+
+#[derive(Deserialize)]
+struct ImpersonateUser {
+    company_id: Uuid,
+    #[serde(default)]
+    name: String,
+}
+
+/// Impersonation: o super admin "entra" numa empresa (sessão com escopo do
+/// tenant, como o proprietário) e usa as telas reais do ERP; "Sair" restaura
+/// a sessão do super admin. A autoridade é o backend (§11) — o token com
+/// escopo é o que concede o acesso.
+fn setup_impersonation(
+    ui: &MainWindow,
+    state: &DesktopState,
+    handle: &tokio::runtime::Handle,
+    sync_notify: Arc<Notify>,
+    auth_token: &Arc<RwLock<Option<String>>>,
+    server_url: &str,
+) {
+    // Snapshot compartilhado entre "entrar" e "sair".
+    let snapshot: Arc<Mutex<Option<SaSession>>> = Arc::new(Mutex::new(None));
+
+    // ── Entrar na empresa ──
+    {
+        let ui_weak = ui.as_weak();
+        let state = state.clone();
+        let handle = handle.clone();
+        let notify = sync_notify.clone();
+        let auth_token = auth_token.clone();
+        let server_url = server_url.to_string();
+        let snapshot = snapshot.clone();
+        ui.global::<AdminState>().on_company_impersonate(move |id| {
+            let id = id.to_string();
+            let ui_weak = ui_weak.clone();
+            let state = state.clone();
+            let notify = notify.clone();
+            let auth_token = auth_token.clone();
+            let server_url = server_url.clone();
+            let snapshot = snapshot.clone();
+            handle.spawn(async move {
+                // Snapshot da sessão atual do super admin (para o "Sair").
+                let (is_admin, is_super, sa_perms) = state.session.load_perms().await;
+                let _ = is_admin;
+                let sa = SaSession {
+                    token: auth_token.read().await.clone().unwrap_or_default(),
+                    company_id: state.company_id(),
+                    subdomain: state.session.load_subdomain().await.unwrap_or_default(),
+                    name: state.session.load_user_name().await.unwrap_or_default(),
+                    perms: sa_perms,
+                };
+                if !is_super {
+                    // Só super admin gerencia (o backend também exige — §11).
+                    return;
+                }
+                let resp = HTTP_CLIENT
+                    .post(format!("{server_url}/admin/companies/{id}/impersonate"))
+                    .bearer_auth(&sa.token)
+                    .send()
+                    .await;
+                let dto: Option<ImpersonateDto> = match resp {
+                    Ok(r) if r.status().is_success() => r.json().await.ok(),
+                    _ => None,
+                };
+                let Some(dto) = dto else {
+                    let uw = ui_weak.clone();
+                    let _ = slint::invoke_from_event_loop(move || {
+                        if let Some(ui) = uw.upgrade() {
+                            show_toast(&ui, "Não foi possível entrar na empresa", "error");
+                        }
+                    });
+                    return;
+                };
+                *snapshot.lock().unwrap() = Some(sa);
+                // Empresa comum é offline-first: retoma o sync para popular os
+                // dados do tenant no SQLite local.
+                state.set_sync_paused(false);
+                apply_login(
+                    &state, &auth_token, &notify,
+                    dto.user.company_id, &dto.company_name, &dto.subdomain, dto.token,
+                )
+                .await;
+                state.session.save_perms(true, false, &dto.perms).await;
+                state.session.save_user_name(&dto.user.name).await;
+                let company_name = dto.company_name.clone();
+                update_ui_after_login(ui_weak.clone(), UserRole::Admin, dto.perms, dto.user.name);
+                let _ = slint::invoke_from_event_loop(move || {
+                    if let Some(ui) = ui_weak.upgrade() {
+                        ui.set_impersonating(true);
+                        ui.set_impersonating_company(company_name.into());
+                    }
+                });
+            });
+        });
+    }
+
+    // ── Sair (restaura o super admin) ──
+    {
+        let ui_weak = ui.as_weak();
+        let state = state.clone();
+        let handle = handle.clone();
+        let notify = sync_notify;
+        let auth_token = auth_token.clone();
+        ui.on_exit_impersonation(move || {
+            let Some(sa) = snapshot.lock().unwrap().take() else { return };
+            let ui_weak = ui_weak.clone();
+            let state = state.clone();
+            let notify = notify.clone();
+            let auth_token = auth_token.clone();
+            handle.spawn(async move {
+                // Super admin é online-only: pausa o sync antes do apply_login.
+                state.set_sync_paused(true);
+                apply_login(
+                    &state, &auth_token, &notify,
+                    sa.company_id, "", &sa.subdomain, sa.token,
+                )
+                .await;
+                state.session.save_perms(true, true, &sa.perms).await;
+                state.session.save_user_name(&sa.name).await;
+                update_ui_after_login(ui_weak.clone(), UserRole::SuperAdmin, sa.perms, sa.name);
+                let _ = slint::invoke_from_event_loop(move || {
+                    if let Some(ui) = ui_weak.upgrade() {
+                        ui.set_impersonating(false);
+                        ui.set_impersonating_company(SharedString::new());
+                    }
+                });
+            });
+        });
+    }
 }
 
 /// GET autenticado → desserializa em `T`. `None` em qualquer falha.
@@ -1072,7 +1231,7 @@ fn setup_company_persist(
                     Ok(()) => {
                         show_toast(
                             &ui,
-                            if editing { "Alterações salvas" } else { "Estabelecimento Cadastrado" },
+                            if editing { "Alterações Salvas" } else { "Estabelecimento Cadastrado" },
                             "success",
                         );
                         clear_company_form(&ui);

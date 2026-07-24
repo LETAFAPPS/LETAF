@@ -182,6 +182,14 @@ export component MainWindow inherits Window {
     callback do-logout();
     callback dark-mode-changed(bool);
 
+    // ── Impersonation (super admin gerenciando uma empresa) ──
+    // `true` enquanto o super admin está "dentro" de uma empresa; mostra um
+    // banner fixo no topo e o botão de sair. A autoridade é o backend (§11):
+    // aqui é só UI — o token com escopo do tenant é que dá (ou não) o acesso.
+    in-out property <bool> impersonating: false;
+    in-out property <string> impersonating-company: "";
+    callback exit-impersonation();
+
     // ── Navegacao ───────────────────────────────────
     // Pedidos é a tela principal do operador (fluxo do dia). "dashboard",
     // Landing inicial: Dashboard (visão consolidada de KPIs + vendas
@@ -1401,7 +1409,43 @@ export component MainWindow inherits Window {
     // ════════════════════════════════════════════════
     //  AREA PRINCIPAL (pos-login)
     // ════════════════════════════════════════════════
-    if root.logged-in: HorizontalLayout {
+    if root.logged-in: VerticalLayout {
+
+        // Banner de impersonation: fixo no topo enquanto o super admin
+        // gerencia uma empresa (telas reais do ERP). "Sair" volta ao painel.
+        if root.impersonating: Rectangle {
+            height: 42px;
+            background: #1E88E5;
+            HorizontalLayout {
+                padding-left: 16px; padding-right: 12px;
+                spacing: 10px;
+                Text {
+                    horizontal-stretch: 1;
+                    text: "Gerenciando: " + root.impersonating-company;
+                    color: white; font-size: 13px; font-weight: 700;
+                    vertical-alignment: center; overflow: elide;
+                }
+                VerticalLayout {
+                    alignment: center;
+                    exit-ta := TouchArea {
+                        width: 88px; height: 28px;
+                        clicked => { root.exit-impersonation(); }
+                        Rectangle {
+                            width: parent.width; height: parent.height;
+                            border-radius: 6px;
+                            background: exit-ta.has-hover ? #ffffff44 : #ffffff26;
+                            Text {
+                                text: "↩  Sair"; color: white; font-size: 12px; font-weight: 700;
+                                horizontal-alignment: center; vertical-alignment: center;
+                                width: parent.width; height: parent.height;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        HorizontalLayout {
 
         Sidebar {
             active-tab <=> root.active-tab;
@@ -2356,6 +2400,7 @@ export component MainWindow inherits Window {
             }
         }
     }
+    }
 
     // ════════════════════════════════════════════════
     //  MODAIS (overlays sobre tudo)
@@ -2621,6 +2666,10 @@ export component MainWindow inherits Window {
         data: AdminState.detail;
         orders: AdminState.detail-orders;
         close => { AdminState.detail-open = false; }
+        manage => {
+            AdminState.detail-open = false;
+            AdminState.company-impersonate(AdminState.detail.id);
+        }
     }
 
     if AdminState.del-company-open: DeleteConfirmModal {

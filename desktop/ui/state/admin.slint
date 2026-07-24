@@ -102,6 +102,8 @@ export global AdminState {
     in-out property <string> company-edit-id: "";
     callback company-new-form();   // "+": abre um cadastro limpo
     callback company-edit(string); // ícone de editar: abre o cadastro pré-preenchido
+    // "Gerenciar empresa": super admin entra na empresa (impersonation). (id)
+    callback company-impersonate(string);
     in-out property <[AdminPlanRow]> plans: [];
     in-out property <string> plan-id: "";
     in-out property <string> plan-name: "";

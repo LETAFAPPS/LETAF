@@ -12,7 +12,7 @@
 
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
-use axum::routing::{get, put};
+use axum::routing::{get, post, put};
 use axum::Router;
 use uuid::Uuid;
 
@@ -55,6 +55,10 @@ pub fn routes() -> Router<AppState> {
                 .delete(companies::delete_company),
         )
         .route("/admin/companies/{id}/form", get(companies::company_form))
+        .route(
+            "/admin/companies/{id}/impersonate",
+            post(companies::impersonate_company),
+        )
         .route("/admin/companies/{id}/active", put(companies::set_company_active))
         .route("/admin/subscriptions", get(subscriptions::list_subscriptions))
         .route("/admin/subscriptions/{company_id}", put(subscriptions::update_subscription))

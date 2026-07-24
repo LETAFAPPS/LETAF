@@ -412,6 +412,64 @@ pub(super) async fn update_company(
     Ok(StatusCode::NO_CONTENT)
 }
 
+// ── Impersonation (gerenciar empresa) ─────────────────────────────────────
+/// Emite uma sessão com escopo da empresa-alvo, AS o proprietário (admin
+/// inicial), para o super admin "entrar" na empresa e gerenciá-la nas telas
+/// reais do ERP. O token é idêntico ao de um login do dono — passa por todos
+/// os checks de tenant/token_version. A ação é auditada (§11).
+pub(super) async fn impersonate_company(
+    State(state): State<AppState>,
+    auth: AuthClaims,
+    Path(id): Path<Uuid>,
+) -> Result<Json<Value>, ServerError> {
+    require_super_admin(&auth)?;
+    let company = state
+        .company_service
+        .find_by_id(id)
+        .await?
+        .ok_or_else(|| ServerError::Core(CoreError::NotFound("Empresa não encontrada".into())))?;
+    // A sessão é emitida como o proprietário (admin inicial) da empresa.
+    let owner = state
+        .auth_service
+        .find_all(id)
+        .await?
+        .into_iter()
+        .find(|u| u.role.is_admin())
+        .ok_or_else(|| {
+            ServerError::Core(CoreError::Validation(
+                "Empresa sem proprietário para gerenciar".into(),
+            ))
+        })?;
+    let perms = letaf_core::permission::all();
+    let tv = state
+        .auth_service
+        .find_token_version(id, owner.base.id)
+        .await?
+        .unwrap_or(0);
+    let token = crate::jwt::create_token(
+        owner.base.id,
+        id,
+        owner.role.as_db_str(),
+        perms.clone(),
+        tv,
+        &state.config.jwt_secret,
+        24,
+    )?;
+    audit(
+        &state, &auth, "company.impersonate", "company", Some(id),
+        format!("{} ({})", company.name, company.subdomain), String::new(),
+    )
+    .await;
+    // Mesmo formato de /auth/login-desktop, para reaproveitar o fluxo do app.
+    Ok(Json(json!({
+        "token": token,
+        "user": { "company_id": id, "role": owner.role.as_db_str(), "name": owner.name },
+        "subdomain": company.subdomain,
+        "company_name": company.name,
+        "perms": perms,
+    })))
+}
+
 // ── Detalhe da empresa (central de suporte) ──────────────────────────────
 #[derive(Serialize)]
 pub(super) struct CompanyDetail {
