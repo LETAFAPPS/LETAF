@@ -146,6 +146,11 @@ pub struct CatalogData {
     pub products: Vec<CatalogProduct>,
     pub banners: Vec<CatalogBanner>,
     pub business_hours: BusinessHours,
+    /// Origem pública deste tenant ("https://empresa.seusite.com"),
+    /// derivada da requisição SSR. Necessária para `og:url`/`og:image`,
+    /// que exigem URL ABSOLUTA (crawlers não resolvem caminho relativo).
+    #[serde(default)]
+    pub site_origin: String,
 }
 
 #[cfg(feature = "ssr")]
@@ -212,6 +217,9 @@ mod server {
                 store_override: "none".into(),
                 hours: Vec::new(),
             }),
+            // Preenchido pelo caller (server fn), que tem os headers da
+            // requisição para saber o esquema/host públicos.
+            site_origin: String::new(),
         })
     }
 

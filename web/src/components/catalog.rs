@@ -20,9 +20,24 @@ pub async fn get_catalog() -> Result<CatalogData, ServerFnError> {
         .and_then(|v| v.to_str().ok())
         .unwrap_or_default()
         .to_string();
-    crate::api::fetch_catalog(&host)
+    // Esquema público: atrás de proxy vale o `x-forwarded-proto`; senão
+    // http para localhost (dev) e https no resto (produção).
+    let proto = headers
+        .get("x-forwarded-proto")
+        .and_then(|v| v.to_str().ok())
+        .map(str::to_string)
+        .unwrap_or_else(|| {
+            if host.starts_with("localhost") || host.contains(".localhost") || host.starts_with("127.0.0.1") {
+                "http".into()
+            } else {
+                "https".into()
+            }
+        });
+    let mut data = crate::api::fetch_catalog(&host)
         .await
-        .map_err(ServerFnError::new)
+        .map_err(ServerFnError::new)?;
+    data.site_origin = format!("{proto}://{host}");
+    Ok(data)
 }
 
 /// Página do cardápio (home). Resource bloqueante → o HTML inicial já
@@ -56,6 +71,13 @@ fn CatalogView(data: CatalogData) -> impl IntoView {
     // URLs já vêm prontas da API (mídia servida como bytes, não base64).
     let cover = data.info.cover_url.clone();
     let logo = data.info.logo_url.clone();
+    // URL absoluta para og:image (crawler não resolve caminho relativo).
+    // Preferimos a capa (imagem maior/mais representativa) e caímos no logo.
+    let origin = data.site_origin.clone();
+    let og_image = cover
+        .clone()
+        .or_else(|| logo.clone())
+        .map(|u| if u.starts_with("http") { u } else { format!("{origin}{u}") });
     let cats = data.categories;
     let banners = data.banners;
     let business_hours = data.business_hours;
@@ -67,7 +89,22 @@ fn CatalogView(data: CatalogData) -> impl IntoView {
 
     view! {
         <Title text=nome.clone()/>
-        <Meta name="description" content=desc/>
+        <Meta name="description" content=desc.clone()/>
+        // Open Graph — cada cardápio (subdomínio) tem identidade própria
+        // ao ser compartilhado em redes/WhatsApp (AI_RULES §3, SEO).
+        <Meta property="og:type" content="website"/>
+        <Meta property="og:site_name" content=nome.clone()/>
+        <Meta property="og:title" content=nome.clone()/>
+        <Meta property="og:description" content=desc.clone()/>
+        <Meta property="og:locale" content="pt_BR"/>
+        {(!origin.is_empty()).then(|| view! { <Meta property="og:url" content=origin.clone()/> })}
+        {og_image.clone().map(|img| view! {
+            <Meta property="og:image" content=img.clone()/>
+            <Meta name="twitter:image" content=img/>
+        })}
+        <Meta name="twitter:card" content=if og_image.is_some() { "summary_large_image" } else { "summary" }/>
+        <Meta name="twitter:title" content=nome.clone()/>
+        <Meta name="twitter:description" content=desc/>
 
         <header class="store-header">
             {cover.map(|c| view! { <img class="store-cover" src=c alt=""/> })}
