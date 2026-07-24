@@ -41,3 +41,6 @@ CHAVES*.md
 
 # Referências de design (mockups do dcodes) — não versionar.
 /mockups/
+
+# Anotações pessoais (prompts) — ficam no disco, fora do versionamento.
+Prompts.txt

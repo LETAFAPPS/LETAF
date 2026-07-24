@@ -1,3 +1,0 @@
-Siga rigorosamente as regras do arquivo AI_RULES.md
-
-Faça uma analise minuciosa em todo o sistema, códigos, arquivos, estrutura, etc, identificando arquivos, códigos que não é usado ou duplicado, identificando falhas de segurança, falhas de sync, falhas de desempenho, falhas de funcionamento, etc. Se necessário, crie subagentes para auxiliar. Leia as regras do arquivo AI_RULES.md e as siga rigorosamente, leve o tempo que precisar, faça uma varredura completa indentificando, depois liste as correções necessárias e faça a correção. Depois faça testes em todo o sistema para identificar falhas de segurança, falhas de sync, falhas de desempenho, falhas de funcionamento, bugs, etc. Se achar novamente, notifique e corrija.
