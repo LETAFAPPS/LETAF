@@ -201,14 +201,27 @@ fn matches(haystack: &str, needle: &str) -> bool {
 fn apply_company_filter(ui: &MainWindow, cache: &CompaniesCache) {
     let search = ui.global::<AdminState>().get_company_search().to_string();
     let filter = ui.global::<AdminState>().get_company_filter().to_string();
+    let plan_filter = ui.global::<AdminState>().get_company_plan_filter().to_string();
     let Ok(all) = cache.lock() else { return };
     let rows: Vec<AdminCompanyRow> = all
         .iter()
-        .filter(|c| matches(&c.name, &search) || matches(&c.subdomain, &search))
+        // Busca por nome, subdomínio, cidade ou proprietário.
+        .filter(|c| {
+            matches(&c.name, &search)
+                || matches(&c.subdomain, &search)
+                || matches(&c.city, &search)
+                || matches(&c.owner, &search)
+        })
         .filter(|c| match filter.as_str() {
             "active" => c.active,
             "suspended" => !c.active,
             _ => true,
+        })
+        // Filtro por plano: "none" = sem assinatura (status "none").
+        .filter(|c| match plan_filter.as_str() {
+            "all" => true,
+            "none" => c.status == "none",
+            kind => c.plan == kind,
         })
         .map(|c| AdminCompanyRow {
             id: c.id.clone().into(),

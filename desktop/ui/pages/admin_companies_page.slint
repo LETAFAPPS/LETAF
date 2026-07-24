@@ -151,17 +151,7 @@ component CompanyCard inherits Rectangle {
             }
         }
 
-        // Cidade — coluna própria.
-        VerticalLayout {
-            horizontal-stretch: 2;
-            alignment: center;
-            Text {
-                text: root.c.city == "" ? "—" : root.c.city;
-                font-size: 12.5px; font-weight: 600; color: Theme.text-primary; overflow: elide;
-            }
-        }
-
-        // Proprietário + telefone do proprietário.
+        // Proprietário + telefone (nome centralizado com o telefone).
         VerticalLayout {
             horizontal-stretch: 2;
             alignment: center;
@@ -169,10 +159,23 @@ component CompanyCard inherits Rectangle {
             Text {
                 text: root.c.owner == "" ? "Sem proprietário" : root.c.owner;
                 font-size: 12.5px; color: Theme.text-primary; overflow: elide;
+                horizontal-alignment: center;
             }
             Text {
                 text: root.c.owner-phone == "" ? "Sem telefone" : root.c.owner-phone;
                 font-size: 11.5px; color: Theme.text-secondary; overflow: elide;
+                horizontal-alignment: center;
+            }
+        }
+
+        // Cidade — coluna própria.
+        VerticalLayout {
+            horizontal-stretch: 2;
+            alignment: center;
+            Text {
+                text: root.c.city == "" ? "—" : root.c.city;
+                font-size: 12.5px; font-weight: 600; color: Theme.text-primary; overflow: elide;
+                horizontal-alignment: center;
             }
         }
 
@@ -191,7 +194,16 @@ component CompanyCard inherits Rectangle {
             HorizontalLayout { alignment: center; StatusBadge { status: root.c.status; } }
         }
 
-        // Ações: visualizar detalhes + editar (a exclusão vive na edição).
+        // Ações: liga/desliga à ESQUERDA de visualizar/editar.
+        VerticalLayout {
+            alignment: center;
+            ToggleSwitch {
+                on: root.c.active;
+                clicked => { root.toggle-active(); }
+            }
+        }
+        // Espaçador: separa o liga/desliga dos botões de ação.
+        Rectangle { width: 18px; }
         VerticalLayout {
             alignment: center;
             IconActionBtn {
@@ -208,16 +220,6 @@ component CompanyCard inherits Rectangle {
                 hover-color: Theme.btn-accent;
                 hover-bg: Theme.row-hover;
                 clicked => { root.edit(); }
-            }
-        }
-        // Espaçador: afasta o liga/desliga dos botões de ação.
-        Rectangle { width: 22px; }
-        // Liga/desliga (ativa/suspende), separado à direita.
-        VerticalLayout {
-            alignment: center;
-            ToggleSwitch {
-                on: root.c.active;
-                clicked => { root.toggle-active(); }
             }
         }
     }
@@ -266,7 +268,8 @@ export component AdminCompaniesPage inherits VerticalLayout {
     callback open-detail(string);
     // Busca/filtro (aplicados no Rust sobre a lista completa).
     in-out property <string> search;
-    in-out property <string> filter: "all";
+    in-out property <string> filter: "all";        // status: all|active|suspended
+    in-out property <string> plan-filter: "all";   // plano: all|monthly|semestral|annual|none
     callback filters-changed();
     /// CEP digitado: o Rust consulta o serviço de endereços e preenche
     /// cidade/UF. A busca NÃO vive na UI (§1/§3).
@@ -292,7 +295,8 @@ export component AdminCompaniesPage inherits VerticalLayout {
     property <string> err-name: root.tentou-salvar ? root.field-error("required", root.form-name) : "";
     property <string> err-subdomain: root.tentou-salvar ? root.field-error("subdomain", root.form-subdomain) : "";
     property <string> err-document: root.tentou-salvar ? root.field-error("document", root.form-document) : "";
-    property <string> err-discount: root.tentou-salvar ? root.field-error("money", root.form-discount) : "";
+    // Desconto é OPCIONAL: só valida o formato quando algo foi digitado.
+    property <string> err-discount: (root.tentou-salvar && root.form-discount != "") ? root.field-error("money", root.form-discount) : "";
     property <string> err-phone: root.tentou-salvar ? root.field-error("phone", root.form-phone) : "";
     property <string> err-whatsapp: root.tentou-salvar ? root.field-error("phone", root.form-whatsapp) : "";
     property <string> err-address: root.tentou-salvar ? root.field-error("required", root.form-address) : "";
@@ -376,10 +380,11 @@ export component AdminCompaniesPage inherits VerticalLayout {
                 alignment: center;
                 ListSearchBox {
                     value <=> root.search;
-                    placeholder: "Buscar por nome ou subdomínio...";
+                    placeholder: "Buscar por nome, subdomínio, cidade ou proprietário...";
                     changed => { root.filters-changed(); }
                 }
             }
+            // Filtro por STATUS de acesso.
             VerticalLayout {
                 alignment: center;
                 ListFilterBtn {
@@ -391,7 +396,27 @@ export component AdminCompaniesPage inherits VerticalLayout {
                     selected <=> root.filter;
                     neutral-key: "all";
                     label: root.filter == "active" ? "Ativas"
-                        : (root.filter == "suspended" ? "Suspensas" : "Todas");
+                        : (root.filter == "suspended" ? "Suspensas" : "Status");
+                    changed => { root.filters-changed(); }
+                }
+            }
+            // Filtro por PLANO da assinatura.
+            VerticalLayout {
+                alignment: center;
+                ListFilterBtn {
+                    options: [
+                        { key: "all",       label: "Todos" },
+                        { key: "monthly",   label: "Mensal" },
+                        { key: "semestral", label: "Semestral" },
+                        { key: "annual",    label: "Anual" },
+                        { key: "none",      label: "Sem plano" },
+                    ];
+                    selected <=> root.plan-filter;
+                    neutral-key: "all";
+                    label: root.plan-filter == "monthly" ? "Mensal"
+                        : (root.plan-filter == "semestral" ? "Semestral"
+                            : (root.plan-filter == "annual" ? "Anual"
+                                : (root.plan-filter == "none" ? "Sem plano" : "Plano")));
                     changed => { root.filters-changed(); }
                 }
             }
@@ -419,8 +444,12 @@ export component AdminCompaniesPage inherits VerticalLayout {
         viewport-width: self.width;
         viewport-height: cards.preferred-height;
         cards := VerticalLayout {
-            spacing: 8px;
+            spacing: 10px;
             alignment: start;
+            // Folga p/ a sombra dos cards não ser recortada pelo Flickable
+            // (topo e laterais).
+            padding-left: 8px; padding-right: 8px;
+            padding-top: 6px; padding-bottom: 8px;
             for c in root.companies: CompanyCard {
                 c: c;
                 open-detail => { root.open-detail(c.id); }
@@ -677,12 +706,15 @@ export component AdminCompaniesPage inherits VerticalLayout {
                 padding-top: 2px;
                 padding-bottom: 8px;
                 spacing: 10px;
-                if root.editing: OutlineBtn {
-                    label: "Excluir Empresa";
-                    btn-color: Theme.danger;
-                    icon: @image-url("../assets/icons/1.2/lixeira.svg");
-                    height: 40px;
-                    clicked => { root.delete-company(root.edit-id, root.form-name); }
+                if root.editing: VerticalLayout {
+                    alignment: center;
+                    OutlineBtn {
+                        label: "Excluir";
+                        btn-color: Theme.danger;
+                        icon: @image-url("../assets/icons/1.2/lixeira.svg");
+                        height: 32px;
+                        clicked => { root.delete-company(root.edit-id, root.form-name); }
+                    }
                 }
                 Rectangle { horizontal-stretch: 1; }
                 ActionBtn {

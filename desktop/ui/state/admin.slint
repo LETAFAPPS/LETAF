@@ -40,7 +40,8 @@ export global AdminState {
     callback load-invoices(string);
     callback mark-invoice-paid(string);
     in-out property <string> company-search: "";
-    in-out property <string> company-filter: "all";   // all|active|suspended
+    in-out property <string> company-filter: "all";        // all|active|suspended
+    in-out property <string> company-plan-filter: "all";   // all|monthly|semestral|annual|none
     in-out property <string> sub-search: "";
     in-out property <string> sub-filter: "all";       // all|active|overdue|cancelled
     callback filter-companies();
