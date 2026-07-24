@@ -230,6 +230,7 @@ pub(crate) fn setup_admin(
     setup_persist(ui, handle, &auth_token, &server_url);
     setup_company_persist(ui, handle, &auth_token, &server_url);
     setup_company_pickers(ui, handle);
+    setup_company_cep(ui, handle);
     setup_plan_form(ui, &plans_cache);
     setup_plan_persist(ui, handle, &auth_token, &server_url);
 }
@@ -491,7 +492,7 @@ fn setup_plan_persist(
                         .send()
                         .await
                 };
-                report(ui_weak, result, "Plano salvo").await;
+                report(ui_weak, result, "Plano Salvo").await;
             });
         });
     }
@@ -513,7 +514,7 @@ fn setup_plan_persist(
                     .bearer_auth(&token)
                     .send()
                     .await;
-                report(ui_weak, result, "Plano removido").await;
+                report(ui_weak, result, "Plano Removido").await;
             });
         });
     }
@@ -601,7 +602,7 @@ fn setup_persist(
                         .send()
                         .await
                 };
-                report(ui_weak, result, "Administrador salvo").await;
+                report(ui_weak, result, "Administrador Salvo").await;
             });
         });
     }
@@ -623,7 +624,7 @@ fn setup_persist(
                     .bearer_auth(&token)
                     .send()
                     .await;
-                report(ui_weak, result, "Administrador removido").await;
+                report(ui_weak, result, "Administrador Removido").await;
             });
         });
     }
@@ -800,7 +801,7 @@ fn setup_persist(
                     .json(&serde_json::json!({ "active": active }))
                     .send()
                     .await;
-                let msg = if active { "Empresa reativada" } else { "Empresa suspensa" };
+                let msg = if active { "Empresa Reativada" } else { "Empresa Suspensa" };
                 report(ui_weak, result, msg).await;
             });
         });
@@ -828,7 +829,7 @@ fn setup_persist(
                     .bearer_auth(&token)
                     .send()
                     .await;
-                report(ui_weak, result, "Empresa excluída").await;
+                report(ui_weak, result, "Empresa Excluída").await;
             });
         });
     }
@@ -875,7 +876,7 @@ fn setup_persist(
                     ui.global::<AdminState>().set_sub_edit_busy(false);
                     match outcome {
                         Ok(()) => {
-                            show_toast(&ui, "Assinatura atualizada", "success");
+                            show_toast(&ui, "Assinatura Atualizada", "success");
                             ui.global::<AdminState>().set_sub_edit_open(false);
                             ui.global::<AdminState>().invoke_refresh();
                         }
@@ -994,7 +995,7 @@ fn setup_company_persist(
                 let Some(ui) = ui_weak.upgrade() else { return };
                 match outcome {
                     Ok(()) => {
-                        show_toast(&ui, "Estabelecimento cadastrado", "success");
+                        show_toast(&ui, "Estabelecimento Cadastrado", "success");
                         clear_company_form(&ui);
                         ui.global::<AdminState>().invoke_refresh();
                     }
@@ -1093,3 +1094,58 @@ fn setup_company_pickers(ui: &MainWindow, handle: &tokio::runtime::Handle) {
         });
     }
 }
+
+/// Consulta o CEP (ViaCEP) e preenche cidade/UF. É conveniência de UX: o
+/// operador ainda pode editar; o backend não depende disto.
+///
+/// Regras (§1/§3): a busca fica no Rust, não na UI. Falha silenciosa
+/// (rede/CEP inexistente) — o operador digita manualmente.
+fn setup_company_cep(ui: &MainWindow, handle: &tokio::runtime::Handle) {
+    let ui_weak = ui.as_weak();
+    let handle = handle.clone();
+    ui.global::<AdminState>().on_company_cep_changed(move |raw| {
+        // Só dispara com 8 dígitos (CEP completo).
+        let digits: String = raw.chars().filter(|c| c.is_ascii_digit()).collect();
+        if digits.len() != 8 {
+            return;
+        }
+        let ui_weak = ui_weak.clone();
+        handle.spawn(async move {
+            let uw = ui_weak.clone();
+            let _ = slint::invoke_from_event_loop(move || {
+                if let Some(ui) = uw.upgrade() {
+                    ui.global::<AdminState>().set_company_cep_loading(true);
+                }
+            });
+            #[derive(serde::Deserialize)]
+            struct ViaCep {
+                #[serde(default)] localidade: String,
+                #[serde(default)] uf: String,
+                #[serde(default)] erro: bool,
+            }
+            let res: Option<ViaCep> = match HTTP_CLIENT
+                .get(format!("https://viacep.com.br/ws/{digits}/json/"))
+                .send()
+                .await
+            {
+                Ok(r) if r.status().is_success() => r.json::<ViaCep>().await.ok(),
+                _ => None,
+            };
+            let _ = slint::invoke_from_event_loop(move || {
+                let Some(ui) = ui_weak.upgrade() else { return };
+                ui.global::<AdminState>().set_company_cep_loading(false);
+                if let Some(v) = res {
+                    if !v.erro {
+                        if !v.localidade.is_empty() {
+                            ui.global::<AdminState>().set_company_form_city(SharedString::from(v.localidade));
+                        }
+                        if !v.uf.is_empty() {
+                            ui.global::<AdminState>().set_company_form_uf(SharedString::from(v.uf));
+                        }
+                    }
+                }
+            });
+        });
+    });
+}
+

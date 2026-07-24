@@ -11,6 +11,7 @@ import { FormField, PasswordField } from "../components/form_fields.slint";
 import { ActionBtn, OutlineBtn } from "../components/buttons.slint";
 import { EmptyState } from "../components/empty_state.slint";
 import { AssetIcon } from "../components/icons.slint";
+import { FormCard, ImagePicker } from "../components/form_card.slint";
 
 // Traduz o status da assinatura para rótulo + cor.
 component StatusBadge inherits Rectangle {
@@ -199,6 +200,10 @@ export component AdminCompaniesPage inherits VerticalLayout {
     in-out property <string> search;
     in-out property <string> filter: "all";
     callback filters-changed();
+    /// CEP digitado: o Rust consulta o serviço de endereços e preenche
+    /// cidade/UF. A busca NÃO vive na UI (§1/§3).
+    callback cep-changed(string);
+    in property <bool> cep-loading: false;
 
     // `true` = tela de cadastro; `false` = lista. Estado puro de UI (§3).
     property <bool> show-form: false;
@@ -260,7 +265,7 @@ export component AdminCompaniesPage inherits VerticalLayout {
         Text {
             text: root.show-form
                 ? "Cria a empresa, o administrador inicial e os dados do estabelecimento."
-                : root.companies.length + " empresa(s) cadastrada(s).";
+                : root.companies.length + " Empresas Cadastradas.";
             font-size: 13px; color: Theme.text-secondary;
         }
     }
@@ -310,9 +315,16 @@ export component AdminCompaniesPage inherits VerticalLayout {
     }
 
     // ── Lista: UM CARD POR EMPRESA ──
-    if !root.show-form && root.companies.length == 0: EmptyState {
-        source: @image-url("../assets/empty/not-found.svg");
-        title: "Nenhuma empresa";
+    // Empty state centralizado no espaço livre da tela.
+    if !root.show-form && root.companies.length == 0: Rectangle {
+        vertical-stretch: 1;
+        VerticalLayout {
+            alignment: center;
+            EmptyState {
+                source: @image-url("../assets/empty/not-found.svg");
+                title: "Nenhuma empresa";
+            }
+        }
     }
     if !root.show-form && root.companies.length > 0: Flickable {
         vertical-stretch: 1;
@@ -330,212 +342,222 @@ export component AdminCompaniesPage inherits VerticalLayout {
         }
     }
 
-    // ── Tela de cadastro (rolável) ──
-    if root.show-form: Rectangle {
+    // ── Tela de cadastro ──
+    // Cada seção é um CARD próprio (a pedido); o botão de salvar fica FORA
+    // dos cards, alinhado à direita.
+    if root.show-form: Flickable {
         vertical-stretch: 1;
-        background: Theme.surface;
-        border-radius: 12px;
-        border-width: 1px;
-        border-color: Theme.card-border;
-        drop-shadow-blur: 12px;
-        drop-shadow-offset-y: 0px;
-        drop-shadow-color: Theme.card-shadow;
-        Flickable {
-            viewport-width: self.width;
-                    VerticalLayout {
-                        padding: 18px;
-                        spacing: 12px;
-                        alignment: start;
+        viewport-width: self.width;
+        viewport-height: form-col.preferred-height;
+        form-col := VerticalLayout {
+            spacing: 12px;
+            alignment: start;
 
-                        // Identificação
-                        HorizontalLayout {
-                            spacing: 10px;
-                            FormField {
-                                horizontal-stretch: 1;
-                                label: "Nome da empresa";
-                                value <=> root.form-name;
-                                placeholder: "Ex.: Padaria do Zé";
-                                icon: @image-url("../assets/icons/1.2/app-maleta.svg");
-                                error: root.err-name;
-                            }
+            // ── Card: identificação ──
+            FormCard {
+                title: "Identificação";
+                VerticalLayout {
+                    spacing: 10px;
+                    HorizontalLayout {
+                        spacing: 10px;
+                        FormField {
+                            horizontal-stretch: 1;
+                            label: "Nome da empresa";
+                            value <=> root.form-name;
+                            placeholder: "Ex.: Padaria do Zé";
+                            icon: @image-url("../assets/icons/1.2/app-maleta.svg");
+                            error: root.err-name;
                         }
                         FormField {
+                            horizontal-stretch: 1;
                             label: "Subdomínio";
                             value <=> root.form-subdomain;
                             placeholder: "padaria-do-ze";
+                            icon: @image-url("../assets/icons/1.2/link.svg");
+                            error: root.err-subdomain;
                         }
-                        HorizontalLayout {
-                            spacing: 10px;
-                            FormField {
-                                horizontal-stretch: 1;
-                                label: "CNPJ / CPF";
-                                value <=> root.form-document;
-                                placeholder: "Somente números";
-                                icon: @image-url("../assets/icons/1.2/arquivo.svg");
-                            }
+                    }
+                    HorizontalLayout {
+                        spacing: 10px;
+                        FormField {
+                            horizontal-stretch: 1;
+                            label: "CNPJ / CPF";
+                            value <=> root.form-document;
+                            placeholder: "Somente números";
+                            icon: @image-url("../assets/icons/1.2/arquivo.svg");
                         }
                         FormField {
+                            horizontal-stretch: 1;
                             label: "Desconto na mensalidade (R$/mês)";
                             value <=> root.form-discount;
-                            placeholder: "0,00 — abatido do valor do plano";
+                            placeholder: "0,00 — abatido do plano";
+                            icon: @image-url("../assets/icons/1.2/pay-moeda.svg");
                         }
+                    }
+                }
+            }
 
-                        // Imagens (logo + capa)
-                        HorizontalLayout {
-                            spacing: 12px;
-                            VerticalLayout {
-                                horizontal-stretch: 1;
-                                spacing: 4px;
-                                Text { text: "Logo"; font-size: 12px; font-weight: 600; color: Theme.text-secondary; }
-                                logo-box := Rectangle {
-                                    height: 76px;
-                                    border-radius: 8px;
-                                    border-width: 1px;
-                                    border-color: Theme.card-border;
-                                    background: Theme.row-alt;
-                                    clip: true;
-                                    if root.has-logo: Image { source: root.logo-image; image-fit: contain; width: 100%; height: 100%; }
-                                    if !root.has-logo && !root.logo-loading: Text { text: "Selecionar"; font-size: 12px; color: Theme.text-secondary; }
-                                    if root.logo-loading: Text { text: "..."; font-size: 14px; color: Theme.text-secondary; }
-                                    TouchArea { clicked => { root.pick-logo(); } }
-                                }
-                            }
-                            VerticalLayout {
-                                horizontal-stretch: 1;
-                                spacing: 4px;
-                                Text { text: "Capa"; font-size: 12px; font-weight: 600; color: Theme.text-secondary; }
-                                cover-box := Rectangle {
-                                    height: 76px;
-                                    border-radius: 8px;
-                                    border-width: 1px;
-                                    border-color: Theme.card-border;
-                                    background: Theme.row-alt;
-                                    clip: true;
-                                    if root.has-cover: Image { source: root.cover-image; image-fit: cover; width: 100%; height: 100%; }
-                                    if !root.has-cover && !root.cover-loading: Text { text: "Selecionar"; font-size: 12px; color: Theme.text-secondary; }
-                                    if root.cover-loading: Text { text: "..."; font-size: 14px; color: Theme.text-secondary; }
-                                    TouchArea { clicked => { root.pick-cover(); } }
-                                }
-                            }
-                        }
+            // ── Card: imagens ──
+            FormCard {
+                title: "Imagens";
+                HorizontalLayout {
+                    spacing: 12px;
+                    ImagePicker {
+                        horizontal-stretch: 1;
+                        label: "Logo";
+                        hint: "PNG, JPG ou WebP · quadrado (1:1)";
+                        img: root.logo-image;
+                        has-img: root.has-logo;
+                        loading: root.logo-loading;
+                        fit-contain: true;
+                        clicked => { root.pick-logo(); }
+                    }
+                    ImagePicker {
+                        horizontal-stretch: 1;
+                        label: "Capa";
+                        hint: "PNG, JPG ou WebP · panorâmica (16:9)";
+                        img: root.cover-image;
+                        has-img: root.has-cover;
+                        loading: root.cover-loading;
+                        fit-contain: false;
+                        clicked => { root.pick-cover(); }
+                    }
+                }
+            }
 
-                        // Contatos
-                        Rectangle { height: 1px; background: Theme.border; }
-                        Text {
-                            text: "CONTATO";
-                            font-size: 10px; font-weight: 700; letter-spacing: 1px; color: Theme.text-secondary;
-                        }
-                        HorizontalLayout {
-                            spacing: 10px;
-                            FormField {
-                                horizontal-stretch: 1;
-                                label: "Telefone";
-                                value <=> root.form-phone;
-                                placeholder: "(00) 0000-0000";
-                                icon: @image-url("../assets/icons/1.2/telefone.svg");
-                            }
+            // ── Card: contato ──
+            FormCard {
+                title: "Contato";
+                VerticalLayout {
+                    spacing: 10px;
+                    HorizontalLayout {
+                        spacing: 10px;
+                        FormField {
+                            horizontal-stretch: 1;
+                            label: "Telefone";
+                            value <=> root.form-phone;
+                            placeholder: "(00) 0000-0000";
+                            icon: @image-url("../assets/icons/1.2/telefone.svg");
                         }
                         FormField {
+                            horizontal-stretch: 1;
                             label: "WhatsApp";
                             value <=> root.form-whatsapp;
                             placeholder: "(00) 00000-0000";
+                            icon: @image-url("../assets/icons/1.2/social-whatsapp.svg");
                         }
-                        FormField {
-                            label: "E-mail da empresa";
-                            value <=> root.form-email;
-                            placeholder: "contato@empresa.com";
-                            icon: @image-url("../assets/icons/1.2/email.svg");
-                        }
+                    }
+                    FormField {
+                        label: "E-mail da empresa";
+                        value <=> root.form-email;
+                        placeholder: "contato@empresa.com";
+                        icon: @image-url("../assets/icons/1.2/email.svg");
+                    }
+                }
+            }
 
-                        // Localização
-                        Rectangle { height: 1px; background: Theme.border; }
-                        Text {
-                            text: "LOCALIZAÇÃO";
-                            font-size: 10px; font-weight: 700; letter-spacing: 1px; color: Theme.text-secondary;
-                        }
+            // ── Card: localização ──
+            FormCard {
+                title: "Localização";
+                VerticalLayout {
+                    spacing: 10px;
+                    FormField {
+                        label: "Endereço";
+                        value <=> root.form-address;
+                        placeholder: "Rua e número";
+                        icon: @image-url("../assets/icons/1.2/marcador.svg");
+                    }
+                    HorizontalLayout {
+                        spacing: 10px;
                         FormField {
-                            label: "Endereço";
-                            value <=> root.form-address;
-                            placeholder: "Rua e número";
+                            horizontal-stretch: 2;
+                            label: "Bairro";
+                            value <=> root.form-neighborhood;
+                            placeholder: "Bairro";
                             icon: @image-url("../assets/icons/1.2/marcador.svg");
                         }
-                        HorizontalLayout {
-                            spacing: 10px;
-                            FormField {
-                                horizontal-stretch: 2;
-                                label: "Bairro";
-                                value <=> root.form-neighborhood;
-                                placeholder: "Bairro";
-                            }
-                        }
-                        HorizontalLayout {
-                            spacing: 10px;
-                            FormField {
-                                horizontal-stretch: 2;
-                                label: "Cidade";
-                                value <=> root.form-city;
-                                placeholder: "Cidade";
-                            }
-                            FormField {
-                                horizontal-stretch: 1;
-                                label: "UF";
-                                value <=> root.form-uf;
-                                placeholder: "SP";
-                            }
-                        }
                         FormField {
+                            horizontal-stretch: 1;
                             label: "CEP";
                             value <=> root.form-zip;
                             placeholder: "00000-000";
-                        }
-
-                        // Administrador inicial
-                        Rectangle { height: 1px; background: Theme.border; }
-                        Text {
-                            text: "ADMINISTRADOR INICIAL";
-                            font-size: 10px; font-weight: 700; letter-spacing: 1px; color: Theme.text-secondary;
-                        }
-                        HorizontalLayout {
-                            spacing: 10px;
-                            FormField {
-                                horizontal-stretch: 1;
-                                label: "Nome";
-                                value <=> root.form-admin-name;
-                                placeholder: "Nome do responsável";
-                                icon: @image-url("../assets/icons/1.2/usuario.svg");
-                                error: root.err-admin-name;
-                            }
-                            FormField {
-                                horizontal-stretch: 1;
-                                label: "E-mail";
-                                value <=> root.form-admin-email;
-                                placeholder: "email@dominio.com";
-                                icon: @image-url("../assets/icons/1.2/email.svg");
-                                error: root.err-admin-email;
-                            }
-                        }
-                        PasswordField {
-                            label: "Senha";
-                            value <=> root.form-admin-password;
-                            placeholder: "Defina uma senha (mín. 8 caracteres)";
-                        }
-                        if root.err-admin-password != "": Text {
-                            text: root.err-admin-password;
-                            font-size: 11px; color: Theme.danger; wrap: word-wrap;
-                        }
-                        HorizontalLayout {
-                            padding-top: 4px;
-                            ActionBtn {
-                                label: "Cadastrar";
-                                width: 100%;
-                                clicked => {
-                                root.tentou-salvar = true;
-                                // Erros são só UX; o backend revalida (§11).
-                                if root.form-valido { root.save-company(); }
-                            }
-                            }
+                            icon: @image-url("../assets/icons/1.2/marcador.svg");
+                            // Ao completar o CEP, o Rust consulta e preenche
+                            // cidade/UF (a busca não vive na UI — §1/§3).
+                            edited(v) => { root.cep-changed(v); }
                         }
                     }
+                    HorizontalLayout {
+                        spacing: 10px;
+                        FormField {
+                            horizontal-stretch: 2;
+                            label: "Cidade";
+                            value <=> root.form-city;
+                            placeholder: root.cep-loading ? "Buscando…" : "Cidade";
+                            icon: @image-url("../assets/icons/1.2/marcador.svg");
+                        }
+                        FormField {
+                            horizontal-stretch: 1;
+                            label: "UF";
+                            value <=> root.form-uf;
+                            placeholder: "SP";
+                        }
+                    }
+                }
+            }
+
+            // ── Card: administrador inicial ──
+            FormCard {
+                title: "Administrador inicial";
+                subtitle: "Quem vai acessar o sistema desta empresa.";
+                VerticalLayout {
+                    spacing: 10px;
+                    HorizontalLayout {
+                        spacing: 10px;
+                        FormField {
+                            horizontal-stretch: 1;
+                            label: "Nome";
+                            value <=> root.form-admin-name;
+                            placeholder: "Nome do responsável";
+                            icon: @image-url("../assets/icons/1.2/usuario.svg");
+                            error: root.err-admin-name;
+                        }
+                        FormField {
+                            horizontal-stretch: 1;
+                            label: "E-mail";
+                            value <=> root.form-admin-email;
+                            placeholder: "email@dominio.com";
+                            icon: @image-url("../assets/icons/1.2/email.svg");
+                            error: root.err-admin-email;
+                        }
+                    }
+                    PasswordField {
+                        label: "Senha";
+                        value <=> root.form-admin-password;
+                        placeholder: "Defina uma senha (mín. 8 caracteres)";
+                    }
+                    if root.err-admin-password != "": Text {
+                        text: root.err-admin-password;
+                        font-size: 11px; color: Theme.danger; wrap: word-wrap;
+                    }
+                }
+            }
+
+            // ── Ação: FORA dos cards, à direita, largura normal ──
+            HorizontalLayout {
+                padding-top: 2px;
+                padding-bottom: 8px;
+                alignment: end;
+                ActionBtn {
+                    label: "Cadastrar";
+                    width: 140px; height: 40px;
+                    clicked => {
+                        root.tentou-salvar = true;
+                        // Erros são só UX; o backend revalida (§11).
+                        if root.form-valido { root.save-company(); }
+                    }
+                }
+            }
         }
     }
 }

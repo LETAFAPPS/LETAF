@@ -84,6 +84,9 @@ export global AdminState {
     callback save-company();
     callback pick-company-logo();
     callback pick-company-cover();
+    // CEP → preenche cidade/UF (busca no Rust; §1/§3).
+    callback company-cep-changed(string);
+    in-out property <bool> company-cep-loading: false;
     in-out property <[AdminPlanRow]> plans: [];
     in-out property <string> plan-id: "";
     in-out property <string> plan-name: "";

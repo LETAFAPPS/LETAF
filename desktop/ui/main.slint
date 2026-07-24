@@ -1629,6 +1629,8 @@ export component MainWindow inherits Window {
                     save-company => { AdminState.save-company(); }
                     pick-logo => { AdminState.pick-company-logo(); }
                     pick-cover => { AdminState.pick-company-cover(); }
+                    cep-changed(v) => { AdminState.company-cep-changed(v); }
+                    cep-loading: AdminState.company-cep-loading;
                     delete-company(id, name) => {
                         AdminState.del-company-id = id;
                         AdminState.del-company-name = name;

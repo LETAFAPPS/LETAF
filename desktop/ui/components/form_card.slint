@@ -1,0 +1,137 @@
+// Card de SEÇÃO de formulário e seletor de imagem — padrão do sistema
+// para telas de cadastro/edição.
+//
+// UI sem lógica (§1/§3): só apresentação; o conteúdo entra via @children e
+// as ações sobem por callback.
+import { Theme } from "../theme.slint";
+import { AssetIcon } from "icons.slint";
+
+// Agrupa uma seção do formulário num card com título (e subtítulo
+// opcional). Cada seção vira um card — fica mais fácil escanear um
+// formulário longo do que uma lista contínua de campos.
+export component FormCard inherits Rectangle {
+    in property <string> title;
+    in property <string> subtitle: "";
+
+    background: Theme.surface;
+    border-radius: 12px;
+    border-width: 1px;
+    border-color: Theme.card-border;
+    drop-shadow-blur: 10px;
+    drop-shadow-offset-y: 0px;
+    drop-shadow-color: Theme.card-shadow;
+
+    VerticalLayout {
+        padding: 16px;
+        spacing: 12px;
+        alignment: start;
+
+        VerticalLayout {
+            spacing: 2px;
+            Text {
+                text: root.title;
+                font-size: 13px; font-weight: 700;
+                color: Theme.text-primary;
+            }
+            if root.subtitle != "": Text {
+                text: root.subtitle;
+                font-size: 11.5px; color: Theme.text-secondary;
+                wrap: word-wrap;
+            }
+        }
+
+        @children
+    }
+}
+
+// Área de seleção de imagem: mostra a prévia quando há imagem e, quando
+// vazia, orienta sobre formatos aceitos e proporção esperada — evita o
+// lojista subir uma arte que vai cortar errado.
+export component ImagePicker inherits VerticalLayout {
+    in property <string> label;
+    /// Ex.: "PNG, JPG ou WebP · quadrado (1:1)".
+    in property <string> hint;
+    in property <image> img;
+    in property <bool> has-img: false;
+    in property <bool> loading: false;
+    /// `true` = a imagem cabe inteira (logo); `false` = preenche (capa).
+    in property <bool> fit-contain: false;
+    callback clicked();
+
+    spacing: 6px;
+
+    Text {
+        text: root.label;
+        font-size: 12px; font-weight: 500; color: Theme.text-secondary;
+    }
+
+    ta := TouchArea {
+        height: 108px;
+        clicked => { root.clicked(); }
+
+        Rectangle {
+            x: 0; y: 0;
+            width: parent.width; height: parent.height;
+            border-radius: 10px;
+            // Tracejado não existe no Slint: usamos borda fina que ganha a
+            // cor de destaque no hover, sinalizando que é clicável.
+            border-width: 1.5px;
+            border-color: ta.has-hover ? Theme.btn-accent : Theme.border;
+            background: root.has-img ? Theme.surface
+                : (ta.has-hover ? Theme.btn-accent.transparentize(0.94) : Theme.row-alt);
+            clip: true;
+
+            if root.has-img: Image {
+                width: parent.width; height: parent.height;
+                source: root.img;
+                image-fit: root.fit-contain ? ImageFit.contain : ImageFit.cover;
+            }
+
+            // Estado vazio: ícone + chamada + formatos/proporção.
+            if !root.has-img && !root.loading: VerticalLayout {
+                alignment: center;
+                spacing: 4px;
+                HorizontalLayout {
+                    alignment: center;
+                    AssetIcon {
+                        width: 24px; height: 24px; icon-size: 22px;
+                        icon-color: ta.has-hover ? Theme.btn-accent : Theme.text-secondary;
+                        source: @image-url("../assets/icons/1.2/imagem.svg");
+                    }
+                }
+                Text {
+                    text: "Selecionar imagem";
+                    font-size: 12.5px; font-weight: 600;
+                    color: ta.has-hover ? Theme.btn-accent : Theme.text-primary;
+                    horizontal-alignment: center;
+                }
+                Text {
+                    text: root.hint;
+                    font-size: 10.5px; color: Theme.text-secondary;
+                    horizontal-alignment: center; wrap: word-wrap;
+                }
+            }
+
+            if root.loading: Text {
+                text: "Processando…";
+                font-size: 12px; color: Theme.text-secondary;
+                horizontal-alignment: center; vertical-alignment: center;
+                width: parent.width; height: parent.height;
+            }
+
+            // Com imagem: faixa inferior indicando que dá para trocar.
+            if root.has-img: Rectangle {
+                y: parent.height - 24px;
+                width: parent.width; height: 24px;
+                background: #00000088;
+                Text {
+                    text: ta.has-hover ? "Clique para trocar" : root.hint;
+                    font-size: 10.5px; color: white;
+                    horizontal-alignment: center; vertical-alignment: center;
+                    width: parent.width; height: parent.height;
+                    overflow: elide;
+                }
+            }
+        }
+    }
+}
