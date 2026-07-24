@@ -101,7 +101,8 @@ export component ListFilterBtn inherits TouchArea {
     /// fica realçado mesmo em repouso: sinaliza que a lista está filtrada.
     in property <string> neutral-key: "all";
 
-    width: 148px;
+    // Largura suficiente para o maior rótulo ("Suspensas") sem elidir.
+    width: 128px;
     height: 32px;
     // `popup.show()` não expõe estado; controlamos para realçar o botão.
     property <bool> aberto: false;
@@ -121,8 +122,8 @@ export component ListFilterBtn inherits TouchArea {
         border-color: root.realcado ? Theme.btn-accent : Theme.border;
         background: Theme.surface;
         HorizontalLayout {
-            padding-left: 10px; padding-right: 10px;
-            spacing: 8px;
+            padding-left: 9px; padding-right: 8px;
+            spacing: 6px;
             VerticalLayout {
                 alignment: center;
                 AssetIcon {
