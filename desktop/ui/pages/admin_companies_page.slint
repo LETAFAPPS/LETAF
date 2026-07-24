@@ -30,14 +30,14 @@ component StatusBadge inherits Rectangle {
     }
 }
 
-// Interruptor liga/desliga: ativa (verde) / suspende (cinza) o tenant.
+// Interruptor liga/desliga: ativa (azul) / suspende (cinza) o tenant.
 component ToggleSwitch inherits TouchArea {
     in property <bool> on;
     width: 46px; height: 26px;
     Rectangle {
         width: parent.width; height: parent.height;
         border-radius: self.height / 2;
-        background: root.on ? #2E7D32 : #BDBDBD;
+        background: root.on ? #1E88E5 : #BDBDBD;
         animate background { duration: 120ms; }
         Rectangle {
             width: 20px; height: 20px; border-radius: 10px;
@@ -151,18 +151,24 @@ component CompanyCard inherits Rectangle {
             }
         }
 
-        // Cidade + proprietário + telefone do proprietário.
+        // Cidade — coluna própria.
         VerticalLayout {
-            horizontal-stretch: 3;
+            horizontal-stretch: 2;
             alignment: center;
-            spacing: 2px;
             Text {
                 text: root.c.city == "" ? "—" : root.c.city;
                 font-size: 12.5px; font-weight: 600; color: Theme.text-primary; overflow: elide;
             }
+        }
+
+        // Proprietário + telefone do proprietário.
+        VerticalLayout {
+            horizontal-stretch: 2;
+            alignment: center;
+            spacing: 2px;
             Text {
                 text: root.c.owner == "" ? "Sem proprietário" : root.c.owner;
-                font-size: 12px; color: Theme.text-secondary; overflow: elide;
+                font-size: 12.5px; color: Theme.text-primary; overflow: elide;
             }
             Text {
                 text: root.c.owner-phone == "" ? "Sem telefone" : root.c.owner-phone;
@@ -185,12 +191,14 @@ component CompanyCard inherits Rectangle {
             HorizontalLayout { alignment: center; StatusBadge { status: root.c.status; } }
         }
 
-        // Ações: liga/desliga, editar, excluir.
+        // Ações: visualizar detalhes + editar (a exclusão vive na edição).
         VerticalLayout {
             alignment: center;
-            ToggleSwitch {
-                on: root.c.active;
-                clicked => { root.toggle-active(); }
+            IconActionBtn {
+                icon: @image-url("../assets/icons/1.2/visualizar.svg");
+                hover-color: Theme.btn-accent;
+                hover-bg: Theme.row-hover;
+                clicked => { root.open-detail(); }
             }
         }
         VerticalLayout {
@@ -202,13 +210,14 @@ component CompanyCard inherits Rectangle {
                 clicked => { root.edit(); }
             }
         }
+        // Espaçador: afasta o liga/desliga dos botões de ação.
+        Rectangle { width: 22px; }
+        // Liga/desliga (ativa/suspende), separado à direita.
         VerticalLayout {
             alignment: center;
-            IconActionBtn {
-                icon: @image-url("../assets/icons/1.2/lixeira.svg");
-                hover-color: Theme.danger;
-                hover-bg: #FFEBEE;
-                clicked => { root.remove(); }
+            ToggleSwitch {
+                on: root.c.active;
+                clicked => { root.toggle-active(); }
             }
         }
     }
@@ -244,9 +253,11 @@ export component AdminCompaniesPage inherits VerticalLayout {
     callback pick-cover();
     // Abre o cadastro em modo edição, pré-preenchido pelo Rust. (id)
     callback edit-company(string);
-    // `true` = editando empresa existente (esconde o admin inicial e trava o
-    // subdomínio); `false` = criando. Ligado ao AdminState pelo main.slint.
+    // `true` = editando empresa existente (trava o subdomínio; senha do
+    // proprietário opcional); `false` = criando. Ligado ao AdminState.
     in-out property <bool> editing: false;
+    // Id da empresa em edição (para o botão de excluir na própria edição).
+    in-out property <string> edit-id: "";
     // Exclusão lógica de uma empresa (super admin). (id, nome)
     callback delete-company(string, string);
     // Suspender/reativar acesso do tenant. (id, novo-active)
@@ -290,11 +301,14 @@ export component AdminCompaniesPage inherits VerticalLayout {
     property <string> err-city: root.tentou-salvar ? root.field-error("required", root.form-city) : "";
     property <string> err-uf: root.tentou-salvar ? root.field-error("uf", root.form-uf) : "";
     property <string> err-company-email: root.tentou-salvar ? root.field-error("email-opt", root.form-email) : "";
-    // Campos do admin inicial só valem na CRIAÇÃO (na edição não são exibidos).
-    property <string> err-admin-name: (root.tentou-salvar && !root.editing) ? root.field-error("required", root.form-admin-name) : "";
-    property <string> err-admin-email: (root.tentou-salvar && !root.editing) ? root.field-error("email", root.form-admin-email) : "";
-    property <string> err-admin-phone: (root.tentou-salvar && !root.editing) ? root.field-error("phone", root.form-admin-phone) : "";
-    property <string> err-admin-password: (root.tentou-salvar && !root.editing) ? root.field-error("password", root.form-admin-password) : "";
+    // Proprietário: nome/e-mail/telefone valem em criação E edição. A senha é
+    // obrigatória na criação; na edição, vazia = mantém a atual.
+    property <string> err-admin-name: root.tentou-salvar ? root.field-error("required", root.form-admin-name) : "";
+    property <string> err-admin-email: root.tentou-salvar ? root.field-error("email", root.form-admin-email) : "";
+    property <string> err-admin-phone: root.tentou-salvar ? root.field-error("phone", root.form-admin-phone) : "";
+    property <string> err-admin-password: root.tentou-salvar
+        ? ((root.editing && root.form-admin-password == "") ? "" : root.field-error("password", root.form-admin-password))
+        : "";
     property <bool> form-valido:
         root.err-name == "" && root.err-subdomain == "" && root.err-document == ""
         && root.err-discount == "" && root.err-phone == "" && root.err-whatsapp == ""
@@ -605,10 +619,14 @@ export component AdminCompaniesPage inherits VerticalLayout {
                 }
             }
 
-            // ── Card: administrador inicial (só na CRIAÇÃO) ──
-            if !root.editing: FormCard {
-                title: "Administrador inicial";
-                subtitle: "Quem vai acessar o sistema desta empresa.";
+            // ── Card: proprietário (admin inicial) ──
+            // Na criação: "Administrador inicial" (senha obrigatória).
+            // Na edição: "Proprietário" com os dados atuais (senha opcional).
+            FormCard {
+                title: root.editing ? "Proprietário" : "Administrador inicial";
+                subtitle: root.editing
+                    ? "Dados de acesso do responsável por esta empresa."
+                    : "Quem vai acessar o sistema desta empresa.";
                 VerticalLayout {
                     spacing: 10px;
                     HorizontalLayout {
@@ -640,9 +658,11 @@ export component AdminCompaniesPage inherits VerticalLayout {
                         error: root.err-admin-email;
                     }
                     PasswordField {
-                        label: "Senha";
+                        label: root.editing ? "Nova senha (opcional)" : "Senha";
                         value <=> root.form-admin-password;
-                        placeholder: "Defina uma senha (mín. 8 caracteres)";
+                        placeholder: root.editing
+                            ? "Deixe em branco para manter a atual"
+                            : "Defina uma senha (mín. 8 caracteres)";
                     }
                     if root.err-admin-password != "": Text {
                         text: root.err-admin-password;
@@ -651,11 +671,20 @@ export component AdminCompaniesPage inherits VerticalLayout {
                 }
             }
 
-            // ── Ação: FORA dos cards, à direita, largura normal ──
+            // ── Ações: FORA dos cards. Excluir à esquerda (só na edição),
+            //    salvar à direita. A exclusão saiu da lista (a pedido).
             HorizontalLayout {
                 padding-top: 2px;
                 padding-bottom: 8px;
-                alignment: end;
+                spacing: 10px;
+                if root.editing: OutlineBtn {
+                    label: "Excluir empresa";
+                    btn-color: Theme.danger;
+                    icon: @image-url("../assets/icons/1.2/lixeira.svg");
+                    height: 40px;
+                    clicked => { root.delete-company(root.edit-id, root.form-name); }
+                }
+                Rectangle { horizontal-stretch: 1; }
                 ActionBtn {
                     label: root.editing ? "Salvar alterações" : "Cadastrar";
                     width: 160px; height: 40px;

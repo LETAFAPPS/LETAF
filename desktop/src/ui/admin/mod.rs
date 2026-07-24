@@ -79,6 +79,9 @@ struct CompanyFormDto {
     logo_data: String,
     cover_data: String,
     discount: f64,
+    owner_name: String,
+    owner_email: String,
+    owner_phone: String,
 }
 
 #[derive(Deserialize)]
@@ -869,7 +872,22 @@ fn setup_persist(
                     .bearer_auth(&token)
                     .send()
                     .await;
-                report(ui_weak, result, "Empresa Excluída").await;
+                let outcome = write_outcome(result).await;
+                let _ = slint::invoke_from_event_loop(move || {
+                    let Some(ui) = ui_weak.upgrade() else { return };
+                    match outcome {
+                        Ok(()) => {
+                            show_toast(&ui, "Empresa Excluída", "success");
+                            // Se a exclusão veio da tela de edição, volta à lista.
+                            clear_company_form(&ui);
+                            ui.global::<AdminState>().set_company_editing(false);
+                            ui.global::<AdminState>().set_company_edit_id(SharedString::new());
+                            ui.global::<AdminState>().set_company_show_form(false);
+                            ui.global::<AdminState>().invoke_refresh();
+                        }
+                        Err(msg) => show_toast(&ui, &msg, "error"),
+                    }
+                });
             });
         });
     }
@@ -1152,11 +1170,12 @@ fn fill_company_form(ui: &MainWindow, f: &CompanyFormDto) {
             .map(slint::Image::from_rgba8)
             .unwrap_or_default(),
     );
-    // O admin inicial não é editado por aqui.
-    g.set_company_form_admin_name(SharedString::new());
-    g.set_company_form_admin_email(SharedString::new());
+    // Proprietário (admin inicial): pré-preenchido e editável. A senha fica
+    // em branco (vazio = mantém a atual).
+    g.set_company_form_admin_name(f.owner_name.clone().into());
+    g.set_company_form_admin_email(f.owner_email.clone().into());
+    g.set_company_form_admin_phone(f.owner_phone.clone().into());
     g.set_company_form_admin_password(SharedString::new());
-    g.set_company_form_admin_phone(SharedString::new());
     // Entra em modo edição, formulário limpo de erros.
     g.set_company_editing(true);
     g.set_company_edit_id(f.id.clone().into());

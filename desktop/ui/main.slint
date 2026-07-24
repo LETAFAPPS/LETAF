@@ -1638,6 +1638,7 @@ export component MainWindow inherits Window {
                     show-form <=> AdminState.company-show-form;
                     tentou-salvar <=> AdminState.company-form-attempted;
                     editing <=> AdminState.company-editing;
+                    edit-id <=> AdminState.company-edit-id;
                     new-company => { AdminState.company-new-form(); }
                     edit-company(id) => { AdminState.company-edit(id); }
                     delete-company(id, name) => {

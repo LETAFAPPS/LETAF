@@ -227,6 +227,10 @@ pub(super) struct CompanyForm {
     cover_data: String,
     /// Desconto comercial atual (R$/mês) da assinatura.
     discount: f64,
+    /// Proprietário (admin inicial) — editável no cadastro em modo edição.
+    owner_name: String,
+    owner_email: String,
+    owner_phone: String,
 }
 
 pub(super) async fn company_form(
@@ -248,6 +252,16 @@ pub(super) async fn company_form(
         .flatten()
         .map(|s| s.plan_discount_monthly)
         .unwrap_or_default();
+    // Proprietário = admin inicial da empresa.
+    let owner = state
+        .auth_service
+        .find_all(id)
+        .await
+        .ok()
+        .and_then(|us| us.into_iter().find(|u| u.role.is_admin()));
+    let (owner_name, owner_email, owner_phone) = owner
+        .map(|u| (u.name, u.email, u.phone.unwrap_or_default()))
+        .unwrap_or_default();
     Ok(Json(CompanyForm {
         id: c.id,
         name: c.name,
@@ -264,6 +278,9 @@ pub(super) async fn company_form(
         logo_data: c.logo_data.unwrap_or_default(),
         cover_data: c.cover_data.unwrap_or_default(),
         discount: rust_decimal::prelude::ToPrimitive::to_f64(&discount).unwrap_or(0.0),
+        owner_name,
+        owner_email,
+        owner_phone,
     }))
 }
 
@@ -294,9 +311,19 @@ pub(super) struct UpdateCompanyRequest {
     cover_data: Option<String>,
     #[serde(default)]
     plan_discount: Option<f64>,
+    // Dados do proprietário (admin inicial) — editáveis na edição.
+    #[serde(default)]
+    admin_name: Option<String>,
+    #[serde(default)]
+    admin_email: Option<String>,
+    #[serde(default)]
+    admin_phone: Option<String>,
+    /// Nova senha do proprietário. Vazio/ausente = mantém a atual.
+    #[serde(default)]
+    admin_password: Option<String>,
 }
 
-/// Atualiza os dados de uma empresa (não altera subdomínio nem o admin).
+/// Atualiza os dados de uma empresa e do proprietário (não altera subdomínio).
 pub(super) async fn update_company(
     State(state): State<AppState>,
     auth: AuthClaims,
@@ -316,6 +343,39 @@ pub(super) async fn update_company(
         .find_by_id(id)
         .await?
         .ok_or_else(|| ServerError::Core(CoreError::NotFound("Empresa não encontrada".into())))?;
+
+    // Proprietário: valida/atualiza ANTES da empresa (a unicidade de e-mail é
+    // o que mais falha; se falhar, nada foi tocado). Só quando os campos vêm.
+    let owner_name = body.admin_name.as_deref().unwrap_or("").trim().to_string();
+    let owner_email = body.admin_email.as_deref().unwrap_or("").trim().to_string();
+    if !owner_name.is_empty() && !owner_email.is_empty() {
+        let owner = state
+            .auth_service
+            .find_all(id)
+            .await?
+            .into_iter()
+            .find(|u| u.role.is_admin());
+        if let Some(owner) = owner {
+            if !email_available(&state, &owner_email, Some(owner.base.id)).await {
+                return Err(ServerError::Core(CoreError::Validation(EMAIL_TAKEN.into())));
+            }
+            state
+                .auth_service
+                .update_credentials(
+                    id,
+                    owner.base.id,
+                    owner_email.clone(),
+                    owner_name,
+                    body.admin_password.clone().filter(|p| !p.trim().is_empty()),
+                    None,
+                )
+                .await?;
+            state
+                .auth_service
+                .set_phone_by_email(id, &owner_email, body.admin_phone.clone())
+                .await?;
+        }
+    }
 
     let info = letaf_core::company::service::UpdateInfoInput {
         name: name.clone(),
