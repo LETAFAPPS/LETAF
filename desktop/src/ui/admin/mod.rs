@@ -15,6 +15,7 @@ use serde::Deserialize;
 use slint::{ComponentHandle, Model, ModelRc, SharedString, VecModel};
 use tokio::sync::RwLock;
 
+use crate::AdminState;
 use crate::{
     AdminAuditRow, AdminCompanyDetail, AdminCompanyOrderRow, AdminCompanyRow, AdminInvoiceRow,
     AdminPlanRow,
@@ -159,8 +160,8 @@ fn matches(haystack: &str, needle: &str) -> bool {
 
 /// Aplica busca (nome/subdomínio) + filtro de acesso às empresas.
 fn apply_company_filter(ui: &MainWindow, cache: &CompaniesCache) {
-    let search = ui.get_admin_company_search().to_string();
-    let filter = ui.get_admin_company_filter().to_string();
+    let search = ui.global::<AdminState>().get_company_search().to_string();
+    let filter = ui.global::<AdminState>().get_company_filter().to_string();
     let Ok(all) = cache.lock() else { return };
     let rows: Vec<AdminCompanyRow> = all
         .iter()
@@ -180,13 +181,13 @@ fn apply_company_filter(ui: &MainWindow, cache: &CompaniesCache) {
             active: c.active,
         })
         .collect();
-    ui.set_admin_companies(ModelRc::new(VecModel::from(rows)));
+    ui.global::<AdminState>().set_companies(ModelRc::new(VecModel::from(rows)));
 }
 
 /// Aplica busca (nome da empresa) + filtro de status às assinaturas.
 fn apply_sub_filter(ui: &MainWindow, cache: &SubsCache) {
-    let search = ui.get_admin_sub_search().to_string();
-    let filter = ui.get_admin_sub_filter().to_string();
+    let search = ui.global::<AdminState>().get_sub_search().to_string();
+    let filter = ui.global::<AdminState>().get_sub_filter().to_string();
     let Ok(all) = cache.lock() else { return };
     let rows: Vec<AdminSubscriptionRow> = all
         .iter()
@@ -202,7 +203,7 @@ fn apply_sub_filter(ui: &MainWindow, cache: &SubsCache) {
             discount: s.discount.clone().into(),
         })
         .collect();
-    ui.set_admin_subscriptions(ModelRc::new(VecModel::from(rows)));
+    ui.global::<AdminState>().set_subscriptions(ModelRc::new(VecModel::from(rows)));
 }
 
 /// Registra todos os callbacks do painel do administrador.
@@ -253,7 +254,7 @@ fn setup_filters(ui: &MainWindow, companies_cache: &CompaniesCache, subs_cache: 
     {
         let ui_weak = ui.as_weak();
         let cache = companies_cache.clone();
-        ui.on_admin_filter_companies(move || {
+        ui.global::<AdminState>().on_filter_companies(move || {
             if let Some(ui) = ui_weak.upgrade() {
                 apply_company_filter(&ui, &cache);
             }
@@ -262,7 +263,7 @@ fn setup_filters(ui: &MainWindow, companies_cache: &CompaniesCache, subs_cache: 
     {
         let ui_weak = ui.as_weak();
         let cache = subs_cache.clone();
-        ui.on_admin_filter_subscriptions(move || {
+        ui.global::<AdminState>().on_filter_subscriptions(move || {
             if let Some(ui) = ui_weak.upgrade() {
                 apply_sub_filter(&ui, &cache);
             }
@@ -288,7 +289,7 @@ fn setup_refresh(
     let plans_cache = plans_cache.clone();
     let companies_cache = companies_cache.clone();
     let subs_cache = subs_cache.clone();
-    ui.on_admin_refresh(move || {
+    ui.global::<AdminState>().on_refresh(move || {
         let ui_weak = ui_weak.clone();
         let auth_token = auth_token.clone();
         let server_url = server_url.clone();
@@ -327,13 +328,13 @@ fn setup_refresh(
             let _ = slint::invoke_from_event_loop(move || {
                 let Some(ui) = ui_weak.upgrade() else { return };
                 if let Some(o) = overview {
-                    ui.set_admin_companies_count(o.companies as i32);
-                    ui.set_admin_active_subs(o.active_subscriptions as i32);
-                    ui.set_admin_overdue_subs(o.overdue_subscriptions as i32);
-                    ui.set_admin_cancelled_subs(o.cancelled_subscriptions as i32);
-                    ui.set_admin_admins_count(o.super_admins as i32);
-                    ui.set_admin_new_companies_month(o.new_companies_month as i32);
-                    ui.set_admin_mrr(SharedString::from(o.mrr));
+                    ui.global::<AdminState>().set_companies_count(o.companies as i32);
+                    ui.global::<AdminState>().set_active_subs(o.active_subscriptions as i32);
+                    ui.global::<AdminState>().set_overdue_subs(o.overdue_subscriptions as i32);
+                    ui.global::<AdminState>().set_cancelled_subs(o.cancelled_subscriptions as i32);
+                    ui.global::<AdminState>().set_admins_count(o.super_admins as i32);
+                    ui.global::<AdminState>().set_new_companies_month(o.new_companies_month as i32);
+                    ui.global::<AdminState>().set_mrr(SharedString::from(o.mrr));
                 }
                 // Guarda as listas completas e exibe já filtradas pela
                 // busca/filtro correntes (mantém o estado da UI no refresh).
@@ -355,7 +356,7 @@ fn setup_refresh(
                         email: a.email.into(),
                     })
                     .collect();
-                ui.set_admin_users(ModelRc::new(VecModel::from(admin_rows)));
+                ui.global::<AdminState>().set_users(ModelRc::new(VecModel::from(admin_rows)));
 
                 let plan_rows: Vec<AdminPlanRow> = plans
                     .into_iter()
@@ -372,7 +373,7 @@ fn setup_refresh(
                         companies: p.companies as i32,
                     })
                     .collect();
-                ui.set_admin_plans(ModelRc::new(VecModel::from(plan_rows)));
+                ui.global::<AdminState>().set_plans(ModelRc::new(VecModel::from(plan_rows)));
 
                 let audit_rows: Vec<AdminAuditRow> = audit
                     .into_iter()
@@ -384,7 +385,7 @@ fn setup_refresh(
                         at: a.at.into(),
                     })
                     .collect();
-                ui.set_admin_audit_entries(ModelRc::new(VecModel::from(audit_rows)));
+                ui.global::<AdminState>().set_audit_entries(ModelRc::new(VecModel::from(audit_rows)));
             });
         });
     });
@@ -394,34 +395,34 @@ fn setup_refresh(
 fn setup_plan_form(ui: &MainWindow, plans_cache: &PlansCache) {
     {
         let ui_weak = ui.as_weak();
-        ui.on_admin_plan_new(move || {
+        ui.global::<AdminState>().on_plan_new(move || {
             let Some(ui) = ui_weak.upgrade() else { return };
-            ui.set_admin_plan_id(SharedString::new());
-            ui.set_admin_plan_name(SharedString::new());
-            ui.set_admin_plan_amount(SharedString::new());
-            ui.set_admin_plan_period(SharedString::new());
-            ui.set_admin_plan_trial(SharedString::new());
-            ui.set_admin_plan_description(SharedString::new());
-            ui.set_admin_plan_highlight(SharedString::new());
-            ui.set_admin_plan_active(true);
+            ui.global::<AdminState>().set_plan_id(SharedString::new());
+            ui.global::<AdminState>().set_plan_name(SharedString::new());
+            ui.global::<AdminState>().set_plan_amount(SharedString::new());
+            ui.global::<AdminState>().set_plan_period(SharedString::new());
+            ui.global::<AdminState>().set_plan_trial(SharedString::new());
+            ui.global::<AdminState>().set_plan_description(SharedString::new());
+            ui.global::<AdminState>().set_plan_highlight(SharedString::new());
+            ui.global::<AdminState>().set_plan_active(true);
         });
     }
     {
         let ui_weak = ui.as_weak();
         let plans_cache = plans_cache.clone();
-        ui.on_admin_plan_edit(move |id| {
+        ui.global::<AdminState>().on_plan_edit(move |id| {
             let Some(ui) = ui_weak.upgrade() else { return };
             let Ok(g) = plans_cache.lock() else { return };
             if let Some(p) = g.iter().find(|p| p.id == id.as_str()) {
-                ui.set_admin_plan_id(p.id.clone().into());
-                ui.set_admin_plan_name(p.name.clone().into());
+                ui.global::<AdminState>().set_plan_id(p.id.clone().into());
+                ui.global::<AdminState>().set_plan_name(p.name.clone().into());
                 // Valores numéricos com vírgula (padrão pt-BR).
-                ui.set_admin_plan_amount(format!("{:.2}", p.amount).replace('.', ",").into());
-                ui.set_admin_plan_period(p.period_months.to_string().into());
-                ui.set_admin_plan_trial(p.trial_days.to_string().into());
-                ui.set_admin_plan_description(p.description.clone().into());
-                ui.set_admin_plan_highlight(p.highlight_label.clone().into());
-                ui.set_admin_plan_active(p.active);
+                ui.global::<AdminState>().set_plan_amount(format!("{:.2}", p.amount).replace('.', ",").into());
+                ui.global::<AdminState>().set_plan_period(p.period_months.to_string().into());
+                ui.global::<AdminState>().set_plan_trial(p.trial_days.to_string().into());
+                ui.global::<AdminState>().set_plan_description(p.description.clone().into());
+                ui.global::<AdminState>().set_plan_highlight(p.highlight_label.clone().into());
+                ui.global::<AdminState>().set_plan_active(p.active);
             }
         });
     }
@@ -440,23 +441,23 @@ fn setup_plan_persist(
         let handle = handle.clone();
         let auth_token = auth_token.clone();
         let server_url = server_url.to_string();
-        ui.on_admin_plan_save(move || {
+        ui.global::<AdminState>().on_plan_save(move || {
             let Some(ui) = ui_weak.upgrade() else { return };
-            let id = ui.get_admin_plan_id().to_string();
-            let name = ui.get_admin_plan_name().trim().to_string();
+            let id = ui.global::<AdminState>().get_plan_id().to_string();
+            let name = ui.global::<AdminState>().get_plan_name().trim().to_string();
             // Aceita vírgula ou ponto como separador decimal.
             let amount: f64 = ui
-                .get_admin_plan_amount()
+                .global::<AdminState>().get_plan_amount()
                 .replace('.', "")
                 .replace(',', ".")
                 .trim()
                 .parse()
                 .unwrap_or(0.0);
-            let period: i32 = ui.get_admin_plan_period().trim().parse().unwrap_or(0);
-            let trial: i32 = ui.get_admin_plan_trial().trim().parse().unwrap_or(0);
-            let description = ui.get_admin_plan_description().to_string();
-            let highlight = ui.get_admin_plan_highlight().to_string();
-            let active = ui.get_admin_plan_active();
+            let period: i32 = ui.global::<AdminState>().get_plan_period().trim().parse().unwrap_or(0);
+            let trial: i32 = ui.global::<AdminState>().get_plan_trial().trim().parse().unwrap_or(0);
+            let description = ui.global::<AdminState>().get_plan_description().to_string();
+            let highlight = ui.global::<AdminState>().get_plan_highlight().to_string();
+            let active = ui.global::<AdminState>().get_plan_active();
             if name.is_empty() {
                 show_toast(&ui, "Informe o nome do plano", "error");
                 return;
@@ -500,7 +501,7 @@ fn setup_plan_persist(
         let handle = handle.clone();
         let auth_token = auth_token.clone();
         let server_url = server_url.to_string();
-        ui.on_admin_plan_delete(move |id| {
+        ui.global::<AdminState>().on_plan_delete(move |id| {
             let id = id.to_string();
             let ui_weak = ui_weak.clone();
             let auth_token = auth_token.clone();
@@ -523,25 +524,25 @@ fn setup_form(ui: &MainWindow) {
     // Novo: limpa o formulário.
     {
         let ui_weak = ui.as_weak();
-        ui.on_admin_new_user(move || {
+        ui.global::<AdminState>().on_new_user(move || {
             let Some(ui) = ui_weak.upgrade() else { return };
-            ui.set_admin_form_id(SharedString::new());
-            ui.set_admin_form_name(SharedString::new());
-            ui.set_admin_form_email(SharedString::new());
-            ui.set_admin_form_password(SharedString::new());
+            ui.global::<AdminState>().set_form_id(SharedString::new());
+            ui.global::<AdminState>().set_form_name(SharedString::new());
+            ui.global::<AdminState>().set_form_email(SharedString::new());
+            ui.global::<AdminState>().set_form_password(SharedString::new());
         });
     }
     // Editar: acha o admin no modelo e preenche (senha em branco = manter).
     {
         let ui_weak = ui.as_weak();
-        ui.on_admin_edit_user(move |id| {
+        ui.global::<AdminState>().on_edit_user(move |id| {
             let Some(ui) = ui_weak.upgrade() else { return };
-            let users = ui.get_admin_users();
+            let users = ui.global::<AdminState>().get_users();
             if let Some(u) = users.iter().find(|u| u.id == id) {
-                ui.set_admin_form_id(u.id.clone());
-                ui.set_admin_form_name(u.name.clone());
-                ui.set_admin_form_email(u.email.clone());
-                ui.set_admin_form_password(SharedString::new());
+                ui.global::<AdminState>().set_form_id(u.id.clone());
+                ui.global::<AdminState>().set_form_name(u.name.clone());
+                ui.global::<AdminState>().set_form_email(u.email.clone());
+                ui.global::<AdminState>().set_form_password(SharedString::new());
             }
         });
     }
@@ -560,7 +561,7 @@ fn setup_persist(
         let handle = handle.clone();
         let auth_token = auth_token.clone();
         let server_url = server_url.to_string();
-        ui.on_admin_save_user(move |id, name, email, password| {
+        ui.global::<AdminState>().on_save_user(move |id, name, email, password| {
             let name = name.trim().to_string();
             let email = email.trim().to_string();
             if name.is_empty() || email.is_empty() {
@@ -610,7 +611,7 @@ fn setup_persist(
         let handle = handle.clone();
         let auth_token = auth_token.clone();
         let server_url = server_url.to_string();
-        ui.on_admin_delete_user(move |id| {
+        ui.global::<AdminState>().on_delete_user(move |id| {
             let id = id.to_string();
             let ui_weak = ui_weak.clone();
             let auth_token = auth_token.clone();
@@ -632,7 +633,7 @@ fn setup_persist(
         let handle = handle.clone();
         let auth_token = auth_token.clone();
         let server_url = server_url.to_string();
-        ui.on_admin_open_company_detail(move |id| {
+        ui.global::<AdminState>().on_open_company_detail(move |id| {
             let id = id.to_string();
             if id.is_empty() {
                 return;
@@ -653,7 +654,7 @@ fn setup_persist(
                         .unwrap_or_default();
                 let _ = slint::invoke_from_event_loop(move || {
                     let Some(ui) = ui_weak.upgrade() else { return };
-                    ui.set_admin_detail(AdminCompanyDetail {
+                    ui.global::<AdminState>().set_detail(AdminCompanyDetail {
                         id: d.id.into(),
                         name: d.name.into(),
                         subdomain: d.subdomain.into(),
@@ -687,8 +688,8 @@ fn setup_persist(
                             at: o.at.into(),
                         })
                         .collect();
-                    ui.set_admin_detail_orders(ModelRc::new(VecModel::from(order_rows)));
-                    ui.set_admin_detail_open(true);
+                    ui.global::<AdminState>().set_detail_orders(ModelRc::new(VecModel::from(order_rows)));
+                    ui.global::<AdminState>().set_detail_open(true);
                 });
             });
         });
@@ -699,7 +700,7 @@ fn setup_persist(
         let handle = handle.clone();
         let auth_token = auth_token.clone();
         let server_url = server_url.to_string();
-        ui.on_admin_load_invoices(move |company_id| {
+        ui.global::<AdminState>().on_load_invoices(move |company_id| {
             let company_id = company_id.to_string();
             if company_id.is_empty() {
                 return;
@@ -730,7 +731,7 @@ fn setup_persist(
                             method: i.method.into(),
                         })
                         .collect();
-                    ui.set_admin_invoices(ModelRc::new(VecModel::from(rows)));
+                    ui.global::<AdminState>().set_invoices(ModelRc::new(VecModel::from(rows)));
                 });
             });
         });
@@ -741,9 +742,9 @@ fn setup_persist(
         let handle = handle.clone();
         let auth_token = auth_token.clone();
         let server_url = server_url.to_string();
-        ui.on_admin_mark_invoice_paid(move |invoice_id| {
+        ui.global::<AdminState>().on_mark_invoice_paid(move |invoice_id| {
             let Some(ui) = ui_weak.upgrade() else { return };
-            let company_id = ui.get_admin_sub_edit_company_id().to_string();
+            let company_id = ui.global::<AdminState>().get_sub_edit_company_id().to_string();
             let invoice_id = invoice_id.to_string();
             if company_id.is_empty() || invoice_id.is_empty() {
                 return;
@@ -768,8 +769,8 @@ fn setup_persist(
                             show_toast(&ui, "Fatura marcada como paga", "success");
                             // Recarrega faturas e listas (o status da
                             // assinatura pode ter voltado a "ativa").
-                            ui.invoke_admin_load_invoices(SharedString::from(company_id.as_str()));
-                            ui.invoke_admin_refresh();
+                            ui.global::<AdminState>().invoke_load_invoices(SharedString::from(company_id.as_str()));
+                            ui.global::<AdminState>().invoke_refresh();
                         }
                         Err(msg) => show_toast(&ui, &msg, "error"),
                     }
@@ -783,7 +784,7 @@ fn setup_persist(
         let handle = handle.clone();
         let auth_token = auth_token.clone();
         let server_url = server_url.to_string();
-        ui.on_admin_set_company_active(move |id, active| {
+        ui.global::<AdminState>().on_set_company_active(move |id, active| {
             let id = id.to_string();
             if id.is_empty() {
                 return;
@@ -810,10 +811,10 @@ fn setup_persist(
         let handle = handle.clone();
         let auth_token = auth_token.clone();
         let server_url = server_url.to_string();
-        ui.on_admin_confirm_delete_company(move || {
+        ui.global::<AdminState>().on_confirm_delete_company(move || {
             let Some(ui) = ui_weak.upgrade() else { return };
-            let id = ui.get_admin_del_company_id().to_string();
-            ui.set_admin_del_company_open(false);
+            let id = ui.global::<AdminState>().get_del_company_id().to_string();
+            ui.global::<AdminState>().set_del_company_open(false);
             if id.is_empty() {
                 return;
             }
@@ -837,23 +838,23 @@ fn setup_persist(
         let handle = handle.clone();
         let auth_token = auth_token.clone();
         let server_url = server_url.to_string();
-        ui.on_admin_save_subscription(move || {
+        ui.global::<AdminState>().on_save_subscription(move || {
             let Some(ui) = ui_weak.upgrade() else { return };
-            let company_id = ui.get_admin_sub_edit_company_id().to_string();
+            let company_id = ui.global::<AdminState>().get_sub_edit_company_id().to_string();
             if company_id.is_empty() {
                 return;
             }
-            let plan = ui.get_admin_sub_edit_plan().to_string();
-            let status = ui.get_admin_sub_edit_status().to_string();
+            let plan = ui.global::<AdminState>().get_sub_edit_plan().to_string();
+            let status = ui.global::<AdminState>().get_sub_edit_status().to_string();
             // Aceita vírgula ou ponto como separador decimal.
             let discount: f64 = ui
-                .get_admin_sub_edit_discount()
+                .global::<AdminState>().get_sub_edit_discount()
                 .replace('.', "")
                 .replace(',', ".")
                 .trim()
                 .parse()
                 .unwrap_or(0.0);
-            ui.set_admin_sub_edit_busy(true);
+            ui.global::<AdminState>().set_sub_edit_busy(true);
             let body = serde_json::json!({
                 "plan": plan, "status": status, "discount": discount,
             });
@@ -871,12 +872,12 @@ fn setup_persist(
                 let outcome = write_outcome(result).await;
                 let _ = slint::invoke_from_event_loop(move || {
                     let Some(ui) = ui_weak.upgrade() else { return };
-                    ui.set_admin_sub_edit_busy(false);
+                    ui.global::<AdminState>().set_sub_edit_busy(false);
                     match outcome {
                         Ok(()) => {
                             show_toast(&ui, "Assinatura atualizada", "success");
-                            ui.set_admin_sub_edit_open(false);
-                            ui.invoke_admin_refresh();
+                            ui.global::<AdminState>().set_sub_edit_open(false);
+                            ui.global::<AdminState>().invoke_refresh();
                         }
                         Err(msg) => show_toast(&ui, &msg, "error"),
                     }
@@ -918,11 +919,11 @@ async fn report(
             Ok(()) => {
                 show_toast(&ui, ok_msg, "success");
                 // Limpa o formulário e recarrega as listas.
-                ui.set_admin_form_id(SharedString::new());
-                ui.set_admin_form_name(SharedString::new());
-                ui.set_admin_form_email(SharedString::new());
-                ui.set_admin_form_password(SharedString::new());
-                ui.invoke_admin_refresh();
+                ui.global::<AdminState>().set_form_id(SharedString::new());
+                ui.global::<AdminState>().set_form_name(SharedString::new());
+                ui.global::<AdminState>().set_form_email(SharedString::new());
+                ui.global::<AdminState>().set_form_password(SharedString::new());
+                ui.global::<AdminState>().invoke_refresh();
             }
             Err(msg) => show_toast(&ui, &msg, "error"),
         }
@@ -942,13 +943,13 @@ fn setup_company_persist(
     let handle = handle.clone();
     let auth_token = auth_token.clone();
     let server_url = server_url.to_string();
-    ui.on_admin_save_company(move || {
+    ui.global::<AdminState>().on_save_company(move || {
         let Some(ui) = ui_weak.upgrade() else { return };
-        let name = ui.get_company_form_name().trim().to_string();
-        let subdomain = ui.get_company_form_subdomain().trim().to_lowercase();
-        let admin_name = ui.get_company_form_admin_name().trim().to_string();
-        let admin_email = ui.get_company_form_admin_email().trim().to_string();
-        let admin_password = ui.get_company_form_admin_password().to_string();
+        let name = ui.global::<AdminState>().get_company_form_name().trim().to_string();
+        let subdomain = ui.global::<AdminState>().get_company_form_subdomain().trim().to_lowercase();
+        let admin_name = ui.global::<AdminState>().get_company_form_admin_name().trim().to_string();
+        let admin_email = ui.global::<AdminState>().get_company_form_admin_email().trim().to_string();
+        let admin_password = ui.global::<AdminState>().get_company_form_admin_password().to_string();
         if name.is_empty() || subdomain.is_empty() || admin_name.is_empty() || admin_email.is_empty() {
             show_toast(&ui, "Preencha empresa, subdomínio, nome e e-mail do admin", "error");
             return;
@@ -957,24 +958,24 @@ fn setup_company_persist(
             show_toast(&ui, "Defina uma senha para o administrador", "error");
             return;
         }
-        let discount = parse_money_br(&ui.get_company_form_discount());
+        let discount = parse_money_br(&ui.global::<AdminState>().get_company_form_discount());
         let body = serde_json::json!({
             "name": name,
             "subdomain": subdomain,
             "admin_name": admin_name,
             "admin_email": admin_email,
             "admin_password": admin_password,
-            "phone": ui.get_company_form_phone().trim(),
-            "whatsapp": ui.get_company_form_whatsapp().trim(),
-            "email": ui.get_company_form_email().trim(),
-            "document": ui.get_company_form_document().trim(),
-            "address": ui.get_company_form_address().trim(),
-            "neighborhood": ui.get_company_form_neighborhood().trim(),
-            "zip_code": ui.get_company_form_zip().trim(),
-            "city": ui.get_company_form_city().trim(),
-            "uf": ui.get_company_form_uf().trim(),
-            "logo_data": ui.get_company_form_logo_data().to_string(),
-            "cover_data": ui.get_company_form_cover_data().to_string(),
+            "phone": ui.global::<AdminState>().get_company_form_phone().trim(),
+            "whatsapp": ui.global::<AdminState>().get_company_form_whatsapp().trim(),
+            "email": ui.global::<AdminState>().get_company_form_email().trim(),
+            "document": ui.global::<AdminState>().get_company_form_document().trim(),
+            "address": ui.global::<AdminState>().get_company_form_address().trim(),
+            "neighborhood": ui.global::<AdminState>().get_company_form_neighborhood().trim(),
+            "zip_code": ui.global::<AdminState>().get_company_form_zip().trim(),
+            "city": ui.global::<AdminState>().get_company_form_city().trim(),
+            "uf": ui.global::<AdminState>().get_company_form_uf().trim(),
+            "logo_data": ui.global::<AdminState>().get_company_form_logo_data().to_string(),
+            "cover_data": ui.global::<AdminState>().get_company_form_cover_data().to_string(),
             "plan_discount": discount,
         });
         let ui_weak = ui.as_weak();
@@ -995,7 +996,7 @@ fn setup_company_persist(
                     Ok(()) => {
                         show_toast(&ui, "Estabelecimento cadastrado", "success");
                         clear_company_form(&ui);
-                        ui.invoke_admin_refresh();
+                        ui.global::<AdminState>().invoke_refresh();
                     }
                     Err(msg) => show_toast(&ui, &msg, "error"),
                 }
@@ -1018,25 +1019,25 @@ fn parse_money_br(raw: &str) -> f64 {
 
 /// Limpa todos os campos do formulário de novo estabelecimento.
 fn clear_company_form(ui: &MainWindow) {
-    ui.set_company_form_name(SharedString::new());
-    ui.set_company_form_subdomain(SharedString::new());
-    ui.set_company_form_admin_name(SharedString::new());
-    ui.set_company_form_admin_email(SharedString::new());
-    ui.set_company_form_admin_password(SharedString::new());
-    ui.set_company_form_phone(SharedString::new());
-    ui.set_company_form_whatsapp(SharedString::new());
-    ui.set_company_form_email(SharedString::new());
-    ui.set_company_form_document(SharedString::new());
-    ui.set_company_form_discount(SharedString::new());
-    ui.set_company_form_address(SharedString::new());
-    ui.set_company_form_neighborhood(SharedString::new());
-    ui.set_company_form_zip(SharedString::new());
-    ui.set_company_form_city(SharedString::new());
-    ui.set_company_form_uf(SharedString::new());
-    ui.set_company_form_logo_data(SharedString::new());
-    ui.set_company_form_cover_data(SharedString::new());
-    ui.set_company_form_logo_image(slint::Image::default());
-    ui.set_company_form_cover_image(slint::Image::default());
+    ui.global::<AdminState>().set_company_form_name(SharedString::new());
+    ui.global::<AdminState>().set_company_form_subdomain(SharedString::new());
+    ui.global::<AdminState>().set_company_form_admin_name(SharedString::new());
+    ui.global::<AdminState>().set_company_form_admin_email(SharedString::new());
+    ui.global::<AdminState>().set_company_form_admin_password(SharedString::new());
+    ui.global::<AdminState>().set_company_form_phone(SharedString::new());
+    ui.global::<AdminState>().set_company_form_whatsapp(SharedString::new());
+    ui.global::<AdminState>().set_company_form_email(SharedString::new());
+    ui.global::<AdminState>().set_company_form_document(SharedString::new());
+    ui.global::<AdminState>().set_company_form_discount(SharedString::new());
+    ui.global::<AdminState>().set_company_form_address(SharedString::new());
+    ui.global::<AdminState>().set_company_form_neighborhood(SharedString::new());
+    ui.global::<AdminState>().set_company_form_zip(SharedString::new());
+    ui.global::<AdminState>().set_company_form_city(SharedString::new());
+    ui.global::<AdminState>().set_company_form_uf(SharedString::new());
+    ui.global::<AdminState>().set_company_form_logo_data(SharedString::new());
+    ui.global::<AdminState>().set_company_form_cover_data(SharedString::new());
+    ui.global::<AdminState>().set_company_form_logo_image(slint::Image::default());
+    ui.global::<AdminState>().set_company_form_cover_image(slint::Image::default());
 }
 
 /// Seletores de logo/capa do novo estabelecimento (espelha Configurações).
@@ -1045,22 +1046,22 @@ fn setup_company_pickers(ui: &MainWindow, handle: &tokio::runtime::Handle) {
     {
         let ui_weak = ui.as_weak();
         let handle = handle.clone();
-        ui.on_admin_pick_company_logo(move || {
+        ui.global::<AdminState>().on_pick_company_logo(move || {
             let ui_weak = ui_weak.clone();
             handle.spawn_blocking(move || {
                 let Some(path) = super::image::pick_image_file() else { return };
                 let uw = ui_weak.clone();
                 let _ = slint::invoke_from_event_loop(move || {
-                    if let Some(ui) = uw.upgrade() { ui.set_company_form_logo_loading(true); }
+                    if let Some(ui) = uw.upgrade() { ui.global::<AdminState>().set_company_form_logo_loading(true); }
                 });
                 let encoded = super::image::process_image_file(&path);
                 let _ = slint::invoke_from_event_loop(move || {
                     let Some(ui) = ui_weak.upgrade() else { return };
-                    ui.set_company_form_logo_loading(false);
+                    ui.global::<AdminState>().set_company_form_logo_loading(false);
                     if let Some(enc) = encoded {
                         let buf = super::image::decode_pixel_buffer(&enc);
-                        ui.set_company_form_logo_image(buf.map(slint::Image::from_rgba8).unwrap_or_default());
-                        ui.set_company_form_logo_data(SharedString::from(enc));
+                        ui.global::<AdminState>().set_company_form_logo_image(buf.map(slint::Image::from_rgba8).unwrap_or_default());
+                        ui.global::<AdminState>().set_company_form_logo_data(SharedString::from(enc));
                     }
                 });
             });
@@ -1070,22 +1071,22 @@ fn setup_company_pickers(ui: &MainWindow, handle: &tokio::runtime::Handle) {
     {
         let ui_weak = ui.as_weak();
         let handle = handle.clone();
-        ui.on_admin_pick_company_cover(move || {
+        ui.global::<AdminState>().on_pick_company_cover(move || {
             let ui_weak = ui_weak.clone();
             handle.spawn_blocking(move || {
                 let Some(path) = super::image::pick_image_file() else { return };
                 let uw = ui_weak.clone();
                 let _ = slint::invoke_from_event_loop(move || {
-                    if let Some(ui) = uw.upgrade() { ui.set_company_form_cover_loading(true); }
+                    if let Some(ui) = uw.upgrade() { ui.global::<AdminState>().set_company_form_cover_loading(true); }
                 });
                 let encoded = super::image::process_image_file_large(&path);
                 let _ = slint::invoke_from_event_loop(move || {
                     let Some(ui) = ui_weak.upgrade() else { return };
-                    ui.set_company_form_cover_loading(false);
+                    ui.global::<AdminState>().set_company_form_cover_loading(false);
                     if let Some(enc) = encoded {
                         let buf = super::image::decode_pixel_buffer(&enc);
-                        ui.set_company_form_cover_image(buf.map(slint::Image::from_rgba8).unwrap_or_default());
-                        ui.set_company_form_cover_data(SharedString::from(enc));
+                        ui.global::<AdminState>().set_company_form_cover_image(buf.map(slint::Image::from_rgba8).unwrap_or_default());
+                        ui.global::<AdminState>().set_company_form_cover_data(SharedString::from(enc));
                     }
                 });
             });

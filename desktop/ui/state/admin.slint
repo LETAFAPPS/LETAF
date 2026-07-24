@@ -1,0 +1,100 @@
+// Estado do PAINEL DO SUPER ADMIN (plataforma), isolado do MainWindow.
+//
+// Por que um `global` (AI_RULES §8): em Slint as propriedades de um
+// componente vivem todas no mesmo arquivo — o `main.slint` acumulava 868
+// declarações. `global` é o único mecanismo da linguagem para separar
+// estado por domínio sem prop drilling, e o projeto já o usa em `Theme`
+// e `IconGlyph`.
+//
+// Acesso: no Slint, `AdminState.<prop>`; no Rust,
+// `ui.global::<AdminState>().set_<prop>()` / `.on_<callback>()`.
+// Todo este estado é cross-tenant e ONLINE (rotas /admin/*), sem espelho
+// local — ver desktop/src/ui/admin.
+import { AdminCompanyRow, AdminCompanyDetail, AdminCompanyOrderRow, AdminSubscriptionRow,
+         AdminInvoiceRow, AdminAuditRow, AdminUserRow, AdminPlanRow } from "../types.slint";
+
+export global AdminState {
+    in-out property <int> companies-count: 0;
+    in-out property <int> active-subs: 0;
+    in-out property <int> overdue-subs: 0;
+    in-out property <int> cancelled-subs: 0;
+    in-out property <int> admins-count: 0;
+    in-out property <int> new-companies-month: 0;
+    in-out property <string> mrr: "R$ 0,00";
+    in-out property <[AdminCompanyRow]> companies: [];
+    in-out property <[AdminSubscriptionRow]> subscriptions: [];
+    in-out property <[AdminAuditRow]> audit-entries: [];
+    in-out property <bool> detail-open: false;
+    in-out property <AdminCompanyDetail> detail;
+    in-out property <[AdminCompanyOrderRow]> detail-orders: [];
+    callback open-company-detail(string);
+    in-out property <bool> sub-edit-open: false;
+    in-out property <bool> sub-edit-busy: false;
+    in-out property <string> sub-edit-company-id: "";
+    in-out property <string> sub-edit-company-name: "";
+    in-out property <string> sub-edit-plan: "monthly";
+    in-out property <string> sub-edit-status: "active";
+    in-out property <string> sub-edit-discount: "0";
+    callback save-subscription();
+    in-out property <[AdminInvoiceRow]> invoices: [];
+    callback load-invoices(string);
+    callback mark-invoice-paid(string);
+    in-out property <string> company-search: "";
+    in-out property <string> company-filter: "all";   // all|active|suspended
+    in-out property <string> sub-search: "";
+    in-out property <string> sub-filter: "all";       // all|active|overdue|cancelled
+    callback filter-companies();
+    callback filter-subscriptions();
+    in-out property <bool> del-company-open: false;
+    in-out property <string> del-company-id: "";
+    in-out property <string> del-company-name: "";
+    callback confirm-delete-company();
+    callback set-company-active(string, bool);
+    in-out property <[AdminUserRow]> users: [];
+    in-out property <string> form-id: "";
+    in-out property <string> form-name: "";
+    in-out property <string> form-email: "";
+    in-out property <string> form-password: "";
+    callback refresh();
+    callback new-user();
+    callback edit-user(string);
+    callback save-user(string, string, string, string);
+    callback delete-user(string);
+    in-out property <string> company-form-name: "";
+    in-out property <string> company-form-subdomain: "";
+    in-out property <string> company-form-admin-name: "";
+    in-out property <string> company-form-admin-email: "";
+    in-out property <string> company-form-admin-password: "";
+    in-out property <string> company-form-phone: "";
+    in-out property <string> company-form-whatsapp: "";
+    in-out property <string> company-form-email: "";
+    in-out property <string> company-form-document: "";
+    in-out property <string> company-form-discount: "";
+    in-out property <string> company-form-address: "";
+    in-out property <string> company-form-neighborhood: "";
+    in-out property <string> company-form-zip: "";
+    in-out property <string> company-form-city: "";
+    in-out property <string> company-form-uf: "";
+    in-out property <string> company-form-logo-data: "";
+    in-out property <string> company-form-cover-data: "";
+    in-out property <image> company-form-logo-image;
+    in-out property <image> company-form-cover-image;
+    in-out property <bool> company-form-logo-loading: false;
+    in-out property <bool> company-form-cover-loading: false;
+    callback save-company();
+    callback pick-company-logo();
+    callback pick-company-cover();
+    in-out property <[AdminPlanRow]> plans: [];
+    in-out property <string> plan-id: "";
+    in-out property <string> plan-name: "";
+    in-out property <string> plan-amount: "";
+    in-out property <string> plan-period: "";
+    in-out property <string> plan-trial: "";
+    in-out property <string> plan-description: "";
+    in-out property <string> plan-highlight: "";
+    in-out property <bool> plan-active: true;
+    callback plan-new();
+    callback plan-edit(string);
+    callback plan-save();
+    callback plan-delete(string);
+}

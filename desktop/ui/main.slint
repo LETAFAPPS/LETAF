@@ -10,6 +10,9 @@ import { ProductsPage } from "pages/products_page.slint";
 import { CategoriesPage } from "pages/categories_page.slint";
 import { CollaboratorsPage } from "pages/collaborators_page.slint";
 import { CollabPermRow, CollabRoleRow, CollabEmployeeRow } from "types.slint";
+import { AdminState } from "state/admin.slint";
+// Re-export: torna o global acessível do Rust (ui.global::<AdminState>()).
+export { AdminState }
 import { AdminCompanyRow, AdminCompanyDetail, AdminCompanyOrderRow, AdminSubscriptionRow, AdminInvoiceRow, AdminAuditRow, AdminUserRow, AdminPlanRow } from "types.slint";
 import { CustomersPage } from "pages/customers_page.slint";
 import { OrdersPage, CalendarPopup } from "pages/orders_page.slint";
@@ -203,7 +206,7 @@ export component MainWindow inherits Window {
             if root.active-tab == "admin-overview" || root.active-tab == "admin-companies"
                || root.active-tab == "admin-subscriptions" || root.active-tab == "admin-admins"
                || root.active-tab == "admin-plans" || root.active-tab == "admin-audit" {
-                root.admin-refresh();
+                AdminState.refresh();
             }
         }
     }
@@ -1026,103 +1029,20 @@ export component MainWindow inherits Window {
     // ── Painel do administrador (plataforma / super admin) ────────
     // Dados cross-tenant vindos online das rotas /admin/*. Preenchidos
     // pelo Rust (ui/admin). O acesso é gateado no backend (§11).
-    in-out property <int> admin-companies-count: 0;
-    in-out property <int> admin-active-subs: 0;
-    in-out property <int> admin-overdue-subs: 0;
-    in-out property <int> admin-cancelled-subs: 0;
-    in-out property <int> admin-admins-count: 0;
-    in-out property <int> admin-new-companies-month: 0;
-    in-out property <string> admin-mrr: "R$ 0,00";
-    in-out property <[AdminCompanyRow]> admin-companies: [];
-    in-out property <[AdminSubscriptionRow]> admin-subscriptions: [];
-    in-out property <[AdminAuditRow]> admin-audit-entries: [];
     // Detalhe da empresa (modal do painel).
-    in-out property <bool> admin-detail-open: false;
-    in-out property <AdminCompanyDetail> admin-detail;
-    in-out property <[AdminCompanyOrderRow]> admin-detail-orders: [];
-    callback admin-open-company-detail(string);
     // Edição da assinatura (modal do super admin).
-    in-out property <bool> admin-sub-edit-open: false;
-    in-out property <bool> admin-sub-edit-busy: false;
-    in-out property <string> admin-sub-edit-company-id: "";
-    in-out property <string> admin-sub-edit-company-name: "";
-    in-out property <string> admin-sub-edit-plan: "monthly";
-    in-out property <string> admin-sub-edit-status: "active";
-    in-out property <string> admin-sub-edit-discount: "0";
-    callback admin-save-subscription();
     // Faturas da empresa em edição (carregadas ao abrir o modal).
-    in-out property <[AdminInvoiceRow]> admin-invoices: [];
-    callback admin-load-invoices(string);
-    callback admin-mark-invoice-paid(string);
     // Busca/filtro das listas do painel (aplicados sobre o cache no Rust).
-    in-out property <string> admin-company-search: "";
-    in-out property <string> admin-company-filter: "all";   // all|active|suspended
-    in-out property <string> admin-sub-search: "";
-    in-out property <string> admin-sub-filter: "all";       // all|active|overdue|cancelled
-    callback admin-filter-companies();
-    callback admin-filter-subscriptions();
     // Exclusão de empresa (confirmação do super admin).
-    in-out property <bool> admin-del-company-open: false;
-    in-out property <string> admin-del-company-id: "";
-    in-out property <string> admin-del-company-name: "";
-    callback admin-confirm-delete-company();
     // Suspender/reativar acesso do tenant. (id, novo-active)
-    callback admin-set-company-active(string, bool);
-    in-out property <[AdminUserRow]> admin-users: [];
     // Formulário de administrador (criar/editar credenciais).
-    in-out property <string> admin-form-id: "";
-    in-out property <string> admin-form-name: "";
-    in-out property <string> admin-form-email: "";
-    in-out property <string> admin-form-password: "";
-    callback admin-refresh();
-    callback admin-new-user();
-    callback admin-edit-user(string);
-    callback admin-save-user(string, string, string, string);
-    callback admin-delete-user(string);
     // Cadastro de estabelecimento (empresa + admin inicial + infos).
-    in-out property <string> company-form-name: "";
-    in-out property <string> company-form-subdomain: "";
-    in-out property <string> company-form-admin-name: "";
-    in-out property <string> company-form-admin-email: "";
-    in-out property <string> company-form-admin-password: "";
     // Contatos / documento
-    in-out property <string> company-form-phone: "";
-    in-out property <string> company-form-whatsapp: "";
-    in-out property <string> company-form-email: "";
-    in-out property <string> company-form-document: "";
     // Desconto comercial na mensalidade (R$/mês).
-    in-out property <string> company-form-discount: "";
     // Endereço / localização
-    in-out property <string> company-form-address: "";
-    in-out property <string> company-form-neighborhood: "";
-    in-out property <string> company-form-zip: "";
-    in-out property <string> company-form-city: "";
-    in-out property <string> company-form-uf: "";
     // Imagens (base64 preenchido pelos seletores) + preview + loading
-    in-out property <string> company-form-logo-data: "";
-    in-out property <string> company-form-cover-data: "";
-    in-out property <image> company-form-logo-image;
-    in-out property <image> company-form-cover-image;
-    in-out property <bool> company-form-logo-loading: false;
-    in-out property <bool> company-form-cover-loading: false;
     // Lê as propriedades acima no Rust (form grande → sem args).
-    callback admin-save-company();
-    callback admin-pick-company-logo();
-    callback admin-pick-company-cover();
     // Catálogo de planos (super admin).
-    in-out property <[AdminPlanRow]> admin-plans: [];
-    in-out property <string> admin-plan-id: "";
-    in-out property <string> admin-plan-name: "";
-    in-out property <string> admin-plan-amount: "";
-    in-out property <string> admin-plan-period: "";
-    in-out property <string> admin-plan-trial: "";
-    in-out property <string> admin-plan-description: "";
-    in-out property <string> admin-plan-highlight: "";
-    in-out property <bool> admin-plan-active: true;
-    callback admin-plan-new();
-    callback admin-plan-edit(string);
-    callback admin-plan-save();
-    callback admin-plan-delete(string);
 
     // ── Financeiro (contas a pagar/receber) ───────────────────────
     /// "receivable" (A receber) | "payable" (A pagar)
@@ -1549,7 +1469,7 @@ export component MainWindow inherits Window {
                 } else if tab == "admin-overview" || tab == "admin-companies"
                        || tab == "admin-subscriptions" || tab == "admin-admins" || tab == "admin-audit"
                        || tab == "admin-plans" {
-                    root.admin-refresh();
+                    AdminState.refresh();
                 }
                 // Importante: NÃO disparar cash-refresh ao entrar no
                 // PDV. O estado já é pré-carregado no boot e após
@@ -1675,95 +1595,95 @@ export component MainWindow inherits Window {
 
                 // ── Painel do administrador (super admin) ──
                 if root.active-tab == "admin-overview": AdminOverviewPage {
-                    companies: root.admin-companies-count;
-                    active-subs: root.admin-active-subs;
-                    overdue-subs: root.admin-overdue-subs;
-                    cancelled-subs: root.admin-cancelled-subs;
-                    admins: root.admin-admins-count;
-                    new-companies-month: root.admin-new-companies-month;
-                    mrr: root.admin-mrr;
+                    companies: AdminState.companies-count;
+                    active-subs: AdminState.active-subs;
+                    overdue-subs: AdminState.overdue-subs;
+                    cancelled-subs: AdminState.cancelled-subs;
+                    admins: AdminState.admins-count;
+                    new-companies-month: AdminState.new-companies-month;
+                    mrr: AdminState.mrr;
                 }
                 if root.active-tab == "admin-companies": AdminCompaniesPage {
-                    companies: root.admin-companies;
-                    form-name <=> root.company-form-name;
-                    form-subdomain <=> root.company-form-subdomain;
-                    form-admin-name <=> root.company-form-admin-name;
-                    form-admin-email <=> root.company-form-admin-email;
-                    form-admin-password <=> root.company-form-admin-password;
-                    form-phone <=> root.company-form-phone;
-                    form-whatsapp <=> root.company-form-whatsapp;
-                    form-email <=> root.company-form-email;
-                    form-document <=> root.company-form-document;
-                    form-discount <=> root.company-form-discount;
-                    form-address <=> root.company-form-address;
-                    form-neighborhood <=> root.company-form-neighborhood;
-                    form-zip <=> root.company-form-zip;
-                    form-city <=> root.company-form-city;
-                    form-uf <=> root.company-form-uf;
-                    logo-image: root.company-form-logo-image;
-                    cover-image: root.company-form-cover-image;
-                    logo-loading: root.company-form-logo-loading;
-                    cover-loading: root.company-form-cover-loading;
-                    has-logo: root.company-form-logo-data != "";
-                    has-cover: root.company-form-cover-data != "";
-                    save-company => { root.admin-save-company(); }
-                    pick-logo => { root.admin-pick-company-logo(); }
-                    pick-cover => { root.admin-pick-company-cover(); }
+                    companies: AdminState.companies;
+                    form-name <=> AdminState.company-form-name;
+                    form-subdomain <=> AdminState.company-form-subdomain;
+                    form-admin-name <=> AdminState.company-form-admin-name;
+                    form-admin-email <=> AdminState.company-form-admin-email;
+                    form-admin-password <=> AdminState.company-form-admin-password;
+                    form-phone <=> AdminState.company-form-phone;
+                    form-whatsapp <=> AdminState.company-form-whatsapp;
+                    form-email <=> AdminState.company-form-email;
+                    form-document <=> AdminState.company-form-document;
+                    form-discount <=> AdminState.company-form-discount;
+                    form-address <=> AdminState.company-form-address;
+                    form-neighborhood <=> AdminState.company-form-neighborhood;
+                    form-zip <=> AdminState.company-form-zip;
+                    form-city <=> AdminState.company-form-city;
+                    form-uf <=> AdminState.company-form-uf;
+                    logo-image: AdminState.company-form-logo-image;
+                    cover-image: AdminState.company-form-cover-image;
+                    logo-loading: AdminState.company-form-logo-loading;
+                    cover-loading: AdminState.company-form-cover-loading;
+                    has-logo: AdminState.company-form-logo-data != "";
+                    has-cover: AdminState.company-form-cover-data != "";
+                    save-company => { AdminState.save-company(); }
+                    pick-logo => { AdminState.pick-company-logo(); }
+                    pick-cover => { AdminState.pick-company-cover(); }
                     delete-company(id, name) => {
-                        root.admin-del-company-id = id;
-                        root.admin-del-company-name = name;
-                        root.admin-del-company-open = true;
+                        AdminState.del-company-id = id;
+                        AdminState.del-company-name = name;
+                        AdminState.del-company-open = true;
                     }
-                    set-company-active(id, active) => { root.admin-set-company-active(id, active); }
-                    open-detail(id) => { root.admin-open-company-detail(id); }
-                    search <=> root.admin-company-search;
-                    filter <=> root.admin-company-filter;
-                    filters-changed => { root.admin-filter-companies(); }
+                    set-company-active(id, active) => { AdminState.set-company-active(id, active); }
+                    open-detail(id) => { AdminState.open-company-detail(id); }
+                    search <=> AdminState.company-search;
+                    filter <=> AdminState.company-filter;
+                    filters-changed => { AdminState.filter-companies(); }
                 }
                 if root.active-tab == "admin-audit": AdminAuditPage {
-                    entries: root.admin-audit-entries;
+                    entries: AdminState.audit-entries;
                 }
                 if root.active-tab == "admin-subscriptions": AdminSubscriptionsPage {
-                    subscriptions: root.admin-subscriptions;
-                    search <=> root.admin-sub-search;
-                    filter <=> root.admin-sub-filter;
-                    filters-changed => { root.admin-filter-subscriptions(); }
+                    subscriptions: AdminState.subscriptions;
+                    search <=> AdminState.sub-search;
+                    filter <=> AdminState.sub-filter;
+                    filters-changed => { AdminState.filter-subscriptions(); }
                     manage(s) => {
-                        root.admin-sub-edit-company-id = s.company-id;
-                        root.admin-sub-edit-company-name = s.company-name;
-                        root.admin-sub-edit-plan = s.plan;
-                        root.admin-sub-edit-status = s.status;
-                        root.admin-sub-edit-discount = s.discount;
-                        root.admin-invoices = [];
-                        root.admin-sub-edit-open = true;
-                        root.admin-load-invoices(s.company-id);
+                        AdminState.sub-edit-company-id = s.company-id;
+                        AdminState.sub-edit-company-name = s.company-name;
+                        AdminState.sub-edit-plan = s.plan;
+                        AdminState.sub-edit-status = s.status;
+                        AdminState.sub-edit-discount = s.discount;
+                        AdminState.invoices = [];
+                        AdminState.sub-edit-open = true;
+                        AdminState.load-invoices(s.company-id);
                     }
                 }
                 if root.active-tab == "admin-admins": AdminAdminsPage {
-                    users: root.admin-users;
-                    form-id <=> root.admin-form-id;
-                    form-name <=> root.admin-form-name;
-                    form-email <=> root.admin-form-email;
-                    form-password <=> root.admin-form-password;
-                    new-user => { root.admin-new-user(); }
-                    edit-user(id) => { root.admin-edit-user(id); }
-                    save-user(id, n, e, p) => { root.admin-save-user(id, n, e, p); }
-                    delete-user(id) => { root.admin-delete-user(id); }
+                    users: AdminState.users;
+                    form-id <=> AdminState.form-id;
+                    form-name <=> AdminState.form-name;
+                    form-email <=> AdminState.form-email;
+                    form-password <=> AdminState.form-password;
+                    new-user => { AdminState.new-user(); }
+                    edit-user(id) => { AdminState.edit-user(id); }
+                    save-user(id, n, e, p) => { AdminState.save-user(id, n, e, p); }
+                    delete-user(id) => { AdminState.delete-user(id); }
                 }
                 if root.active-tab == "admin-plans": AdminPlansPage {
-                    plans: root.admin-plans;
-                    form-id <=> root.admin-plan-id;
-                    form-name <=> root.admin-plan-name;
-                    form-amount <=> root.admin-plan-amount;
-                    form-period <=> root.admin-plan-period;
-                    form-trial <=> root.admin-plan-trial;
-                    form-description <=> root.admin-plan-description;
-                    form-highlight <=> root.admin-plan-highlight;
-                    form-active <=> root.admin-plan-active;
-                    new-plan => { root.admin-plan-new(); }
-                    edit-plan(id) => { root.admin-plan-edit(id); }
-                    save-plan => { root.admin-plan-save(); }
-                    delete-plan(id) => { root.admin-plan-delete(id); }
+                    plans: AdminState.plans;
+                    form-id <=> AdminState.plan-id;
+                    form-name <=> AdminState.plan-name;
+                    form-amount <=> AdminState.plan-amount;
+                    form-period <=> AdminState.plan-period;
+                    form-trial <=> AdminState.plan-trial;
+                    form-description <=> AdminState.plan-description;
+                    form-highlight <=> AdminState.plan-highlight;
+                    form-active <=> AdminState.plan-active;
+                    new-plan => { AdminState.plan-new(); }
+                    edit-plan(id) => { AdminState.plan-edit(id); }
+                    save-plan => { AdminState.plan-save(); }
+                    delete-plan(id) => { AdminState.plan-delete(id); }
                 }
 
                 // Produtos — master-detail com editor inline (não há mais
@@ -2685,28 +2605,28 @@ export component MainWindow inherits Window {
         do-logout => { root.do-logout(); }
     }
 
-    if root.admin-detail-open: AdminCompanyDetailModal {
-        data: root.admin-detail;
-        orders: root.admin-detail-orders;
-        close => { root.admin-detail-open = false; }
+    if AdminState.detail-open: AdminCompanyDetailModal {
+        data: AdminState.detail;
+        orders: AdminState.detail-orders;
+        close => { AdminState.detail-open = false; }
     }
 
-    if root.admin-del-company-open: DeleteConfirmModal {
-        delete-target-name <=> root.admin-del-company-name;
-        close => { root.admin-del-company-open = false; }
-        confirm-delete => { root.admin-confirm-delete-company(); }
+    if AdminState.del-company-open: DeleteConfirmModal {
+        delete-target-name <=> AdminState.del-company-name;
+        close => { AdminState.del-company-open = false; }
+        confirm-delete => { AdminState.confirm-delete-company(); }
     }
 
-    if root.admin-sub-edit-open: AdminSubscriptionModal {
-        company-name: root.admin-sub-edit-company-name;
-        plan <=> root.admin-sub-edit-plan;
-        status <=> root.admin-sub-edit-status;
-        discount <=> root.admin-sub-edit-discount;
-        busy: root.admin-sub-edit-busy;
-        invoices: root.admin-invoices;
-        save => { root.admin-save-subscription(); }
-        mark-paid(id) => { root.admin-mark-invoice-paid(id); }
-        close => { root.admin-sub-edit-open = false; }
+    if AdminState.sub-edit-open: AdminSubscriptionModal {
+        company-name: AdminState.sub-edit-company-name;
+        plan <=> AdminState.sub-edit-plan;
+        status <=> AdminState.sub-edit-status;
+        discount <=> AdminState.sub-edit-discount;
+        busy: AdminState.sub-edit-busy;
+        invoices: AdminState.invoices;
+        save => { AdminState.save-subscription(); }
+        mark-paid(id) => { AdminState.mark-invoice-paid(id); }
+        close => { AdminState.sub-edit-open = false; }
     }
 
     if root.profile-open: ProfileModal {

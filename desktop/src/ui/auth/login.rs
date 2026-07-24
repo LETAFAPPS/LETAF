@@ -8,6 +8,7 @@ use uuid::Uuid;
 use letaf_core::auth::model::UserRole;
 
 use crate::HTTP_CLIENT;
+use crate::AdminState;
 use crate::MainWindow;
 use crate::context::DesktopState;
 
@@ -364,7 +365,7 @@ pub(crate) fn update_ui_after_login(ui_weak: slint::Weak<MainWindow>, role: User
         ui.invoke_refresh_customers();
         // Super admin: carrega o painel de plataforma (rotas /admin/*).
         if role.is_super_admin() {
-            ui.invoke_admin_refresh();
+            ui.global::<AdminState>().invoke_refresh();
         }
     });
 }
