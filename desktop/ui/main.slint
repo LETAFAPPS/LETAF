@@ -10,7 +10,7 @@ import { ProductsPage } from "pages/products_page.slint";
 import { CategoriesPage } from "pages/categories_page.slint";
 import { CollaboratorsPage } from "pages/collaborators_page.slint";
 import { CollabPermRow, CollabRoleRow, CollabEmployeeRow } from "types.slint";
-import { AdminCompanyRow, AdminCompanyDetail, AdminSubscriptionRow, AdminInvoiceRow, AdminAuditRow, AdminUserRow, AdminPlanRow } from "types.slint";
+import { AdminCompanyRow, AdminCompanyDetail, AdminCompanyOrderRow, AdminSubscriptionRow, AdminInvoiceRow, AdminAuditRow, AdminUserRow, AdminPlanRow } from "types.slint";
 import { CustomersPage } from "pages/customers_page.slint";
 import { OrdersPage, CalendarPopup } from "pages/orders_page.slint";
 import { SettingsPage } from "pages/settings_page.slint";
@@ -1039,6 +1039,7 @@ export component MainWindow inherits Window {
     // Detalhe da empresa (modal do painel).
     in-out property <bool> admin-detail-open: false;
     in-out property <AdminCompanyDetail> admin-detail;
+    in-out property <[AdminCompanyOrderRow]> admin-detail-orders: [];
     callback admin-open-company-detail(string);
     // Edição da assinatura (modal do super admin).
     in-out property <bool> admin-sub-edit-open: false;
@@ -2686,6 +2687,7 @@ export component MainWindow inherits Window {
 
     if root.admin-detail-open: AdminCompanyDetailModal {
         data: root.admin-detail;
+        orders: root.admin-detail-orders;
         close => { root.admin-detail-open = false; }
     }
 

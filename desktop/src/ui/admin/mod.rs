@@ -16,7 +16,8 @@ use slint::{ComponentHandle, Model, ModelRc, SharedString, VecModel};
 use tokio::sync::RwLock;
 
 use crate::{
-    AdminAuditRow, AdminCompanyDetail, AdminCompanyRow, AdminInvoiceRow, AdminPlanRow,
+    AdminAuditRow, AdminCompanyDetail, AdminCompanyOrderRow, AdminCompanyRow, AdminInvoiceRow,
+    AdminPlanRow,
     AdminSubscriptionRow,
     AdminUserRow, MainWindow,
     HTTP_CLIENT,
@@ -68,6 +69,14 @@ struct SubscriptionDto {
     next_charge: String,
     payment_kind: String,
     discount: String,
+}
+
+#[derive(Deserialize)]
+struct CompanyOrderDto {
+    number: i64,
+    status: String,
+    total: String,
+    at: String,
 }
 
 #[derive(Deserialize)]
@@ -638,6 +647,10 @@ fn setup_persist(
                 else {
                     return;
                 };
+                let orders: Vec<CompanyOrderDto> =
+                    get_json(&format!("{server_url}/admin/companies/{id}/orders"), &token)
+                        .await
+                        .unwrap_or_default();
                 let _ = slint::invoke_from_event_loop(move || {
                     let Some(ui) = ui_weak.upgrade() else { return };
                     ui.set_admin_detail(AdminCompanyDetail {
@@ -665,6 +678,16 @@ fn setup_persist(
                         customers_count: d.customers_count as i32,
                         last_order_at: d.last_order_at.into(),
                     });
+                    let order_rows: Vec<AdminCompanyOrderRow> = orders
+                        .into_iter()
+                        .map(|o| AdminCompanyOrderRow {
+                            number: o.number as i32,
+                            status: o.status.into(),
+                            total: o.total.into(),
+                            at: o.at.into(),
+                        })
+                        .collect();
+                    ui.set_admin_detail_orders(ModelRc::new(VecModel::from(order_rows)));
                     ui.set_admin_detail_open(true);
                 });
             });

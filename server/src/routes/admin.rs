@@ -51,6 +51,7 @@ pub fn routes() -> Router<AppState> {
         .route("/admin/companies/{id}/active", put(set_company_active))
         .route("/admin/subscriptions", get(list_subscriptions))
         .route("/admin/subscriptions/{company_id}", put(update_subscription))
+        .route("/admin/companies/{id}/orders", get(list_company_orders))
         .route("/admin/companies/{id}/invoices", get(list_invoices))
         .route(
             "/admin/companies/{id}/invoices/{invoice_id}/paid",
@@ -671,6 +672,38 @@ async fn update_subscription(
     )
     .await;
     Ok(StatusCode::OK)
+}
+
+// ── Últimos pedidos de uma empresa (diagnóstico de suporte) ──────────────
+#[derive(Serialize)]
+struct CompanyOrderRow {
+    number: i64,
+    status: String,
+    total: String,
+    at: String,
+}
+
+/// Os 10 pedidos mais recentes do tenant — só para o suporte enxergar se
+/// as vendas estão entrando. Somente leitura, sem itens (§13: página de 10,
+/// nunca a lista inteira).
+async fn list_company_orders(
+    State(state): State<AppState>,
+    auth: AuthClaims,
+    Path(id): Path<Uuid>,
+) -> Result<Json<Vec<CompanyOrderRow>>, ServerError> {
+    require_super_admin(&auth)?;
+    let orders = state.order_service.find_all_paged(id, 10, 0).await?;
+    Ok(Json(
+        orders
+            .into_iter()
+            .map(|o| CompanyOrderRow {
+                number: o.number,
+                status: o.status.to_string(),
+                total: brl(o.total),
+                at: o.base.created_at.format("%d/%m/%Y %H:%M").to_string(),
+            })
+            .collect(),
+    ))
 }
 
 // ── Faturas de uma empresa ───────────────────────────────────────────────
