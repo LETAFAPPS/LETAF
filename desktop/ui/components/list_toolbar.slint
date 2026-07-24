@@ -1,5 +1,18 @@
-// Barra de busca + chips de filtro das listas do painel do super admin.
-// UI sem lógica (§1/§3): só coleta o texto/opção e avisa via `changed()`;
+// PADRÃO do sistema para a barra de ferramentas de LISTAS.
+//
+// Três peças que devem ser usadas juntas em qualquer tela de listagem,
+// dentro de um card próprio, acima da lista:
+//   ListSearchBox  — busca textual
+//   ListFilterBtn  — filtro em lista suspensa
+//   ListAddBtn     — abrir o cadastro
+//
+// Estilo comum (regra do padrão): em repouso são NEUTROS (fundo `surface`,
+// borda cinza, ícone/texto secundários) e ficam LARANJA (borda + ícone +
+// texto) quando ativos — foco no campo de busca, hover/aberto no filtro,
+// e no filtro também quando há um filtro APLICADO, para o usuário perceber
+// que a lista está restrita.
+//
+// UI sem lógica (§1/§3): só coletam texto/opção e avisam via `changed()`;
 // a filtragem acontece no Rust sobre a lista completa em cache.
 import { Theme } from "../theme.slint";
 import { AssetIcon, SearchIcon } from "icons.slint";
@@ -30,7 +43,7 @@ export component FilterChipSm inherits TouchArea {
 }
 
 // Campo de busca (ícone + input) usado nas listas do painel.
-export component AdminSearchBox inherits Rectangle {
+export component ListSearchBox inherits Rectangle {
     in-out property <string> value;
     in property <string> placeholder: "Buscar...";
     callback changed();
@@ -75,9 +88,8 @@ export struct FilterOption {
     label: string,
 }
 
-// Botão de filtro com LISTA suspensa (substitui a fileira de chips quando
-// há muitas opções). Estilo tênue de ação, igual ao filtro do Dashboard.
-export component FilterDropdown inherits TouchArea {
+// Botão de filtro com lista suspensa.
+export component ListFilterBtn inherits TouchArea {
     in property <[FilterOption]> options;
     in-out property <string> selected: "all";
     callback changed();
@@ -85,6 +97,9 @@ export component FilterDropdown inherits TouchArea {
     /// Rótulo exibido no botão. O chamador informa (ele já define as
     /// opções) — o Slint não permite percorrer lista em expressão.
     in property <string> label: "Filtrar";
+    /// Chave da opção "sem filtro". Quando `selected` difere dela, o botão
+    /// fica realçado mesmo em repouso: sinaliza que a lista está filtrada.
+    in property <string> neutral-key: "all";
 
     width: 148px;
     height: 32px;
@@ -95,7 +110,8 @@ export component FilterDropdown inherits TouchArea {
     // Mesmo comportamento visual da barra de busca: neutro em repouso e
     // laranja (borda + ícone + texto) quando ativo — aqui "ativo" é o
     // hover/abertura, já que o dropdown não recebe foco de teclado.
-    property <bool> realcado: root.has-hover || root.aberto;
+    property <bool> filtrando: root.selected != root.neutral-key;
+    property <bool> realcado: root.has-hover || root.aberto || root.filtrando;
 
     Rectangle {
         x: 0; y: 0;
@@ -124,7 +140,8 @@ export component FilterDropdown inherits TouchArea {
                 overflow: elide;
             }
             Text {
-                text: "▾";
+                // Seta acompanha o estado da lista (aberta = para cima).
+                text: root.aberto ? "▴" : "▾";
                 font-size: 11px;
                 color: root.realcado ? Theme.btn-accent : Theme.text-secondary;
                 vertical-alignment: center;
@@ -176,8 +193,8 @@ export component FilterDropdown inherits TouchArea {
     }
 }
 
-// Botão "+" quadrado (abrir cadastro), no estilo tênue de ação.
-export component AddSquareBtn inherits TouchArea {
+// Botão "+" quadrado (abrir cadastro).
+export component ListAddBtn inherits TouchArea {
     width: 32px;
     height: 32px;
     Rectangle {

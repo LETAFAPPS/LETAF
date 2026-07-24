@@ -3,7 +3,7 @@
 import { Theme } from "../theme.slint";
 import { AdminSubscriptionRow } from "../types.slint";
 import { EmptyState } from "../components/empty_state.slint";
-import { AdminSearchBox, FilterChipSm } from "../components/admin_filter_bar.slint";
+import { ListSearchBox, FilterChipSm } from "../components/list_toolbar.slint";
 
 export component AdminSubscriptionsPage inherits VerticalLayout {
     in property <[AdminSubscriptionRow]> subscriptions;
@@ -27,7 +27,7 @@ export component AdminSubscriptionsPage inherits VerticalLayout {
     // Busca + filtro de status.
     HorizontalLayout {
         spacing: 8px;
-        AdminSearchBox {
+        ListSearchBox {
             horizontal-stretch: 1;
             value <=> root.search;
             placeholder: "Buscar por empresa...";

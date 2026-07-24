@@ -6,10 +6,11 @@
 // separada (alternada por `show-form`, sem sair da aba).
 import { Theme } from "../theme.slint";
 import { AdminCompanyRow } from "../types.slint";
-import { AdminSearchBox, FilterDropdown, FilterOption, AddSquareBtn } from "../components/admin_filter_bar.slint";
+import { ListSearchBox, ListFilterBtn, FilterOption, ListAddBtn } from "../components/list_toolbar.slint";
 import { FormField, PasswordField } from "../components/form_fields.slint";
 import { ActionBtn, OutlineBtn } from "../components/buttons.slint";
 import { EmptyState } from "../components/empty_state.slint";
+import { AssetIcon } from "../components/icons.slint";
 
 // Traduz o status da assinatura para rótulo + cor.
 component StatusBadge inherits Rectangle {
@@ -201,36 +202,66 @@ export component AdminCompaniesPage inherits VerticalLayout {
 
     // `true` = tela de cadastro; `false` = lista. Estado puro de UI (§3).
     property <bool> show-form: false;
+    // `true` após a 1ª tentativa de salvar: só então mostramos os erros,
+    // para o formulário não nascer todo vermelho.
+    property <bool> tentou-salvar: false;
+
+    // ── Verificação dos campos ──
+    // Apenas FEEDBACK IMEDIATO de UX (§11): o backend revalida tudo
+    // (unicidade de subdomínio/e-mail, formato) e é quem tem autoridade.
+    property <string> err-name:
+        (root.tentou-salvar && root.form-name == "") ? "Informe o nome da empresa." : "";
+    property <string> err-subdomain:
+        !root.tentou-salvar ? ""
+        : (root.form-subdomain == "" ? "Informe o subdomínio."
+            : (root.form-subdomain.character-count < 3 ? "Use ao menos 3 caracteres." : ""));
+    property <string> err-admin-name:
+        (root.tentou-salvar && root.form-admin-name == "") ? "Informe o nome do administrador." : "";
+    property <string> err-admin-email:
+        !root.tentou-salvar ? ""
+        : (root.form-admin-email == "" ? "Informe o e-mail do administrador." : "");
+    property <string> err-admin-password:
+        !root.tentou-salvar ? ""
+        : (root.form-admin-password.character-count < 8
+            ? "A senha precisa de ao menos 8 caracteres." : "");
+    property <bool> form-valido:
+        root.err-name == "" && root.err-subdomain == "" && root.err-admin-name == ""
+        && root.err-admin-email == "" && root.err-admin-password == "";
 
     spacing: 12px;
     alignment: start;
 
-    // ── Cabeçalho: título muda conforme a tela ──
-    HorizontalLayout {
-        spacing: 12px;
-        VerticalLayout {
-            horizontal-stretch: 1;
-            spacing: 2px;
-            Text {
-                text: root.show-form ? "Nova empresa" : "Empresas";
-                font-size: 20px; font-weight: 800; color: Theme.text-primary;
-            }
-            Text {
-                text: root.show-form
-                    ? "Cria a empresa, o administrador inicial e os dados do estabelecimento."
-                    : root.companies.length + " empresa(s) cadastrada(s).";
-                font-size: 13px; color: Theme.text-secondary;
+    // ── Cabeçalho ──
+    // Na tela de cadastro, o "voltar" é só um ícone, ACIMA do título e
+    // alinhado à esquerda (a pedido).
+    if root.show-form: HorizontalLayout {
+        alignment: start;
+        back-ta := TouchArea {
+            width: 30px; height: 30px;
+            clicked => { root.show-form = false; }
+            Rectangle {
+                x: 0; y: 0; width: parent.width; height: parent.height;
+                border-radius: 6px;
+                background: back-ta.has-hover ? Theme.row-hover : transparent;
+                AssetIcon {
+                    width: parent.width; height: parent.height; icon-size: 17px;
+                    icon-color: back-ta.has-hover ? Theme.btn-accent : Theme.text-secondary;
+                    source: @image-url("../assets/icons/1.2/seta-esquerda.svg");
+                }
             }
         }
-        // Voltar para a lista (só na tela de cadastro).
-        if root.show-form: VerticalLayout {
-            alignment: center;
-            OutlineBtn {
-                label: "Voltar";
-                neutral: true;
-                width: 110px; height: 34px;
-                clicked => { root.show-form = false; }
-            }
+    }
+    VerticalLayout {
+        spacing: 2px;
+        Text {
+            text: root.show-form ? "Nova empresa" : "Empresas";
+            font-size: 20px; font-weight: 800; color: Theme.text-primary;
+        }
+        Text {
+            text: root.show-form
+                ? "Cria a empresa, o administrador inicial e os dados do estabelecimento."
+                : root.companies.length + " empresa(s) cadastrada(s).";
+            font-size: 13px; color: Theme.text-secondary;
         }
     }
 
@@ -250,7 +281,7 @@ export component AdminCompaniesPage inherits VerticalLayout {
             VerticalLayout {
                 horizontal-stretch: 1;
                 alignment: center;
-                AdminSearchBox {
+                ListSearchBox {
                     value <=> root.search;
                     placeholder: "Buscar por nome ou subdomínio...";
                     changed => { root.filters-changed(); }
@@ -258,13 +289,14 @@ export component AdminCompaniesPage inherits VerticalLayout {
             }
             VerticalLayout {
                 alignment: center;
-                FilterDropdown {
+                ListFilterBtn {
                     options: [
                         { key: "all",       label: "Todas" },
                         { key: "active",    label: "Ativas" },
                         { key: "suspended", label: "Suspensas" },
                     ];
                     selected <=> root.filter;
+                    neutral-key: "all";
                     label: root.filter == "active" ? "Ativas"
                         : (root.filter == "suspended" ? "Suspensas" : "Todas");
                     changed => { root.filters-changed(); }
@@ -272,7 +304,7 @@ export component AdminCompaniesPage inherits VerticalLayout {
             }
             VerticalLayout {
                 alignment: center;
-                AddSquareBtn { clicked => { root.show-form = true; } }
+                ListAddBtn { clicked => { root.show-form = true; } }
             }
         }
     }
@@ -316,20 +348,31 @@ export component AdminCompaniesPage inherits VerticalLayout {
                         alignment: start;
 
                         // Identificação
-                        FormField {
-                            label: "Nome da empresa";
-                            value <=> root.form-name;
-                            placeholder: "Ex.: Padaria do Zé";
+                        HorizontalLayout {
+                            spacing: 10px;
+                            FormField {
+                                horizontal-stretch: 1;
+                                label: "Nome da empresa";
+                                value <=> root.form-name;
+                                placeholder: "Ex.: Padaria do Zé";
+                                icon: @image-url("../assets/icons/1.2/app-maleta.svg");
+                                error: root.err-name;
+                            }
                         }
                         FormField {
                             label: "Subdomínio";
                             value <=> root.form-subdomain;
                             placeholder: "padaria-do-ze";
                         }
-                        FormField {
-                            label: "CNPJ / CPF";
-                            value <=> root.form-document;
-                            placeholder: "Somente números";
+                        HorizontalLayout {
+                            spacing: 10px;
+                            FormField {
+                                horizontal-stretch: 1;
+                                label: "CNPJ / CPF";
+                                value <=> root.form-document;
+                                placeholder: "Somente números";
+                                icon: @image-url("../assets/icons/1.2/arquivo.svg");
+                            }
                         }
                         FormField {
                             label: "Desconto na mensalidade (R$/mês)";
@@ -382,10 +425,15 @@ export component AdminCompaniesPage inherits VerticalLayout {
                             text: "CONTATO";
                             font-size: 10px; font-weight: 700; letter-spacing: 1px; color: Theme.text-secondary;
                         }
-                        FormField {
-                            label: "Telefone";
-                            value <=> root.form-phone;
-                            placeholder: "(00) 0000-0000";
+                        HorizontalLayout {
+                            spacing: 10px;
+                            FormField {
+                                horizontal-stretch: 1;
+                                label: "Telefone";
+                                value <=> root.form-phone;
+                                placeholder: "(00) 0000-0000";
+                                icon: @image-url("../assets/icons/1.2/telefone.svg");
+                            }
                         }
                         FormField {
                             label: "WhatsApp";
@@ -396,6 +444,7 @@ export component AdminCompaniesPage inherits VerticalLayout {
                             label: "E-mail da empresa";
                             value <=> root.form-email;
                             placeholder: "contato@empresa.com";
+                            icon: @image-url("../assets/icons/1.2/email.svg");
                         }
 
                         // Localização
@@ -408,11 +457,16 @@ export component AdminCompaniesPage inherits VerticalLayout {
                             label: "Endereço";
                             value <=> root.form-address;
                             placeholder: "Rua e número";
+                            icon: @image-url("../assets/icons/1.2/marcador.svg");
                         }
-                        FormField {
-                            label: "Bairro";
-                            value <=> root.form-neighborhood;
-                            placeholder: "Bairro";
+                        HorizontalLayout {
+                            spacing: 10px;
+                            FormField {
+                                horizontal-stretch: 2;
+                                label: "Bairro";
+                                value <=> root.form-neighborhood;
+                                placeholder: "Bairro";
+                            }
                         }
                         HorizontalLayout {
                             spacing: 10px;
@@ -441,27 +495,44 @@ export component AdminCompaniesPage inherits VerticalLayout {
                             text: "ADMINISTRADOR INICIAL";
                             font-size: 10px; font-weight: 700; letter-spacing: 1px; color: Theme.text-secondary;
                         }
-                        FormField {
-                            label: "Nome";
-                            value <=> root.form-admin-name;
-                            placeholder: "Nome do responsável";
-                        }
-                        FormField {
-                            label: "E-mail";
-                            value <=> root.form-admin-email;
-                            placeholder: "email@dominio.com";
+                        HorizontalLayout {
+                            spacing: 10px;
+                            FormField {
+                                horizontal-stretch: 1;
+                                label: "Nome";
+                                value <=> root.form-admin-name;
+                                placeholder: "Nome do responsável";
+                                icon: @image-url("../assets/icons/1.2/usuario.svg");
+                                error: root.err-admin-name;
+                            }
+                            FormField {
+                                horizontal-stretch: 1;
+                                label: "E-mail";
+                                value <=> root.form-admin-email;
+                                placeholder: "email@dominio.com";
+                                icon: @image-url("../assets/icons/1.2/email.svg");
+                                error: root.err-admin-email;
+                            }
                         }
                         PasswordField {
                             label: "Senha";
                             value <=> root.form-admin-password;
-                            placeholder: "Defina uma senha";
+                            placeholder: "Defina uma senha (mín. 8 caracteres)";
+                        }
+                        if root.err-admin-password != "": Text {
+                            text: root.err-admin-password;
+                            font-size: 11px; color: Theme.danger; wrap: word-wrap;
                         }
                         HorizontalLayout {
                             padding-top: 4px;
                             ActionBtn {
                                 label: "Cadastrar";
                                 width: 100%;
-                                clicked => { root.save-company(); }
+                                clicked => {
+                                root.tentou-salvar = true;
+                                // Erros são só UX; o backend revalida (§11).
+                                if root.form-valido { root.save-company(); }
+                            }
                             }
                         }
                     }

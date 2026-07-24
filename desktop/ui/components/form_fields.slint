@@ -1,4 +1,5 @@
 import { Theme } from "../theme.slint";
+import { AssetIcon } from "icons.slint";
 
 // ── Componente: campo de formulario ─────────────────────────────────────────
 
@@ -13,6 +14,13 @@ export component FormField inherits VerticalLayout {
     /// campos que dependem de outro estado (ex.: máximo fixo quando
     /// o modo é "Único"). Default `true`.
     in property <bool> enabled: true;
+    /// Ícone opcional à esquerda do campo (vazio = sem ícone). Só ocupa
+    /// espaço quando informado, então as telas existentes não mudam.
+    in property <image> icon;
+    /// Mensagem de erro opcional, exibida ABAIXO do campo e realçando a
+    /// borda. É apenas FEEDBACK de UX (§11): a validação que vale é a do
+    /// backend, que revalida tudo e é a autoridade.
+    in property <string> error: "";
     callback edited(string);
     callback accepted();
     spacing: 4px;
@@ -27,13 +35,25 @@ export component FormField inherits VerticalLayout {
         height: 32px;
         border-radius: 6px;
         border-width: 1px;
-        border-color: input.has-focus ? Theme.primary : Theme.border;
+        border-color: root.error != "" ? Theme.danger
+            : (input.has-focus ? Theme.primary : Theme.border);
         background: root.enabled ? Theme.surface : Theme.row-hover;
         opacity: root.enabled ? 1.0 : 0.6;
 
         HorizontalLayout {
             padding-left: 8px;
             padding-right: 8px;
+            spacing: 6px;
+
+            if root.icon.width > 0: VerticalLayout {
+                alignment: center;
+                AssetIcon {
+                    width: 15px; height: 15px; icon-size: 15px;
+                    icon-color: root.error != "" ? Theme.danger
+                        : (input.has-focus ? Theme.primary : Theme.text-secondary);
+                    source: root.icon;
+                }
+            }
 
             input := TextInput {
                 text <=> root.value;
@@ -57,8 +77,8 @@ export component FormField inherits VerticalLayout {
             font-size: 13px;
             color: #BDBDBD;
             vertical-alignment: center;
-            x: 8px;
-            width: parent.width - 16px;
+            x: root.icon.width > 0 ? 29px : 8px;
+            width: parent.width - (root.icon.width > 0 ? 37px : 16px);
             height: parent.height;
         }
 
@@ -69,6 +89,15 @@ export component FormField inherits VerticalLayout {
                 input.select-all();
             }
         }
+    }
+
+    // Mensagem de erro (só aparece quando há erro — não desloca o layout
+    // dos formulários que não usam esta funcionalidade).
+    if root.error != "": Text {
+        text: root.error;
+        font-size: 11px;
+        color: Theme.danger;
+        wrap: word-wrap;
     }
 }
 
