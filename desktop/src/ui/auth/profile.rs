@@ -25,6 +25,43 @@ struct MeDto {
     avatar: Option<String>,
 }
 
+/// Busca a foto do operador em `/auth/me`, exibe no card da sidebar e a
+/// guarda em cache. Chamado após o login (a resposta de login não traz a
+/// foto) — assim o avatar aparece sem precisar abrir o perfil.
+pub(crate) async fn refresh_avatar_after_login(
+    ui_weak: slint::Weak<MainWindow>,
+    state: DesktopState,
+    token: String,
+    server_url: String,
+) {
+    let avatar_b64 = match HTTP_CLIENT
+        .get(format!("{server_url}/auth/me"))
+        .bearer_auth(&token)
+        .send()
+        .await
+    {
+        Ok(r) if r.status().is_success() => r
+            .json::<MeDto>()
+            .await
+            .ok()
+            .and_then(|m| m.avatar)
+            .filter(|s| !s.is_empty()),
+        _ => None,
+    };
+    let Some(b64) = avatar_b64 else { return };
+    // Sobrevive a restart (o startup lê deste cache).
+    state.session.save_user_avatar(&b64).await;
+    let b64c = b64.clone();
+    let pixel = tokio::task::spawn_blocking(move || decode_pixel_buffer(&b64c))
+        .await
+        .unwrap_or(None);
+    let _ = slint::invoke_from_event_loop(move || {
+        let Some(ui) = ui_weak.upgrade() else { return };
+        ui.set_profile_avatar(pixel.map(slint::Image::from_rgba8).unwrap_or_default());
+        ui.set_profile_avatar_data(SharedString::from(b64));
+    });
+}
+
 pub(crate) fn setup_profile(
     ui: &MainWindow,
     state: &DesktopState,

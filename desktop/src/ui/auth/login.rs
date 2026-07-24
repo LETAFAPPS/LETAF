@@ -85,9 +85,15 @@ pub(crate) fn setup_login(
                     state.session.save_perms(is_admin, login.role.is_super_admin(), &login.perms).await;
                     state.session.save_user_name(&login.name).await;
                     // Limpa a foto em cache do operador anterior (a resposta de
-                    // login não traz avatar; será buscada no /auth/me).
+                    // login não traz avatar; buscamos logo abaixo no /auth/me).
                     state.session.save_user_avatar("").await;
+                    let ui_avatar = ui_weak.clone();
+                    let token_avatar = auth_token.read().await.clone();
                     update_ui_after_login(ui_weak, login.role, login.perms, login.name);
+                    // Exibe a foto no card da sidebar sem precisar abrir o perfil.
+                    if let Some(tok) = token_avatar {
+                        super::profile::refresh_avatar_after_login(ui_avatar, state.clone(), tok, url.clone()).await;
+                    }
                 }
                 Err(e) => {
                     update_ui_login_error(ui_weak, e);

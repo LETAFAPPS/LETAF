@@ -114,13 +114,13 @@ export component Sidebar inherits Rectangle {
                     SidebarSection { title: "PLATAFORMA"; compact: !root.expanded; }
                 if root.nav.is-super-admin: SidebarItem {
                     icon-source: @image-url("../assets/icons/1.2/dashboard.svg");
-                    label: "Painel";
+                    label: "Dashboard";
                     compact: !root.expanded;
                     active: root.active-tab == "admin-overview";
                     clicked => { root.navigate("admin-overview"); }
                 }
                 if root.nav.is-super-admin: SidebarItem {
-                    icon-source: @image-url("../assets/icons/1.2/app-maleta.svg");
+                    icon-source: @image-url("../assets/icons/1.2/empresa.svg");
                     label: "Empresas";
                     compact: !root.expanded;
                     active: root.active-tab == "admin-companies";
@@ -134,7 +134,7 @@ export component Sidebar inherits Rectangle {
                     clicked => { root.navigate("admin-subscriptions"); }
                 }
                 if root.nav.is-super-admin: SidebarItem {
-                    icon-source: @image-url("../assets/icons/1.2/coupons.svg");
+                    icon-source: @image-url("../assets/icons/1.2/inventory.svg");
                     label: "Planos";
                     compact: !root.expanded;
                     active: root.active-tab == "admin-plans";
@@ -142,7 +142,7 @@ export component Sidebar inherits Rectangle {
                 }
                 if root.nav.is-super-admin: SidebarItem {
                     icon-source: @image-url("../assets/icons/1.2/customers.svg");
-                    label: "Administradores";
+                    label: "Usuários";
                     compact: !root.expanded;
                     active: root.active-tab == "admin-admins";
                     clicked => { root.navigate("admin-admins"); }

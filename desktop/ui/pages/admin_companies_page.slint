@@ -241,7 +241,9 @@ export component AdminCompaniesPage inherits VerticalLayout {
         && root.err-admin-name == "" && root.err-admin-email == "" && root.err-admin-password == "";
 
     spacing: 12px;
-    alignment: start;
+    // Sem `alignment: start` no root: cada estado (lista, vazio, cadastro)
+    // tem um filho com `vertical-stretch: 1` que absorve o espaço livre —
+    // assim o empty state centraliza na altura e a lista não "desce".
 
     // ── Cabeçalho ──
     // Na tela de cadastro, o "voltar" é só um ícone, ACIMA do título e
