@@ -77,6 +77,24 @@ CORS_ORIGINS=https://app.seusite.com,https://*.seusite.com
   valor forte e único.
 - Certificados `.p12` e `EFI_*`: providos via ambiente seguro.
 
+**Onde ficam os certificados (desenvolvimento):** FORA da árvore do
+repositório, em `~/.letaf/secrets/` (modo `700`, arquivos `600`), e o
+`.env` aponta com caminho ABSOLUTO:
+
+```
+EFI_P12_PATH="/home/<usuário>/.letaf/secrets/<arquivo>.p12"
+```
+
+Guardá-los na raiz do projeto era arriscado mesmo estando no
+`.gitignore`: um `git add -f`, um zip do diretório ou um backup da pasta
+levava a chave junto. O caminho absoluto também remove a dependência de
+rodar o servidor a partir da raiz do repo (antes o caminho era relativo).
+
+Para conferir se o certificado foi carregado, basta o log do boot: a
+linha `Efi (PIX) habilitada · env=…` só é emitida quando o `.p12` é lido
+com sucesso e o mTLS é montado (`EfiClient::new`); se o caminho ou a
+senha estiverem errados, o servidor sobe sem PIX e loga o erro.
+
 ## 5. Build de produção
 ```bash
 cargo run -p letaf-server --bin letaf-server --release   # ou cargo build --release
