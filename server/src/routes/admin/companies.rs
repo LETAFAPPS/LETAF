@@ -148,14 +148,24 @@ pub(super) async fn create_company(
         return Err(ServerError::Core(e));
     }
 
-    // 4) Desconto comercial (R$/mês) na mensalidade, se informado. Garante
-    //    a assinatura (seed) e grava o desconto — o billing (que usa
-    //    `terms()`) passa a cobrar o valor com o abatimento. Best-effort:
-    //    a empresa+admin já são válidos; erro aqui só é logado.
-    let discount = rust_decimal::Decimal::from_f64(body.plan_discount.unwrap_or(0.0)).unwrap_or_default().max(rust_decimal::Decimal::ZERO);
+    // 4) Assinatura: TODA empresa nasce com plano (mensal, via `ensure_seed`
+    //    — idempotente). Antes a assinatura só era criada quando havia
+    //    desconto, então empresas sem desconto ficavam "Sem plano" e era
+    //    preciso passar em Assinaturas para acertar.
+    //
+    //    O desconto comercial (R$/mês) segue OPCIONAL; quando informado, o
+    //    billing (que usa `terms()`) passa a cobrar já com o abatimento.
+    //
+    //    Best-effort: a empresa e o admin já são válidos — uma falha aqui é
+    //    só logada, para não desfazer um cadastro correto.
+    let today = chrono::Utc::now().date_naive();
+    if let Err(e) = state.subscription_service.ensure_seed(company.id, today).await {
+        tracing::error!("Falha ao criar assinatura da empresa {}: {e}", company.id);
+    }
+    let discount = rust_decimal::Decimal::from_f64(body.plan_discount.unwrap_or(0.0))
+        .unwrap_or_default()
+        .max(rust_decimal::Decimal::ZERO);
     if discount > rust_decimal::Decimal::ZERO {
-        let today = chrono::Utc::now().date_naive();
-        let _ = state.subscription_service.ensure_seed(company.id, today).await;
         if let Err(e) = state
             .subscription_service
             .set_plan_discount(company.id, discount)
