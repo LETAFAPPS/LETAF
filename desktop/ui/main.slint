@@ -1695,6 +1695,8 @@ export component MainWindow inherits Window {
                     search <=> AdminState.company-search;
                     filter <=> AdminState.company-filter;
                     plan-filter <=> AdminState.company-plan-filter;
+                    plan-filter-options: AdminState.company-plan-filter-options;
+                    plan-filter-label: AdminState.company-plan-filter-label;
                     filters-changed => { AdminState.filter-companies(); }
                 }
                 if root.active-tab == "admin-audit": AdminAuditPage {

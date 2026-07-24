@@ -111,26 +111,20 @@ component CompanyCard inherits Rectangle {
             }
         }
 
-        // Identificação: nome (clicável → detalhe) + domínio completo.
+        // Identificação: nome (não-clicável — o detalhe abre pelo olho) +
+        // domínio completo. Colunas com o MESMO stretch → espaçamento uniforme.
         VerticalLayout {
-            horizontal-stretch: 3;
+            horizontal-stretch: 1;
             alignment: center;
             spacing: 3px;
             HorizontalLayout {
                 spacing: 6px;
                 alignment: start;
-                name-ta := TouchArea {
-                    width: name-txt.preferred-width;
-                    height: 20px;
-                    clicked => { root.open-detail(); }
-                    name-txt := Text {
-                        text: root.c.name;
-                        font-size: 14px; font-weight: 700;
-                        color: name-ta.has-hover ? Theme.btn-accent
-                            : (root.c.active ? Theme.text-primary : Theme.text-secondary);
-                        overflow: elide; vertical-alignment: center;
-                        width: parent.width; height: parent.height;
-                    }
+                Text {
+                    text: root.c.name;
+                    font-size: 14px; font-weight: 700;
+                    color: root.c.active ? Theme.text-primary : Theme.text-secondary;
+                    overflow: elide; vertical-alignment: center; height: 20px;
                 }
                 if !root.c.active: Rectangle {
                     width: susp.preferred-width + 12px; height: 18px;
@@ -153,7 +147,7 @@ component CompanyCard inherits Rectangle {
 
         // Proprietário + telefone (nome centralizado com o telefone).
         VerticalLayout {
-            horizontal-stretch: 2;
+            horizontal-stretch: 1;
             alignment: center;
             spacing: 2px;
             Text {
@@ -170,7 +164,7 @@ component CompanyCard inherits Rectangle {
 
         // Cidade — coluna própria.
         VerticalLayout {
-            horizontal-stretch: 2;
+            horizontal-stretch: 1;
             alignment: center;
             Text {
                 text: root.c.city == "" ? "—" : root.c.city;
@@ -181,7 +175,7 @@ component CompanyCard inherits Rectangle {
 
         // Plano + status da assinatura (badge centralizado com o texto).
         VerticalLayout {
-            horizontal-stretch: 2;
+            horizontal-stretch: 1;
             alignment: center;
             spacing: 4px;
             Text {
@@ -269,7 +263,10 @@ export component AdminCompaniesPage inherits VerticalLayout {
     // Busca/filtro (aplicados no Rust sobre a lista completa).
     in-out property <string> search;
     in-out property <string> filter: "all";        // status: all|active|suspended
-    in-out property <string> plan-filter: "all";   // plano: all|monthly|semestral|annual|none
+    in-out property <string> plan-filter: "all";   // plano: all|<kind>|none
+    // Opções e rótulo do filtro "Planos" (montados do catálogo, no Rust).
+    in property <[FilterOption]> plan-filter-options;
+    in property <string> plan-filter-label: "Planos";
     callback filters-changed();
     /// CEP digitado: o Rust consulta o serviço de endereços e preenche
     /// cidade/UF. A busca NÃO vive na UI (§1/§3).
@@ -400,23 +397,14 @@ export component AdminCompaniesPage inherits VerticalLayout {
                     changed => { root.filters-changed(); }
                 }
             }
-            // Filtro por PLANO da assinatura.
+            // Filtro por PLANO — opções vêm dos planos CADASTRADOS (Rust).
             VerticalLayout {
                 alignment: center;
                 ListFilterBtn {
-                    options: [
-                        { key: "all",       label: "Todos" },
-                        { key: "monthly",   label: "Mensal" },
-                        { key: "semestral", label: "Semestral" },
-                        { key: "annual",    label: "Anual" },
-                        { key: "none",      label: "Sem plano" },
-                    ];
+                    options: root.plan-filter-options;
                     selected <=> root.plan-filter;
                     neutral-key: "all";
-                    label: root.plan-filter == "monthly" ? "Mensal"
-                        : (root.plan-filter == "semestral" ? "Semestral"
-                            : (root.plan-filter == "annual" ? "Anual"
-                                : (root.plan-filter == "none" ? "Sem plano" : "Plano")));
+                    label: root.plan-filter-label;
                     changed => { root.filters-changed(); }
                 }
             }
@@ -446,10 +434,10 @@ export component AdminCompaniesPage inherits VerticalLayout {
         cards := VerticalLayout {
             spacing: 10px;
             alignment: start;
-            // Folga p/ a sombra dos cards não ser recortada pelo Flickable
-            // (topo e laterais).
-            padding-left: 8px; padding-right: 8px;
-            padding-top: 6px; padding-bottom: 8px;
+            // Folga MAIOR que o blur da sombra (8px) para o Flickable não
+            // recortar a sombra dos cards no topo nem nas laterais.
+            padding-left: 14px; padding-right: 14px;
+            padding-top: 14px; padding-bottom: 14px;
             for c in root.companies: CompanyCard {
                 c: c;
                 open-detail => { root.open-detail(c.id); }
@@ -706,19 +694,16 @@ export component AdminCompaniesPage inherits VerticalLayout {
                 padding-top: 2px;
                 padding-bottom: 8px;
                 spacing: 10px;
-                if root.editing: VerticalLayout {
-                    alignment: center;
-                    OutlineBtn {
-                        label: "Excluir";
-                        btn-color: Theme.danger;
-                        icon: @image-url("../assets/icons/1.2/lixeira.svg");
-                        height: 32px;
-                        clicked => { root.delete-company(root.edit-id, root.form-name); }
-                    }
+                if root.editing: OutlineBtn {
+                    label: "Excluir";
+                    btn-color: Theme.danger;
+                    icon: @image-url("../assets/icons/1.2/lixeira.svg");
+                    width: 160px; height: 40px;
+                    clicked => { root.delete-company(root.edit-id, root.form-name); }
                 }
                 Rectangle { horizontal-stretch: 1; }
                 ActionBtn {
-                    label: root.editing ? "Salvar alterações" : "Cadastrar";
+                    label: root.editing ? "Salvar Alterações" : "Cadastrar";
                     width: 160px; height: 40px;
                     clicked => {
                         root.tentou-salvar = true;

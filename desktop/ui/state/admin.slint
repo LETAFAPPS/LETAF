@@ -12,6 +12,7 @@
 // local — ver desktop/src/ui/admin.
 import { AdminCompanyRow, AdminCompanyDetail, AdminCompanyOrderRow, AdminSubscriptionRow,
          AdminInvoiceRow, AdminAuditRow, AdminUserRow, AdminPlanRow } from "../types.slint";
+import { FilterOption } from "../components/list_toolbar.slint";
 
 export global AdminState {
     in-out property <int> companies-count: 0;
@@ -41,7 +42,11 @@ export global AdminState {
     callback mark-invoice-paid(string);
     in-out property <string> company-search: "";
     in-out property <string> company-filter: "all";        // all|active|suspended
-    in-out property <string> company-plan-filter: "all";   // all|monthly|semestral|annual|none
+    in-out property <string> company-plan-filter: "all";   // all|<kind>|none
+    // Opções do filtro "Planos" montadas a partir dos planos CADASTRADOS
+    // (catálogo), não fixas. Rótulo do botão acompanha a seleção.
+    in-out property <[FilterOption]> company-plan-filter-options: [];
+    in-out property <string> company-plan-filter-label: "Planos";
     in-out property <string> sub-search: "";
     in-out property <string> sub-filter: "all";       // all|active|overdue|cancelled
     callback filter-companies();

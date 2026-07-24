@@ -24,7 +24,7 @@ use crate::{
     AdminAuditRow, AdminCompanyDetail, AdminCompanyOrderRow, AdminCompanyRow, AdminInvoiceRow,
     AdminPlanRow,
     AdminSubscriptionRow,
-    AdminUserRow, MainWindow,
+    AdminUserRow, FilterOption, MainWindow,
     HTTP_CLIENT,
 };
 
@@ -241,6 +241,49 @@ fn apply_company_filter(ui: &MainWindow, cache: &CompaniesCache) {
         })
         .collect();
     ui.global::<AdminState>().set_companies(ModelRc::new(VecModel::from(rows)));
+
+    // Rótulo do botão "Planos" acompanha a seleção (nome do plano ou "Planos").
+    let plan_label = if plan_filter == "all" {
+        "Planos".to_string()
+    } else {
+        let opts = ui.global::<AdminState>().get_company_plan_filter_options();
+        (0..opts.row_count())
+            .filter_map(|i| opts.row_data(i))
+            .find(|o| o.key.as_str() == plan_filter)
+            .map(|o| o.label.to_string())
+            .unwrap_or_else(|| "Planos".to_string())
+    };
+    ui.global::<AdminState>().set_company_plan_filter_label(plan_label.into());
+}
+
+/// Monta as opções do filtro "Planos" a partir dos planos CADASTRADOS
+/// (catálogo): "Todos" + um item por tipo de plano existente + "Sem plano".
+fn set_plan_filter_options(ui: &MainWindow, plans: &[PlanDto]) {
+    let mut opts: Vec<FilterOption> = vec![FilterOption {
+        key: "all".into(),
+        label: "Todos".into(),
+    }];
+    let mut seen: std::collections::HashSet<&str> = std::collections::HashSet::new();
+    for p in plans {
+        // period_months → tipo (mesmo mapeamento do core::PlanKind).
+        let kind = match p.period_months {
+            6 => "semestral",
+            12 => "annual",
+            _ => "monthly",
+        };
+        if seen.insert(kind) {
+            opts.push(FilterOption {
+                key: kind.into(),
+                label: p.name.clone().into(),
+            });
+        }
+    }
+    opts.push(FilterOption {
+        key: "none".into(),
+        label: "Sem plano".into(),
+    });
+    ui.global::<AdminState>()
+        .set_company_plan_filter_options(ModelRc::new(VecModel::from(opts)));
 }
 
 /// Aplica busca (nome da empresa) + filtro de status às assinaturas.
@@ -590,6 +633,10 @@ fn setup_refresh(
                     })
                     .collect();
                 ui.global::<AdminState>().set_plans(ModelRc::new(VecModel::from(plan_rows)));
+                // Opções do filtro "Planos" = planos cadastrados.
+                if let Ok(g) = plans_cache.lock() {
+                    set_plan_filter_options(&ui, &g);
+                }
 
                 let audit_rows: Vec<AdminAuditRow> = audit
                     .into_iter()

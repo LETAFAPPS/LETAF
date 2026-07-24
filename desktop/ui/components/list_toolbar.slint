@@ -104,15 +104,13 @@ export component ListFilterBtn inherits TouchArea {
     // Largura suficiente para o maior rótulo ("Suspensas") sem elidir.
     width: 128px;
     height: 32px;
-    // `popup.show()` não expõe estado; controlamos para realçar o botão.
-    property <bool> aberto: false;
-    clicked => { root.aberto = true; popup.show(); }
+    clicked => { popup.show(); }
 
-    // Mesmo comportamento visual da barra de busca: neutro em repouso e
-    // laranja (borda + ícone + texto) quando ativo — aqui "ativo" é o
-    // hover/abertura, já que o dropdown não recebe foco de teclado.
+    // Neutro em repouso; laranja no hover ou quando há filtro ativo. NÃO
+    // usamos estado de "aberto": esta versão do Slint não avisa quando o
+    // popup fecha por clique-fora, então o realce ficaria preso em laranja.
     property <bool> filtrando: root.selected != root.neutral-key;
-    property <bool> realcado: root.has-hover || root.aberto || root.filtrando;
+    property <bool> realcado: root.has-hover || root.filtrando;
 
     Rectangle {
         x: 0; y: 0;
@@ -141,8 +139,7 @@ export component ListFilterBtn inherits TouchArea {
                 overflow: elide;
             }
             Text {
-                // Seta acompanha o estado da lista (aberta = para cima).
-                text: root.aberto ? "▴" : "▾";
+                text: "▾";
                 font-size: 11px;
                 color: root.realcado ? Theme.btn-accent : Theme.text-secondary;
                 vertical-alignment: center;
@@ -167,7 +164,6 @@ export component ListFilterBtn inherits TouchArea {
                     height: 32px;
                     clicked => {
                         root.selected = o.key;
-                        root.aberto = false;
                         root.changed();
                     }
                     Rectangle {
