@@ -168,7 +168,7 @@ impl FromRequestParts<AppState> for AuthClaims {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::jwt::{Claims, ROLE_ADMIN, ROLE_EMPLOYEE};
+    use crate::jwt::{Claims, ROLE_ADMIN, ROLE_CUSTOMER, ROLE_EMPLOYEE, ROLE_SUPER_ADMIN};
     use uuid::Uuid;
 
     fn claims(role: &str, perms: &[&str]) -> AuthClaims {
@@ -180,6 +180,73 @@ mod tests {
             tv: 0,
             exp: 0,
         })
+    }
+
+    // ── Gate do painel do super admin (rotas /admin/*) ──────────────
+    // Toda rota do painel chama `require_super_admin` → `verify_role`.
+    // Estes testes travam a semântica desse gate: ele é a ÚNICA barreira
+    // entre um operador comum e dados cross-tenant (AI_RULES §11).
+
+    #[test]
+    fn painel_admin_recusa_admin_de_loja() {
+        // Admin é dono do SEU tenant, mas não da plataforma.
+        let dono = claims(ROLE_ADMIN, &[]);
+        assert!(dono.verify_role(ROLE_SUPER_ADMIN).is_err());
+    }
+
+    #[test]
+    fn painel_admin_recusa_funcionario_e_cliente() {
+        for role in [ROLE_EMPLOYEE, ROLE_CUSTOMER] {
+            let c = claims(role, &["orders.view"]);
+            assert!(
+                c.verify_role(ROLE_SUPER_ADMIN).is_err(),
+                "role {role} não pode acessar o painel"
+            );
+        }
+    }
+
+    #[test]
+    fn painel_admin_aceita_super_admin() {
+        let sa = claims(ROLE_SUPER_ADMIN, &[]);
+        assert!(sa.verify_role(ROLE_SUPER_ADMIN).is_ok());
+    }
+
+    #[test]
+    fn perms_nao_substituem_o_role_no_painel() {
+        // Um funcionário com TODAS as permissões de loja continua fora do
+        // painel: perms gateiam features do tenant, não a plataforma.
+        let poderoso = claims(
+            ROLE_EMPLOYEE,
+            &["orders.edit", "finance.edit", "collaborators.edit", "subscription.edit"],
+        );
+        assert!(poderoso.verify_role(ROLE_SUPER_ADMIN).is_err());
+    }
+
+    #[test]
+    fn gate_do_painel_e_cross_tenant_por_design() {
+        // `verify_role` NÃO olha company_id: o super admin age sobre
+        // qualquer empresa. É exceção documentada ao isolamento (§11) —
+        // se um dia passar a checar tenant, o painel para de funcionar.
+        let sa = claims(ROLE_SUPER_ADMIN, &[]);
+        let outra_empresa = Uuid::new_v4();
+        assert!(sa.verify_role(ROLE_SUPER_ADMIN).is_ok());
+        assert!(
+            sa.verify_company(outra_empresa).is_err(),
+            "verify_company continua isolando — o painel usa verify_role de propósito"
+        );
+    }
+
+    #[test]
+    fn perfil_aceita_operadores_mas_nao_cliente() {
+        // PUT /auth/profile usa verify_any_role com os 3 papéis de operador.
+        let operadores = [ROLE_ADMIN, ROLE_EMPLOYEE, ROLE_SUPER_ADMIN];
+        for role in operadores {
+            assert!(claims(role, &[]).verify_any_role(&operadores).is_ok());
+        }
+        assert!(
+            claims(ROLE_CUSTOMER, &[]).verify_any_role(&operadores).is_err(),
+            "cliente final tem perfil próprio, não o de operador"
+        );
     }
 
     #[test]

@@ -1138,3 +1138,47 @@ pub async fn ensure_platform_admin(state: &AppState) {
         Err(e) => tracing::error!("Falha ao consultar super admins: {e}"),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    /// Guard estrutural: TODO handler das rotas `/admin/*` precisa chamar
+    /// `require_super_admin`. Um handler novo sem o gate seria um furo
+    /// cross-tenant (§11) que passa despercebido em code review, então o
+    /// teste lê o próprio arquivo e cobra a chamada.
+    ///
+    /// Se um handler legitimamente não precisar do gate, adicione-o em
+    /// `SEM_GATE` com a justificativa — a exceção fica explícita.
+    #[test]
+    fn todo_handler_admin_exige_super_admin() {
+        /// Funções auxiliares (não são handlers de rota).
+        const SEM_GATE: &[&str] = &[
+            "audit",                 // helper de registro, chamado pelos handlers
+            "tenants",               // helper de listagem interna
+            "plan_usage",            // helper de contagem
+            "email_available",       // helper de validação
+            "ensure_platform_admin", // bootstrap no startup, sem requisição
+        ];
+
+        let src = include_str!("admin.rs");
+        // Corta o módulo de testes para não analisar a si mesmo.
+        let src = src.split("#[cfg(test)]").next().unwrap_or(src);
+
+        let mut faltando = Vec::new();
+        let marcas: Vec<usize> = src.match_indices("async fn ").map(|(i, _)| i).collect();
+        for (idx, &start) in marcas.iter().enumerate() {
+            let resto = &src[start + "async fn ".len()..];
+            let nome: String = resto.chars().take_while(|c| c.is_alphanumeric() || *c == '_').collect();
+            if SEM_GATE.contains(&nome.as_str()) {
+                continue;
+            }
+            let fim = marcas.get(idx + 1).copied().unwrap_or(src.len());
+            if !src[start..fim].contains("require_super_admin") {
+                faltando.push(nome);
+            }
+        }
+        assert!(
+            faltando.is_empty(),
+            "handlers /admin/* sem require_super_admin: {faltando:?}"
+        );
+    }
+}
