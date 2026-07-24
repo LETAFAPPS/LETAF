@@ -48,7 +48,13 @@ pub fn routes() -> Router<AppState> {
     Router::new()
         .route("/admin/overview", get(overview::overview))
         .route("/admin/companies", get(companies::list_companies).post(companies::create_company))
-        .route("/admin/companies/{id}", get(companies::company_detail).delete(companies::delete_company))
+        .route(
+            "/admin/companies/{id}",
+            get(companies::company_detail)
+                .put(companies::update_company)
+                .delete(companies::delete_company),
+        )
+        .route("/admin/companies/{id}/form", get(companies::company_form))
         .route("/admin/companies/{id}/active", put(companies::set_company_active))
         .route("/admin/subscriptions", get(subscriptions::list_subscriptions))
         .route("/admin/subscriptions/{company_id}", put(subscriptions::update_subscription))

@@ -305,6 +305,23 @@ impl AuthService {
         Ok(user)
     }
 
+    /// Define o telefone de um usuário (pelo e-mail no tenant). Usado no
+    /// cadastro de empresa para gravar o telefone do proprietário (admin).
+    pub async fn set_phone_by_email(
+        &self,
+        company_id: Uuid,
+        email: &str,
+        phone: Option<String>,
+    ) -> Result<(), CoreError> {
+        if let Some(mut u) = self.repo.find_by_email(company_id, email).await? {
+            u.phone = phone.filter(|p| !p.trim().is_empty());
+            u.base.updated_at = chrono::Utc::now().naive_utc();
+            u.base.synced = false;
+            self.repo.update(&u).await?;
+        }
+        Ok(())
+    }
+
     /// Autentica um usuário por email e senha.
     ///
     /// Retorna o usuário se as credenciais forem válidas.

@@ -102,6 +102,10 @@ pub struct User {
     /// Editável pelo próprio operador via `PUT /auth/profile`.
     #[serde(default)]
     pub avatar: Option<String>,
+    /// Telefone de contato do operador (proprietário/admin). `None` = sem
+    /// telefone. Exibido no painel do super admin.
+    #[serde(default)]
+    pub phone: Option<String>,
 }
 
 impl User {
@@ -120,6 +124,7 @@ impl User {
             role,
             job_role_id: None,
             avatar: None,
+            phone: None,
         }
     }
 }
@@ -144,6 +149,8 @@ pub struct SyncUserPayload {
     pub job_role_id: Option<Uuid>,
     #[serde(default)]
     pub avatar: Option<String>,
+    #[serde(default)]
+    pub phone: Option<String>,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
     pub deleted_at: Option<NaiveDateTime>,
@@ -161,6 +168,7 @@ impl From<&User> for SyncUserPayload {
             role: u.role,
             job_role_id: u.job_role_id,
             avatar: u.avatar.clone(),
+            phone: u.phone.clone(),
             created_at: u.base.created_at,
             updated_at: u.base.updated_at,
             deleted_at: u.base.deleted_at,
@@ -187,6 +195,7 @@ impl SyncUserPayload {
             role: self.role,
             job_role_id: self.job_role_id,
             avatar: self.avatar,
+            phone: self.phone,
         }
     }
 }

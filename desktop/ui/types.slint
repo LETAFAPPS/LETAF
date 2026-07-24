@@ -36,6 +36,14 @@ export struct AdminCompanyRow {
     plan: string,
     status: string,
     active: bool,
+    // Domínio público completo (ex.: "ebenezer.letaf.app").
+    domain: string,
+    city: string,
+    // Proprietário (admin inicial) e seu telefone.
+    owner: string,
+    owner-phone: string,
+    // Logo da empresa (thumbnail do card). Imagem vazia = sem logo.
+    logo: image,
 }
 
 export struct AdminInvoiceRow {

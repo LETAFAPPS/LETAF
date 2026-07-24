@@ -1610,6 +1610,7 @@ export component MainWindow inherits Window {
                     form-admin-name <=> AdminState.company-form-admin-name;
                     form-admin-email <=> AdminState.company-form-admin-email;
                     form-admin-password <=> AdminState.company-form-admin-password;
+                    form-admin-phone <=> AdminState.company-form-admin-phone;
                     form-phone <=> AdminState.company-form-phone;
                     form-whatsapp <=> AdminState.company-form-whatsapp;
                     form-email <=> AdminState.company-form-email;
@@ -1636,7 +1637,9 @@ export component MainWindow inherits Window {
                     field-error(r, v) => { AdminState.field-error(r, v) }
                     show-form <=> AdminState.company-show-form;
                     tentou-salvar <=> AdminState.company-form-attempted;
+                    editing <=> AdminState.company-editing;
                     new-company => { AdminState.company-new-form(); }
+                    edit-company(id) => { AdminState.company-edit(id); }
                     delete-company(id, name) => {
                         AdminState.del-company-id = id;
                         AdminState.del-company-name = name;

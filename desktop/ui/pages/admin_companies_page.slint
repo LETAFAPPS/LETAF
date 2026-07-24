@@ -13,13 +13,13 @@ import { EmptyState } from "../components/empty_state.slint";
 import { AssetIcon } from "../components/icons.slint";
 import { FormCard, ImagePicker } from "../components/form_card.slint";
 
-// Traduz o status da assinatura para rótulo + cor.
+// Status da assinatura: retângulo de pontas arredondadas (a pedido).
 component StatusBadge inherits Rectangle {
     in property <string> status;
     property <bool> active: root.status == "active";
     width: label.preferred-width + 20px;
     height: 22px;
-    border-radius: 11px;
+    border-radius: 6px;
     background: root.active ? #2E7D3222 : #9E9E9E22;
     label := Text {
         x: 10px;
@@ -30,14 +30,52 @@ component StatusBadge inherits Rectangle {
     }
 }
 
+// Interruptor liga/desliga: ativa (verde) / suspende (cinza) o tenant.
+component ToggleSwitch inherits TouchArea {
+    in property <bool> on;
+    width: 46px; height: 26px;
+    Rectangle {
+        width: parent.width; height: parent.height;
+        border-radius: self.height / 2;
+        background: root.on ? #2E7D32 : #BDBDBD;
+        animate background { duration: 120ms; }
+        Rectangle {
+            width: 20px; height: 20px; border-radius: 10px;
+            background: white;
+            x: root.on ? parent.width - self.width - 3px : 3px;
+            y: (parent.height - self.height) / 2;
+            animate x { duration: 120ms; }
+        }
+    }
+}
+
+// Botão de ação só-ícone (editar / excluir) do card.
+component IconActionBtn inherits TouchArea {
+    in property <image> icon;
+    in property <color> hover-color;
+    in property <color> hover-bg;
+    width: 30px; height: 30px;
+    Rectangle {
+        width: parent.width; height: parent.height;
+        border-radius: 6px;
+        background: root.has-hover ? root.hover-bg : transparent;
+        AssetIcon {
+            width: parent.width; height: parent.height; icon-size: 16px;
+            icon-color: root.has-hover ? root.hover-color : Theme.text-secondary;
+            source: root.icon;
+        }
+    }
+}
+
 // Card de UMA empresa na lista.
 component CompanyCard inherits Rectangle {
     in property <AdminCompanyRow> c;
     callback open-detail();
     callback toggle-active();
+    callback edit();
     callback remove();
 
-    height: 74px;
+    height: 92px;
     background: Theme.surface;
     border-radius: 10px;
     border-width: 1px;
@@ -47,10 +85,33 @@ component CompanyCard inherits Rectangle {
     drop-shadow-color: Theme.card-shadow;
 
     HorizontalLayout {
-        padding-left: 16px; padding-right: 16px;
+        padding-left: 14px; padding-right: 14px;
         spacing: 12px;
 
-        // Identificação (nome clicável → detalhe) + subdomínio.
+        // Logo da empresa: quadrada com pontas arredondadas, no início.
+        VerticalLayout {
+            alignment: center;
+            Rectangle {
+                width: 60px; height: 60px;
+                border-radius: 14px;
+                background: Theme.btn-accent.transparentize(0.88);
+                clip: true;
+                // Fallback: ícone de empresa quando não há logo (a Image
+                // por cima cobre quando houver logo).
+                AssetIcon {
+                    width: parent.width; height: parent.height; icon-size: 28px;
+                    icon-color: Theme.btn-accent;
+                    source: @image-url("../assets/icons/1.2/empresa.svg");
+                }
+                Image {
+                    source: root.c.logo;
+                    width: parent.width; height: parent.height;
+                    image-fit: cover;
+                }
+            }
+        }
+
+        // Identificação: nome (clicável → detalhe) + domínio completo.
         VerticalLayout {
             horizontal-stretch: 3;
             alignment: center;
@@ -85,12 +146,31 @@ component CompanyCard inherits Rectangle {
                 }
             }
             Text {
-                text: root.c.subdomain;
+                text: root.c.domain;
                 font-size: 12px; color: Theme.text-secondary; overflow: elide;
             }
         }
 
-        // Plano + status da assinatura.
+        // Cidade + proprietário + telefone do proprietário.
+        VerticalLayout {
+            horizontal-stretch: 3;
+            alignment: center;
+            spacing: 2px;
+            Text {
+                text: root.c.city == "" ? "—" : root.c.city;
+                font-size: 12.5px; font-weight: 600; color: Theme.text-primary; overflow: elide;
+            }
+            Text {
+                text: root.c.owner == "" ? "Sem proprietário" : root.c.owner;
+                font-size: 12px; color: Theme.text-secondary; overflow: elide;
+            }
+            Text {
+                text: root.c.owner-phone == "" ? "Sem telefone" : root.c.owner-phone;
+                font-size: 11.5px; color: Theme.text-secondary; overflow: elide;
+            }
+        }
+
+        // Plano + status da assinatura (badge centralizado com o texto).
         VerticalLayout {
             horizontal-stretch: 2;
             alignment: center;
@@ -100,64 +180,35 @@ component CompanyCard inherits Rectangle {
                     : (root.c.plan == "semestral" ? "Semestral"
                         : (root.c.plan == "annual" ? "Anual" : "Sem plano"));
                 font-size: 12.5px; color: Theme.text-primary;
+                horizontal-alignment: center;
             }
-            HorizontalLayout { alignment: start; StatusBadge { status: root.c.status; } }
+            HorizontalLayout { alignment: center; StatusBadge { status: root.c.status; } }
         }
 
-        // Data de criação.
-        VerticalLayout {
-            horizontal-stretch: 1;
-            alignment: center;
-            Text {
-                text: "criada em " + root.c.created-at;
-                font-size: 11.5px; color: Theme.text-secondary;
-                horizontal-alignment: right;
-            }
-        }
-
-        // Ações.
+        // Ações: liga/desliga, editar, excluir.
         VerticalLayout {
             alignment: center;
-            toggle-ta := TouchArea {
-                width: 104px; height: 30px;
+            ToggleSwitch {
+                on: root.c.active;
                 clicked => { root.toggle-active(); }
-                Rectangle {
-                    x: 0; y: 0; width: parent.width; height: parent.height;
-                    border-radius: 8px;
-                    border-width: 1.5px;
-                    border-color: root.c.active ? #E65100 : #2E7D32;
-                    background: toggle-ta.has-hover
-                        ? (root.c.active ? #E6510022 : #2E7D3222)
-                        : transparent;
-                    Text {
-                        text: root.c.active ? "Suspender" : "Reativar";
-                        font-size: 12px; font-weight: 700;
-                        color: root.c.active ? #E65100 : #2E7D32;
-                        horizontal-alignment: center; vertical-alignment: center;
-                        width: parent.width; height: parent.height;
-                    }
-                }
             }
         }
         VerticalLayout {
             alignment: center;
-            del-ta := TouchArea {
-                width: 30px; height: 30px;
+            IconActionBtn {
+                icon: @image-url("../assets/icons/1.2/editar.svg");
+                hover-color: Theme.btn-accent;
+                hover-bg: Theme.row-hover;
+                clicked => { root.edit(); }
+            }
+        }
+        VerticalLayout {
+            alignment: center;
+            IconActionBtn {
+                icon: @image-url("../assets/icons/1.2/lixeira.svg");
+                hover-color: Theme.danger;
+                hover-bg: #FFEBEE;
                 clicked => { root.remove(); }
-                Rectangle {
-                    x: 0; y: 0; width: parent.width; height: parent.height;
-                    border-radius: 6px;
-                    border-width: 1px;
-                    border-color: del-ta.has-hover ? Theme.danger : transparent;
-                    background: del-ta.has-hover ? #FFEBEE : transparent;
-                    Text {
-                        text: "\u{2715}";
-                        font-size: 13px;
-                        color: del-ta.has-hover ? Theme.danger : Theme.text-secondary;
-                        horizontal-alignment: center; vertical-alignment: center;
-                        width: parent.width; height: parent.height;
-                    }
-                }
             }
         }
     }
@@ -171,6 +222,7 @@ export component AdminCompaniesPage inherits VerticalLayout {
     in-out property <string> form-admin-name;
     in-out property <string> form-admin-email;
     in-out property <string> form-admin-password;
+    in-out property <string> form-admin-phone;
     in-out property <string> form-phone;
     in-out property <string> form-whatsapp;
     in-out property <string> form-email;
@@ -190,6 +242,11 @@ export component AdminCompaniesPage inherits VerticalLayout {
     callback save-company();
     callback pick-logo();
     callback pick-cover();
+    // Abre o cadastro em modo edição, pré-preenchido pelo Rust. (id)
+    callback edit-company(string);
+    // `true` = editando empresa existente (esconde o admin inicial e trava o
+    // subdomínio); `false` = criando. Ligado ao AdminState pelo main.slint.
+    in-out property <bool> editing: false;
     // Exclusão lógica de uma empresa (super admin). (id, nome)
     callback delete-company(string, string);
     // Suspender/reativar acesso do tenant. (id, novo-active)
@@ -233,15 +290,18 @@ export component AdminCompaniesPage inherits VerticalLayout {
     property <string> err-city: root.tentou-salvar ? root.field-error("required", root.form-city) : "";
     property <string> err-uf: root.tentou-salvar ? root.field-error("uf", root.form-uf) : "";
     property <string> err-company-email: root.tentou-salvar ? root.field-error("email-opt", root.form-email) : "";
-    property <string> err-admin-name: root.tentou-salvar ? root.field-error("required", root.form-admin-name) : "";
-    property <string> err-admin-email: root.tentou-salvar ? root.field-error("email", root.form-admin-email) : "";
-    property <string> err-admin-password: root.tentou-salvar ? root.field-error("password", root.form-admin-password) : "";
+    // Campos do admin inicial só valem na CRIAÇÃO (na edição não são exibidos).
+    property <string> err-admin-name: (root.tentou-salvar && !root.editing) ? root.field-error("required", root.form-admin-name) : "";
+    property <string> err-admin-email: (root.tentou-salvar && !root.editing) ? root.field-error("email", root.form-admin-email) : "";
+    property <string> err-admin-phone: (root.tentou-salvar && !root.editing) ? root.field-error("phone", root.form-admin-phone) : "";
+    property <string> err-admin-password: (root.tentou-salvar && !root.editing) ? root.field-error("password", root.form-admin-password) : "";
     property <bool> form-valido:
         root.err-name == "" && root.err-subdomain == "" && root.err-document == ""
         && root.err-discount == "" && root.err-phone == "" && root.err-whatsapp == ""
         && root.err-address == "" && root.err-neighborhood == "" && root.err-cep == ""
         && root.err-city == "" && root.err-uf == "" && root.err-company-email == ""
-        && root.err-admin-name == "" && root.err-admin-email == "" && root.err-admin-password == "";
+        && root.err-admin-name == "" && root.err-admin-email == ""
+        && root.err-admin-phone == "" && root.err-admin-password == "";
 
     spacing: 12px;
     // Sem `alignment: start` no root: cada estado (lista, vazio, cadastro)
@@ -255,7 +315,7 @@ export component AdminCompaniesPage inherits VerticalLayout {
         alignment: start;
         back-ta := TouchArea {
             width: 30px; height: 30px;
-            clicked => { root.show-form = false; root.tentou-salvar = false; }
+            clicked => { root.show-form = false; root.tentou-salvar = false; root.editing = false; }
             Rectangle {
                 x: 0; y: 0; width: parent.width; height: parent.height;
                 border-radius: 6px;
@@ -271,12 +331,14 @@ export component AdminCompaniesPage inherits VerticalLayout {
     VerticalLayout {
         spacing: 2px;
         Text {
-            text: root.show-form ? "Nova empresa" : "Empresas";
+            text: root.show-form ? (root.editing ? "Editar empresa" : "Nova empresa") : "Empresas";
             font-size: 20px; font-weight: 800; color: Theme.text-primary;
         }
         Text {
             text: root.show-form
-                ? "Cria a empresa, o administrador inicial e os dados do estabelecimento."
+                ? (root.editing
+                    ? "Atualiza os dados do estabelecimento."
+                    : "Cria a empresa, o administrador inicial e os dados do estabelecimento.")
                 : root.companies.length + " Empresas Cadastradas.";
             font-size: 13px; color: Theme.text-secondary;
         }
@@ -349,6 +411,7 @@ export component AdminCompaniesPage inherits VerticalLayout {
                 c: c;
                 open-detail => { root.open-detail(c.id); }
                 toggle-active => { root.set-company-active(c.id, !c.active); }
+                edit => { root.edit-company(c.id); }
                 remove => { root.delete-company(c.id, c.name); }
             }
         }
@@ -387,6 +450,8 @@ export component AdminCompaniesPage inherits VerticalLayout {
                             placeholder: "padaria-do-ze";
                             icon: @image-url("../assets/icons/1.2/link.svg");
                             error: root.err-subdomain;
+                            // Subdomínio é a identidade do tenant: imutável na edição.
+                            enabled: !root.editing;
                             edited(v) => { root.form-subdomain = root.mask-field("subdomain", v); }
                         }
                     }
@@ -540,8 +605,8 @@ export component AdminCompaniesPage inherits VerticalLayout {
                 }
             }
 
-            // ── Card: administrador inicial ──
-            FormCard {
+            // ── Card: administrador inicial (só na CRIAÇÃO) ──
+            if !root.editing: FormCard {
                 title: "Administrador inicial";
                 subtitle: "Quem vai acessar o sistema desta empresa.";
                 VerticalLayout {
@@ -558,12 +623,21 @@ export component AdminCompaniesPage inherits VerticalLayout {
                         }
                         FormField {
                             horizontal-stretch: 1;
-                            label: "E-mail";
-                            value <=> root.form-admin-email;
-                            placeholder: "email@dominio.com";
-                            icon: @image-url("../assets/icons/1.2/email.svg");
-                            error: root.err-admin-email;
+                            label: "Telefone do proprietário";
+                            value <=> root.form-admin-phone;
+                            placeholder: "(00) 00000-0000";
+                            icon: @image-url("../assets/icons/1.2/telefone.svg");
+                            error: root.err-admin-phone;
+                            force-end-cursor: true;
+                            edited(v) => { root.form-admin-phone = root.mask-field("phone", v); }
                         }
+                    }
+                    FormField {
+                        label: "E-mail";
+                        value <=> root.form-admin-email;
+                        placeholder: "email@dominio.com";
+                        icon: @image-url("../assets/icons/1.2/email.svg");
+                        error: root.err-admin-email;
                     }
                     PasswordField {
                         label: "Senha";
@@ -583,8 +657,8 @@ export component AdminCompaniesPage inherits VerticalLayout {
                 padding-bottom: 8px;
                 alignment: end;
                 ActionBtn {
-                    label: "Cadastrar";
-                    width: 140px; height: 40px;
+                    label: root.editing ? "Salvar alterações" : "Cadastrar";
+                    width: 160px; height: 40px;
                     clicked => {
                         root.tentou-salvar = true;
                         // Erros são só UX; o backend revalida (§11).

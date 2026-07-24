@@ -65,6 +65,7 @@ export global AdminState {
     in-out property <string> company-form-admin-name: "";
     in-out property <string> company-form-admin-email: "";
     in-out property <string> company-form-admin-password: "";
+    in-out property <string> company-form-admin-phone: "";
     in-out property <string> company-form-phone: "";
     in-out property <string> company-form-whatsapp: "";
     in-out property <string> company-form-email: "";
@@ -95,7 +96,12 @@ export global AdminState {
     // resetar após salvar (voltar à lista e limpar os erros).
     in-out property <bool> company-show-form: false;
     in-out property <bool> company-form-attempted: false;
+    // `true` = editando empresa existente (PUT); `false` = criando (POST).
+    in-out property <bool> company-editing: false;
+    // Id da empresa em edição (vazio na criação).
+    in-out property <string> company-edit-id: "";
     callback company-new-form();   // "+": abre um cadastro limpo
+    callback company-edit(string); // ícone de editar: abre o cadastro pré-preenchido
     in-out property <[AdminPlanRow]> plans: [];
     in-out property <string> plan-id: "";
     in-out property <string> plan-name: "";

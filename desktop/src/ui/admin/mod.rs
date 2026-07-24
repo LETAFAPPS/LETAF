@@ -47,6 +47,38 @@ struct CompanyDto {
     plan: String,
     status: String,
     active: bool,
+    #[serde(default)]
+    domain: String,
+    #[serde(default)]
+    city: String,
+    #[serde(default)]
+    owner: String,
+    #[serde(default)]
+    owner_phone: String,
+    /// Logo da empresa (base64) — decodificado para thumbnail no card.
+    #[serde(default)]
+    logo: String,
+}
+
+/// Dados brutos de uma empresa para pré-preencher o cadastro em edição
+/// (GET /admin/companies/{id}/form).
+#[derive(Deserialize)]
+struct CompanyFormDto {
+    id: String,
+    name: String,
+    subdomain: String,
+    document: String,
+    phone: String,
+    whatsapp: String,
+    email: String,
+    address: String,
+    neighborhood: String,
+    zip_code: String,
+    city: String,
+    uf: String,
+    logo_data: String,
+    cover_data: String,
+    discount: f64,
 }
 
 #[derive(Deserialize)]
@@ -179,6 +211,13 @@ fn apply_company_filter(ui: &MainWindow, cache: &CompaniesCache) {
             plan: c.plan.clone().into(),
             status: c.status.clone().into(),
             active: c.active,
+            domain: c.domain.clone().into(),
+            city: c.city.clone().into(),
+            owner: c.owner.clone().into(),
+            owner_phone: c.owner_phone.clone().into(),
+            logo: super::image::decode_pixel_buffer(&c.logo)
+                .map(slint::Image::from_rgba8)
+                .unwrap_or_default(),
         })
         .collect();
     ui.global::<AdminState>().set_companies(ModelRc::new(VecModel::from(rows)));
@@ -945,20 +984,34 @@ fn setup_company_persist(
     let handle = handle.clone();
     let auth_token = auth_token.clone();
     let server_url = server_url.to_string();
+    // Clones dedicados ao handler de edição (o de salvar consome os de cima).
+    let handle_edit = handle.clone();
+    let auth_token_edit = auth_token.clone();
+    let server_url_edit = server_url.clone();
     ui.global::<AdminState>().on_save_company(move || {
         let Some(ui) = ui_weak.upgrade() else { return };
         let name = ui.global::<AdminState>().get_company_form_name().trim().to_string();
         let subdomain = ui.global::<AdminState>().get_company_form_subdomain().trim().to_lowercase();
+        let editing = ui.global::<AdminState>().get_company_editing();
+        let edit_id = ui.global::<AdminState>().get_company_edit_id().to_string();
         let admin_name = ui.global::<AdminState>().get_company_form_admin_name().trim().to_string();
         let admin_email = ui.global::<AdminState>().get_company_form_admin_email().trim().to_string();
         let admin_password = ui.global::<AdminState>().get_company_form_admin_password().to_string();
-        if name.is_empty() || subdomain.is_empty() || admin_name.is_empty() || admin_email.is_empty() {
-            show_toast(&ui, "Preencha empresa, subdomínio, nome e e-mail do admin", "error");
-            return;
-        }
-        if admin_password.trim().is_empty() {
-            show_toast(&ui, "Defina uma senha para o administrador", "error");
-            return;
+        if editing {
+            // Na edição não mexemos no admin inicial nem no subdomínio.
+            if name.is_empty() {
+                show_toast(&ui, "Informe o nome da empresa", "error");
+                return;
+            }
+        } else {
+            if name.is_empty() || subdomain.is_empty() || admin_name.is_empty() || admin_email.is_empty() {
+                show_toast(&ui, "Preencha empresa, subdomínio, nome e e-mail do admin", "error");
+                return;
+            }
+            if admin_password.trim().is_empty() {
+                show_toast(&ui, "Defina uma senha para o administrador", "error");
+                return;
+            }
         }
         let discount = parse_money_br(&ui.global::<AdminState>().get_company_form_discount());
         let body = serde_json::json!({
@@ -967,6 +1020,7 @@ fn setup_company_persist(
             "admin_name": admin_name,
             "admin_email": admin_email,
             "admin_password": admin_password,
+            "admin_phone": ui.global::<AdminState>().get_company_form_admin_phone().trim(),
             "phone": ui.global::<AdminState>().get_company_form_phone().trim(),
             "whatsapp": ui.global::<AdminState>().get_company_form_whatsapp().trim(),
             "email": ui.global::<AdminState>().get_company_form_email().trim(),
@@ -985,21 +1039,29 @@ fn setup_company_persist(
         let server_url = server_url.clone();
         handle.spawn(async move {
             let Some(token) = auth_token.read().await.clone() else { return };
-            let result = HTTP_CLIENT
-                .post(format!("{server_url}/admin/companies"))
-                .bearer_auth(&token)
-                .json(&body)
-                .send()
-                .await;
+            // Edição → PUT no id; criação → POST. Campos extras do body
+            // (admin_*) são ignorados pelo handler de update.
+            let req = if editing {
+                HTTP_CLIENT.put(format!("{server_url}/admin/companies/{edit_id}"))
+            } else {
+                HTTP_CLIENT.post(format!("{server_url}/admin/companies"))
+            };
+            let result = req.bearer_auth(&token).json(&body).send().await;
             let outcome = write_outcome(result).await;
             let _ = slint::invoke_from_event_loop(move || {
                 let Some(ui) = ui_weak.upgrade() else { return };
                 match outcome {
                     Ok(()) => {
-                        show_toast(&ui, "Estabelecimento Cadastrado", "success");
+                        show_toast(
+                            &ui,
+                            if editing { "Alterações salvas" } else { "Estabelecimento Cadastrado" },
+                            "success",
+                        );
                         clear_company_form(&ui);
-                        // Volta à lista e limpa os erros (senão o formulário
-                        // fica todo vermelho com os campos já zerados).
+                        // Volta à lista e limpa os erros/modo edição (senão o
+                        // formulário fica todo vermelho com os campos zerados).
+                        ui.global::<AdminState>().set_company_editing(false);
+                        ui.global::<AdminState>().set_company_edit_id(SharedString::new());
                         ui.global::<AdminState>().set_company_form_attempted(false);
                         ui.global::<AdminState>().set_company_show_form(false);
                         ui.global::<AdminState>().invoke_refresh();
@@ -1017,10 +1079,89 @@ fn setup_company_persist(
         ui.global::<AdminState>().on_company_new_form(move || {
             let Some(ui) = ui_weak.upgrade() else { return };
             clear_company_form(&ui);
+            ui.global::<AdminState>().set_company_editing(false);
+            ui.global::<AdminState>().set_company_edit_id(SharedString::new());
             ui.global::<AdminState>().set_company_form_attempted(false);
             ui.global::<AdminState>().set_company_show_form(true);
         });
     }
+
+    // Ícone de editar: carrega os dados da empresa (GET .../form) e abre o
+    // cadastro em modo edição (PUT no save).
+    {
+        let ui_weak = ui.as_weak();
+        ui.global::<AdminState>().on_company_edit(move |id| {
+            let id = id.to_string();
+            let ui_weak = ui_weak.clone();
+            let auth_token = auth_token_edit.clone();
+            let server_url = server_url_edit.clone();
+            handle_edit.spawn(async move {
+                let Some(token) = auth_token.read().await.clone() else { return };
+                let resp = HTTP_CLIENT
+                    .get(format!("{server_url}/admin/companies/{id}/form"))
+                    .bearer_auth(&token)
+                    .send()
+                    .await;
+                let form: Option<CompanyFormDto> = match resp {
+                    Ok(r) if r.status().is_success() => r.json().await.ok(),
+                    _ => None,
+                };
+                let _ = slint::invoke_from_event_loop(move || {
+                    let Some(ui) = ui_weak.upgrade() else { return };
+                    match form {
+                        Some(f) => fill_company_form(&ui, &f),
+                        None => show_toast(&ui, "Não foi possível carregar a empresa", "error"),
+                    }
+                });
+            });
+        });
+    }
+}
+
+/// Preenche o formulário com os dados de uma empresa e entra em modo edição.
+fn fill_company_form(ui: &MainWindow, f: &CompanyFormDto) {
+    let g = ui.global::<AdminState>();
+    g.set_company_form_name(f.name.clone().into());
+    g.set_company_form_subdomain(f.subdomain.clone().into());
+    g.set_company_form_document(f.document.clone().into());
+    g.set_company_form_phone(f.phone.clone().into());
+    g.set_company_form_whatsapp(f.whatsapp.clone().into());
+    g.set_company_form_email(f.email.clone().into());
+    g.set_company_form_address(f.address.clone().into());
+    g.set_company_form_neighborhood(f.neighborhood.clone().into());
+    g.set_company_form_zip(f.zip_code.clone().into());
+    g.set_company_form_city(f.city.clone().into());
+    g.set_company_form_uf(f.uf.clone().into());
+    // Desconto (R$/mês) em pt-BR; 0 fica vazio (mostra o placeholder).
+    let discount = if f.discount > 0.0 {
+        format!("{:.2}", f.discount).replace('.', ",")
+    } else {
+        String::new()
+    };
+    g.set_company_form_discount(discount.into());
+    // Imagens (logo/capa) — decodifica o base64 para preview.
+    g.set_company_form_logo_data(f.logo_data.clone().into());
+    g.set_company_form_logo_image(
+        super::image::decode_pixel_buffer(&f.logo_data)
+            .map(slint::Image::from_rgba8)
+            .unwrap_or_default(),
+    );
+    g.set_company_form_cover_data(f.cover_data.clone().into());
+    g.set_company_form_cover_image(
+        super::image::decode_pixel_buffer(&f.cover_data)
+            .map(slint::Image::from_rgba8)
+            .unwrap_or_default(),
+    );
+    // O admin inicial não é editado por aqui.
+    g.set_company_form_admin_name(SharedString::new());
+    g.set_company_form_admin_email(SharedString::new());
+    g.set_company_form_admin_password(SharedString::new());
+    g.set_company_form_admin_phone(SharedString::new());
+    // Entra em modo edição, formulário limpo de erros.
+    g.set_company_editing(true);
+    g.set_company_edit_id(f.id.clone().into());
+    g.set_company_form_attempted(false);
+    g.set_company_show_form(true);
 }
 
 /// Converte um valor monetário digitado (pt-BR ou simples) em `f64`.
@@ -1042,6 +1183,7 @@ fn clear_company_form(ui: &MainWindow) {
     ui.global::<AdminState>().set_company_form_admin_name(SharedString::new());
     ui.global::<AdminState>().set_company_form_admin_email(SharedString::new());
     ui.global::<AdminState>().set_company_form_admin_password(SharedString::new());
+    ui.global::<AdminState>().set_company_form_admin_phone(SharedString::new());
     ui.global::<AdminState>().set_company_form_phone(SharedString::new());
     ui.global::<AdminState>().set_company_form_whatsapp(SharedString::new());
     ui.global::<AdminState>().set_company_form_email(SharedString::new());
