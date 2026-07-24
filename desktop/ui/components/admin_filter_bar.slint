@@ -44,7 +44,8 @@ export component AdminSearchBox inherits Rectangle {
         x: 10px;
         y: (parent.height - 14px) / 2;
         icon-size: 14px;
-        icon-color: Theme.text-secondary;
+        // Focado: ícone acompanha a borda na cor de destaque.
+        icon-color: input.has-focus ? Theme.btn-accent : Theme.text-secondary;
     }
     input := TextInput {
         x: 32px;
@@ -65,5 +66,118 @@ export component AdminSearchBox inherits Rectangle {
         font-size: 13px;
         color: Theme.text-secondary;
         vertical-alignment: center;
+    }
+}
+
+// Opção de um dropdown de filtro (chave + rótulo).
+export struct FilterOption {
+    key: string,
+    label: string,
+}
+
+// Botão de filtro com LISTA suspensa (substitui a fileira de chips quando
+// há muitas opções). Estilo tênue de ação, igual ao filtro do Dashboard.
+export component FilterDropdown inherits TouchArea {
+    in property <[FilterOption]> options;
+    in-out property <string> selected: "all";
+    callback changed();
+
+    /// Rótulo exibido no botão. O chamador informa (ele já define as
+    /// opções) — o Slint não permite percorrer lista em expressão.
+    in property <string> label: "Filtrar";
+
+    width: 148px;
+    height: 32px;
+    clicked => { popup.show(); }
+
+    Rectangle {
+        x: 0; y: 0;
+        width: parent.width; height: parent.height;
+        border-radius: 8px;
+        border-width: 1.5px;
+        border-color: Theme.btn-accent;
+        background: root.has-hover
+            ? Theme.btn-accent.transparentize(0.80)
+            : Theme.btn-accent.transparentize(0.90);
+        HorizontalLayout {
+            padding-left: 12px; padding-right: 10px;
+            spacing: 6px;
+            Text {
+                text: root.label;
+                horizontal-stretch: 1;
+                font-size: 12.5px; font-weight: 700;
+                color: Theme.btn-accent;
+                vertical-alignment: center;
+                overflow: elide;
+            }
+            Text {
+                text: "▾";
+                font-size: 11px; color: Theme.btn-accent;
+                vertical-alignment: center;
+            }
+        }
+    }
+
+    popup := PopupWindow {
+        x: 0; y: 36px;
+        width: root.width;
+        Rectangle {
+            background: Theme.surface;
+            border-radius: 8px;
+            border-width: 1px;
+            border-color: Theme.card-border;
+            drop-shadow-blur: 12px;
+            drop-shadow-color: #00000030;
+            VerticalLayout {
+                padding: 4px;
+                for o in root.options: opt := TouchArea {
+                    height: 32px;
+                    clicked => {
+                        root.selected = o.key;
+                        root.changed();
+                    }
+                    Rectangle {
+                        x: 0; y: 0;
+                        width: parent.width; height: parent.height;
+                        border-radius: 6px;
+                        background: root.selected == o.key
+                            ? Theme.btn-accent.transparentize(0.90)
+                            : (opt.has-hover ? Theme.row-hover : transparent);
+                        HorizontalLayout {
+                            padding-left: 10px; padding-right: 10px;
+                            Text {
+                                text: o.label;
+                                font-size: 12.5px;
+                                font-weight: root.selected == o.key ? 700 : 500;
+                                color: root.selected == o.key ? Theme.btn-accent : Theme.text-primary;
+                                vertical-alignment: center;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// Botão "+" quadrado (abrir cadastro), no estilo tênue de ação.
+export component AddSquareBtn inherits TouchArea {
+    width: 32px;
+    height: 32px;
+    Rectangle {
+        x: 0; y: 0;
+        width: parent.width; height: parent.height;
+        border-radius: 8px;
+        border-width: 1.5px;
+        border-color: Theme.btn-accent;
+        background: root.has-hover
+            ? Theme.btn-accent.transparentize(0.80)
+            : Theme.btn-accent.transparentize(0.90);
+        Text {
+            text: "+";
+            font-size: 18px; font-weight: 700; color: Theme.btn-accent;
+            horizontal-alignment: center; vertical-alignment: center;
+            width: parent.width; height: parent.height;
+        }
     }
 }

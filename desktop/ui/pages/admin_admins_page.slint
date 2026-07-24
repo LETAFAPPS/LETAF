@@ -18,6 +18,7 @@ export component AdminAdminsPage inherits VerticalLayout {
     callback save-user(string, string, string, string);
     callback delete-user(string);
     spacing: 12px;
+    alignment: start;
 
     Text {
         text: "Administradores";
@@ -44,6 +45,7 @@ export component AdminAdminsPage inherits VerticalLayout {
             drop-shadow-color: Theme.card-shadow;
             VerticalLayout {
                 padding: 8px;
+                alignment: start;
                 if root.users.length == 0: EmptyState {
                     source: @image-url("../assets/empty/virtual-assistant.svg");
                     title: "Nenhum administrador";

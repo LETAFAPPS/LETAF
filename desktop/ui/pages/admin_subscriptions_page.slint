@@ -13,6 +13,7 @@ export component AdminSubscriptionsPage inherits VerticalLayout {
     in-out property <string> filter: "all";
     callback filters-changed();
     spacing: 12px;
+    alignment: start;
 
     Text {
         text: "Assinaturas & planos";
@@ -66,6 +67,7 @@ export component AdminSubscriptionsPage inherits VerticalLayout {
         drop-shadow-color: Theme.card-shadow;
         VerticalLayout {
             padding: 8px;
+            alignment: start;   // linhas logo abaixo do cabeçalho
             HorizontalLayout {
                 padding: 10px;
                 spacing: 12px;
