@@ -2,7 +2,7 @@
 // UI sem lógica (§1/§3): só coleta o texto/opção e avisa via `changed()`;
 // a filtragem acontece no Rust sobre a lista completa em cache.
 import { Theme } from "../theme.slint";
-import { SearchIcon } from "icons.slint";
+import { AssetIcon, SearchIcon } from "icons.slint";
 
 // Chip selecionável (estilo tênue quando ativo — padrão do sistema).
 export component FilterChipSm inherits TouchArea {
@@ -88,31 +88,45 @@ export component FilterDropdown inherits TouchArea {
 
     width: 148px;
     height: 32px;
-    clicked => { popup.show(); }
+    // `popup.show()` não expõe estado; controlamos para realçar o botão.
+    property <bool> aberto: false;
+    clicked => { root.aberto = true; popup.show(); }
+
+    // Mesmo comportamento visual da barra de busca: neutro em repouso e
+    // laranja (borda + ícone + texto) quando ativo — aqui "ativo" é o
+    // hover/abertura, já que o dropdown não recebe foco de teclado.
+    property <bool> realcado: root.has-hover || root.aberto;
 
     Rectangle {
         x: 0; y: 0;
         width: parent.width; height: parent.height;
         border-radius: 8px;
-        border-width: 1.5px;
-        border-color: Theme.btn-accent;
-        background: root.has-hover
-            ? Theme.btn-accent.transparentize(0.80)
-            : Theme.btn-accent.transparentize(0.90);
+        border-width: 1px;
+        border-color: root.realcado ? Theme.btn-accent : Theme.border;
+        background: Theme.surface;
         HorizontalLayout {
-            padding-left: 12px; padding-right: 10px;
-            spacing: 6px;
+            padding-left: 10px; padding-right: 10px;
+            spacing: 8px;
+            VerticalLayout {
+                alignment: center;
+                AssetIcon {
+                    width: 14px; height: 14px; icon-size: 14px;
+                    icon-color: root.realcado ? Theme.btn-accent : Theme.text-secondary;
+                    source: @image-url("../assets/icons/1.2/filtro.svg");
+                }
+            }
             Text {
                 text: root.label;
                 horizontal-stretch: 1;
-                font-size: 12.5px; font-weight: 700;
-                color: Theme.btn-accent;
+                font-size: 12.5px; font-weight: 600;
+                color: root.realcado ? Theme.btn-accent : Theme.text-primary;
                 vertical-alignment: center;
                 overflow: elide;
             }
             Text {
                 text: "▾";
-                font-size: 11px; color: Theme.btn-accent;
+                font-size: 11px;
+                color: root.realcado ? Theme.btn-accent : Theme.text-secondary;
                 vertical-alignment: center;
             }
         }
@@ -120,6 +134,7 @@ export component FilterDropdown inherits TouchArea {
 
     popup := PopupWindow {
         x: 0; y: 36px;
+        close-policy: close-on-click-outside;
         width: root.width;
         Rectangle {
             background: Theme.surface;
@@ -134,6 +149,7 @@ export component FilterDropdown inherits TouchArea {
                     height: 32px;
                     clicked => {
                         root.selected = o.key;
+                        root.aberto = false;
                         root.changed();
                     }
                     Rectangle {
@@ -168,16 +184,16 @@ export component AddSquareBtn inherits TouchArea {
         x: 0; y: 0;
         width: parent.width; height: parent.height;
         border-radius: 8px;
-        border-width: 1.5px;
-        border-color: Theme.btn-accent;
-        background: root.has-hover
-            ? Theme.btn-accent.transparentize(0.80)
-            : Theme.btn-accent.transparentize(0.90);
-        Text {
-            text: "+";
-            font-size: 18px; font-weight: 700; color: Theme.btn-accent;
-            horizontal-alignment: center; vertical-alignment: center;
-            width: parent.width; height: parent.height;
+        border-width: 1px;
+        border-color: root.has-hover ? Theme.btn-accent : Theme.border;
+        background: Theme.surface;
+        // AssetIcon preenche o botão e centraliza o glifo geometricamente
+        // — mais confiável que centralizar um Text de "+" (a caixa da fonte
+        // não é simétrica e o sinal fica deslocado).
+        AssetIcon {
+            width: parent.width; height: parent.height; icon-size: 14px;
+            icon-color: root.has-hover ? Theme.btn-accent : Theme.text-secondary;
+            source: @image-url("../assets/icons/1.2/adicionar.svg");
         }
     }
 }
