@@ -211,27 +211,34 @@ export component AdminCompaniesPage inherits VerticalLayout {
     // para o formulário não nascer todo vermelho.
     property <bool> tentou-salvar: false;
 
-    // ── Verificação dos campos ──
-    // Apenas FEEDBACK IMEDIATO de UX (§11): o backend revalida tudo
-    // (unicidade de subdomínio/e-mail, formato) e é quem tem autoridade.
-    property <string> err-name:
-        (root.tentou-salvar && root.form-name == "") ? "Informe o nome da empresa." : "";
-    property <string> err-subdomain:
-        !root.tentou-salvar ? ""
-        : (root.form-subdomain == "" ? "Informe o subdomínio."
-            : (root.form-subdomain.character-count < 3 ? "Use ao menos 3 caracteres." : ""));
-    property <string> err-admin-name:
-        (root.tentou-salvar && root.form-admin-name == "") ? "Informe o nome do administrador." : "";
-    property <string> err-admin-email:
-        !root.tentou-salvar ? ""
-        : (root.form-admin-email == "" ? "Informe o e-mail do administrador." : "");
-    property <string> err-admin-password:
-        !root.tentou-salvar ? ""
-        : (root.form-admin-password.character-count < 8
-            ? "A senha precisa de ao menos 8 caracteres." : "");
+    // Máscara e verificação vêm do Rust (feedback de UX; §11 — backend é a
+    // autoridade). O main.slint encaminha ao AdminState; puras para poderem
+    // aparecer em expressões de propriedade.
+    pure callback mask-field(string, string) -> string;   // (kind, valor)
+    pure callback field-error(string, string) -> string;  // (regra, valor)
+
+    // ── Verificação dos campos (erros só após a 1ª tentativa de salvar) ──
+    property <string> err-name: root.tentou-salvar ? root.field-error("required", root.form-name) : "";
+    property <string> err-subdomain: root.tentou-salvar ? root.field-error("subdomain", root.form-subdomain) : "";
+    property <string> err-document: root.tentou-salvar ? root.field-error("document", root.form-document) : "";
+    property <string> err-discount: root.tentou-salvar ? root.field-error("money", root.form-discount) : "";
+    property <string> err-phone: root.tentou-salvar ? root.field-error("phone", root.form-phone) : "";
+    property <string> err-whatsapp: root.tentou-salvar ? root.field-error("phone", root.form-whatsapp) : "";
+    property <string> err-address: root.tentou-salvar ? root.field-error("required", root.form-address) : "";
+    property <string> err-neighborhood: root.tentou-salvar ? root.field-error("required", root.form-neighborhood) : "";
+    property <string> err-cep: root.tentou-salvar ? root.field-error("cep", root.form-zip) : "";
+    property <string> err-city: root.tentou-salvar ? root.field-error("required", root.form-city) : "";
+    property <string> err-uf: root.tentou-salvar ? root.field-error("uf", root.form-uf) : "";
+    property <string> err-company-email: root.tentou-salvar ? root.field-error("email-opt", root.form-email) : "";
+    property <string> err-admin-name: root.tentou-salvar ? root.field-error("required", root.form-admin-name) : "";
+    property <string> err-admin-email: root.tentou-salvar ? root.field-error("email", root.form-admin-email) : "";
+    property <string> err-admin-password: root.tentou-salvar ? root.field-error("password", root.form-admin-password) : "";
     property <bool> form-valido:
-        root.err-name == "" && root.err-subdomain == "" && root.err-admin-name == ""
-        && root.err-admin-email == "" && root.err-admin-password == "";
+        root.err-name == "" && root.err-subdomain == "" && root.err-document == ""
+        && root.err-discount == "" && root.err-phone == "" && root.err-whatsapp == ""
+        && root.err-address == "" && root.err-neighborhood == "" && root.err-cep == ""
+        && root.err-city == "" && root.err-uf == "" && root.err-company-email == ""
+        && root.err-admin-name == "" && root.err-admin-email == "" && root.err-admin-password == "";
 
     spacing: 12px;
     alignment: start;
@@ -375,6 +382,7 @@ export component AdminCompaniesPage inherits VerticalLayout {
                             placeholder: "padaria-do-ze";
                             icon: @image-url("../assets/icons/1.2/link.svg");
                             error: root.err-subdomain;
+                            edited(v) => { root.form-subdomain = root.mask-field("subdomain", v); }
                         }
                     }
                     HorizontalLayout {
@@ -385,6 +393,9 @@ export component AdminCompaniesPage inherits VerticalLayout {
                             value <=> root.form-document;
                             placeholder: "Somente números";
                             icon: @image-url("../assets/icons/1.2/arquivo.svg");
+                            error: root.err-document;
+                            force-end-cursor: true;
+                            edited(v) => { root.form-document = root.mask-field("document", v); }
                         }
                         FormField {
                             horizontal-stretch: 1;
@@ -392,6 +403,9 @@ export component AdminCompaniesPage inherits VerticalLayout {
                             value <=> root.form-discount;
                             placeholder: "0,00 — abatido do plano";
                             icon: @image-url("../assets/icons/1.2/pay-moeda.svg");
+                            error: root.err-discount;
+                            force-end-cursor: true;
+                            edited(v) => { root.form-discount = root.mask-field("money", v); }
                         }
                     }
                 }
@@ -438,6 +452,9 @@ export component AdminCompaniesPage inherits VerticalLayout {
                             value <=> root.form-phone;
                             placeholder: "(00) 0000-0000";
                             icon: @image-url("../assets/icons/1.2/telefone.svg");
+                            error: root.err-phone;
+                            force-end-cursor: true;
+                            edited(v) => { root.form-phone = root.mask-field("phone", v); }
                         }
                         FormField {
                             horizontal-stretch: 1;
@@ -445,6 +462,9 @@ export component AdminCompaniesPage inherits VerticalLayout {
                             value <=> root.form-whatsapp;
                             placeholder: "(00) 00000-0000";
                             icon: @image-url("../assets/icons/1.2/social-whatsapp.svg");
+                            error: root.err-whatsapp;
+                            force-end-cursor: true;
+                            edited(v) => { root.form-whatsapp = root.mask-field("phone", v); }
                         }
                     }
                     FormField {
@@ -452,6 +472,7 @@ export component AdminCompaniesPage inherits VerticalLayout {
                         value <=> root.form-email;
                         placeholder: "contato@empresa.com";
                         icon: @image-url("../assets/icons/1.2/email.svg");
+                        error: root.err-company-email;
                     }
                 }
             }
@@ -466,6 +487,7 @@ export component AdminCompaniesPage inherits VerticalLayout {
                         value <=> root.form-address;
                         placeholder: "Rua e número";
                         icon: @image-url("../assets/icons/1.2/marcador.svg");
+                        error: root.err-address;
                     }
                     HorizontalLayout {
                         spacing: 10px;
@@ -475,6 +497,7 @@ export component AdminCompaniesPage inherits VerticalLayout {
                             value <=> root.form-neighborhood;
                             placeholder: "Bairro";
                             icon: @image-url("../assets/icons/1.2/marcador.svg");
+                            error: root.err-neighborhood;
                         }
                         FormField {
                             horizontal-stretch: 1;
@@ -482,9 +505,13 @@ export component AdminCompaniesPage inherits VerticalLayout {
                             value <=> root.form-zip;
                             placeholder: "00000-000";
                             icon: @image-url("../assets/icons/1.2/marcador.svg");
-                            // Ao completar o CEP, o Rust consulta e preenche
-                            // cidade/UF (a busca não vive na UI — §1/§3).
-                            edited(v) => { root.cep-changed(v); }
+                            error: root.err-cep;
+                            force-end-cursor: true;
+                            // Máscara + consulta de CEP (cidade/UF) no Rust (§1/§3).
+                            edited(v) => {
+                                root.form-zip = root.mask-field("cep", v);
+                                root.cep-changed(root.form-zip);
+                            }
                         }
                     }
                     HorizontalLayout {
@@ -495,12 +522,14 @@ export component AdminCompaniesPage inherits VerticalLayout {
                             value <=> root.form-city;
                             placeholder: root.cep-loading ? "Buscando…" : "Cidade";
                             icon: @image-url("../assets/icons/1.2/marcador.svg");
+                            error: root.err-city;
                         }
                         FormField {
                             horizontal-stretch: 1;
                             label: "UF";
                             value <=> root.form-uf;
                             placeholder: "SP";
+                            error: root.err-uf;
                         }
                     }
                 }

@@ -178,9 +178,165 @@ pub fn format_zip_code(raw: &str) -> String {
     }
 }
 
+/// Máscara de valor monetário a partir dos DÍGITOS (tratados como centavos).
+///
+/// "5" → "0,05" · "500" → "5,00" · "123456" → "1.234,56". Vazio → "".
+/// Usada nos campos de dinheiro do cadastro — não deixa digitar não-dígito.
+pub fn format_money_input(raw: &str) -> String {
+    let digits: String = raw.chars().filter(|c| c.is_ascii_digit()).collect();
+    let cents: u64 = digits.trim_start_matches('0').parse().unwrap_or(0);
+    if digits.is_empty() {
+        return String::new();
+    }
+    let reais = cents / 100;
+    let cent = cents % 100;
+    // Milhar com ponto.
+    let r = reais.to_string();
+    let mut grupos = String::new();
+    let chars: Vec<char> = r.chars().collect();
+    for (i, c) in chars.iter().enumerate() {
+        if i > 0 && (chars.len() - i).is_multiple_of(3) {
+            grupos.push('.');
+        }
+        grupos.push(*c);
+    }
+    format!("{grupos},{cent:02}")
+}
+
+/// Sanitiza o subdomínio conforme digitado: minúsculas, espaço vira `-` e
+/// só sobram letras/números/hífen (mesma regra que o backend valida).
+pub fn sanitize_subdomain(raw: &str) -> String {
+    raw.to_lowercase()
+        .chars()
+        .map(|c| if c == ' ' { '-' } else { c })
+        .filter(|c| c.is_ascii_alphanumeric() || *c == '-')
+        .collect()
+}
+
+/// `true` se parece um e-mail: tem `@`, e o domínio (após o `@`) tem um
+/// ponto com algo antes e depois. Feedback de UX — o backend é a autoridade.
+pub fn is_valid_email(s: &str) -> bool {
+    let s = s.trim();
+    let Some((user, domain)) = s.split_once('@') else {
+        return false;
+    };
+    if user.is_empty() || s.matches('@').count() != 1 {
+        return false;
+    }
+    match domain.rsplit_once('.') {
+        Some((antes, tld)) => !antes.is_empty() && tld.len() >= 2,
+        None => false,
+    }
+}
+
+/// `true` se a senha é forte: ≥8 chars com minúscula, maiúscula, dígito e
+/// caractere especial (não alfanumérico).
+pub fn is_strong_password(s: &str) -> bool {
+    s.chars().count() >= 8
+        && s.chars().any(|c| c.is_ascii_lowercase())
+        && s.chars().any(|c| c.is_ascii_uppercase())
+        && s.chars().any(|c| c.is_ascii_digit())
+        && s.chars().any(|c| !c.is_alphanumeric())
+}
+
+/// Mensagem de erro de um campo do cadastro (vazia = ok). Centraliza a
+/// verificação — a UI só decide QUANDO mostrar. É feedback de UX; o
+/// backend revalida tudo e continua sendo a autoridade (§11).
+pub fn field_error(rule: &str, value: &str) -> String {
+    let v = value.trim();
+    let digits = value.chars().filter(|c| c.is_ascii_digit()).count();
+    let msg = |m: &str| m.to_string();
+    match rule {
+        "required" => if v.is_empty() { msg("Campo obrigatório.") } else { String::new() },
+        "subdomain" => {
+            if v.is_empty() { msg("Informe o subdomínio.") }
+            else if sanitize_subdomain(v).chars().count() < 3 { msg("Use ao menos 3 caracteres.") }
+            else { String::new() }
+        }
+        "document" => match digits {
+            0 => msg("Campo obrigatório."),
+            11 | 14 => String::new(),
+            _ => msg("Informe um CPF (11) ou CNPJ (14 dígitos)."),
+        },
+        "phone" => match digits {
+            0 => msg("Campo obrigatório."),
+            10 | 11 => String::new(),
+            _ => msg("Telefone incompleto."),
+        },
+        "cep" => match digits {
+            0 => msg("Campo obrigatório."),
+            8 => String::new(),
+            _ => msg("O CEP deve ter 8 dígitos."),
+        },
+        "money" => if v.is_empty() { msg("Campo obrigatório.") } else { String::new() },
+        "uf" => {
+            if v.is_empty() { msg("Campo obrigatório.") }
+            else if v.chars().count() == 2 && v.chars().all(|c| c.is_ascii_alphabetic()) { String::new() }
+            else { msg("UF inválida (2 letras).") }
+        }
+        "email" => {
+            if v.is_empty() { msg("Informe o e-mail.") }
+            else if is_valid_email(v) { String::new() }
+            else { msg("E-mail inválido (ex.: nome@dominio.com).") }
+        }
+        "email-opt" => {
+            if v.is_empty() || is_valid_email(v) { String::new() }
+            else { msg("E-mail inválido (ex.: nome@dominio.com).") }
+        }
+        "password" => {
+            if is_strong_password(value) { String::new() }
+            else { msg("Mín. 8 caracteres, com maiúscula, minúscula, número e símbolo.") }
+        }
+        _ => String::new(),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn money_input_centavos() {
+        assert_eq!(format_money_input("5"), "0,05");
+        assert_eq!(format_money_input("500"), "5,00");
+        assert_eq!(format_money_input("123456"), "1.234,56");
+        assert_eq!(format_money_input(""), "");
+        assert_eq!(format_money_input("abc"), "");
+    }
+
+    #[test]
+    fn subdomain_sanitiza() {
+        assert_eq!(sanitize_subdomain("Padaria do Zé"), "padaria-do-z");
+        assert_eq!(sanitize_subdomain("Loja  A!"), "loja--a");
+    }
+
+    #[test]
+    fn email_valido() {
+        assert!(is_valid_email("nome@dominio.com"));
+        assert!(is_valid_email("a.b@x.com.br"));
+        assert!(!is_valid_email("semarroba.com"));
+        assert!(!is_valid_email("sem@dominio"));
+        assert!(!is_valid_email("@dominio.com"));
+    }
+
+    #[test]
+    fn senha_forte() {
+        assert!(is_strong_password("Abc12345!"));
+        assert!(!is_strong_password("abc12345!"));   // sem maiúscula
+        assert!(!is_strong_password("Abcdefg!"));    // sem número
+        assert!(!is_strong_password("Abc123!"));     // < 8
+        assert!(!is_strong_password("Abcd12345"));   // sem especial
+    }
+
+    #[test]
+    fn field_error_regras() {
+        assert_eq!(field_error("required", "  "), "Campo obrigatório.");
+        assert_eq!(field_error("document", "11222333000181"), "");   // 14 = CNPJ
+        assert_eq!(field_error("document", "123"), "Informe um CPF (11) ou CNPJ (14 dígitos).");
+        assert_eq!(field_error("cep", "01310100"), "");
+        assert_eq!(field_error("email-opt", ""), "");                // opcional vazio ok
+        assert_eq!(field_error("phone", "5199998888"), "");          // 10 = fixo ok
+    }
 
     #[test]
     fn phone_mobile_complete() {

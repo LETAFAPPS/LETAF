@@ -231,6 +231,7 @@ pub(crate) fn setup_admin(
     setup_company_persist(ui, handle, &auth_token, &server_url);
     setup_company_pickers(ui, handle);
     setup_company_cep(ui, handle);
+    setup_company_form_helpers(ui);
     setup_plan_form(ui, &plans_cache);
     setup_plan_persist(ui, handle, &auth_token, &server_url);
 }
@@ -1100,6 +1101,27 @@ fn setup_company_pickers(ui: &MainWindow, handle: &tokio::runtime::Handle) {
 ///
 /// Regras (§1/§3): a busca fica no Rust, não na UI. Falha silenciosa
 /// (rede/CEP inexistente) — o operador digita manualmente.
+/// Máscara e verificação dos campos do cadastro (feedback de UX; §11).
+/// Puras — o Slint as chama em expressões de propriedade.
+fn setup_company_form_helpers(ui: &MainWindow) {
+    use crate::format::{field_error, format_document, format_money_input, format_phone,
+        format_zip_code, sanitize_subdomain};
+    ui.global::<AdminState>().on_apply_mask(|kind, value| {
+        let out = match kind.as_str() {
+            "document" => format_document(&value),
+            "phone" => format_phone(&value),
+            "cep" => format_zip_code(&value),
+            "money" => format_money_input(&value),
+            "subdomain" => sanitize_subdomain(&value),
+            _ => value.to_string(),
+        };
+        SharedString::from(out)
+    });
+    ui.global::<AdminState>().on_field_error(|rule, value| {
+        SharedString::from(field_error(&rule, &value))
+    });
+}
+
 fn setup_company_cep(ui: &MainWindow, handle: &tokio::runtime::Handle) {
     let ui_weak = ui.as_weak();
     let handle = handle.clone();

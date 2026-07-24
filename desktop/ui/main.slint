@@ -1631,6 +1631,9 @@ export component MainWindow inherits Window {
                     pick-cover => { AdminState.pick-company-cover(); }
                     cep-changed(v) => { AdminState.company-cep-changed(v); }
                     cep-loading: AdminState.company-cep-loading;
+                    // Encaminha máscara/verificação ao global (§11).
+                    mask-field(k, v) => { AdminState.apply-mask(k, v) }
+                    field-error(r, v) => { AdminState.field-error(r, v) }
                     delete-company(id, name) => {
                         AdminState.del-company-id = id;
                         AdminState.del-company-name = name;
