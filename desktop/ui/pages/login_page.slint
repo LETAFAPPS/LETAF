@@ -289,7 +289,7 @@ export component LoginPage inherits Rectangle {
 
         // Marca d'água (ícone gigante, bem sutil, sangrando à direita).
         Image {
-            source: @image-url("../icone-watermark.png");
+            source: @image-url("../assets/brand/icone-watermark.png");
             width: 1120px;
             image-fit: contain;
             x: parent.width - 640px;
@@ -312,7 +312,7 @@ export component LoginPage inherits Rectangle {
                         // letaf.png, que empurravam o glifo p/ direita e o
                         // encolhiam). Assim a borda esquerda da logo alinha com
                         // "Gestão Empresarial" logo abaixo.
-                        source: @image-url("../letaf-wordmark.png");
+                        source: @image-url("../assets/brand/letaf-wordmark.png");
                         height: 44px;
                         width: self.height * self.source.width / max(1, self.source.height);
                         image-fit: contain;

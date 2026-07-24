@@ -1,5 +1,5 @@
 // Global `IconGlyph`: mapeia o slug de `Category.icon_name` para o
-// arquivo SVG correspondente em `desktop/ui/icons/`.
+// arquivo SVG correspondente em `desktop/ui/assets/icons/categories/`.
 //
 // As SVGs aqui ESPELHAM exatamente as paths em
 // `web/src/components/category_icon.rs`, garantindo que desktop e web
@@ -11,19 +11,19 @@
 // substituição por cor única é uniforme).
 export global IconGlyph {
     pure public function image-for(slug: string) -> image {
-        return slug == "ice-cream"   ? @image-url("icons/ice-cream.svg")
-             : slug == "drink"       ? @image-url("icons/drink.svg")
-             : slug == "pizza"       ? @image-url("icons/pizza.svg")
-             : slug == "burger"      ? @image-url("icons/burger.svg")
-             : slug == "combo"       ? @image-url("icons/combo.svg")
-             : slug == "snack"       ? @image-url("icons/snack.svg")
-             : slug == "dessert"     ? @image-url("icons/dessert.svg")
-             : slug == "candy"       ? @image-url("icons/candy.svg")
-             : slug == "coffee"      ? @image-url("icons/coffee.svg")
-             : slug == "bread"       ? @image-url("icons/bread.svg")
-             : slug == "salad"       ? @image-url("icons/salad.svg")
-             : slug == "meat"        ? @image-url("icons/meat.svg")
-             : slug == "convenience" ? @image-url("icons/convenience.svg")
-             : @image-url("icons/placeholder.svg");
+        return slug == "ice-cream"   ? @image-url("assets/icons/categories/ice-cream.svg")
+             : slug == "drink"       ? @image-url("assets/icons/categories/drink.svg")
+             : slug == "pizza"       ? @image-url("assets/icons/categories/pizza.svg")
+             : slug == "burger"      ? @image-url("assets/icons/categories/burger.svg")
+             : slug == "combo"       ? @image-url("assets/icons/categories/combo.svg")
+             : slug == "snack"       ? @image-url("assets/icons/categories/snack.svg")
+             : slug == "dessert"     ? @image-url("assets/icons/categories/dessert.svg")
+             : slug == "candy"       ? @image-url("assets/icons/categories/candy.svg")
+             : slug == "coffee"      ? @image-url("assets/icons/categories/coffee.svg")
+             : slug == "bread"       ? @image-url("assets/icons/categories/bread.svg")
+             : slug == "salad"       ? @image-url("assets/icons/categories/salad.svg")
+             : slug == "meat"        ? @image-url("assets/icons/categories/meat.svg")
+             : slug == "convenience" ? @image-url("assets/icons/categories/convenience.svg")
+             : @image-url("assets/icons/categories/placeholder.svg");
     }
 }
