@@ -58,3 +58,44 @@ jobs:
 
       - name: Testes
         run: cargo test --workspace --locked
+
+  # Testes de integração do servidor contra um Postgres real. Separado do
+  # job acima porque só ele precisa de banco — e porque uma falha aqui
+  # aponta para fiação de rota/extrator, não para regra de negócio.
+  integracao:
+    name: integração (Postgres)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: letaf
+          POSTGRES_PASSWORD: letaf
+          POSTGRES_DB: letaf_test
+        ports: ["5432:5432"]
+        # Só segue quando o banco aceitar conexão.
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgres://letaf:letaf@127.0.0.1:5432/letaf_test
+      # Exigido pelo AppConfig; valor de teste, sem relação com produção.
+      JWT_SECRET: ci-secret-nao-usar-em-producao
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Deps de sistema
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libfontconfig-dev libasound2-dev libxcb1-dev libxcb-render0-dev \
+            libxcb-shape0-dev libxcb-xfixes0-dev libxkbcommon-dev
+
+      # As migrações são aplicadas pelo próprio teste (sqlx::migrate!).
+      - name: Testes de integração
+        run: cargo test -p letaf-server --test admin_gate --locked
