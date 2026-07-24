@@ -1,0 +1,60 @@
+name: ci
+
+# Roda a suíte de testes e o clippy a cada push/PR. Sem isto, os testes só
+# existem na máquina de quem escreveu — uma regressão entra no `main` sem
+# ninguém perceber (inclusive nos testes de gate do painel super admin,
+# cujo valor é justamente barrar regressão futura).
+#
+# `cargo fmt` NÃO é verificado: o projeto nunca passou por rustfmt (~1900
+# divergências) e formatá-lo agora reescreveria a base inteira, misturando
+# ruído com mudanças reais e apagando o `git blame`. Se um dia isso for
+# feito, é num commit isolado — e aí este workflow ganha o passo de fmt.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch: {}
+
+# Cancela execuções antigas do mesmo branch/PR quando chega um push novo.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  check:
+    name: testes + clippy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+
+      # Mesmas dependências do build de release: o workspace inclui o
+      # desktop (Slint → winit/fontconfig/xcb/xkbcommon; rodio → ALSA),
+      # que precisa delas até para compilar os testes.
+      - name: Deps de sistema
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libfontconfig-dev libasound2-dev libxcb1-dev libxcb-render0-dev \
+            libxcb-shape0-dev libxcb-xfixes0-dev libxkbcommon-dev
+
+      # `-D warnings` faz o clippy FALHAR em qualquer warning — o critério
+      # de "pronto" do projeto (AI_RULES §Rust idiomático).
+      - name: Clippy (workspace)
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      # O crate web só compila de fato com uma das features (ssr/hydrate);
+      # `ssr` é o que roda em produção.
+      - name: Clippy (web · ssr)
+        run: cargo clippy -p letaf-web --features ssr -- -D warnings
+
+      - name: Testes
+        run: cargo test --workspace --locked
