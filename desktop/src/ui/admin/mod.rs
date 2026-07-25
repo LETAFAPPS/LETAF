@@ -97,6 +97,8 @@ struct CompanyFormDto {
     discount: f64,
     #[serde(default)]
     plan: String,
+    #[serde(default)]
+    trial_days: i32,
     owner_name: String,
     owner_email: String,
     owner_phone: String,
@@ -1368,6 +1370,7 @@ fn setup_company_persist(
             "latitude": latitude,
             "longitude": longitude,
             "plan": ui.global::<AdminState>().get_company_form_plan().to_string(),
+            "trial_days": ui.global::<AdminState>().get_company_form_trial().trim().parse::<i32>().unwrap_or(0),
             "logo_data": ui.global::<AdminState>().get_company_form_logo_data().to_string(),
             "cover_data": ui.global::<AdminState>().get_company_form_cover_data().to_string(),
             "plan_discount": discount,
@@ -1481,6 +1484,8 @@ fn fill_company_form(ui: &MainWindow, f: &CompanyFormDto) {
         f.plan.clone()
     };
     g.set_company_form_plan(plan.into());
+    // Período grátis (dias): 0 fica vazio (mostra o placeholder).
+    g.set_company_form_trial(if f.trial_days > 0 { f.trial_days.to_string() } else { String::new() }.into());
     // Desconto (R$/mês) em pt-BR; 0 fica vazio (mostra o placeholder).
     let discount = if f.discount > 0.0 {
         format!("{:.2}", f.discount).replace('.', ",")
@@ -1552,6 +1557,7 @@ fn clear_company_form(ui: &MainWindow) {
         opts.row_data(0).map(|o| o.key.to_string()).unwrap_or_else(|| "monthly".into())
     };
     ui.global::<AdminState>().set_company_form_plan(default_plan.into());
+    ui.global::<AdminState>().set_company_form_trial(SharedString::new());
     ui.global::<AdminState>().set_company_form_logo_data(SharedString::new());
     ui.global::<AdminState>().set_company_form_cover_data(SharedString::new());
     ui.global::<AdminState>().set_company_form_logo_image(slint::Image::default());
@@ -1629,6 +1635,7 @@ fn setup_company_form_helpers(ui: &MainWindow) {
             "cep" => format_zip_code(&value),
             "money" => format_money_input(&value),
             "subdomain" => sanitize_subdomain(&value),
+            "digits" => value.chars().filter(|c| c.is_ascii_digit()).collect(),
             _ => value.to_string(),
         };
         SharedString::from(out)

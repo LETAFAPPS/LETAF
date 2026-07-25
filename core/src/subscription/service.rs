@@ -177,6 +177,7 @@ impl SubscriptionService {
         &self,
         company_id: Uuid,
         status: SubscriptionStatus,
+        today: NaiveDate,
     ) -> Result<Subscription, CoreError> {
         let mut sub = self
             .repo
@@ -187,6 +188,52 @@ impl SubscriptionService {
             return Ok(sub);
         }
         sub.status = status;
+        // Ao ATIVAR, agenda a 1ª cobrança respeitando o período grátis (trial):
+        // hoje + trial (se houver) ou hoje + período do plano (dias). Ao
+        // inativar/cancelar, zera a próxima cobrança (não cobra).
+        match status {
+            SubscriptionStatus::Active => {
+                let period = sub.plan_period_days.max(1);
+                sub.next_charge_date = Some(if sub.trial_days > 0 {
+                    today + chrono::Duration::days(sub.trial_days as i64)
+                } else {
+                    add_days(today, period)
+                });
+            }
+            SubscriptionStatus::Inactive | SubscriptionStatus::Cancelled => {
+                sub.next_charge_date = None;
+            }
+            SubscriptionStatus::Overdue => {}
+        }
+        sub.base.updated_at = chrono::Utc::now().naive_utc();
+        sub.base.synced = false;
+        self.repo.update_subscription(&sub).await?;
+        Ok(sub)
+    }
+
+    /// Define o período grátis (trial, em DIAS) da assinatura de uma empresa
+    /// (definido pelo super admin no cadastro). Se ativa, reagenda a próxima
+    /// cobrança respeitando o trial.
+    pub async fn admin_set_trial(
+        &self,
+        company_id: Uuid,
+        trial_days: i32,
+        today: NaiveDate,
+    ) -> Result<Subscription, CoreError> {
+        let mut sub = self
+            .repo
+            .find_current(company_id)
+            .await?
+            .ok_or_else(|| CoreError::NotFound("Assinatura não encontrada".into()))?;
+        sub.trial_days = trial_days.max(0);
+        if matches!(sub.status, SubscriptionStatus::Active) {
+            let period = sub.plan_period_days.max(1);
+            sub.next_charge_date = Some(if sub.trial_days > 0 {
+                today + chrono::Duration::days(sub.trial_days as i64)
+            } else {
+                add_days(today, period)
+            });
+        }
         sub.base.updated_at = chrono::Utc::now().naive_utc();
         sub.base.synced = false;
         self.repo.update_subscription(&sub).await?;

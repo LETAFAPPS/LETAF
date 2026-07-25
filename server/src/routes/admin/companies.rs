@@ -91,9 +91,12 @@ pub(super) struct CreateCompanyRequest {
     /// Desconto comercial em R$ por mês na mensalidade (0 = sem desconto).
     #[serde(default)]
     plan_discount: Option<f64>,
-    /// Plano da assinatura (kind): "monthly" | "semestral" | "annual".
+    /// Plano da assinatura (id do catálogo).
     #[serde(default)]
     plan: Option<String>,
+    /// Período grátis (trial) em DIAS concedido a esta empresa.
+    #[serde(default)]
+    trial_days: Option<i32>,
 }
 
 /// `Some("")`/só espaços → `None`; caso contrário devolve o texto aparado.
@@ -195,6 +198,10 @@ pub(super) async fn create_company(
             }
         }
     }
+    // Período grátis (trial) da empresa.
+    if let Some(trial) = body.trial_days {
+        let _ = state.subscription_service.admin_set_trial(company.id, trial, today).await;
+    }
     // Telefone do proprietário (admin recém-criado). Best-effort.
     if body.admin_phone.as_deref().map(|p| !p.trim().is_empty()).unwrap_or(false) {
         let _ = state
@@ -251,8 +258,10 @@ pub(super) struct CompanyForm {
     cover_data: String,
     /// Desconto comercial atual (R$/mês) da assinatura.
     discount: f64,
-    /// Plano atual da assinatura (kind): "monthly" | "semestral" | "annual".
+    /// Plano atual da assinatura (id do catálogo).
     plan: String,
+    /// Período grátis (trial) em dias da assinatura atual.
+    trial_days: i32,
     /// Proprietário (admin inicial) — editável no cadastro em modo edição.
     owner_name: String,
     owner_email: String,
@@ -278,6 +287,7 @@ pub(super) async fn company_form(
         .and_then(|s| s.plan_id)
         .map(|id| id.to_string())
         .unwrap_or_default();
+    let trial_days = sub.as_ref().map(|s| s.trial_days).unwrap_or(0);
     // Proprietário = admin inicial da empresa.
     let owner = state
         .auth_service
@@ -307,6 +317,7 @@ pub(super) async fn company_form(
         cover_data: c.cover_data.unwrap_or_default(),
         discount: rust_decimal::prelude::ToPrimitive::to_f64(&discount).unwrap_or(0.0),
         plan,
+        trial_days,
         owner_name,
         owner_email,
         owner_phone,
@@ -344,9 +355,12 @@ pub(super) struct UpdateCompanyRequest {
     cover_data: Option<String>,
     #[serde(default)]
     plan_discount: Option<f64>,
-    /// Plano da assinatura (kind): "monthly" | "semestral" | "annual".
+    /// Plano da assinatura (id do catálogo).
     #[serde(default)]
     plan: Option<String>,
+    /// Período grátis (trial) em DIAS concedido a esta empresa.
+    #[serde(default)]
+    trial_days: Option<i32>,
     // Dados do proprietário (admin inicial) — editáveis na edição.
     #[serde(default)]
     admin_name: Option<String>,
@@ -447,6 +461,16 @@ pub(super) async fn update_company(
                 tracing::error!("Falha ao aplicar plano na empresa {id}: {e}");
             }
         }
+    }
+
+    // Período grátis (trial) — best-effort (garante a assinatura antes).
+    if let Some(trial) = body.trial_days {
+        let today = chrono::Utc::now().date_naive();
+        let _ = state
+            .subscription_service
+            .create_inactive(id, letaf_core::subscription::model::PlanKind::Monthly)
+            .await;
+        let _ = state.subscription_service.admin_set_trial(id, trial, today).await;
     }
 
     // Desconto comercial (R$/mês) — best-effort (a empresa já foi atualizada).

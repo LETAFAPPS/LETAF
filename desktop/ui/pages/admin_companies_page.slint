@@ -291,6 +291,7 @@ export component AdminCompaniesPage inherits VerticalLayout {
     // Plano da assinatura: kind escolhido + opções (planos ativos do sistema).
     in-out property <string> form-plan;
     in property <[FilterOption]> plan-options;
+    in-out property <string> form-trial;
     // Geocodificação do endereço → coordenadas (no Rust; §1/§3).
     callback geocode();
     in property <bool> geocode-loading: false;
@@ -593,14 +594,28 @@ export component AdminCompaniesPage inherits VerticalLayout {
                             }
                         }
                     }
-                    FormField {
-                        label: "Desconto na mensalidade (R$/mês)";
-                        value <=> root.form-discount;
-                        placeholder: "0,00 — abatido do plano";
-                        icon: @image-url("../assets/icons/1.2/pay-moeda.svg");
-                        error: root.err-discount;
-                        force-end-cursor: true;
-                        edited(v) => { root.form-discount = root.mask-field("money", v); }
+                    HorizontalLayout {
+                        spacing: 10px;
+                        FormField {
+                            horizontal-stretch: 1;
+                            label: "Desconto na mensalidade (R$/mês)";
+                            value <=> root.form-discount;
+                            placeholder: "0,00 — abatido do plano";
+                            icon: @image-url("../assets/icons/1.2/pay-moeda.svg");
+                            error: root.err-discount;
+                            force-end-cursor: true;
+                            edited(v) => { root.form-discount = root.mask-field("money", v); }
+                        }
+                        FormField {
+                            horizontal-stretch: 1;
+                            label: "Período grátis (dias)";
+                            value <=> root.form-trial;
+                            placeholder: "0 — sem período grátis";
+                            icon: @image-url("../assets/icons/1.2/calendario.svg");
+                            force-end-cursor: true;
+                            // Só dígitos.
+                            edited(v) => { root.form-trial = root.mask-field("digits", v); }
+                        }
                     }
                 }
             }

@@ -102,7 +102,7 @@ pub(super) async fn update_subscription(
     if let Some(status) = body.status {
         state
             .subscription_service
-            .set_status(company_id, SubscriptionStatus::from_str(&status))
+            .set_status(company_id, SubscriptionStatus::from_str(&status), today)
             .await?;
         changes.push(format!("status: {status}"));
     }
