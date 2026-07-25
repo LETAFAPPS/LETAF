@@ -476,6 +476,10 @@ pub(super) struct CompanyDetail {
     id: Uuid,
     name: String,
     subdomain: String,
+    /// Domínio público completo (ex.: "ebenezer.letaf.app").
+    domain: String,
+    /// Logo da empresa (base64) — cabeçalho do detalhe.
+    logo: String,
     created_at: String,
     active: bool,
     // Cadastro
@@ -569,10 +573,16 @@ pub(super) async fn company_detail(
         _ => String::new(),
     };
 
+    let base_domain = std::env::var("PUBLIC_BASE_DOMAIN").unwrap_or_else(|_| "letaf.app".into());
+    let domain = format!("{}.{base_domain}", c.subdomain);
+    let logo = c.logo_data.clone().unwrap_or_default();
+
     Ok(Json(CompanyDetail {
         id: c.id,
         name: c.name,
         subdomain: c.subdomain,
+        domain,
+        logo,
         created_at: c.created_at.format("%d/%m/%Y").to_string(),
         active: c.active,
         document: c.document.unwrap_or_default(),

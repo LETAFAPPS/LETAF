@@ -1415,9 +1415,10 @@ export component MainWindow inherits Window {
         // gerencia uma empresa (telas reais do ERP). "Sair" volta ao painel.
         if root.impersonating: Rectangle {
             height: 42px;
-            background: #1E88E5;
+            // Mesma cor do menu lateral (a pedido).
+            background: Theme.sidebar-bg;
             HorizontalLayout {
-                padding-left: 16px; padding-right: 12px;
+                padding-left: 16px; padding-right: 10px;
                 spacing: 10px;
                 Text {
                     horizontal-stretch: 1;
@@ -1425,17 +1426,18 @@ export component MainWindow inherits Window {
                     color: white; font-size: 13px; font-weight: 700;
                     vertical-alignment: center; overflow: elide;
                 }
+                // Sair da empresa = X.
                 VerticalLayout {
                     alignment: center;
                     exit-ta := TouchArea {
-                        width: 88px; height: 28px;
+                        width: 30px; height: 30px;
                         clicked => { root.exit-impersonation(); }
                         Rectangle {
                             width: parent.width; height: parent.height;
                             border-radius: 6px;
-                            background: exit-ta.has-hover ? #ffffff44 : #ffffff26;
+                            background: exit-ta.has-hover ? #ffffff33 : transparent;
                             Text {
-                                text: "↩  Sair"; color: white; font-size: 12px; font-weight: 700;
+                                text: "✕"; color: white; font-size: 15px; font-weight: 700;
                                 horizontal-alignment: center; vertical-alignment: center;
                                 width: parent.width; height: parent.height;
                             }

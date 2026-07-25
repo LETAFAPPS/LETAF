@@ -124,6 +124,10 @@ struct CompanyDetailDto {
     id: String,
     name: String,
     subdomain: String,
+    #[serde(default)]
+    domain: String,
+    #[serde(default)]
+    logo: String,
     created_at: String,
     active: bool,
     document: String,
@@ -921,6 +925,10 @@ fn setup_persist(
                         id: d.id.into(),
                         name: d.name.into(),
                         subdomain: d.subdomain.into(),
+                        domain: d.domain.into(),
+                        logo: super::image::decode_pixel_buffer(&d.logo)
+                            .map(slint::Image::from_rgba8)
+                            .unwrap_or_default(),
                         created_at: d.created_at.into(),
                         active: d.active,
                         document: d.document.into(),

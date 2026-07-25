@@ -1,36 +1,15 @@
-// Detalhe da empresa (painel do super admin) — central de suporte.
+// Detalhe da empresa (painel do super admin) — cabeçalho + "Gerenciar".
 // UI sem lógica (§1/§3): tudo vem pronto de GET /admin/companies/{id}.
+// O detalhe é enxuto: identidade + acesso + entrar na empresa. TODA a gestão
+// (produtos, planos, configurações) acontece via "Gerenciar" (impersonation).
 import { Theme } from "../theme.slint";
 import { AdminCompanyDetail, AdminCompanyOrderRow } from "../types.slint";
 import { ModalShell } from "../components/modal_shell.slint";
-
-// Linha "rótulo → valor" do detalhe.
-component InfoLine inherits HorizontalLayout {
-    in property <string> label;
-    in property <string> value;
-    spacing: 8px;
-    Text {
-        text: root.label;
-        width: 128px;
-        font-size: 12px; color: Theme.text-secondary;
-        vertical-alignment: center;
-    }
-    Text {
-        text: root.value == "" ? "—" : root.value;
-        horizontal-stretch: 1;
-        font-size: 12.5px; font-weight: 600; color: Theme.text-primary;
-        overflow: elide; vertical-alignment: center;
-    }
-}
-
-component SectionTitle inherits Text {
-    font-size: 11px;
-    font-weight: 700;
-    color: Theme.text-secondary;
-}
+import { AssetIcon } from "../components/icons.slint";
 
 export component AdminCompanyDetailModal inherits Rectangle {
     in property <AdminCompanyDetail> data;
+    // Mantido para compatibilidade com o binding do main.slint (não exibido).
     in property <[AdminCompanyOrderRow]> orders;
     callback close();
     // "Gerenciar empresa": super admin entra na empresa (impersonation).
@@ -42,19 +21,50 @@ export component AdminCompanyDetailModal inherits Rectangle {
     ModalShell {
         width: 100%;
         height: 100%;
-        icon: @image-url("../assets/icons/1.2/admin.svg");
-        icon-color: Theme.btn-accent;
-        title: root.data.name;
-        message: root.data.subdomain;
-        card-width: 470px;
+        card-width: 440px;
         close => { root.close(); }
 
         VerticalLayout {
-            spacing: 12px;
+            spacing: 16px;
 
-            // Situação do acesso.
+            // ── Cabeçalho: logo + nome + domínio completo (perto do nome) ──
+            VerticalLayout {
+                alignment: center;
+                spacing: 6px;
+                HorizontalLayout {
+                    alignment: center;
+                    Rectangle {
+                        width: 68px; height: 68px;
+                        border-radius: 16px;
+                        background: Theme.btn-accent.transparentize(0.88);
+                        clip: true;
+                        AssetIcon {
+                            width: parent.width; height: parent.height; icon-size: 30px;
+                            icon-color: Theme.btn-accent;
+                            source: @image-url("../assets/icons/1.2/empresa.svg");
+                        }
+                        Image {
+                            source: root.data.logo;
+                            width: parent.width; height: parent.height;
+                            image-fit: cover;
+                        }
+                    }
+                }
+                Text {
+                    text: root.data.name;
+                    font-size: 18px; font-weight: 800; color: Theme.text-primary;
+                    horizontal-alignment: center;
+                }
+                Text {
+                    text: root.data.domain;
+                    font-size: 12.5px; color: Theme.text-secondary;
+                    horizontal-alignment: center;
+                }
+            }
+
+            // ── Situação do acesso ──
             HorizontalLayout {
-                alignment: start;
+                alignment: center;
                 Rectangle {
                     width: badge.preferred-width + 16px; height: 22px;
                     border-radius: 6px;
@@ -71,104 +81,21 @@ export component AdminCompanyDetailModal inherits Rectangle {
                 }
             }
 
-            // Gerenciar: super admin ENTRA na empresa e usa as telas reais
-            // do ERP (produtos, configurações, etc.) como o proprietário.
+            // ── Gerenciar: entra na empresa (telas reais do ERP) ──
             manage-ta := TouchArea {
-                height: 38px;
+                height: 40px;
                 clicked => { root.manage(); }
                 Rectangle {
                     width: parent.width; height: parent.height;
                     border-radius: 8px;
                     background: manage-ta.has-hover ? #1565C0 : #1E88E5;
                     Text {
-                        text: "Gerenciar empresa";
+                        text: "Gerenciar Empresa";
                         color: white; font-size: 13px; font-weight: 700;
                         horizontal-alignment: center; vertical-alignment: center;
                         width: parent.width; height: parent.height;
                     }
                 }
-            }
-
-            SectionTitle { text: "CADASTRO"; }
-            InfoLine { label: "Criada em"; value: root.data.created-at; }
-            InfoLine { label: "CPF/CNPJ"; value: root.data.document; }
-            InfoLine { label: "Telefone"; value: root.data.phone; }
-            InfoLine { label: "WhatsApp"; value: root.data.whatsapp; }
-            InfoLine { label: "E-mail"; value: root.data.email; }
-            InfoLine { label: "Endereço"; value: root.data.address; }
-            InfoLine { label: "Cidade/UF"; value: root.data.city-uf; }
-
-            Rectangle { height: 1px; background: Theme.border; }
-
-            SectionTitle { text: "ASSINATURA"; }
-            InfoLine { label: "Plano"; value: root.data.plan; }
-            InfoLine { label: "Valor do ciclo"; value: root.data.plan-amount; }
-            InfoLine {
-                label: "Status";
-                value: root.data.status == "active" ? "Ativa"
-                    : (root.data.status == "overdue" ? "Vencida"
-                        : (root.data.status == "cancelled" ? "Cancelada" : "Sem assinatura"));
-            }
-            InfoLine { label: "Próx. cobrança"; value: root.data.next-charge; }
-            InfoLine { label: "Desconto"; value: root.data.discount; }
-            InfoLine { label: "Pagamento"; value: root.data.payment-method; }
-
-            Rectangle { height: 1px; background: Theme.border; }
-
-            SectionTitle { text: "USO"; }
-            InfoLine { label: "Pedidos"; value: root.data.orders-count; }
-            InfoLine { label: "Último pedido"; value: root.data.last-order-at; }
-            InfoLine { label: "Produtos"; value: root.data.products-count; }
-            InfoLine { label: "Clientes"; value: root.data.customers-count; }
-
-            Rectangle { height: 1px; background: Theme.border; }
-
-            SectionTitle { text: "ÚLTIMOS PEDIDOS"; }
-            if root.orders.length == 0: Text {
-                text: "Nenhum pedido registrado.";
-                font-size: 12px; color: Theme.text-secondary;
-            }
-            if root.orders.length > 0: Rectangle {
-                height: 110px;
-                border-radius: 8px;
-                border-width: 1px;
-                border-color: Theme.border;
-                background: Theme.bg;
-                Flickable {
-                    width: parent.width; height: parent.height;
-                    viewport-height: ord-col.preferred-height;
-                    ord-col := VerticalLayout {
-                        padding: 6px;
-                        for o in root.orders: HorizontalLayout {
-                            padding: 5px;
-                            spacing: 8px;
-                            Text { text: "#" + o.number; width: 52px; font-size: 12px; font-weight: 700; color: Theme.text-primary; vertical-alignment: center; }
-                            Text { text: o.at; horizontal-stretch: 1; font-size: 11.5px; color: Theme.text-secondary; vertical-alignment: center; }
-                            Text {
-                                text: o.status == "delivered" ? "Entregue"
-                                    : (o.status == "cancelled" ? "Cancelado"
-                                        : (o.status == "pending" ? "Pendente" : o.status));
-                                width: 74px; font-size: 11px; font-weight: 700;
-                                color: o.status == "cancelled" ? Theme.danger
-                                    : (o.status == "delivered" ? #2E7D32 : #E65100);
-                                vertical-alignment: center;
-                            }
-                            Text { text: o.total; width: 84px; font-size: 12px; font-weight: 600; color: Theme.text-primary; horizontal-alignment: right; vertical-alignment: center; }
-                        }
-                    }
-                }
-            }
-
-            Rectangle { height: 1px; background: Theme.border; }
-
-            SectionTitle { text: "FATURAS"; }
-            InfoLine {
-                label: "Emitidas";
-                value: root.data.invoices-total;
-            }
-            InfoLine {
-                label: "Em aberto";
-                value: root.data.invoices-pending;
             }
         }
     }

@@ -386,7 +386,7 @@ export component AdminCompaniesPage inherits VerticalLayout {
                 alignment: center;
                 ListFilterBtn {
                     options: [
-                        { key: "all",       label: "Todas" },
+                        { key: "all",       label: "Todos" },
                         { key: "active",    label: "Ativas" },
                         { key: "suspended", label: "Suspensas" },
                     ];
@@ -458,6 +458,10 @@ export component AdminCompaniesPage inherits VerticalLayout {
         form-col := VerticalLayout {
             spacing: 12px;
             alignment: start;
+            // Folga p/ a sombra dos cards não ser recortada pelo Flickable
+            // (topo e laterais).
+            padding-left: 12px; padding-right: 12px;
+            padding-top: 12px; padding-bottom: 12px;
 
             // ── Card: identificação ──
             FormCard {
