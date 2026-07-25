@@ -5,6 +5,7 @@ import { AdminScreenOption } from "../types.slint";
 import { FormField } from "../components/form_fields.slint";
 import { OutlineBtn } from "../components/buttons.slint";
 import { ModalShell } from "../components/modal_shell.slint";
+import { AssetIcon } from "../components/icons.slint";
 
 export component AdminRoleModal inherits Rectangle {
     in property <string> form-id;
@@ -74,11 +75,13 @@ export component AdminRoleModal inherits Rectangle {
                                     border-width: 1.5px;
                                     border-color: s.on ? Theme.btn-accent : Theme.border;
                                     background: s.on ? Theme.btn-accent : transparent;
-                                    Text {
-                                        text: s.on ? "✓" : "";
-                                        color: white; font-size: 13px; font-weight: 700;
-                                        horizontal-alignment: center; vertical-alignment: center;
+                                    // Check via SVG (centralizado de verdade no
+                                    // botão, ao contrário do glifo de texto).
+                                    if s.on: AssetIcon {
                                         width: parent.width; height: parent.height;
+                                        icon-size: 14px;
+                                        icon-color: white;
+                                        source: @image-url("../assets/icons/1.2/confirmar.svg");
                                     }
                                 }
                             }

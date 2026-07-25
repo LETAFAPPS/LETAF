@@ -107,10 +107,13 @@ export component Sidebar inherits Rectangle {
                 // quando o operador não tem a permissão — sidebar adaptativa,
                 // sem buracos (§11: esconder é só UX; o backend revalida).
 
-                // ── PLATAFORMA (super admin) ──────────────
+                // ── Painel do super admin (por grupo) ─────
                 // Menus próprios do painel de administrador; substituem os
-                // menus da loja (que ficam ocultos via `store-access`).
-                if root.nav.is-super-admin:
+                // menus da loja (que ficam ocultos via `store-access`). Cada
+                // subgrupo só aparece se tiver ao menos um item liberado.
+
+                // Plataforma: Dashboard
+                if root.nav.admin-overview:
                     SidebarSection { title: "PLATAFORMA"; compact: !root.expanded; }
                 if root.nav.admin-overview: SidebarItem {
                     icon-source: @image-url("../assets/icons/1.2/dashboard.svg");
@@ -119,6 +122,10 @@ export component Sidebar inherits Rectangle {
                     active: root.active-tab == "admin-overview";
                     clicked => { root.navigate("admin-overview"); }
                 }
+
+                // Gestão: Empresas
+                if root.nav.admin-companies:
+                    SidebarSection { title: "GESTÃO"; compact: !root.expanded; }
                 if root.nav.admin-companies: SidebarItem {
                     icon-source: @image-url("../assets/icons/1.2/empresa.svg");
                     label: "Empresas";
@@ -126,6 +133,10 @@ export component Sidebar inherits Rectangle {
                     active: root.active-tab == "admin-companies";
                     clicked => { root.navigate("admin-companies"); }
                 }
+
+                // Financeiro: Planos
+                if root.nav.admin-plans:
+                    SidebarSection { title: "FINANCEIRO"; compact: !root.expanded; }
                 if root.nav.admin-plans: SidebarItem {
                     icon-source: @image-url("../assets/icons/1.2/inventory.svg");
                     label: "Planos";
@@ -133,6 +144,10 @@ export component Sidebar inherits Rectangle {
                     active: root.active-tab == "admin-plans";
                     clicked => { root.navigate("admin-plans"); }
                 }
+
+                // Permissões: Usuários e Funções
+                if root.nav.admin-admins || root.nav.admin-roles:
+                    SidebarSection { title: "PERMISSÕES"; compact: !root.expanded; }
                 if root.nav.admin-admins: SidebarItem {
                     icon-source: @image-url("../assets/icons/1.2/customers.svg");
                     label: "Usuários";

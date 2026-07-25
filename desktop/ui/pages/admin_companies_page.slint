@@ -14,21 +14,28 @@ import { AssetIcon } from "../components/icons.slint";
 import { FormCard, ImagePicker } from "../components/form_card.slint";
 
 // Status da assinatura: retângulo de pontas arredondadas (a pedido).
+// Cores por status: ativa=verde, vencida=laranja, cancelada=vermelho,
+// sem plano/inativa=cinza.
 component StatusBadge inherits Rectangle {
     in property <string> status;
-    property <bool> active: root.status == "active";
+    // Cor do texto (o fundo é a mesma cor transparentizada).
+    property <color> tone:
+        root.status == "active" ? #2E7D32
+        : (root.status == "overdue" ? #E65100
+            : (root.status == "cancelled" ? #C62828
+                : Theme.text-secondary));
     width: label.preferred-width + 20px;
     height: 22px;
     border-radius: 6px;
-    background: root.active ? #2E7D3222 : #9E9E9E22;
+    background: root.tone.transparentize(0.86);
     label := Text {
         x: 10px;
-        text: root.active ? "Ativa"
+        text: root.status == "active" ? "Ativa"
             : (root.status == "none" ? "Sem plano"
                 : (root.status == "inactive" ? "Inativa"
                     : (root.status == "overdue" ? "Vencida" : "Cancelada")));
         font-size: 11px; font-weight: 700;
-        color: root.active ? #2E7D32 : Theme.text-secondary;
+        color: root.tone;
         vertical-alignment: center;
     }
 }
