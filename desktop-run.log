@@ -1,12 +1,12 @@
-[2m2026-07-25T19:21:14.302006Z[0m [32m INFO[0m [2mletaf_desktop[0m[2m:[0m LETAF Desktop - starting...
-[2m2026-07-25T19:21:14.305347Z[0m [32m INFO[0m [2mletaf_desktop[0m[2m:[0m SQLite migrations applied
-[2m2026-07-25T19:21:14.306112Z[0m [32m INFO[0m [2mletaf_desktop[0m[2m:[0m Company da sessão: LETAF · Plataforma (a67e1fa9-ecb9-440a-86c9-ad2dbb6dd755)
-[2m2026-07-25T19:21:14.307278Z[0m [32m INFO[0m [2mletaf_desktop[0m[2m:[0m SQLite ready, company_id = a67e1fa9-ecb9-440a-86c9-ad2dbb6dd755
-[2m2026-07-25T19:21:14.346832Z[0m [32m INFO[0m [2mletaf_desktop[0m[2m:[0m Restored session: company_id = a67e1fa9-ecb9-440a-86c9-ad2dbb6dd755
-[2m2026-07-25T19:21:14.377800Z[0m [32m INFO[0m [2mletaf_desktop[0m[2m:[0m SyncWorker spawned
-[2m2026-07-25T19:21:14.377854Z[0m [32m INFO[0m [2mletaf_desktop::sync::worker[0m[2m:[0m SyncWorker started (interval: 30s)
-[2m2026-07-25T19:21:14.405620Z[0m [32m INFO[0m [2mletaf_desktop[0m[2m:[0m HealthChecker spawned
-[2m2026-07-25T19:21:14.405723Z[0m [32m INFO[0m [2mletaf_desktop::sync::health[0m[2m:[0m HealthChecker started (interval: 5s)
-[2m2026-07-25T19:21:14.461526Z[0m [32m INFO[0m [2mletaf_desktop[0m[2m:[0m Session restored, skipping login
-[2m2026-07-25T19:21:14.461689Z[0m [32m INFO[0m [2mletaf_desktop::update[0m[2m:[0m UpdateChecker iniciado (intervalo: 21600s)
-[2m2026-07-25T19:21:14.515610Z[0m [32m INFO[0m [2mwinit::platform_impl::linux::x11::window[0m[2m:[0m Guessed window scale factor: 1
+[2m2026-07-25T19:45:15.326197Z[0m [32m INFO[0m [2mletaf_desktop[0m[2m:[0m LETAF Desktop - starting...
+[2m2026-07-25T19:45:15.330693Z[0m [32m INFO[0m [2mletaf_desktop[0m[2m:[0m SQLite migrations applied
+[2m2026-07-25T19:45:15.332336Z[0m [32m INFO[0m [2mletaf_desktop[0m[2m:[0m Company da sessão: LETAF · Plataforma (a67e1fa9-ecb9-440a-86c9-ad2dbb6dd755)
+[2m2026-07-25T19:45:15.333301Z[0m [32m INFO[0m [2mletaf_desktop[0m[2m:[0m SQLite ready, company_id = a67e1fa9-ecb9-440a-86c9-ad2dbb6dd755
+[2m2026-07-25T19:45:15.383465Z[0m [32m INFO[0m [2mletaf_desktop[0m[2m:[0m Restored session: company_id = a67e1fa9-ecb9-440a-86c9-ad2dbb6dd755
+[2m2026-07-25T19:45:15.413652Z[0m [32m INFO[0m [2mletaf_desktop[0m[2m:[0m SyncWorker spawned
+[2m2026-07-25T19:45:15.413683Z[0m [32m INFO[0m [2mletaf_desktop::sync::worker[0m[2m:[0m SyncWorker started (interval: 30s)
+[2m2026-07-25T19:45:15.442430Z[0m [32m INFO[0m [2mletaf_desktop[0m[2m:[0m HealthChecker spawned
+[2m2026-07-25T19:45:15.442454Z[0m [32m INFO[0m [2mletaf_desktop::sync::health[0m[2m:[0m HealthChecker started (interval: 5s)
+[2m2026-07-25T19:45:15.485713Z[0m [32m INFO[0m [2mletaf_desktop[0m[2m:[0m Session restored, skipping login
+[2m2026-07-25T19:45:15.485969Z[0m [32m INFO[0m [2mletaf_desktop::update[0m[2m:[0m UpdateChecker iniciado (intervalo: 21600s)
+[2m2026-07-25T19:45:15.539584Z[0m [32m INFO[0m [2mwinit::platform_impl::linux::x11::window[0m[2m:[0m Guessed window scale factor: 1

@@ -23,6 +23,9 @@ component KpiCard inherits Rectangle {
     in property <string> value;
     in property <bool> accent: false;
     horizontal-stretch: 1;
+    // `min-width: 0` para a largura ser dividida igualmente entre os cards
+    // (sem isso, o texto mais largo faz o card ficar maior que os demais).
+    min-width: 0;
     height: 104px;
     background: Theme.surface;
     border-radius: 12px;
@@ -95,11 +98,13 @@ component StatusItem inherits HorizontalLayout {
     }
 }
 
-// Um segmento da barra de proporção (largura ∝ valor).
+// Um segmento da barra de proporção: retângulo de pontas arredondadas,
+// largura ∝ valor (separado dos vizinhos pelo spacing do container).
 component ProportionSegment inherits Rectangle {
     in property <int> value;
     in property <color> tone;
     horizontal-stretch: root.value * 1.0;
+    border-radius: self.height / 2;
     background: root.tone;
 }
 
@@ -283,16 +288,15 @@ export component AdminOverviewPage inherits VerticalLayout {
                 StatusItem { label: "Canceladas"; value: root.cancelled-subs; dot: Palette.cancelled; }
                 StatusItem { label: "Inativas"; value: root.inactive-subs; dot: Palette.inactive; }
             }
-            // Barra de proporção empilhada.
-            Rectangle {
-                height: 10px; border-radius: 5px; clip: true;
-                background: Theme.row-hover;
-                HorizontalLayout {
-                    ProportionSegment { value: root.active-subs; tone: Palette.active; }
-                    ProportionSegment { value: root.overdue-subs; tone: Palette.overdue; }
-                    ProportionSegment { value: root.cancelled-subs; tone: Palette.cancelled; }
-                    ProportionSegment { value: root.inactive-subs; tone: Palette.inactive; }
-                }
+            // Barra de proporção: um retângulo arredondado por status,
+            // separados entre si (status zerados são omitidos).
+            HorizontalLayout {
+                height: 10px;
+                spacing: 5px;
+                if root.active-subs > 0: ProportionSegment { value: root.active-subs; tone: Palette.active; }
+                if root.overdue-subs > 0: ProportionSegment { value: root.overdue-subs; tone: Palette.overdue; }
+                if root.cancelled-subs > 0: ProportionSegment { value: root.cancelled-subs; tone: Palette.cancelled; }
+                if root.inactive-subs > 0: ProportionSegment { value: root.inactive-subs; tone: Palette.inactive; }
             }
         }
 
@@ -306,13 +310,11 @@ export component AdminOverviewPage inherits VerticalLayout {
                 StatusItem { label: "Ativas"; value: root.active-companies; dot: Palette.company-on; }
                 StatusItem { label: "Suspensas"; value: root.suspended-companies; dot: Palette.company-off; }
             }
-            Rectangle {
-                height: 10px; border-radius: 5px; clip: true;
-                background: Theme.row-hover;
-                HorizontalLayout {
-                    ProportionSegment { value: root.active-companies; tone: Palette.company-on; }
-                    ProportionSegment { value: root.suspended-companies; tone: Palette.company-off; }
-                }
+            HorizontalLayout {
+                height: 10px;
+                spacing: 5px;
+                if root.active-companies > 0: ProportionSegment { value: root.active-companies; tone: Palette.company-on; }
+                if root.suspended-companies > 0: ProportionSegment { value: root.suspended-companies; tone: Palette.company-off; }
             }
         }
 
