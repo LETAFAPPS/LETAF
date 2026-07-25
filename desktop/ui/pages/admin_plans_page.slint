@@ -126,7 +126,8 @@ export component AdminPlansPage inherits VerticalLayout {
     in-out property <string> search;
     callback new-plan();
     callback edit-plan(string);
-    callback delete-plan(string);
+    // Exclusão pede confirmação: passa (id, nome) para o modal.
+    callback delete-plan(string, string);
     callback filters-changed();
 
     spacing: 12px;
@@ -197,7 +198,7 @@ export component AdminPlansPage inherits VerticalLayout {
             for p in root.plans: PlanCard {
                 p: p;
                 edit => { root.edit-plan(p.id); }
-                remove => { root.delete-plan(p.id); }
+                remove => { root.delete-plan(p.id, p.name); }
             }
         }
     }

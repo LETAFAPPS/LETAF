@@ -127,6 +127,10 @@ export global AdminState {
     // `true` = modal de cadastro/edição de plano aberto (padrão da tela de
     // Empresas: o cadastro vive num modal, não num painel fixo).
     in-out property <bool> plan-modal-open: false;
+    // Confirmação de exclusão de plano (modal).
+    in-out property <bool> del-plan-open: false;
+    in-out property <string> del-plan-id: "";
+    in-out property <string> del-plan-name: "";
     in-out property <string> plan-id: "";
     in-out property <string> plan-name: "";
     in-out property <string> plan-amount: "";

@@ -1746,7 +1746,11 @@ export component MainWindow inherits Window {
                     search <=> AdminState.plan-search;
                     new-plan => { AdminState.plan-new(); }
                     edit-plan(id) => { AdminState.plan-edit(id); }
-                    delete-plan(id) => { AdminState.plan-delete(id); }
+                    delete-plan(id, name) => {
+                        AdminState.del-plan-id = id;
+                        AdminState.del-plan-name = name;
+                        AdminState.del-plan-open = true;
+                    }
                     filters-changed => { AdminState.filter-plans(); }
                 }
 
@@ -2684,6 +2688,15 @@ export component MainWindow inherits Window {
         delete-target-name <=> AdminState.del-company-name;
         close => { AdminState.del-company-open = false; }
         confirm-delete => { AdminState.confirm-delete-company(); }
+    }
+
+    if AdminState.del-plan-open: DeleteConfirmModal {
+        delete-target-name <=> AdminState.del-plan-name;
+        close => { AdminState.del-plan-open = false; }
+        confirm-delete => {
+            AdminState.del-plan-open = false;
+            AdminState.plan-delete(AdminState.del-plan-id);
+        }
     }
 
     if AdminState.plan-modal-open: AdminPlanModal {
