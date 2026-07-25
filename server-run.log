@@ -1,0 +1,5 @@
+[2m2026-07-25T17:59:56.667447Z[0m [32m INFO[0m [2mletaf_server[0m[2m:[0m Connected to PostgreSQL
+[2m2026-07-25T17:59:56.670283Z[0m [32m INFO[0m [2mletaf_server[0m[2m:[0m Migrations applied
+[2m2026-07-25T17:59:56.704921Z[0m [32m INFO[0m [2mletaf_server::bootstrap[0m[2m:[0m Efi (PIX) habilitada · env=homologacao · base=https://pix-h.api.efipay.com.br
+[2m2026-07-25T17:59:56.734959Z[0m [32m INFO[0m [2mletaf_server::bootstrap[0m[2m:[0m Efi Cobranças (cartão) habilitada · env=homologacao · base=https://cobrancas-h.api.efipay.com.br
+[2m2026-07-25T17:59:56.762965Z[0m [32m INFO[0m [2mletaf_server[0m[2m:[0m Server running on 0.0.0.0:3001

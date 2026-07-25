@@ -14,6 +14,10 @@ export component AdminUserModal inherits Rectangle {
     // Função de administrador: opções (id→nome) + seleção ("" = master).
     in property <[FilterOption]> roles;
     in-out property <string> role-id;
+    // `true` só ao EDITAR o super admin master (form-id preenchido + sem
+    // função). Ele é sempre Super Admin e ninguém mais pode sê-lo: a função
+    // fica travada e a opção "Super Admin" não é oferecida a outros usuários.
+    property <bool> is-master: root.form-id != "" && root.role-id == "";
     callback save();
     callback close();
 
@@ -59,44 +63,52 @@ export component AdminUserModal inherits Rectangle {
             }
             VerticalLayout {
                 spacing: 6px;
-                master := TouchArea {
+                // Super admin master: função fixa (não-interativa) — sempre
+                // "Super Admin", só ele.
+                if root.is-master: Rectangle {
                     height: 34px;
-                    clicked => { root.role-id = ""; }
-                    Rectangle {
-                        border-radius: 8px;
-                        border-width: root.role-id == "" ? 1.5px : 1px;
-                        border-color: root.role-id == "" ? Theme.btn-accent : Theme.border;
-                        background: root.role-id == "" ? Theme.btn-accent.transparentize(0.92)
-                            : (master.has-hover ? Theme.row-hover : Theme.surface);
-                        HorizontalLayout {
-                            padding-left: 12px; padding-right: 12px;
-                            Text {
-                                text: "Super Admin";
-                                font-size: 13px; font-weight: root.role-id == "" ? 700 : 500;
-                                color: root.role-id == "" ? Theme.btn-accent : Theme.text-primary;
-                                vertical-alignment: center;
-                            }
+                    border-radius: 8px;
+                    border-width: 1.5px;
+                    border-color: Theme.btn-accent;
+                    background: Theme.btn-accent.transparentize(0.92);
+                    HorizontalLayout {
+                        padding-left: 12px; padding-right: 12px;
+                        Text {
+                            text: "Super Admin";
+                            font-size: 13px; font-weight: 700;
+                            color: Theme.btn-accent;
+                            vertical-alignment: center;
                         }
                     }
                 }
-                for opt in root.roles: role-ta := TouchArea {
-                    height: 34px;
-                    clicked => { root.role-id = opt.key; }
-                    Rectangle {
-                        border-radius: 8px;
-                        border-width: root.role-id == opt.key ? 1.5px : 1px;
-                        border-color: root.role-id == opt.key ? Theme.btn-accent : Theme.border;
-                        background: root.role-id == opt.key ? Theme.btn-accent.transparentize(0.92)
-                            : (role-ta.has-hover ? Theme.row-hover : Theme.surface);
-                        HorizontalLayout {
-                            padding-left: 12px; padding-right: 12px;
-                            Text {
-                                text: opt.label;
-                                font-size: 13px; font-weight: root.role-id == opt.key ? 700 : 500;
-                                color: root.role-id == opt.key ? Theme.btn-accent : Theme.text-primary;
-                                vertical-alignment: center;
+                // Demais usuários: escolhem uma das funções cadastradas
+                // (nunca Super Admin).
+                if !root.is-master: VerticalLayout {
+                    spacing: 6px;
+                    for opt in root.roles: role-ta := TouchArea {
+                        height: 34px;
+                        clicked => { root.role-id = opt.key; }
+                        Rectangle {
+                            border-radius: 8px;
+                            border-width: root.role-id == opt.key ? 1.5px : 1px;
+                            border-color: root.role-id == opt.key ? Theme.btn-accent : Theme.border;
+                            background: root.role-id == opt.key ? Theme.btn-accent.transparentize(0.92)
+                                : (role-ta.has-hover ? Theme.row-hover : Theme.surface);
+                            HorizontalLayout {
+                                padding-left: 12px; padding-right: 12px;
+                                Text {
+                                    text: opt.label;
+                                    font-size: 13px; font-weight: root.role-id == opt.key ? 700 : 500;
+                                    color: root.role-id == opt.key ? Theme.btn-accent : Theme.text-primary;
+                                    vertical-alignment: center;
+                                }
                             }
                         }
+                    }
+                    // Sem funções cadastradas: orienta a criar uma em "Funções".
+                    if root.roles.length == 0: Text {
+                        text: "Cadastre uma função na aba Funções para atribuir.";
+                        font-size: 12px; color: Theme.text-secondary; wrap: word-wrap;
                     }
                 }
             }

@@ -127,6 +127,9 @@ pub(super) async fn create_admin(
     if !email_available(&state, &body.email, None).await {
         return Err(ServerError::Core(CoreError::Validation(EMAIL_TAKEN.into())));
     }
+    // §11: novos usuários SEMPRE têm uma função cadastrada. O master (acesso
+    // total, sem função) é único e só existe no banco — não se cria pela API.
+    let role_id = require_valid_role(&state, body.admin_role_id.as_deref()).await?;
     let user = state
         .auth_service
         .create(
@@ -138,8 +141,7 @@ pub(super) async fn create_admin(
         )
         .await?;
     // Atribui a função escolhida (best-effort — o admin já foi criado).
-    let role_id = body.admin_role_id.as_deref().and_then(|s| Uuid::parse_str(s).ok());
-    let _ = state.admin_role_service.set_user_role(user.base.id, role_id).await;
+    let _ = state.admin_role_service.set_user_role(user.base.id, Some(role_id)).await;
     Ok((StatusCode::CREATED, Json(json!({ "id": user.base.id }))))
 }
 
@@ -165,15 +167,41 @@ pub(super) async fn update_admin(
     if !email_available(&state, &body.email, Some(id)).await {
         return Err(ServerError::Core(CoreError::Validation(EMAIL_TAKEN.into())));
     }
-    let role_id = body.admin_role_id.as_deref().and_then(|s| Uuid::parse_str(s).ok());
+    // O master (sem função) é sempre Super Admin — a função é IMUTÁVEL (§11):
+    // valida a nova função só para os demais; ao master ninguém pode ser
+    // rebaixado nem promovido.
+    let is_master = state.admin_role_service.role_for_user(id).await?.is_none();
+    let new_role = if is_master {
+        None
+    } else {
+        Some(require_valid_role(&state, body.admin_role_id.as_deref()).await?)
+    };
     state
         .auth_service
         // Painel do super admin não mexe na foto do operador → None.
         .update_credentials(auth.0.company_id, id, body.email, body.name, body.password, None)
         .await?;
-    // `None` remove a função (vira master). Best-effort.
-    let _ = state.admin_role_service.set_user_role(id, role_id).await;
+    // Só reatribui função para não-master; o master permanece intacto.
+    if let Some(role_id) = new_role {
+        let _ = state.admin_role_service.set_user_role(id, Some(role_id)).await;
+    }
     Ok(Json(json!({ "ok": true })))
+}
+
+/// Valida a função escolhida para um usuário restrito: precisa ser um id
+/// existente no catálogo. Vazio/ausente/inexistente → erro (nunca vira
+/// master — §11: só há um super admin master, criado direto no banco).
+async fn require_valid_role(
+    state: &AppState,
+    admin_role_id: Option<&str>,
+) -> Result<Uuid, ServerError> {
+    let role_id = admin_role_id
+        .and_then(|s| Uuid::parse_str(s).ok())
+        .ok_or_else(|| CoreError::Validation("Selecione uma função para o usuário.".into()))?;
+    if state.admin_role_service.find_by_id(role_id).await?.is_none() {
+        return Err(ServerError::Core(CoreError::Validation("Função inválida.".into())));
+    }
+    Ok(role_id)
 }
 
 pub(super) async fn delete_admin(

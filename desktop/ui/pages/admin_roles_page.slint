@@ -51,7 +51,7 @@ component RoleCard inherits Rectangle {
                 font-size: 14px; font-weight: 700; color: Theme.text-primary; overflow: elide;
             }
             Text {
-                text: root.r.screen-count + (root.r.screen-count == 1 ? " tela · " : " telas · ") + root.r.screens-summary;
+                text: root.r.screen-count + (root.r.screen-count == 1 ? " Tela · " : " Telas · ") + root.r.screens-summary;
                 font-size: 11.5px; color: Theme.text-secondary; overflow: elide;
             }
         }
@@ -59,8 +59,8 @@ component RoleCard inherits Rectangle {
             horizontal-stretch: 1;
             alignment: center;
             Text {
-                text: root.r.users == 0 ? "Nenhum usuário"
-                    : (root.r.users == 1 ? "1 usuário" : root.r.users + " usuários");
+                text: root.r.users == 0 ? "Nenhum Usuário"
+                    : (root.r.users == 1 ? "1 Usuário" : root.r.users + " Usuários");
                 font-size: 11.5px; font-weight: root.r.users > 0 ? 700 : 400;
                 color: root.r.users > 0 ? Theme.btn-accent : Theme.text-secondary;
                 horizontal-alignment: center; overflow: elide;
