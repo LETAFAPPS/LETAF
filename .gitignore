@@ -44,3 +44,7 @@ CHAVES*.md
 
 # Anotações pessoais (prompts) — ficam no disco, fora do versionamento.
 Prompts.txt
+
+# Logs de execução local (dev)
+/desktop-run.log
+/server-run.log
