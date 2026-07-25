@@ -110,6 +110,8 @@ struct InvoiceDto {
 struct SubscriptionDto {
     company_id: String,
     company_name: String,
+    #[serde(default)]
+    logo: String,
     plan: String,
     status: String,
     next_charge: String,
@@ -335,6 +337,9 @@ fn apply_sub_filter(ui: &MainWindow, cache: &SubsCache) {
         .map(|s| AdminSubscriptionRow {
             company_id: s.company_id.clone().into(),
             company_name: s.company_name.clone().into(),
+            logo: super::image::decode_pixel_buffer(&s.logo)
+                .map(slint::Image::from_rgba8)
+                .unwrap_or_default(),
             plan: s.plan.clone().into(),
             status: s.status.clone().into(),
             next_charge: s.next_charge.clone().into(),

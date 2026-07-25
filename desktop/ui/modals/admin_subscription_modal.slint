@@ -51,7 +51,7 @@ export component AdminSubscriptionModal inherits Rectangle {
         height: 100%;
         icon: @image-url("../assets/icons/1.2/financeiro.svg");
         icon-color: Theme.btn-accent;
-        title: "Gerenciar assinatura";
+        title: "Gerenciar Assinatura";
         message: root.company-name;
         card-width: 460px;
         close => { root.close(); }
@@ -62,7 +62,7 @@ export component AdminSubscriptionModal inherits Rectangle {
             // Plano — só os planos cadastrados (catálogo).
             VerticalLayout {
                 spacing: 6px;
-                Text { text: "Plano"; font-size: 12.5px; font-weight: 600; color: Theme.text-secondary; }
+                Text { text: "Planos"; font-size: 12.5px; font-weight: 600; color: Theme.text-secondary; }
                 HorizontalLayout {
                     spacing: 8px;
                     alignment: start;

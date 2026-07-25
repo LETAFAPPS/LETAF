@@ -21,6 +21,8 @@ use super::{audit, brl, require_super_admin, tenants};
 pub(super) struct SubscriptionRow {
     company_id: Uuid,
     company_name: String,
+    /// Logo da empresa (base64) ou "" — thumbnail do card.
+    logo: String,
     plan: String,
     status: String,
     next_charge: String,
@@ -44,6 +46,7 @@ pub(super) async fn list_subscriptions(
         if let Some(sub) = by_company.get(&c.id) {
             rows.push(SubscriptionRow {
                 company_id: c.id,
+                logo: c.logo_data.clone().unwrap_or_default(),
                 company_name: c.name,
                 plan: sub.plan_kind.as_str().to_string(),
                 status: sub.status.as_str().to_string(),

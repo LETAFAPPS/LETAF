@@ -498,60 +498,58 @@ export component AdminCompaniesPage inherits VerticalLayout {
                             edited(v) => { root.form-subdomain = root.mask-field("subdomain", v); }
                         }
                     }
-                    HorizontalLayout {
-                        spacing: 10px;
-                        FormField {
-                            horizontal-stretch: 1;
-                            label: "CNPJ / CPF";
-                            value <=> root.form-document;
-                            placeholder: "Somente números";
-                            icon: @image-url("../assets/icons/1.2/arquivo.svg");
-                            error: root.err-document;
-                            force-end-cursor: true;
-                            edited(v) => { root.form-document = root.mask-field("document", v); }
-                        }
-                        FormField {
-                            horizontal-stretch: 1;
-                            label: "Desconto na mensalidade (R$/mês)";
-                            value <=> root.form-discount;
-                            placeholder: "0,00 — abatido do plano";
-                            icon: @image-url("../assets/icons/1.2/pay-moeda.svg");
-                            error: root.err-discount;
-                            force-end-cursor: true;
-                            edited(v) => { root.form-discount = root.mask-field("money", v); }
-                        }
+                    FormField {
+                        label: "CNPJ / CPF";
+                        value <=> root.form-document;
+                        placeholder: "Somente números";
+                        icon: @image-url("../assets/icons/1.2/arquivo.svg");
+                        error: root.err-document;
+                        force-end-cursor: true;
+                        edited(v) => { root.form-document = root.mask-field("document", v); }
                     }
                 }
             }
 
-            // ── Card: plano da assinatura (planos ativos do sistema) ──
+            // ── Card: plano da assinatura (planos ativos) + desconto ──
             FormCard {
                 title: "Plano";
                 subtitle: "Plano da assinatura desta empresa.";
-                HorizontalLayout {
-                    spacing: 8px;
-                    alignment: start;
-                    for opt in root.plan-options: plan-chip := TouchArea {
-                        height: 36px;
-                        clicked => { root.form-plan = opt.key; }
-                        Rectangle {
-                            border-radius: 8px;
-                            border-width: root.form-plan == opt.key ? 1.5px : 1px;
-                            border-color: root.form-plan == opt.key ? Theme.btn-accent : Theme.border;
-                            background: root.form-plan == opt.key
-                                ? Theme.btn-accent.transparentize(0.90)
-                                : (plan-chip.has-hover ? Theme.row-hover : Theme.surface);
-                            HorizontalLayout {
-                                padding-left: 14px; padding-right: 14px;
-                                Text {
-                                    text: opt.label;
-                                    font-size: 13px;
-                                    font-weight: root.form-plan == opt.key ? 700 : 500;
-                                    color: root.form-plan == opt.key ? Theme.btn-accent : Theme.text-secondary;
-                                    vertical-alignment: center;
+                VerticalLayout {
+                    spacing: 12px;
+                    HorizontalLayout {
+                        spacing: 8px;
+                        alignment: start;
+                        for opt in root.plan-options: plan-chip := TouchArea {
+                            height: 36px;
+                            clicked => { root.form-plan = opt.key; }
+                            Rectangle {
+                                border-radius: 8px;
+                                border-width: root.form-plan == opt.key ? 1.5px : 1px;
+                                border-color: root.form-plan == opt.key ? Theme.btn-accent : Theme.border;
+                                background: root.form-plan == opt.key
+                                    ? Theme.btn-accent.transparentize(0.90)
+                                    : (plan-chip.has-hover ? Theme.row-hover : Theme.surface);
+                                HorizontalLayout {
+                                    padding-left: 14px; padding-right: 14px;
+                                    Text {
+                                        text: opt.label;
+                                        font-size: 13px;
+                                        font-weight: root.form-plan == opt.key ? 700 : 500;
+                                        color: root.form-plan == opt.key ? Theme.btn-accent : Theme.text-secondary;
+                                        vertical-alignment: center;
+                                    }
                                 }
                             }
                         }
+                    }
+                    FormField {
+                        label: "Desconto na mensalidade (R$/mês)";
+                        value <=> root.form-discount;
+                        placeholder: "0,00 — abatido do plano";
+                        icon: @image-url("../assets/icons/1.2/pay-moeda.svg");
+                        error: root.err-discount;
+                        force-end-cursor: true;
+                        edited(v) => { root.form-discount = root.mask-field("money", v); }
                     }
                 }
             }

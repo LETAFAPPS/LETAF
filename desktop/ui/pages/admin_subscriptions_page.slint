@@ -6,6 +6,7 @@ import { Theme } from "../theme.slint";
 import { AdminSubscriptionRow } from "../types.slint";
 import { EmptyState } from "../components/empty_state.slint";
 import { ListSearchBox, ListFilterBtn, FilterOption } from "../components/list_toolbar.slint";
+import { AssetIcon } from "../components/icons.slint";
 
 // Badge de status da assinatura (retângulo arredondado).
 component SubStatusBadge inherits Rectangle {
@@ -31,7 +32,7 @@ component SubscriptionCard inherits Rectangle {
     in property <AdminSubscriptionRow> s;
     callback manage();
 
-    height: 72px;
+    height: 84px;
     background: Theme.surface;
     border-radius: 10px;
     border-width: 1px;
@@ -41,8 +42,29 @@ component SubscriptionCard inherits Rectangle {
     drop-shadow-color: Theme.card-shadow;
 
     HorizontalLayout {
-        padding-left: 16px; padding-right: 14px;
+        padding-left: 14px; padding-right: 14px;
         spacing: 12px;
+
+        // Logo da empresa (igual à tela de Empresas).
+        VerticalLayout {
+            alignment: center;
+            Rectangle {
+                width: 56px; height: 56px;
+                border-radius: 14px;
+                background: Theme.btn-accent.transparentize(0.88);
+                clip: true;
+                AssetIcon {
+                    width: parent.width; height: parent.height; icon-size: 26px;
+                    icon-color: Theme.btn-accent;
+                    source: @image-url("../assets/icons/1.2/empresa.svg");
+                }
+                Image {
+                    source: root.s.logo;
+                    width: parent.width; height: parent.height;
+                    image-fit: cover;
+                }
+            }
+        }
 
         // Empresa.
         VerticalLayout {
@@ -72,23 +94,35 @@ component SubscriptionCard inherits Rectangle {
             alignment: center;
             HorizontalLayout { alignment: center; SubStatusBadge { status: root.s.status; } }
         }
-        // Pagamento.
+        // Forma de pagamento (rótulo acima do valor).
         VerticalLayout {
             horizontal-stretch: 1;
             alignment: center;
+            spacing: 2px;
+            Text {
+                text: "Forma de pagamento";
+                font-size: 10px; font-weight: 700; color: Theme.text-secondary;
+                horizontal-alignment: center;
+            }
             Text {
                 text: root.s.payment-kind == "" ? "—" : root.s.payment-kind;
-                font-size: 12.5px; color: Theme.text-secondary;
+                font-size: 12.5px; color: Theme.text-primary;
                 horizontal-alignment: center;
             }
         }
-        // Próxima cobrança.
+        // Próxima fatura (rótulo acima da data).
         VerticalLayout {
             horizontal-stretch: 1;
             alignment: center;
+            spacing: 2px;
+            Text {
+                text: "Próxima fatura";
+                font-size: 10px; font-weight: 700; color: Theme.text-secondary;
+                horizontal-alignment: center;
+            }
             Text {
                 text: root.s.next-charge == "" ? "—" : root.s.next-charge;
-                font-size: 12.5px; color: Theme.text-secondary;
+                font-size: 12.5px; color: Theme.text-primary;
                 horizontal-alignment: center;
             }
         }
