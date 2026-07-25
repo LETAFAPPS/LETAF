@@ -12,7 +12,6 @@ use crate::context::AppState;
 use crate::error::ServerError;
 use crate::middleware::auth::AuthClaims;
 
-use letaf_core::company::model::Company;
 use letaf_core::subscription::model::InvoiceStatus;
 
 use super::{brl, tenants};
@@ -25,24 +24,19 @@ const MESES_ABBR: [&str; 12] = [
 ];
 
 // ── Painel (visão geral) ─────────────────────────────────────────────────
-/// Um ponto do gráfico de receita anual (um mês).
+/// Um ponto do gráfico de receita anual (um mês do ano-calendário), com o
+/// valor do ano atual e do ano anterior lado a lado (comparativo).
 #[derive(Serialize)]
 pub(super) struct RevenuePoint {
     /// Rótulo do mês em pt-BR ("jan", "fev", ...).
     label: String,
-    /// Valor do mês (numérico, para a altura da barra).
-    amount: f64,
-    /// Valor do mês já em pt-BR ("R$ 1.234,56").
-    amount_brl: String,
-}
-
-/// Uma empresa recém-cadastrada (lista de "últimas do sistema").
-#[derive(Serialize)]
-pub(super) struct RecentCompany {
-    name: String,
-    subdomain: String,
-    /// Data de cadastro em pt-BR ("25/07/2026").
-    created_label: String,
+    /// Valor do mês no ANO ATUAL (numérico, para a altura da barra).
+    current: f64,
+    /// Valor do mesmo mês no ANO ANTERIOR (numérico).
+    previous: f64,
+    /// Valores já em pt-BR ("R$ 1.234,56") para tooltip.
+    current_brl: String,
+    previous_brl: String,
 }
 
 #[derive(Serialize)]
@@ -62,7 +56,7 @@ pub(super) struct OverviewResponse {
     /// Receita mensal recorrente (MRR) das assinaturas ATIVAS, já em
     /// pt-BR ("R$ 1.234,56"). Normaliza cada ciclo para o valor por mês.
     mrr: String,
-    /// Receita realizada (faturas pagas) nos últimos 12 meses, em pt-BR.
+    /// Receita realizada (faturas pagas) no ANO ATUAL (jan–dez), em pt-BR.
     annual_revenue: String,
     /// Ticket médio por assinatura ativa (ARPA), em pt-BR.
     arpa: String,
@@ -71,10 +65,11 @@ pub(super) struct OverviewResponse {
     /// Indicações de novos estabelecimentos — funcionalidade FUTURA
     /// (placeholder; hoje sempre 0). Mantido no contrato para evolução.
     referrals: usize,
-    /// Série do gráfico de receita anual (12 meses, do mais antigo ao atual).
+    /// Ano atual e anterior (rótulos da legenda do gráfico).
+    year: i32,
+    prev_year: i32,
+    /// Série do gráfico: 12 meses (jan–dez), ano atual × ano anterior.
     revenue_months: Vec<RevenuePoint>,
-    /// Últimas empresas cadastradas (até 5, da mais recente para a mais antiga).
-    recent_companies: Vec<RecentCompany>,
 }
 
 pub(super) async fn overview(
@@ -121,25 +116,15 @@ pub(super) async fn overview(
         .map(|(name, _)| name)
         .unwrap_or_else(|| "—".to_string());
 
-    // Receita anual: faturas PAGAS dos últimos 12 meses, por mês.
-    // Loop O(tenants) reusando o repository (§10); agregação em SQL fica como
-    // otimização futura quando a base crescer (§13 — medir antes).
+    // Receita por MÊS-CALENDÁRIO (jan–dez), comparando o ANO ATUAL com o
+    // ANTERIOR. Faturas PAGAS somadas por mês. Loop O(tenants) reusando o
+    // repository (§10); agregação em SQL fica como otimização futura quando
+    // a base crescer (§13 — medir antes).
     let today = chrono::Utc::now().naive_utc().date();
-    let mut months: Vec<(i32, u32)> = Vec::with_capacity(12);
-    let (mut y, mut m) = (today.year(), today.month());
-    for _ in 0..12 {
-        months.push((y, m));
-        if m == 1 {
-            m = 12;
-            y -= 1;
-        } else {
-            m -= 1;
-        }
-    }
-    months.reverse();
-    let month_index: HashMap<(i32, u32), usize> =
-        months.iter().enumerate().map(|(i, &ym)| (ym, i)).collect();
-    let mut buckets = [Decimal::ZERO; 12];
+    let year = today.year();
+    let prev_year = year - 1;
+    let mut current = [Decimal::ZERO; 12];
+    let mut previous = [Decimal::ZERO; 12];
     for c in &tenants {
         let invoices = state.subscription_service.find_invoices(c.id).await.unwrap_or_default();
         for inv in invoices {
@@ -147,19 +132,23 @@ pub(super) async fn overview(
                 continue;
             }
             let Some(paid) = inv.paid_at else { continue };
-            if let Some(&i) = month_index.get(&(paid.year(), paid.month())) {
-                buckets[i] += inv.amount;
+            let idx = (paid.month() - 1) as usize;
+            if paid.year() == year {
+                current[idx] += inv.amount;
+            } else if paid.year() == prev_year {
+                previous[idx] += inv.amount;
             }
         }
     }
-    let annual: Decimal = buckets.iter().copied().sum();
-    let revenue_months: Vec<RevenuePoint> = months
-        .iter()
-        .zip(buckets.iter())
-        .map(|(&(_, mm), &amt)| RevenuePoint {
-            label: MESES_ABBR[(mm - 1) as usize].to_string(),
-            amount: amt.to_f64().unwrap_or(0.0),
-            amount_brl: brl(amt),
+    // "Receita no ano" = total do ano atual (jan–dez).
+    let annual: Decimal = current.iter().copied().sum();
+    let revenue_months: Vec<RevenuePoint> = (0..12)
+        .map(|i| RevenuePoint {
+            label: MESES_ABBR[i].to_string(),
+            current: current[i].to_f64().unwrap_or(0.0),
+            previous: previous[i].to_f64().unwrap_or(0.0),
+            current_brl: brl(current[i]),
+            previous_brl: brl(previous[i]),
         })
         .collect();
 
@@ -171,19 +160,6 @@ pub(super) async fn overview(
         .iter()
         .filter(|c| c.created_at.format("%Y-%m").to_string() == now.format("%Y-%m").to_string())
         .count();
-
-    // Últimas empresas cadastradas (top 5 por data de criação).
-    let mut recentes: Vec<&Company> = tenants.iter().collect();
-    recentes.sort_by_key(|c| std::cmp::Reverse(c.created_at));
-    let recent_companies: Vec<RecentCompany> = recentes
-        .iter()
-        .take(5)
-        .map(|c| RecentCompany {
-            name: c.name.clone(),
-            subdomain: c.subdomain.clone(),
-            created_label: c.created_at.format("%d/%m/%Y").to_string(),
-        })
-        .collect();
 
     let admins = state.auth_service.find_all(auth.0.company_id).await?;
     Ok(Json(OverviewResponse {
@@ -201,7 +177,8 @@ pub(super) async fn overview(
         arpa: brl(arpa),
         top_plan,
         referrals: 0,
+        year,
+        prev_year,
         revenue_months,
-        recent_companies,
     }))
 }

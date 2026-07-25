@@ -148,17 +148,13 @@ export struct AdminScreenOption {
 }
 
 // Ponto do gráfico de receita anual (um mês) — dashboard do super admin.
+// Comparativo ano atual × anterior no mesmo mês.
 export struct AdminRevenuePoint {
-    label: string,     // "jan", "fev", ...
-    value: float,      // valor numérico (altura da barra)
-    amount: string,    // "R$ 1.234,56" (rótulo/tooltip)
-}
-
-// Empresa recém-cadastrada (lista "últimas do sistema") — dashboard.
-export struct AdminRecentCompany {
-    name: string,
-    subdomain: string,
-    date: string,      // "25/07/2026"
+    label: string,             // "jan", "fev", ...
+    current: float,            // valor do ano atual (altura da barra)
+    previous: float,           // valor do ano anterior
+    current-amount: string,    // "R$ 1.234,56" (tooltip do ano atual)
+    previous-amount: string,   // "R$ 1.234,56" (tooltip do ano anterior)
 }
 
 // Linha do catálogo de planos (painel super admin).

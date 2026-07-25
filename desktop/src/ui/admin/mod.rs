@@ -22,7 +22,7 @@ use crate::ui::auth::{apply_login, update_ui_after_login};
 use crate::AdminState;
 use crate::{
     AdminCompanyDetail, AdminCompanyOrderRow, AdminCompanyRow, AdminInvoiceRow,
-    AdminPlanRow, AdminRecentCompany, AdminRevenuePoint, AdminRoleRow, AdminScreenOption,
+    AdminPlanRow, AdminRevenuePoint, AdminRoleRow, AdminScreenOption,
     AdminSubscriptionRow,
     AdminUserRow, FilterOption, MainWindow,
     HTTP_CLIENT,
@@ -73,9 +73,11 @@ struct OverviewDto {
     #[serde(default)]
     referrals: i64,
     #[serde(default)]
-    revenue_months: Vec<RevenuePointDto>,
+    year: i32,
     #[serde(default)]
-    recent_companies: Vec<RecentCompanyDto>,
+    prev_year: i32,
+    #[serde(default)]
+    revenue_months: Vec<RevenuePointDto>,
 }
 
 fn default_money() -> String {
@@ -86,20 +88,15 @@ fn default_dash() -> String {
     "—".to_string()
 }
 
-/// Um ponto do gráfico de receita anual (GET /admin/overview).
+/// Um ponto do gráfico de receita anual (GET /admin/overview): mês +
+/// valor do ano atual e do anterior (comparativo).
 #[derive(Deserialize)]
 struct RevenuePointDto {
     label: String,
-    amount: f64,
-    amount_brl: String,
-}
-
-/// Uma empresa recém-cadastrada (GET /admin/overview).
-#[derive(Deserialize)]
-struct RecentCompanyDto {
-    name: String,
-    subdomain: String,
-    created_label: String,
+    current: f64,
+    previous: f64,
+    current_brl: String,
+    previous_brl: String,
 }
 
 #[derive(Deserialize, Clone)]
@@ -988,11 +985,14 @@ fn setup_refresh(
                     g.set_annual_revenue(SharedString::from(o.annual_revenue));
                     g.set_arpa(SharedString::from(o.arpa));
                     g.set_top_plan(SharedString::from(o.top_plan));
-                    // Gráfico de receita anual (+ escala = maior valor mensal).
+                    // Gráfico de receita anual (jan–dez, ano atual × anterior).
+                    // Escala = maior valor entre os dois anos.
+                    g.set_current_year(o.year);
+                    g.set_prev_year(o.prev_year);
                     let max = o
                         .revenue_months
                         .iter()
-                        .map(|p| p.amount)
+                        .flat_map(|p| [p.current, p.previous])
                         .fold(0.0_f64, f64::max);
                     g.set_revenue_max(max as f32);
                     let points: Vec<AdminRevenuePoint> = o
@@ -1000,22 +1000,13 @@ fn setup_refresh(
                         .into_iter()
                         .map(|p| AdminRevenuePoint {
                             label: p.label.into(),
-                            value: p.amount as f32,
-                            amount: p.amount_brl.into(),
+                            current: p.current as f32,
+                            previous: p.previous as f32,
+                            current_amount: p.current_brl.into(),
+                            previous_amount: p.previous_brl.into(),
                         })
                         .collect();
                     g.set_revenue_points(ModelRc::new(VecModel::from(points)));
-                    // Últimas empresas cadastradas.
-                    let recents: Vec<AdminRecentCompany> = o
-                        .recent_companies
-                        .into_iter()
-                        .map(|c| AdminRecentCompany {
-                            name: c.name.into(),
-                            subdomain: c.subdomain.into(),
-                            date: c.created_label.into(),
-                        })
-                        .collect();
-                    g.set_recent_companies(ModelRc::new(VecModel::from(recents)));
                 }
                 // Guarda as listas completas e exibe já filtradas pela
                 // busca/filtro correntes (mantém o estado da UI no refresh).

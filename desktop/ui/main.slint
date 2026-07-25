@@ -1661,16 +1661,15 @@ export component MainWindow inherits Window {
                     overdue-subs: AdminState.overdue-subs;
                     cancelled-subs: AdminState.cancelled-subs;
                     inactive-subs: AdminState.inactive-subs;
-                    admins: AdminState.admins-count;
-                    new-companies-month: AdminState.new-companies-month;
                     referrals: AdminState.referrals;
                     mrr: AdminState.mrr;
                     annual-revenue: AdminState.annual-revenue;
                     arpa: AdminState.arpa;
                     top-plan: AdminState.top-plan;
+                    current-year: AdminState.current-year;
+                    prev-year: AdminState.prev-year;
                     revenue-max: AdminState.revenue-max;
                     revenue-points: AdminState.revenue-points;
-                    recent-companies: AdminState.recent-companies;
                 }
                 if root.active-tab == "admin-companies": AdminCompaniesPage {
                     companies: AdminState.companies;
