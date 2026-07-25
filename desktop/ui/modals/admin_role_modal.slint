@@ -1,0 +1,101 @@
+// Modal do super admin: cadastro/edição de uma Função (RBAC do painel).
+// UI sem lógica (§1/§3): salvar delega ao Rust (POST/PUT /admin/roles).
+import { Theme } from "../theme.slint";
+import { AdminScreenOption } from "../types.slint";
+import { FormField } from "../components/form_fields.slint";
+import { OutlineBtn } from "../components/buttons.slint";
+import { ModalShell } from "../components/modal_shell.slint";
+
+export component AdminRoleModal inherits Rectangle {
+    in property <string> form-id;
+    in-out property <string> form-name;
+    // Telas do painel (checkbox com estado).
+    in property <[AdminScreenOption]> screens;
+    callback toggle-screen(string);
+    callback save();
+    callback close();
+
+    width: 100%;
+    height: 100%;
+
+    ModalShell {
+        width: 100%;
+        height: 100%;
+        icon: @image-url("../assets/icons/1.2/admin.svg");
+        icon-color: Theme.btn-accent;
+        title: root.form-id == "" ? "Nova função" : "Editar função";
+        message: "Selecione as telas do painel que esta função libera.";
+        card-width: 440px;
+        close => { root.close(); }
+
+        VerticalLayout {
+            spacing: 12px;
+
+            FormField {
+                label: "Nome";
+                value <=> root.form-name;
+                placeholder: "Ex.: Suporte";
+                icon: @image-url("../assets/icons/1.2/admin.svg");
+            }
+
+            Text {
+                text: "Telas liberadas";
+                font-size: 12.5px; font-weight: 600; color: Theme.text-secondary;
+            }
+            VerticalLayout {
+                spacing: 6px;
+                for s in root.screens: row := TouchArea {
+                    height: 40px;
+                    clicked => { root.toggle-screen(s.key); }
+                    Rectangle {
+                        width: parent.width; height: parent.height;
+                        border-radius: 8px;
+                        border-width: 1px;
+                        border-color: s.on ? Theme.btn-accent : Theme.border;
+                        background: s.on
+                            ? Theme.btn-accent.transparentize(0.92)
+                            : (row.has-hover ? Theme.row-hover : Theme.surface);
+                        HorizontalLayout {
+                            padding-left: 12px; padding-right: 12px;
+                            spacing: 10px;
+                            Text {
+                                text: s.label;
+                                horizontal-stretch: 1;
+                                font-size: 13px;
+                                font-weight: s.on ? 700 : 500;
+                                color: s.on ? Theme.btn-accent : Theme.text-primary;
+                                vertical-alignment: center;
+                            }
+                            // Checkbox.
+                            Rectangle {
+                                width: 20px; height: 20px; border-radius: 5px;
+                                y: (parent.height - self.height) / 2;
+                                border-width: 1.5px;
+                                border-color: s.on ? Theme.btn-accent : Theme.border;
+                                background: s.on ? Theme.btn-accent : transparent;
+                                Text {
+                                    text: s.on ? "✓" : "";
+                                    color: white; font-size: 13px; font-weight: 700;
+                                    horizontal-alignment: center; vertical-alignment: center;
+                                    width: parent.width; height: parent.height;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            HorizontalLayout {
+                alignment: end;
+                padding-top: 2px;
+                OutlineBtn {
+                    label: "Salvar";
+                    accent: true;
+                    btn-color: Theme.btn-accent;
+                    width: 130px; height: 40px;
+                    clicked => { root.save(); }
+                }
+            }
+        }
+    }
+}

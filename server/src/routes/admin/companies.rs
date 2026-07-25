@@ -17,7 +17,7 @@ use crate::context::AppState;
 use crate::error::ServerError;
 use crate::middleware::auth::AuthClaims;
 
-use super::{audit, brl, email_available, require_super_admin, tenants, EMAIL_TAKEN, PLATFORM_SUBDOMAIN};
+use super::{audit, brl, email_available, tenants, EMAIL_TAKEN, PLATFORM_SUBDOMAIN};
 // ── Empresas (tenants) ───────────────────────────────────────────────────
 #[derive(Serialize)]
 pub(super) struct CompanyRow {
@@ -109,7 +109,7 @@ pub(super) async fn create_company(
     auth: AuthClaims,
     Json(body): Json<CreateCompanyRequest>,
 ) -> Result<(StatusCode, Json<Value>), ServerError> {
-    require_super_admin(&auth)?;
+    auth.require_screen("companies")?;
     let name = body.name.trim().to_string();
     let subdomain = body.subdomain.trim().to_lowercase();
     let admin_name = body.admin_name.trim().to_string();
@@ -273,7 +273,7 @@ pub(super) async fn company_form(
     auth: AuthClaims,
     Path(id): Path<Uuid>,
 ) -> Result<Json<CompanyForm>, ServerError> {
-    require_super_admin(&auth)?;
+    auth.require_screen("companies")?;
     let c = state
         .company_service
         .find_by_id(id)
@@ -380,7 +380,7 @@ pub(super) async fn update_company(
     Path(id): Path<Uuid>,
     Json(body): Json<UpdateCompanyRequest>,
 ) -> Result<StatusCode, ServerError> {
-    require_super_admin(&auth)?;
+    auth.require_screen("companies")?;
     let name = body.name.trim().to_string();
     if name.is_empty() {
         return Err(ServerError::Core(CoreError::Validation(
@@ -499,7 +499,7 @@ pub(super) async fn impersonate_company(
     auth: AuthClaims,
     Path(id): Path<Uuid>,
 ) -> Result<Json<Value>, ServerError> {
-    require_super_admin(&auth)?;
+    auth.require_screen("companies")?;
     let company = state
         .company_service
         .find_by_id(id)
@@ -591,7 +591,7 @@ pub(super) async fn company_detail(
     auth: AuthClaims,
     Path(id): Path<Uuid>,
 ) -> Result<Json<CompanyDetail>, ServerError> {
-    require_super_admin(&auth)?;
+    auth.require_screen("companies")?;
     let c = state
         .company_service
         .find_by_id(id)
@@ -691,7 +691,7 @@ pub(super) async fn delete_company(
     auth: AuthClaims,
     Path(id): Path<Uuid>,
 ) -> Result<Json<Value>, ServerError> {
-    require_super_admin(&auth)?;
+    auth.require_screen("companies")?;
     // Nunca deixar excluir a própria empresa-plataforma.
     let mut label = String::new();
     if let Some(c) = state.company_service.find_by_id(id).await? {
@@ -721,7 +721,7 @@ pub(super) async fn set_company_active(
     Path(id): Path<Uuid>,
     Json(body): Json<SetActiveRequest>,
 ) -> Result<Json<Value>, ServerError> {
-    require_super_admin(&auth)?;
+    auth.require_screen("companies")?;
     if let Some(c) = state.company_service.find_by_id(id).await? {
         if c.subdomain == PLATFORM_SUBDOMAIN {
             return Err(ServerError::Core(CoreError::Validation(
@@ -744,7 +744,7 @@ pub(super) async fn list_companies(
     State(state): State<AppState>,
     auth: AuthClaims,
 ) -> Result<Json<Vec<CompanyRow>>, ServerError> {
-    require_super_admin(&auth)?;
+    auth.require_screen("companies")?;
     let tenants = tenants(&state).await?;
     let ids: Vec<Uuid> = tenants.iter().map(|c| c.id).collect();
     let subs = state.subscription_service.find_current_for_companies(&ids).await?;
@@ -817,7 +817,7 @@ pub(super) async fn list_company_orders(
     auth: AuthClaims,
     Path(id): Path<Uuid>,
 ) -> Result<Json<Vec<CompanyOrderRow>>, ServerError> {
-    require_super_admin(&auth)?;
+    auth.require_screen("companies")?;
     let orders = state.order_service.find_all_paged(id, 10, 0).await?;
     Ok(Json(
         orders

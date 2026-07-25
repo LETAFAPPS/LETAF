@@ -8,7 +8,7 @@ use crate::context::AppState;
 use crate::error::ServerError;
 use crate::middleware::auth::AuthClaims;
 
-use super::{brl, require_super_admin, tenants};
+use super::{brl, tenants};
 use serde::Serialize;
 use uuid::Uuid;
 // ── Painel (visão geral) ─────────────────────────────────────────────────
@@ -31,7 +31,7 @@ pub(super) async fn overview(
     State(state): State<AppState>,
     auth: AuthClaims,
 ) -> Result<Json<OverviewResponse>, ServerError> {
-    require_super_admin(&auth)?;
+    auth.require_screen("overview")?;
     let tenants = tenants(&state).await?;
     let ids: Vec<Uuid> = tenants.iter().map(|c| c.id).collect();
     let subs = state.subscription_service.find_current_for_companies(&ids).await?;

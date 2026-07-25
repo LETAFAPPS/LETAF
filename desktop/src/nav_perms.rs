@@ -23,9 +23,27 @@ pub fn nav_perms_from(is_admin: bool, is_super_admin: bool, perms: &[String]) ->
         }
         is_admin || perms.iter().any(|p| p == key)
     };
+    // Telas do PAINEL do super admin: liberadas por `screen:<tela>` no token.
+    // Master = `screen:*` ou SEM nenhuma entrada `screen:` (compatível com
+    // token legado / super admin sem função) → acesso total.
+    let has_screen = |screen: &str| {
+        if !is_super_admin {
+            return false;
+        }
+        let any = perms.iter().any(|p| p.starts_with("screen:"));
+        if !any {
+            return true;
+        }
+        perms.iter().any(|p| p == "screen:*" || p == &format!("screen:{screen}"))
+    };
     NavPerms {
         is_admin,
         is_super_admin,
+        admin_overview: has_screen("overview"),
+        admin_companies: has_screen("companies"),
+        admin_plans: has_screen("plans"),
+        admin_admins: has_screen("admins"),
+        admin_roles: has_screen("roles"),
         dashboard: has("dashboard.view"),
         reports: has("reports.view"),
         pdv: has("pdv.view"),
@@ -49,7 +67,23 @@ pub fn nav_perms_from(is_admin: bool, is_super_admin: bool, perms: &[String]) ->
 /// liberada (evita abrir uma tela sem permissão após o login).
 pub fn first_accessible_tab(is_admin: bool, is_super_admin: bool, perms: &[String]) -> &'static str {
     if is_super_admin {
-        return "admin-overview";
+        // 1ª tela do painel liberada pela função (master = todas).
+        let any_screen = perms.iter().any(|p| p.starts_with("screen:"));
+        let allowed = |s: &str| {
+            !any_screen || perms.iter().any(|p| p == "screen:*" || p == &format!("screen:{s}"))
+        };
+        const ADMIN_ORDER: &[(&str, &str)] = &[
+            ("overview", "admin-overview"),
+            ("companies", "admin-companies"),
+            ("plans", "admin-plans"),
+            ("admins", "admin-admins"),
+            ("roles", "admin-roles"),
+        ];
+        return ADMIN_ORDER
+            .iter()
+            .find(|(s, _)| allowed(s))
+            .map(|(_, tab)| *tab)
+            .unwrap_or("admin-overview");
     }
     if is_admin {
         return "dashboard";

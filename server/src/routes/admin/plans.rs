@@ -17,7 +17,7 @@ use crate::context::AppState;
 use crate::error::ServerError;
 use crate::middleware::auth::AuthClaims;
 
-use super::{audit, require_super_admin, tenants};
+use super::{audit, tenants};
 // ── Catálogo de planos (CRUD do super admin) ─────────────────────────────
 /// Payload de plano (reusado pela vitrine das lojas em subscriptions.rs).
 #[derive(Serialize)]
@@ -79,7 +79,7 @@ pub(super) async fn list_plans(
     State(state): State<AppState>,
     auth: AuthClaims,
 ) -> Result<Json<Vec<AdminPlanPayload>>, ServerError> {
-    require_super_admin(&auth)?;
+    auth.require_screen("plans")?;
     let plans = state.plan_service.find_all().await?;
     let usage = plan_usage(&state).await?;
     Ok(Json(
@@ -134,7 +134,7 @@ pub(super) async fn create_plan(
     auth: AuthClaims,
     Json(body): Json<PlanBody>,
 ) -> Result<(StatusCode, Json<Value>), ServerError> {
-    require_super_admin(&auth)?;
+    auth.require_screen("plans")?;
     let plan = state.plan_service.create(body.into_input()).await?;
     Ok((StatusCode::CREATED, Json(json!({ "id": plan.id }))))
 }
@@ -145,7 +145,7 @@ pub(super) async fn update_plan(
     Path(id): Path<Uuid>,
     Json(body): Json<PlanBody>,
 ) -> Result<Json<Value>, ServerError> {
-    require_super_admin(&auth)?;
+    auth.require_screen("plans")?;
     state.plan_service.update(id, body.into_input()).await?;
     Ok(Json(json!({ "ok": true })))
 }
@@ -155,7 +155,7 @@ pub(super) async fn delete_plan(
     auth: AuthClaims,
     Path(id): Path<Uuid>,
 ) -> Result<Json<Value>, ServerError> {
-    require_super_admin(&auth)?;
+    auth.require_screen("plans")?;
     // Não excluir plano em uso: as assinaturas guardam o snapshot dos
     // termos, mas perder o plano do catálogo quebraria a gestão (§11 — a
     // autoridade é o backend, não a UI).

@@ -284,7 +284,18 @@ struct DesktopAuthResponse {
 /// as permissões da Função atribuída (vazio se sem função).
 async fn resolve_perms(state: &AppState, user: &User) -> Vec<String> {
     match user.role {
-        UserRole::Admin | UserRole::SuperAdmin => letaf_core::permission::all(),
+        // Super admin: as TELAS do painel vêm da Função de administrador
+        // (chaves `"screen:<tela>"`). Sem Função = master → `"screen:*"`
+        // (acesso total). Ver `admin_role` + `AuthClaims::require_screen`.
+        UserRole::SuperAdmin => match state.admin_role_service.role_for_user(user.base.id).await {
+            Ok(Some(role)) => role
+                .screens
+                .iter()
+                .map(|s| format!("screen:{s}"))
+                .collect(),
+            _ => vec!["screen:*".to_string()],
+        },
+        UserRole::Admin => letaf_core::permission::all(),
         UserRole::Employee => match user.job_role_id {
             Some(jid) => state
                 .job_role_service

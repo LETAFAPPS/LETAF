@@ -81,6 +81,8 @@ pub struct AppState {
     pub plan_service: Arc<PlanService>,
     /// Trilha de auditoria do super admin (§11) — construída do pool.
     pub audit_service: Arc<AuditService>,
+    /// Funções de administrador (RBAC do painel) — construída do pool.
+    pub admin_role_service: Arc<letaf_core::admin_role::service::AdminRoleService>,
     /// Rate limiter dos endpoints de autenticação (anti-brute-force §11).
     pub login_rate_limiter: Arc<crate::rate_limit::RateLimiter>,
 }
@@ -127,6 +129,12 @@ impl AppState {
         let audit_service = Arc::new(AuditService::new(Arc::new(
             crate::repository::audit::PgAuditRepository::new(pool.clone()),
         )));
+        // Funções de administrador — idem (só o pool).
+        let admin_role_service = Arc::new(
+            letaf_core::admin_role::service::AdminRoleService::new(Arc::new(
+                crate::repository::admin_role::PgAdminRoleRepository::new(pool.clone()),
+            )),
+        );
         Self {
             login_rate_limiter: Arc::new(crate::rate_limit::RateLimiter::new(
                 LOGIN_RATE_MAX,
@@ -161,6 +169,7 @@ impl AppState {
             password_reset_service,
             plan_service,
             audit_service,
+            admin_role_service,
         }
     }
 }

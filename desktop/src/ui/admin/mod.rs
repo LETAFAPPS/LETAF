@@ -22,13 +22,31 @@ use crate::ui::auth::{apply_login, update_ui_after_login};
 use crate::AdminState;
 use crate::{
     AdminCompanyDetail, AdminCompanyOrderRow, AdminCompanyRow, AdminInvoiceRow,
-    AdminPlanRow,
+    AdminPlanRow, AdminRoleRow, AdminScreenOption,
     AdminSubscriptionRow,
     AdminUserRow, FilterOption, MainWindow,
     HTTP_CLIENT,
 };
 
 use super::helpers::show_toast;
+
+/// Catálogo de TELAS do painel (espelha `core::admin_role::model::SCREENS`).
+/// Fonte para os checkboxes do modal e o resumo no card de Função.
+const ADMIN_SCREENS: &[(&str, &str)] = &[
+    ("overview", "Dashboard"),
+    ("companies", "Empresas"),
+    ("plans", "Planos"),
+    ("admins", "Usuários"),
+    ("roles", "Funções"),
+];
+
+fn screen_label(key: &str) -> &'static str {
+    ADMIN_SCREENS
+        .iter()
+        .find(|(k, _)| *k == key)
+        .map(|(_, l)| *l)
+        .unwrap_or("?")
+}
 
 // ── DTOs espelhando as respostas JSON do servidor (routes/admin.rs) ──────
 #[derive(Deserialize)]
@@ -174,6 +192,21 @@ struct AdminDto {
     id: String,
     name: String,
     email: String,
+    #[serde(default)]
+    role_id: String,
+    #[serde(default)]
+    role_name: String,
+}
+
+/// Função de administrador vinda de GET /admin/roles.
+#[derive(Deserialize, Clone)]
+struct AdminRoleDto {
+    id: String,
+    name: String,
+    #[serde(default)]
+    screens: Vec<String>,
+    #[serde(default)]
+    users: i64,
 }
 
 #[derive(Deserialize, Clone, Default)]
@@ -206,6 +239,7 @@ type PlansCache = Arc<Mutex<Vec<PlanDto>>>;
 type CompaniesCache = Arc<Mutex<Vec<CompanyDto>>>;
 type SubsCache = Arc<Mutex<Vec<SubscriptionDto>>>;
 type UsersCache = Arc<Mutex<Vec<AdminDto>>>;
+type RolesCache = Arc<Mutex<Vec<AdminRoleDto>>>;
 
 /// Aplica busca (nome/e-mail) aos usuários — sobre o cache, sem ir à rede.
 fn apply_user_filter(ui: &MainWindow, cache: &UsersCache) {
@@ -218,9 +252,192 @@ fn apply_user_filter(ui: &MainWindow, cache: &UsersCache) {
             id: u.id.clone().into(),
             name: u.name.clone().into(),
             email: u.email.clone().into(),
+            role_id: u.role_id.clone().into(),
+            role_name: u.role_name.clone().into(),
         })
         .collect();
     ui.global::<AdminState>().set_users(ModelRc::new(VecModel::from(rows)));
+}
+
+/// Aplica busca (nome) às Funções + monta as opções de função para o seletor
+/// de usuário (id→nome). Sobre o cache, sem ir à rede.
+fn apply_role_filter(ui: &MainWindow, cache: &RolesCache) {
+    let search = ui.global::<AdminState>().get_role_search().to_string();
+    let Ok(all) = cache.lock() else { return };
+    let rows: Vec<AdminRoleRow> = all
+        .iter()
+        .filter(|r| matches(&r.name, &search))
+        .map(|r| {
+            let labels: Vec<&str> = r.screens.iter().map(|s| screen_label(s)).collect();
+            AdminRoleRow {
+                id: r.id.clone().into(),
+                name: r.name.clone().into(),
+                screens_summary: labels.join(" · ").into(),
+                screen_count: r.screens.len() as i32,
+                users: r.users as i32,
+            }
+        })
+        .collect();
+    ui.global::<AdminState>().set_admin_roles(ModelRc::new(VecModel::from(rows)));
+
+    // Opções do seletor de função no cadastro de usuário (todas as funções).
+    let opts: Vec<FilterOption> = all
+        .iter()
+        .map(|r| FilterOption { key: r.id.clone().into(), label: r.name.clone().into() })
+        .collect();
+    ui.global::<AdminState>().set_admin_role_options(ModelRc::new(VecModel::from(opts)));
+}
+
+/// Monta as opções de tela (checkbox) do formulário de Função, marcando as
+/// telas em `selected`.
+fn build_screen_options(selected: &[String]) -> Vec<AdminScreenOption> {
+    ADMIN_SCREENS
+        .iter()
+        .map(|(key, label)| AdminScreenOption {
+            key: (*key).into(),
+            label: (*label).into(),
+            on: selected.iter().any(|s| s == key),
+        })
+        .collect()
+}
+
+/// Callbacks das Funções: form (novo/editar/toggle), salvar/excluir e busca.
+fn setup_roles(
+    ui: &MainWindow,
+    handle: &tokio::runtime::Handle,
+    auth_token: &Arc<RwLock<Option<String>>>,
+    server_url: &str,
+    roles_cache: &RolesCache,
+) {
+    // Novo: form limpo + telas todas desmarcadas.
+    {
+        let ui_weak = ui.as_weak();
+        ui.global::<AdminState>().on_role_new(move || {
+            let Some(ui) = ui_weak.upgrade() else { return };
+            let g = ui.global::<AdminState>();
+            g.set_role_form_id(SharedString::new());
+            g.set_role_form_name(SharedString::new());
+            g.set_role_form_screens(ModelRc::new(VecModel::from(build_screen_options(&[]))));
+            g.set_role_modal_open(true);
+        });
+    }
+    // Editar: preenche do cache e marca as telas da função.
+    {
+        let ui_weak = ui.as_weak();
+        let cache = roles_cache.clone();
+        ui.global::<AdminState>().on_role_edit(move |id| {
+            let Some(ui) = ui_weak.upgrade() else { return };
+            let Ok(all) = cache.lock() else { return };
+            if let Some(r) = all.iter().find(|r| r.id == id.as_str()) {
+                let g = ui.global::<AdminState>();
+                g.set_role_form_id(r.id.clone().into());
+                g.set_role_form_name(r.name.clone().into());
+                g.set_role_form_screens(ModelRc::new(VecModel::from(build_screen_options(&r.screens))));
+                g.set_role_modal_open(true);
+            }
+        });
+    }
+    // Alterna uma tela no formulário.
+    {
+        let ui_weak = ui.as_weak();
+        ui.global::<AdminState>().on_role_toggle_screen(move |key| {
+            let Some(ui) = ui_weak.upgrade() else { return };
+            let model = ui.global::<AdminState>().get_role_form_screens();
+            let toggled: Vec<AdminScreenOption> = (0..model.row_count())
+                .filter_map(|i| model.row_data(i))
+                .map(|mut o| {
+                    if o.key == key {
+                        o.on = !o.on;
+                    }
+                    o
+                })
+                .collect();
+            ui.global::<AdminState>().set_role_form_screens(ModelRc::new(VecModel::from(toggled)));
+        });
+    }
+    // Salvar (criar/atualizar).
+    {
+        let ui_weak = ui.as_weak();
+        let handle = handle.clone();
+        let auth_token = auth_token.clone();
+        let server_url = server_url.to_string();
+        ui.global::<AdminState>().on_role_save(move || {
+            let Some(ui) = ui_weak.upgrade() else { return };
+            let g = ui.global::<AdminState>();
+            let id = g.get_role_form_id().to_string();
+            let name = g.get_role_form_name().trim().to_string();
+            if name.is_empty() {
+                show_toast(&ui, "Informe o nome da função", "error");
+                return;
+            }
+            let model = g.get_role_form_screens();
+            let screens: Vec<String> = (0..model.row_count())
+                .filter_map(|i| model.row_data(i))
+                .filter(|o| o.on)
+                .map(|o| o.key.to_string())
+                .collect();
+            if screens.is_empty() {
+                show_toast(&ui, "Selecione ao menos uma tela", "error");
+                return;
+            }
+            let body = serde_json::json!({ "name": name, "screens": screens });
+            let ui_weak = ui.as_weak();
+            let auth_token = auth_token.clone();
+            let server_url = server_url.clone();
+            handle.spawn(async move {
+                let Some(token) = auth_token.read().await.clone() else { return };
+                let result = if id.is_empty() {
+                    HTTP_CLIENT.post(format!("{server_url}/admin/roles")).bearer_auth(&token).json(&body).send().await
+                } else {
+                    HTTP_CLIENT.put(format!("{server_url}/admin/roles/{id}")).bearer_auth(&token).json(&body).send().await
+                };
+                let outcome = write_outcome(result).await;
+                let _ = slint::invoke_from_event_loop(move || {
+                    let Some(ui) = ui_weak.upgrade() else { return };
+                    match outcome {
+                        Ok(()) => {
+                            show_toast(&ui, "Função Salva", "success");
+                            ui.global::<AdminState>().set_role_modal_open(false);
+                            ui.global::<AdminState>().invoke_refresh();
+                        }
+                        Err(msg) => show_toast(&ui, &msg, "error"),
+                    }
+                });
+            });
+        });
+    }
+    // Excluir (acionado pela confirmação).
+    {
+        let ui_weak = ui.as_weak();
+        let handle = handle.clone();
+        let auth_token = auth_token.clone();
+        let server_url = server_url.to_string();
+        ui.global::<AdminState>().on_role_delete(move |id| {
+            let id = id.to_string();
+            let ui_weak = ui_weak.clone();
+            let auth_token = auth_token.clone();
+            let server_url = server_url.clone();
+            handle.spawn(async move {
+                let Some(token) = auth_token.read().await.clone() else { return };
+                let result = HTTP_CLIENT
+                    .delete(format!("{server_url}/admin/roles/{id}"))
+                    .bearer_auth(&token)
+                    .send()
+                    .await;
+                report(ui_weak, result, "Função Removida").await;
+            });
+        });
+    }
+    // Busca.
+    {
+        let ui_weak = ui.as_weak();
+        let cache = roles_cache.clone();
+        ui.global::<AdminState>().on_filter_roles(move || {
+            if let Some(ui) = ui_weak.upgrade() {
+                apply_role_filter(&ui, &cache);
+            }
+        });
+    }
 }
 
 /// `true` se `haystack` contém `needle` ignorando caixa (busca simples).
@@ -407,6 +624,7 @@ pub(crate) fn setup_admin(
     let companies_cache: CompaniesCache = Arc::new(Mutex::new(Vec::new()));
     let subs_cache: SubsCache = Arc::new(Mutex::new(Vec::new()));
     let users_cache: UsersCache = Arc::new(Mutex::new(Vec::new()));
+    let roles_cache: RolesCache = Arc::new(Mutex::new(Vec::new()));
     setup_refresh(
         ui,
         handle,
@@ -416,8 +634,10 @@ pub(crate) fn setup_admin(
         &companies_cache,
         &subs_cache,
         &users_cache,
+        &roles_cache,
     );
     setup_filters(ui, &companies_cache, &subs_cache, &users_cache);
+    setup_roles(ui, handle, &auth_token, &server_url, &roles_cache);
     setup_form(ui);
     setup_persist(ui, handle, &auth_token, &server_url);
     setup_company_persist(ui, handle, &auth_token, &server_url);
@@ -644,6 +864,7 @@ fn setup_refresh(
     companies_cache: &CompaniesCache,
     subs_cache: &SubsCache,
     users_cache: &UsersCache,
+    roles_cache: &RolesCache,
 ) {
     let ui_weak = ui.as_weak();
     let handle = handle.clone();
@@ -653,6 +874,7 @@ fn setup_refresh(
     let companies_cache = companies_cache.clone();
     let subs_cache = subs_cache.clone();
     let users_cache = users_cache.clone();
+    let roles_cache = roles_cache.clone();
     ui.global::<AdminState>().on_refresh(move || {
         let ui_weak = ui_weak.clone();
         let auth_token = auth_token.clone();
@@ -661,6 +883,7 @@ fn setup_refresh(
         let companies_cache = companies_cache.clone();
         let subs_cache = subs_cache.clone();
         let users_cache = users_cache.clone();
+        let roles_cache = roles_cache.clone();
         handle.spawn(async move {
             let Some(token) = auth_token.read().await.clone() else { return };
 
@@ -682,8 +905,15 @@ fn setup_refresh(
                 get_json(&format!("{server_url}/admin/plans"), &token)
                     .await
                     .unwrap_or_default();
+            let roles: Vec<AdminRoleDto> =
+                get_json(&format!("{server_url}/admin/roles"), &token)
+                    .await
+                    .unwrap_or_default();
             if let Ok(mut g) = plans_cache.lock() {
                 *g = plans;
+            }
+            if let Ok(mut g) = roles_cache.lock() {
+                *g = roles;
             }
 
             let _ = slint::invoke_from_event_loop(move || {
@@ -720,6 +950,8 @@ fn setup_refresh(
                 if let Ok(g) = plans_cache.lock() {
                     set_plan_filter_options(&ui, &g);
                 }
+                // Funções + opções do seletor de função no usuário.
+                apply_role_filter(&ui, &roles_cache);
             });
         });
     });
@@ -889,6 +1121,7 @@ fn setup_form(ui: &MainWindow) {
             ui.global::<AdminState>().set_form_name(SharedString::new());
             ui.global::<AdminState>().set_form_email(SharedString::new());
             ui.global::<AdminState>().set_form_password(SharedString::new());
+            ui.global::<AdminState>().set_user_form_role_id(SharedString::new());
             ui.global::<AdminState>().set_user_modal_open(true);
         });
     }
@@ -903,6 +1136,7 @@ fn setup_form(ui: &MainWindow) {
                 ui.global::<AdminState>().set_form_name(u.name.clone());
                 ui.global::<AdminState>().set_form_email(u.email.clone());
                 ui.global::<AdminState>().set_form_password(SharedString::new());
+                ui.global::<AdminState>().set_user_form_role_id(u.role_id.clone());
                 ui.global::<AdminState>().set_user_modal_open(true);
             }
         });
@@ -939,13 +1173,19 @@ fn setup_persist(
             }
             let id = id.to_string();
             let password = password.to_string();
+            // Função escolhida (id do catálogo). Vazio = master.
+            let role_id = ui_weak
+                .upgrade()
+                .map(|ui| ui.global::<AdminState>().get_user_form_role_id().to_string())
+                .unwrap_or_default();
+            let role_id = if role_id.trim().is_empty() { None } else { Some(role_id) };
             let ui_weak = ui_weak.clone();
             let auth_token = auth_token.clone();
             let server_url = server_url.clone();
             handle.spawn(async move {
                 let Some(token) = auth_token.read().await.clone() else { return };
                 let result = if id.is_empty() {
-                    let body = serde_json::json!({ "name": name, "email": email, "password": password });
+                    let body = serde_json::json!({ "name": name, "email": email, "password": password, "admin_role_id": role_id });
                     HTTP_CLIENT
                         .post(format!("{server_url}/admin/admins"))
                         .bearer_auth(&token)
@@ -954,7 +1194,7 @@ fn setup_persist(
                         .await
                 } else {
                     let pw = if password.trim().is_empty() { None } else { Some(password) };
-                    let body = serde_json::json!({ "name": name, "email": email, "password": pw });
+                    let body = serde_json::json!({ "name": name, "email": email, "password": pw, "admin_role_id": role_id });
                     HTTP_CLIENT
                         .put(format!("{server_url}/admin/admins/{id}"))
                         .bearer_auth(&token)

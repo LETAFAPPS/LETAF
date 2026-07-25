@@ -116,6 +116,27 @@ impl AuthClaims {
         }
         Ok(())
     }
+
+    /// Exige super admin E acesso à TELA `screen` do painel (RBAC do painel).
+    /// As telas concedidas vêm no token como `"screen:<chave>"` (resolvidas
+    /// da Função no login). Master = `"screen:*"`. Compatibilidade: um token
+    /// SEM nenhuma entrada `"screen:"` é tratado como master (acesso total) —
+    /// evita travar sessões antigas e o super admin sem Função.
+    pub fn require_screen(&self, screen: &str) -> Result<(), ServerError> {
+        self.verify_role(ROLE_SUPER_ADMIN)?;
+        let has_any = self.0.perms.iter().any(|p| p.starts_with("screen:"));
+        if !has_any {
+            return Ok(());
+        }
+        let wanted = format!("screen:{screen}");
+        if self.0.perms.iter().any(|p| p == "screen:*" || *p == wanted) {
+            Ok(())
+        } else {
+            Err(ServerError::Forbidden(
+                "Acesso a esta tela não permitido para sua função.".into(),
+            ))
+        }
+    }
 }
 
 impl FromRequestParts<AppState> for AuthClaims {

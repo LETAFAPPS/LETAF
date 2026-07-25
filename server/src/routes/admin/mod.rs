@@ -21,7 +21,6 @@ use letaf_core::company::model::Company;
 
 use crate::context::AppState;
 use crate::error::ServerError;
-use crate::jwt::ROLE_SUPER_ADMIN;
 use crate::middleware::auth::AuthClaims;
 
 /// Subdomínio reservado da empresa-plataforma (container dos super admins).
@@ -38,6 +37,7 @@ mod admins;
 mod companies;
 mod overview;
 mod plans;
+mod roles;
 mod subscriptions;
 
 pub(crate) use plans::{plan_payload, PlanPayload};
@@ -71,13 +71,10 @@ pub fn routes() -> Router<AppState> {
         .route("/admin/admins/{id}", put(admins::update_admin).delete(admins::delete_admin))
         .route("/admin/plans", get(plans::list_plans).post(plans::create_plan))
         .route("/admin/plans/{id}", put(plans::update_plan).delete(plans::delete_plan))
+        .route("/admin/roles", get(roles::list_roles).post(roles::create_role))
+        .route("/admin/roles/{id}", put(roles::update_role).delete(roles::delete_role))
 }
 
-/// Guard: exige `super_admin`. `verify_role` NÃO checa `company_id`
-/// (cross-tenant) — correto para o painel de plataforma.
-fn require_super_admin(auth: &AuthClaims) -> Result<(), ServerError> {
-    auth.verify_role(ROLE_SUPER_ADMIN)
-}
 
 /// Registra uma ação na trilha de auditoria (§11).
 ///
@@ -250,6 +247,7 @@ mod tests {
             ("subscriptions.rs", include_str!("subscriptions.rs")),
             ("admins.rs", include_str!("admins.rs")),
             ("plans.rs", include_str!("plans.rs")),
+            ("roles.rs", include_str!("roles.rs")),
         ];
 
         let mut faltando = Vec::new();
@@ -267,14 +265,16 @@ mod tests {
                     continue;
                 }
                 let fim = marcas.get(idx + 1).copied().unwrap_or(src.len());
-                if !src[start..fim].contains("require_super_admin") {
+                // Gate: `require_screen` (RBAC por tela) — todo handler /admin/*
+                // exige uma tela do painel, o que já implica super admin.
+                if !src[start..fim].contains("require_screen") {
                     faltando.push(format!("{arquivo}::{nome}"));
                 }
             }
         }
         assert!(
             faltando.is_empty(),
-            "handlers /admin/* sem require_super_admin: {faltando:?}"
+            "handlers /admin/* sem gate de tela (require_screen): {faltando:?}"
         );
     }
 }

@@ -15,7 +15,7 @@ use crate::context::AppState;
 use crate::error::ServerError;
 use crate::middleware::auth::AuthClaims;
 
-use super::{audit, brl, require_super_admin, tenants};
+use super::{audit, brl, tenants};
 // ── Assinaturas & planos ─────────────────────────────────────────────────
 #[derive(Serialize)]
 pub(super) struct SubscriptionRow {
@@ -35,7 +35,7 @@ pub(super) async fn list_subscriptions(
     State(state): State<AppState>,
     auth: AuthClaims,
 ) -> Result<Json<Vec<SubscriptionRow>>, ServerError> {
-    require_super_admin(&auth)?;
+    auth.require_screen("companies")?;
     let tenants = tenants(&state).await?;
     let ids: Vec<Uuid> = tenants.iter().map(|c| c.id).collect();
     let subs = state.subscription_service.find_current_for_companies(&ids).await?;
@@ -84,7 +84,7 @@ pub(super) async fn update_subscription(
     Path(company_id): Path<Uuid>,
     Json(body): Json<UpdateSubscriptionRequest>,
 ) -> Result<StatusCode, ServerError> {
-    require_super_admin(&auth)?;
+    auth.require_screen("companies")?;
     let today = chrono::Utc::now().date_naive();
     // Garante que a assinatura exista (empresas antigas podem não ter seed).
     state.subscription_service.ensure_seed(company_id, today).await?;
@@ -145,7 +145,7 @@ pub(super) async fn list_invoices(
     auth: AuthClaims,
     Path(id): Path<Uuid>,
 ) -> Result<Json<Vec<InvoiceRow>>, ServerError> {
-    require_super_admin(&auth)?;
+    auth.require_screen("companies")?;
     let mut invoices = state.subscription_service.find_invoices(id).await?;
     invoices.sort_by_key(|i| std::cmp::Reverse(i.issued_at));
     let rows = invoices
@@ -174,7 +174,7 @@ pub(super) async fn mark_invoice_paid(
     auth: AuthClaims,
     Path((id, invoice_id)): Path<(Uuid, Uuid)>,
 ) -> Result<Json<Value>, ServerError> {
-    require_super_admin(&auth)?;
+    auth.require_screen("companies")?;
     let inv = state
         .subscription_service
         .mark_invoice_paid(id, invoice_id, None)

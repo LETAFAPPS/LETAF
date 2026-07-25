@@ -112,33 +112,40 @@ export component Sidebar inherits Rectangle {
                 // menus da loja (que ficam ocultos via `store-access`).
                 if root.nav.is-super-admin:
                     SidebarSection { title: "PLATAFORMA"; compact: !root.expanded; }
-                if root.nav.is-super-admin: SidebarItem {
+                if root.nav.admin-overview: SidebarItem {
                     icon-source: @image-url("../assets/icons/1.2/dashboard.svg");
                     label: "Dashboard";
                     compact: !root.expanded;
                     active: root.active-tab == "admin-overview";
                     clicked => { root.navigate("admin-overview"); }
                 }
-                if root.nav.is-super-admin: SidebarItem {
+                if root.nav.admin-companies: SidebarItem {
                     icon-source: @image-url("../assets/icons/1.2/empresa.svg");
                     label: "Empresas";
                     compact: !root.expanded;
                     active: root.active-tab == "admin-companies";
                     clicked => { root.navigate("admin-companies"); }
                 }
-                if root.nav.is-super-admin: SidebarItem {
+                if root.nav.admin-plans: SidebarItem {
                     icon-source: @image-url("../assets/icons/1.2/inventory.svg");
                     label: "Planos";
                     compact: !root.expanded;
                     active: root.active-tab == "admin-plans";
                     clicked => { root.navigate("admin-plans"); }
                 }
-                if root.nav.is-super-admin: SidebarItem {
+                if root.nav.admin-admins: SidebarItem {
                     icon-source: @image-url("../assets/icons/1.2/customers.svg");
                     label: "Usuários";
                     compact: !root.expanded;
                     active: root.active-tab == "admin-admins";
                     clicked => { root.navigate("admin-admins"); }
+                }
+                if root.nav.admin-roles: SidebarItem {
+                    icon-source: @image-url("../assets/icons/1.2/admin.svg");
+                    label: "Funções";
+                    compact: !root.expanded;
+                    active: root.active-tab == "admin-roles";
+                    clicked => { root.navigate("admin-roles"); }
                 }
 
                 // ── PRINCIPAL ─────────────────────────────

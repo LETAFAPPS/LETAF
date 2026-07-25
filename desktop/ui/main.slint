@@ -46,6 +46,8 @@ import { AdminCompanyDetailModal } from "modals/admin_company_detail_modal.slint
 import { AdminSubscriptionModal } from "modals/admin_subscription_modal.slint";
 import { AdminPlanModal } from "modals/admin_plan_modal.slint";
 import { AdminUserModal } from "modals/admin_user_modal.slint";
+import { AdminRolesPage } from "pages/admin_roles_page.slint";
+import { AdminRoleModal } from "modals/admin_role_modal.slint";
 import { AdminAdminsPage } from "pages/admin_admins_page.slint";
 import { AdminPlansPage } from "pages/admin_plans_page.slint";
 import { PdvSoldModal } from "modals/pdv_sold_modal.slint";
@@ -213,7 +215,7 @@ export component MainWindow inherits Window {
             // (qualquer aba de plataforma).
             if root.active-tab == "admin-overview" || root.active-tab == "admin-companies"
                || root.active-tab == "admin-admins"
-               || root.active-tab == "admin-plans" {
+               || root.active-tab == "admin-plans" || root.active-tab == "admin-roles" {
                 AdminState.refresh();
             }
         }
@@ -1525,7 +1527,7 @@ export component MainWindow inherits Window {
                     root.subscription-refresh();
                 } else if tab == "admin-overview" || tab == "admin-companies"
                        || tab == "admin-admins"
-                       || tab == "admin-plans" {
+                       || tab == "admin-plans" || tab == "admin-roles" {
                     AdminState.refresh();
                 }
                 // Importante: NÃO disparar cash-refresh ao entrar no
@@ -1739,6 +1741,18 @@ export component MainWindow inherits Window {
                         AdminState.del-user-open = true;
                     }
                     filters-changed => { AdminState.filter-users(); }
+                }
+                if root.active-tab == "admin-roles": AdminRolesPage {
+                    roles: AdminState.admin-roles;
+                    search <=> AdminState.role-search;
+                    new-role => { AdminState.role-new(); }
+                    edit-role(id) => { AdminState.role-edit(id); }
+                    delete-role(id, name) => {
+                        AdminState.del-role-id = id;
+                        AdminState.del-role-name = name;
+                        AdminState.del-role-open = true;
+                    }
+                    filters-changed => { AdminState.filter-roles(); }
                 }
                 if root.active-tab == "admin-plans": AdminPlansPage {
                     plans: AdminState.plans;
@@ -2703,6 +2717,8 @@ export component MainWindow inherits Window {
         form-name <=> AdminState.form-name;
         form-email <=> AdminState.form-email;
         form-password <=> AdminState.form-password;
+        roles: AdminState.admin-role-options;
+        role-id <=> AdminState.user-form-role-id;
         save => { AdminState.save-user(AdminState.form-id, AdminState.form-name, AdminState.form-email, AdminState.form-password); }
         close => { AdminState.user-modal-open = false; }
     }
@@ -2713,6 +2729,24 @@ export component MainWindow inherits Window {
         confirm-delete => {
             AdminState.del-user-open = false;
             AdminState.delete-user(AdminState.del-user-id);
+        }
+    }
+
+    if AdminState.role-modal-open: AdminRoleModal {
+        form-id: AdminState.role-form-id;
+        form-name <=> AdminState.role-form-name;
+        screens: AdminState.role-form-screens;
+        toggle-screen(k) => { AdminState.role-toggle-screen(k); }
+        save => { AdminState.role-save(); }
+        close => { AdminState.role-modal-open = false; }
+    }
+
+    if AdminState.del-role-open: DeleteConfirmModal {
+        delete-target-name <=> AdminState.del-role-name;
+        close => { AdminState.del-role-open = false; }
+        confirm-delete => {
+            AdminState.del-role-open = false;
+            AdminState.role-delete(AdminState.del-role-id);
         }
     }
 

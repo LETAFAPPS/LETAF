@@ -9,6 +9,13 @@ export struct NavPerms {
     // Super admin de plataforma (cross-tenant): troca os menus da loja
     // pelos menus próprios do painel de administrador (§11).
     is-super-admin: bool,
+    // Telas do PAINEL do super admin liberadas pela Função (RBAC do painel).
+    // Master (sem função) tem todas. Espelham `screen:<tela>` do JWT.
+    admin-overview: bool,
+    admin-companies: bool,
+    admin-plans: bool,
+    admin-admins: bool,
+    admin-roles: bool,
     dashboard: bool,
     reports: bool,
     pdv: bool,
@@ -115,6 +122,26 @@ export struct AdminUserRow {
     id: string,
     name: string,
     email: string,
+    // Função de administrador (id + nome). Vazio = master (acesso total).
+    role-id: string,
+    role-name: string,
+}
+
+// Função de administrador (RBAC do painel) — linha da lista.
+export struct AdminRoleRow {
+    id: string,
+    name: string,
+    // Resumo das telas ("Empresas · Planos") e a contagem.
+    screens-summary: string,
+    screen-count: int,
+    users: int,
+}
+
+// Opção de tela no formulário de Função (checkbox com estado).
+export struct AdminScreenOption {
+    key: string,
+    label: string,
+    on: bool,
 }
 
 // Linha do catálogo de planos (painel super admin).

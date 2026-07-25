@@ -11,7 +11,7 @@
 // Todo este estado é cross-tenant e ONLINE (rotas /admin/*), sem espelho
 // local — ver desktop/src/ui/admin.
 import { AdminCompanyRow, AdminCompanyDetail, AdminCompanyOrderRow, AdminSubscriptionRow,
-         AdminInvoiceRow, AdminUserRow, AdminPlanRow } from "../types.slint";
+         AdminInvoiceRow, AdminUserRow, AdminPlanRow, AdminRoleRow, AdminScreenOption } from "../types.slint";
 import { FilterOption } from "../components/list_toolbar.slint";
 
 export global AdminState {
@@ -153,4 +153,25 @@ export global AdminState {
     callback plan-save();
     callback plan-delete(string);
     callback filter-plans();
+
+    // ── Funções de administrador (RBAC do painel) ──
+    in-out property <[AdminRoleRow]> admin-roles: [];
+    in-out property <string> role-search: "";
+    in-out property <bool> role-modal-open: false;
+    in-out property <bool> del-role-open: false;
+    in-out property <string> del-role-id: "";
+    in-out property <string> del-role-name: "";
+    in-out property <string> role-form-id: "";
+    in-out property <string> role-form-name: "";
+    // Telas do painel (checkbox com estado) — montadas no Rust.
+    in-out property <[AdminScreenOption]> role-form-screens: [];
+    callback role-new();
+    callback role-edit(string);
+    callback role-save();
+    callback role-delete(string);
+    callback filter-roles();
+    callback role-toggle-screen(string);   // alterna uma tela no formulário
+    // Seleção de função no cadastro/edição de usuário.
+    in-out property <string> user-form-role-id: "";
+    in-out property <[FilterOption]> admin-role-options: [];
 }
