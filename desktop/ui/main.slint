@@ -187,7 +187,7 @@ export component MainWindow inherits Window {
     // banner fixo no topo e o botão de sair. A autoridade é o backend (§11):
     // aqui é só UI — o token com escopo do tenant é que dá (ou não) o acesso.
     in-out property <bool> impersonating: false;
-    in-out property <string> impersonating-subdomain: "";
+    in-out property <string> impersonating-company: "";
     callback exit-impersonation();
 
     // ── Navegacao ───────────────────────────────────
@@ -1432,7 +1432,7 @@ export component MainWindow inherits Window {
                         horizontal-alignment: center;
                     }
                     Text {
-                        text: root.impersonating-subdomain;
+                        text: root.impersonating-company;
                         color: #ffffffcc; font-size: 11px;
                         horizontal-alignment: center; overflow: elide;
                     }

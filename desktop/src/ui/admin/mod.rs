@@ -455,12 +455,12 @@ fn setup_impersonation(
                 .await;
                 state.session.save_perms(true, false, &dto.perms).await;
                 state.session.save_user_name(&dto.user.name).await;
-                let subdomain = dto.subdomain;
+                let company_name = dto.company_name;
                 update_ui_after_login(ui_weak.clone(), UserRole::Admin, dto.perms, dto.user.name);
                 let _ = slint::invoke_from_event_loop(move || {
                     if let Some(ui) = ui_weak.upgrade() {
                         ui.set_impersonating(true);
-                        ui.set_impersonating_subdomain(subdomain.into());
+                        ui.set_impersonating_company(company_name.into());
                     }
                 });
             });
@@ -494,7 +494,7 @@ fn setup_impersonation(
                 let _ = slint::invoke_from_event_loop(move || {
                     if let Some(ui) = ui_weak.upgrade() {
                         ui.set_impersonating(false);
-                        ui.set_impersonating_subdomain(SharedString::new());
+                        ui.set_impersonating_company(SharedString::new());
                     }
                 });
             });
