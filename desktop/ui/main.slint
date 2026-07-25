@@ -46,6 +46,7 @@ import { AdminAuditPage } from "pages/admin_audit_page.slint";
 import { AdminCompanyDetailModal } from "modals/admin_company_detail_modal.slint";
 import { AdminSubscriptionModal } from "modals/admin_subscription_modal.slint";
 import { AdminPlanModal } from "modals/admin_plan_modal.slint";
+import { AdminUserModal } from "modals/admin_user_modal.slint";
 import { AdminAdminsPage } from "pages/admin_admins_page.slint";
 import { AdminPlansPage } from "pages/admin_plans_page.slint";
 import { PdvSoldModal } from "modals/pdv_sold_modal.slint";
@@ -1733,14 +1734,15 @@ export component MainWindow inherits Window {
                 }
                 if root.active-tab == "admin-admins": AdminAdminsPage {
                     users: AdminState.users;
-                    form-id <=> AdminState.form-id;
-                    form-name <=> AdminState.form-name;
-                    form-email <=> AdminState.form-email;
-                    form-password <=> AdminState.form-password;
+                    search <=> AdminState.user-search;
                     new-user => { AdminState.new-user(); }
                     edit-user(id) => { AdminState.edit-user(id); }
-                    save-user(id, n, e, p) => { AdminState.save-user(id, n, e, p); }
-                    delete-user(id) => { AdminState.delete-user(id); }
+                    delete-user(id, name) => {
+                        AdminState.del-user-id = id;
+                        AdminState.del-user-name = name;
+                        AdminState.del-user-open = true;
+                    }
+                    filters-changed => { AdminState.filter-users(); }
                 }
                 if root.active-tab == "admin-plans": AdminPlansPage {
                     plans: AdminState.plans;
@@ -2697,6 +2699,24 @@ export component MainWindow inherits Window {
         confirm-delete => {
             AdminState.del-plan-open = false;
             AdminState.plan-delete(AdminState.del-plan-id);
+        }
+    }
+
+    if AdminState.user-modal-open: AdminUserModal {
+        form-id: AdminState.form-id;
+        form-name <=> AdminState.form-name;
+        form-email <=> AdminState.form-email;
+        form-password <=> AdminState.form-password;
+        save => { AdminState.save-user(AdminState.form-id, AdminState.form-name, AdminState.form-email, AdminState.form-password); }
+        close => { AdminState.user-modal-open = false; }
+    }
+
+    if AdminState.del-user-open: DeleteConfirmModal {
+        delete-target-name <=> AdminState.del-user-name;
+        close => { AdminState.del-user-open = false; }
+        confirm-delete => {
+            AdminState.del-user-open = false;
+            AdminState.delete-user(AdminState.del-user-id);
         }
     }
 

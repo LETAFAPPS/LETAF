@@ -177,7 +177,7 @@ struct AuditDto {
     at: String,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Clone)]
 struct AdminDto {
     id: String,
     name: String,
@@ -213,6 +213,23 @@ type PlansCache = Arc<Mutex<Vec<PlanDto>>>;
 /// para montar o modelo exibido (§13 — sem novo round-trip por tecla).
 type CompaniesCache = Arc<Mutex<Vec<CompanyDto>>>;
 type SubsCache = Arc<Mutex<Vec<SubscriptionDto>>>;
+type UsersCache = Arc<Mutex<Vec<AdminDto>>>;
+
+/// Aplica busca (nome/e-mail) aos usuários — sobre o cache, sem ir à rede.
+fn apply_user_filter(ui: &MainWindow, cache: &UsersCache) {
+    let search = ui.global::<AdminState>().get_user_search().to_string();
+    let Ok(all) = cache.lock() else { return };
+    let rows: Vec<AdminUserRow> = all
+        .iter()
+        .filter(|u| matches(&u.name, &search) || matches(&u.email, &search))
+        .map(|u| AdminUserRow {
+            id: u.id.clone().into(),
+            name: u.name.clone().into(),
+            email: u.email.clone().into(),
+        })
+        .collect();
+    ui.global::<AdminState>().set_users(ModelRc::new(VecModel::from(rows)));
+}
 
 /// `true` se `haystack` contém `needle` ignorando caixa (busca simples).
 fn matches(haystack: &str, needle: &str) -> bool {
@@ -397,6 +414,7 @@ pub(crate) fn setup_admin(
     let plans_cache: PlansCache = Arc::new(Mutex::new(Vec::new()));
     let companies_cache: CompaniesCache = Arc::new(Mutex::new(Vec::new()));
     let subs_cache: SubsCache = Arc::new(Mutex::new(Vec::new()));
+    let users_cache: UsersCache = Arc::new(Mutex::new(Vec::new()));
     setup_refresh(
         ui,
         handle,
@@ -405,8 +423,9 @@ pub(crate) fn setup_admin(
         &plans_cache,
         &companies_cache,
         &subs_cache,
+        &users_cache,
     );
-    setup_filters(ui, &companies_cache, &subs_cache);
+    setup_filters(ui, &companies_cache, &subs_cache, &users_cache);
     setup_form(ui);
     setup_persist(ui, handle, &auth_token, &server_url);
     setup_company_persist(ui, handle, &auth_token, &server_url);
@@ -587,7 +606,12 @@ async fn get_json<T: DeserializeOwned>(url: &str, token: &str) -> Option<T> {
 }
 
 /// Busca/filtro das listas — reaplica sobre o cache, sem ir à rede.
-fn setup_filters(ui: &MainWindow, companies_cache: &CompaniesCache, subs_cache: &SubsCache) {
+fn setup_filters(
+    ui: &MainWindow,
+    companies_cache: &CompaniesCache,
+    subs_cache: &SubsCache,
+    users_cache: &UsersCache,
+) {
     {
         let ui_weak = ui.as_weak();
         let cache = companies_cache.clone();
@@ -606,6 +630,15 @@ fn setup_filters(ui: &MainWindow, companies_cache: &CompaniesCache, subs_cache: 
             }
         });
     }
+    {
+        let ui_weak = ui.as_weak();
+        let cache = users_cache.clone();
+        ui.global::<AdminState>().on_filter_users(move || {
+            if let Some(ui) = ui_weak.upgrade() {
+                apply_user_filter(&ui, &cache);
+            }
+        });
+    }
 }
 
 /// Carrega painel + empresas + assinaturas + administradores.
@@ -618,6 +651,7 @@ fn setup_refresh(
     plans_cache: &PlansCache,
     companies_cache: &CompaniesCache,
     subs_cache: &SubsCache,
+    users_cache: &UsersCache,
 ) {
     let ui_weak = ui.as_weak();
     let handle = handle.clone();
@@ -626,6 +660,7 @@ fn setup_refresh(
     let plans_cache = plans_cache.clone();
     let companies_cache = companies_cache.clone();
     let subs_cache = subs_cache.clone();
+    let users_cache = users_cache.clone();
     ui.global::<AdminState>().on_refresh(move || {
         let ui_weak = ui_weak.clone();
         let auth_token = auth_token.clone();
@@ -633,6 +668,7 @@ fn setup_refresh(
         let plans_cache = plans_cache.clone();
         let companies_cache = companies_cache.clone();
         let subs_cache = subs_cache.clone();
+        let users_cache = users_cache.clone();
         handle.spawn(async move {
             let Some(token) = auth_token.read().await.clone() else { return };
 
@@ -685,15 +721,10 @@ fn setup_refresh(
                 }
                 apply_sub_filter(&ui, &subs_cache);
 
-                let admin_rows: Vec<AdminUserRow> = admins
-                    .into_iter()
-                    .map(|a| AdminUserRow {
-                        id: a.id.into(),
-                        name: a.name.into(),
-                        email: a.email.into(),
-                    })
-                    .collect();
-                ui.global::<AdminState>().set_users(ModelRc::new(VecModel::from(admin_rows)));
+                if let Ok(mut u) = users_cache.lock() {
+                    *u = admins;
+                }
+                apply_user_filter(&ui, &users_cache);
 
                 // Lista de planos já filtrada pela busca corrente.
                 apply_plan_filter(&ui, &plans_cache);
@@ -882,6 +913,7 @@ fn setup_form(ui: &MainWindow) {
             ui.global::<AdminState>().set_form_name(SharedString::new());
             ui.global::<AdminState>().set_form_email(SharedString::new());
             ui.global::<AdminState>().set_form_password(SharedString::new());
+            ui.global::<AdminState>().set_user_modal_open(true);
         });
     }
     // Editar: acha o admin no modelo e preenche (senha em branco = manter).
@@ -895,6 +927,7 @@ fn setup_form(ui: &MainWindow) {
                 ui.global::<AdminState>().set_form_name(u.name.clone());
                 ui.global::<AdminState>().set_form_email(u.email.clone());
                 ui.global::<AdminState>().set_form_password(SharedString::new());
+                ui.global::<AdminState>().set_user_modal_open(true);
             }
         });
     }
@@ -953,7 +986,18 @@ fn setup_persist(
                         .send()
                         .await
                 };
-                report(ui_weak, result, "Administrador Salvo").await;
+                let outcome = write_outcome(result).await;
+                let _ = slint::invoke_from_event_loop(move || {
+                    let Some(ui) = ui_weak.upgrade() else { return };
+                    match outcome {
+                        Ok(()) => {
+                            show_toast(&ui, "Administrador Salvo", "success");
+                            ui.global::<AdminState>().set_user_modal_open(false);
+                            ui.global::<AdminState>().invoke_refresh();
+                        }
+                        Err(msg) => show_toast(&ui, &msg, "error"),
+                    }
+                });
             });
         });
     }

@@ -59,11 +59,19 @@ export global AdminState {
     callback confirm-delete-company();
     callback set-company-active(string, bool);
     in-out property <[AdminUserRow]> users: [];
+    in-out property <string> user-search: "";
+    // Modal de cadastro/edição de usuário (padrão da tela de Empresas).
+    in-out property <bool> user-modal-open: false;
+    // Confirmação de exclusão de usuário.
+    in-out property <bool> del-user-open: false;
+    in-out property <string> del-user-id: "";
+    in-out property <string> del-user-name: "";
     in-out property <string> form-id: "";
     in-out property <string> form-name: "";
     in-out property <string> form-email: "";
     in-out property <string> form-password: "";
     callback refresh();
+    callback filter-users();
     callback new-user();
     callback edit-user(string);
     callback save-user(string, string, string, string);
