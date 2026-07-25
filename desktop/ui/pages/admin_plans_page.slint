@@ -3,7 +3,7 @@
 // (rotas /admin/plans/*). A autoridade/validação é o backend (§11).
 import { Theme } from "../theme.slint";
 import { AdminPlanRow } from "../types.slint";
-import { FormField, PasswordField } from "../components/form_fields.slint";
+import { FormField } from "../components/form_fields.slint";
 import { ActionBtn, OutlineBtn } from "../components/buttons.slint";
 import { EmptyState } from "../components/empty_state.slint";
 
@@ -41,10 +41,14 @@ export component AdminPlansPage inherits VerticalLayout {
     callback delete-plan(string);
     spacing: 12px;
 
-    Text { text: "Planos"; font-size: 20px; font-weight: 800; color: Theme.text-primary; }
-    Text {
-        text: "Catálogo de planos visível para a empresa.";
-        font-size: 13px; color: Theme.text-secondary;
+    // Cabeçalho agrupado (senão o layout `stretch` do root separa os textos).
+    VerticalLayout {
+        spacing: 2px;
+        Text { text: "Planos"; font-size: 20px; font-weight: 800; color: Theme.text-primary; }
+        Text {
+            text: "Catálogo de planos visível para a empresa.";
+            font-size: 13px; color: Theme.text-secondary;
+        }
     }
 
     HorizontalLayout {
@@ -61,51 +65,60 @@ export component AdminPlansPage inherits VerticalLayout {
             drop-shadow-blur: 12px;
             drop-shadow-offset-y: 0px;
             drop-shadow-color: Theme.card-shadow;
-            VerticalLayout {
-                padding: 8px;
-                if root.plans.length == 0: EmptyState {
+            // Empty state centralizado quando não há planos.
+            if root.plans.length == 0: VerticalLayout {
+                alignment: center;
+                EmptyState {
                     source: @image-url("../assets/empty/invoice.svg");
                     title: "Nenhum plano";
                     subtitle: "Cadastre os planos da plataforma";
                     art-size: 130px;
                 }
-                for p in root.plans: Rectangle {
-                    height: 72px;
-                    Rectangle { x: 0; y: parent.height - 1px; width: parent.width; height: 1px; background: Theme.border; }
-                    HorizontalLayout {
-                        padding: 10px;
-                        spacing: 10px;
-                        VerticalLayout {
-                            horizontal-stretch: 1;
-                            alignment: center;
-                            spacing: 2px;
-                            HorizontalLayout {
-                                spacing: 8px;
-                                Text { text: p.name; font-size: 14px; font-weight: 700; color: Theme.text-primary; overflow: elide; }
-                                if p.highlight-label != "": Rectangle {
-                                    width: hl.preferred-width + 12px; height: 18px; border-radius: 9px;
-                                    background: Theme.sidebar-sel-bg;
-                                    hl := Text { x: 6px; text: p.highlight-label; font-size: 9px; font-weight: 700; color: white; vertical-alignment: center; }
+            }
+            if root.plans.length > 0: Flickable {
+                viewport-width: self.width;
+                viewport-height: rows.preferred-height;
+                rows := VerticalLayout {
+                    padding: 8px;
+                    alignment: start;
+                    for p in root.plans: Rectangle {
+                        height: 72px;
+                        Rectangle { x: 0; y: parent.height - 1px; width: parent.width; height: 1px; background: Theme.border; }
+                        HorizontalLayout {
+                            padding: 10px;
+                            spacing: 10px;
+                            VerticalLayout {
+                                horizontal-stretch: 1;
+                                alignment: center;
+                                spacing: 2px;
+                                HorizontalLayout {
+                                    spacing: 8px;
+                                    Text { text: p.name; font-size: 14px; font-weight: 700; color: Theme.text-primary; overflow: elide; }
+                                    if p.highlight-label != "": Rectangle {
+                                        width: hl.preferred-width + 12px; height: 18px; border-radius: 9px;
+                                        background: Theme.sidebar-sel-bg;
+                                        hl := Text { x: 6px; text: p.highlight-label; font-size: 9px; font-weight: 700; color: white; vertical-alignment: center; }
+                                    }
+                                    if !p.active: Text { text: "inativo"; font-size: 10px; color: #C62828; vertical-alignment: center; }
                                 }
-                                if !p.active: Text { text: "inativo"; font-size: 10px; color: #C62828; vertical-alignment: center; }
+                                Text {
+                                    text: p.amount-display + " a cada " + p.period-months + (p.period-months == 1 ? " mês" : " meses")
+                                        + " · " + p.monthly-display + (p.trial-days > 0 ? " · " + p.trial-days + " dias grátis" : "");
+                                    font-size: 11px; color: Theme.text-secondary; overflow: elide;
+                                }
+                                // Uso do plano — planos em uso não podem ser
+                                // excluídos (o backend recusa).
+                                Text {
+                                    text: p.companies == 0 ? "Nenhuma empresa usa este plano"
+                                        : (p.companies == 1 ? "1 empresa usa este plano"
+                                            : p.companies + " empresas usam este plano");
+                                    font-size: 11px; font-weight: p.companies > 0 ? 700 : 400;
+                                    color: p.companies > 0 ? Theme.btn-accent : Theme.text-secondary;
+                                }
                             }
-                            Text {
-                                text: p.amount-display + " a cada " + p.period-months + (p.period-months == 1 ? " mês" : " meses")
-                                    + " · " + p.monthly-display + (p.trial-days > 0 ? " · " + p.trial-days + " dias grátis" : "");
-                                font-size: 11px; color: Theme.text-secondary; overflow: elide;
-                            }
-                            // Uso do plano — planos em uso não podem ser
-                            // excluídos (o backend recusa).
-                            Text {
-                                text: p.companies == 0 ? "Nenhuma empresa usa este plano"
-                                    : (p.companies == 1 ? "1 empresa usa este plano"
-                                        : p.companies + " empresas usam este plano");
-                                font-size: 11px; font-weight: p.companies > 0 ? 700 : 400;
-                                color: p.companies > 0 ? Theme.btn-accent : Theme.text-secondary;
-                            }
+                            VerticalLayout { alignment: center; OutlineBtn { label: "Editar"; clicked => { root.edit-plan(p.id); } } }
+                            VerticalLayout { alignment: center; OutlineBtn { label: "Excluir"; btn-color: #C62828; clicked => { root.delete-plan(p.id); } } }
                         }
-                        VerticalLayout { alignment: center; OutlineBtn { label: "Editar"; clicked => { root.edit-plan(p.id); } } }
-                        VerticalLayout { alignment: center; OutlineBtn { label: "Excluir"; btn-color: #C62828; clicked => { root.delete-plan(p.id); } } }
                     }
                 }
             }
