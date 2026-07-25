@@ -63,6 +63,7 @@ component Panel inherits Rectangle {
     VerticalLayout {
         padding: 18px;
         spacing: 14px;
+        alignment: start;
         if root.title != "": Text {
             text: root.title;
             font-size: 13px; font-weight: 700; color: Theme.text-secondary;
@@ -207,50 +208,6 @@ component RevenueChart inherits VerticalLayout {
     }
 }
 
-// Card pequeno de métrica secundária (rótulo + valor + badge opcional).
-component MiniStat inherits Rectangle {
-    in property <string> label;
-    in property <string> value;
-    in property <string> badge;
-    horizontal-stretch: 1;
-    height: 92px;
-    background: Theme.surface;
-    border-radius: 12px;
-    border-width: 1px;
-    border-color: Theme.card-border;
-    drop-shadow-blur: 12px;
-    drop-shadow-offset-y: 0px;
-    drop-shadow-color: Theme.card-shadow;
-    VerticalLayout {
-        padding: 16px;
-        spacing: 6px;
-        alignment: center;
-        HorizontalLayout {
-            spacing: 8px;
-            Text {
-                text: root.label;
-                font-size: 12.5px; color: Theme.text-secondary;
-                vertical-alignment: center;
-            }
-            if root.badge != "": Rectangle {
-                width: bt.preferred-width + 14px; height: 18px;
-                border-radius: 9px;
-                background: Theme.btn-accent.transparentize(0.85);
-                bt := Text {
-                    text: root.badge;
-                    font-size: 10px; font-weight: 700; color: Theme.btn-accent;
-                    x: 7px; vertical-alignment: center;
-                }
-            }
-        }
-        Text {
-            text: root.value;
-            font-size: 20px; font-weight: 800; color: Theme.text-primary;
-            overflow: elide;
-        }
-    }
-}
-
 export component AdminOverviewPage inherits VerticalLayout {
     in property <int> companies;
     in property <int> active-companies;
@@ -284,17 +241,22 @@ export component AdminOverviewPage inherits VerticalLayout {
         }
     }
 
-    // Linha primária de KPIs.
+    // Linha primária de KPIs (4 cards de mesma largura e altura).
+    // Ordem: Receita Mensal · Ticket Médio · Empresas · Receita Anual.
     HorizontalLayout {
+        vertical-stretch: 0;
         spacing: 16px;
-        KpiCard { label: "Receita mensal (MRR)"; value: root.mrr; accent: true; }
-        KpiCard { label: "Receita no ano"; value: root.annual-revenue; }
+        KpiCard { label: "Receita Mensal"; value: root.mrr; accent: true; }
+        KpiCard { label: "Ticket Médio"; value: root.arpa; }
         KpiCard { label: "Empresas"; value: "\{root.companies}"; }
+        KpiCard { label: "Receita Anual"; value: root.annual-revenue; }
     }
 
     // Gráfico de receita anual (jan–dez, ano atual × anterior).
+    // `vertical-stretch: 0` → o card ajusta à altura do conteúdo, deixando o
+    // espaçamento de baixo igual ao de cima (padding simétrico do painel).
     Panel {
-        title: "Receita mensal — \{root.current-year} × \{root.prev-year}";
+        vertical-stretch: 0;
         RevenueChart {
             points: root.revenue-points;
             max-value: root.revenue-max;
@@ -303,14 +265,16 @@ export component AdminOverviewPage inherits VerticalLayout {
         }
     }
 
-    // Quebras lado a lado: assinaturas por status × empresas.
+    // Quebras: assinaturas × empresas + indicações à direita.
+    // Todos no mesmo HorizontalLayout → mesma altura (o mais alto define).
     HorizontalLayout {
+        vertical-stretch: 0;
         spacing: 16px;
 
         // Assinaturas por status.
         Panel {
-            horizontal-stretch: 1;
-            title: "Assinaturas por status";
+            horizontal-stretch: 2;
+            title: "Assinaturas";
             HorizontalLayout {
                 spacing: 28px;
                 alignment: start;
@@ -334,7 +298,7 @@ export component AdminOverviewPage inherits VerticalLayout {
 
         // Empresas: ativas × suspensas.
         Panel {
-            horizontal-stretch: 1;
+            horizontal-stretch: 1.4;
             title: "Empresas";
             HorizontalLayout {
                 spacing: 28px;
@@ -351,14 +315,33 @@ export component AdminOverviewPage inherits VerticalLayout {
                 }
             }
         }
-    }
 
-    // Métricas secundárias.
-    HorizontalLayout {
-        spacing: 16px;
-        MiniStat { label: "Ticket médio (ARPA)"; value: root.arpa; }
-        MiniStat { label: "Plano mais popular"; value: root.top-plan; }
-        MiniStat { label: "Indicações"; value: "\{root.referrals}"; badge: "Em breve"; }
+        // Indicações (funcionalidade futura) — à direita.
+        Panel {
+            horizontal-stretch: 1;
+            HorizontalLayout {
+                spacing: 8px;
+                Text {
+                    text: "Indicações";
+                    font-size: 13px; font-weight: 700; color: Theme.text-secondary;
+                    vertical-alignment: center;
+                }
+                Rectangle {
+                    width: eb.preferred-width + 14px; height: 18px;
+                    border-radius: 9px;
+                    background: Theme.btn-accent.transparentize(0.85);
+                    eb := Text {
+                        text: "Em breve";
+                        font-size: 10px; font-weight: 700; color: Theme.btn-accent;
+                        x: 7px; vertical-alignment: center;
+                    }
+                }
+            }
+            Text {
+                text: "\{root.referrals}";
+                font-size: 24px; font-weight: 800; color: Theme.text-primary;
+            }
+        }
     }
 
     // Absorve o espaço livre para os cards ficarem no topo (sem esticar).
