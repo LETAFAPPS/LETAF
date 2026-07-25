@@ -25,7 +25,10 @@ pub(super) struct CompanyRow {
     name: String,
     subdomain: String,
     created_at: String,
+    /// Nome do plano do catálogo (exibição). "" quando sem plano.
     plan: String,
+    /// Id do plano do catálogo (para pré-selecionar no modal de gerenciar).
+    plan_id: String,
     status: String,
     /// Acesso do tenant: `true` = ativa, `false` = suspensa.
     active: bool,
@@ -175,14 +178,22 @@ pub(super) async fn create_company(
 
     // 4) Assinatura: a empresa nasce INATIVA — sem forma de pagamento, sem
     //    próxima cobrança e sem histórico de faturas. O plano escolhido no
-    //    cadastro fica registrado, mas a assinatura só é cobrada após ser
-    //    ativada (super admin/tenant). O desconto comercial (R$/mês) segue
-    //    OPCIONAL. Best-effort: falha aqui é só logada.
-    let plan_kind = letaf_core::subscription::model::PlanKind::from_str(
-        body.plan.as_deref().unwrap_or("monthly"),
-    );
-    if let Err(e) = state.subscription_service.create_inactive(company.id, plan_kind).await {
+    //    cadastro (id do catálogo) fica registrado, mas a assinatura só é
+    //    cobrada após ser ativada. Best-effort: falha aqui é só logada.
+    let today = chrono::Utc::now().date_naive();
+    if let Err(e) = state
+        .subscription_service
+        .create_inactive(company.id, letaf_core::subscription::model::PlanKind::Monthly)
+        .await
+    {
         tracing::error!("Falha ao criar assinatura da empresa {}: {e}", company.id);
+    }
+    if let Some(plan_id) = body.plan.as_deref().and_then(|s| Uuid::parse_str(s).ok()) {
+        if let Ok(Some(plan)) = state.plan_service.find_by_id(plan_id).await {
+            if let Err(e) = state.subscription_service.admin_set_plan(company.id, &plan, today).await {
+                tracing::error!("Falha ao aplicar plano na empresa {}: {e}", company.id);
+            }
+        }
     }
     // Telefone do proprietário (admin recém-criado). Best-effort.
     if body.admin_phone.as_deref().map(|p| !p.trim().is_empty()).unwrap_or(false) {
@@ -261,10 +272,12 @@ pub(super) async fn company_form(
         .ok_or_else(|| ServerError::Core(CoreError::NotFound("Empresa não encontrada".into())))?;
     let sub = state.subscription_service.find_current(id).await.ok().flatten();
     let discount = sub.as_ref().map(|s| s.plan_discount_monthly).unwrap_or_default();
+    // Plano atual = id do plano do catálogo (para pré-selecionar no seletor).
     let plan = sub
         .as_ref()
-        .map(|s| s.plan_kind.as_str().to_string())
-        .unwrap_or_else(|| "monthly".into());
+        .and_then(|s| s.plan_id)
+        .map(|id| id.to_string())
+        .unwrap_or_default();
     // Proprietário = admin inicial da empresa.
     let owner = state
         .auth_service
@@ -421,16 +434,18 @@ pub(super) async fn update_company(
     };
     state.company_service.update_info(id, info).await?;
 
-    // Plano da assinatura — best-effort (garante o seed antes de trocar).
-    if let Some(plan) = body.plan.as_deref().filter(|p| !p.trim().is_empty()) {
+    // Plano da assinatura (id do catálogo) — best-effort. Garante uma
+    // assinatura inativa antes de aplicar o plano (não força ativação).
+    if let Some(plan_id) = body.plan.as_deref().and_then(|s| Uuid::parse_str(s).ok()) {
         let today = chrono::Utc::now().date_naive();
-        let _ = state.subscription_service.ensure_seed(id, today).await;
-        if let Err(e) = state
+        let _ = state
             .subscription_service
-            .change_plan(id, letaf_core::subscription::model::PlanKind::from_str(plan), today)
-            .await
-        {
-            tracing::error!("Falha ao aplicar plano ({plan}) na empresa {id}: {e}");
+            .create_inactive(id, letaf_core::subscription::model::PlanKind::Monthly)
+            .await;
+        if let Ok(Some(plan)) = state.plan_service.find_by_id(plan_id).await {
+            if let Err(e) = state.subscription_service.admin_set_plan(id, &plan, today).await {
+                tracing::error!("Falha ao aplicar plano na empresa {id}: {e}");
+            }
         }
     }
 
@@ -716,9 +731,10 @@ pub(super) async fn list_companies(
     // tenant. Configurável por env, com default sensato.
     let base_domain = std::env::var("PUBLIC_BASE_DOMAIN").unwrap_or_else(|_| "letaf.app".into());
     for c in tenants {
-        let (plan, status, payment_kind, next_charge, discount) = match by_company.get(&c.id) {
+        let (plan, plan_id, status, payment_kind, next_charge, discount) = match by_company.get(&c.id) {
             Some(sub) => (
-                sub.plan_kind.as_str().to_string(),
+                sub.plan_name.clone(),
+                sub.plan_id.map(|id| id.to_string()).unwrap_or_default(),
                 sub.status.as_str().to_string(),
                 sub.payment_method.kind.clone(),
                 sub.next_charge_date
@@ -726,7 +742,7 @@ pub(super) async fn list_companies(
                     .unwrap_or_default(),
                 sub.plan_discount_monthly.normalize().to_string(),
             ),
-            None => (String::new(), "none".to_string(), String::new(), String::new(), "0".to_string()),
+            None => (String::new(), String::new(), "none".to_string(), String::new(), String::new(), "0".to_string()),
         };
         // Proprietário = admin inicial da empresa (1ª query por tenant; o
         // painel é de baixo volume — aceitável).
@@ -749,6 +765,7 @@ pub(super) async fn list_companies(
             subdomain: c.subdomain,
             created_at: c.created_at.format("%d/%m/%Y").to_string(),
             plan,
+            plan_id,
             status,
             active: c.active,
             payment_kind,

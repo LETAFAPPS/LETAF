@@ -67,12 +67,10 @@ export component AdminSubscriptionModal inherits Rectangle {
                     spacing: 8px;
                     alignment: start;
                     for p in root.plans: SelectChip {
-                        // period-months → tipo (mesmo mapeamento do core::PlanKind).
-                        property <string> kind: p.period-months == 6 ? "semestral"
-                            : (p.period-months == 12 ? "annual" : "monthly");
+                        // Seleção por id do plano (o período agora é em dias).
                         label: p.name;
-                        active: root.plan == self.kind;
-                        clicked => { root.plan = self.kind; }
+                        active: root.plan == p.id;
+                        clicked => { root.plan = p.id; }
                     }
                 }
             }

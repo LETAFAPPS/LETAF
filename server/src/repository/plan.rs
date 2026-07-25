@@ -16,7 +16,7 @@ struct PlanRow {
     id: Uuid,
     name: String,
     amount: Decimal,
-    period_months: i32,
+    period_days: i32,
     trial_days: i32,
     description: String,
     highlight_label: String,
@@ -33,7 +33,7 @@ impl From<PlanRow> for Plan {
             id: r.id,
             name: r.name,
             amount: r.amount,
-            period_months: r.period_months,
+            period_days: r.period_days,
             trial_days: r.trial_days,
             description: r.description,
             highlight_label: r.highlight_label,
@@ -91,13 +91,13 @@ impl PlanRepository for PgPlanRepository {
 
     async fn create(&self, plan: &Plan) -> Result<(), CoreError> {
         sqlx::query(
-            "INSERT INTO plans (id, name, amount, period_months, trial_days, description, highlight_label, active, sort_order, created_at, updated_at, deleted_at)
+            "INSERT INTO plans (id, name, amount, period_days, trial_days, description, highlight_label, active, sort_order, created_at, updated_at, deleted_at)
              VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)",
         )
         .bind(plan.id)
         .bind(&plan.name)
         .bind(plan.amount)
-        .bind(plan.period_months)
+        .bind(plan.period_days)
         .bind(plan.trial_days)
         .bind(&plan.description)
         .bind(&plan.highlight_label)
@@ -114,12 +114,12 @@ impl PlanRepository for PgPlanRepository {
 
     async fn update(&self, plan: &Plan) -> Result<(), CoreError> {
         sqlx::query(
-            "UPDATE plans SET name = $1, amount = $2, period_months = $3, trial_days = $4, description = $5, highlight_label = $6, active = $7, sort_order = $8, updated_at = $9
+            "UPDATE plans SET name = $1, amount = $2, period_days = $3, trial_days = $4, description = $5, highlight_label = $6, active = $7, sort_order = $8, updated_at = $9
              WHERE id = $10",
         )
         .bind(&plan.name)
         .bind(plan.amount)
-        .bind(plan.period_months)
+        .bind(plan.period_days)
         .bind(plan.trial_days)
         .bind(&plan.description)
         .bind(&plan.highlight_label)

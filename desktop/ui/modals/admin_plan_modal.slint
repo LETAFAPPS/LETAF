@@ -44,7 +44,7 @@ export component AdminPlanModal inherits Rectangle {
         height: 100%;
         icon: @image-url("../assets/icons/1.2/inventory.svg");
         icon-color: Theme.btn-accent;
-        title: root.form-id == "" ? "Novo plano" : "Editar plano";
+        title: root.form-id == "" ? "Novo Plano" : "Editar Plano";
         message: "Catálogo de planos visível para a empresa.";
         card-width: 460px;
         close => { root.close(); }
@@ -61,10 +61,10 @@ export component AdminPlanModal inherits Rectangle {
                 }
                 FormField {
                     horizontal-stretch: 1;
-                    label: "Período (meses)"; value <=> root.form-period; placeholder: "1";
+                    label: "Período (dias)"; value <=> root.form-period; placeholder: "30";
                 }
             }
-            FormField { label: "Dias grátis (trial)"; value <=> root.form-trial; placeholder: "0"; }
+            FormField { label: "Dias grátis (Trial)"; value <=> root.form-trial; placeholder: "0"; }
             FormField { label: "Descrição"; value <=> root.form-description; placeholder: "Cobrado todo mês"; }
             FormField { label: "Selo de destaque"; value <=> root.form-highlight; placeholder: "MELHOR VALOR (opcional)"; }
             HorizontalLayout {

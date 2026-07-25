@@ -22,3 +22,9 @@ pub fn add_months(date: NaiveDate, months: i32) -> NaiveDate {
     }
     date
 }
+
+/// Soma `days` (pode ser negativo) a uma data. Usado pelo ciclo de
+/// cobrança dos planos de catálogo, que têm período em DIAS.
+pub fn add_days(date: NaiveDate, days: i32) -> NaiveDate {
+    date + chrono::Duration::days(days as i64)
+}

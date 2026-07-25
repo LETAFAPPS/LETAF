@@ -13,7 +13,7 @@ use super::repository::PlanRepository;
 pub struct PlanInput {
     pub name: String,
     pub amount: Decimal,
-    pub period_months: i32,
+    pub period_days: i32,
     pub trial_days: i32,
     pub description: String,
     pub highlight_label: String,
@@ -75,8 +75,8 @@ fn build(id: Uuid, input: PlanInput) -> Result<Plan, CoreError> {
     if input.amount <= Decimal::ZERO {
         return Err(CoreError::Validation("O valor deve ser maior que zero".into()));
     }
-    if input.period_months < 1 {
-        return Err(CoreError::Validation("O período deve ser de ao menos 1 mês".into()));
+    if input.period_days < 1 {
+        return Err(CoreError::Validation("O período deve ser de ao menos 1 dia".into()));
     }
     if input.trial_days < 0 {
         return Err(CoreError::Validation("Período gratuito inválido".into()));
@@ -86,7 +86,7 @@ fn build(id: Uuid, input: PlanInput) -> Result<Plan, CoreError> {
         id,
         name: input.name.trim().to_string(),
         amount: input.amount,
-        period_months: input.period_months,
+        period_days: input.period_days,
         trial_days: input.trial_days,
         description: input.description,
         highlight_label: input.highlight_label,

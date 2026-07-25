@@ -30,7 +30,7 @@ struct SubscriptionRow {
     plan_id: Option<String>,
     plan_name: String,
     plan_amount: f64,
-    plan_period_months: i64,
+    plan_period_days: i64,
     trial_days: i64,
     plan_discount_monthly: f64,
     created_at: String,
@@ -61,7 +61,7 @@ impl TryFrom<SubscriptionRow> for Subscription {
             plan_id: r.plan_id.as_deref().map(parse_uuid).transpose()?,
             plan_name: r.plan_name,
             plan_amount: letaf_core::money::from_db_f64(r.plan_amount),
-            plan_period_months: r.plan_period_months as i32,
+            plan_period_days: r.plan_period_days as i32,
             trial_days: r.trial_days as i32,
             plan_discount_monthly: letaf_core::money::from_db_f64(r.plan_discount_monthly),
         })
@@ -156,7 +156,7 @@ impl SubscriptionRepository for SqliteSubscriptionRepository {
               payment_method_kind, payment_method_label, payment_method_expiry,
               gateway, gateway_subscription_id, card_status,
               pix_auto_rec_id, pix_auto_status,
-              plan_id, plan_name, plan_amount, plan_period_months, trial_days,
+              plan_id, plan_name, plan_amount, plan_period_days, trial_days,
               plan_discount_monthly,
               created_at, updated_at, deleted_at, synced)
              VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?20,?21,?22,?23)",
@@ -177,7 +177,7 @@ impl SubscriptionRepository for SqliteSubscriptionRepository {
         .bind(s.plan_id.map(|id| id.to_string()))
         .bind(&s.plan_name)
         .bind(s.plan_amount.to_f64().unwrap_or(0.0))
-        .bind(s.plan_period_months as i64)
+        .bind(s.plan_period_days as i64)
         .bind(s.trial_days as i64)
         .bind(s.plan_discount_monthly.to_f64().unwrap_or(0.0))
         .bind(ts(s.base.created_at))
@@ -199,7 +199,7 @@ impl SubscriptionRepository for SqliteSubscriptionRepository {
                     gateway_subscription_id = ?8, card_status = ?9,
                     pix_auto_rec_id = ?10, pix_auto_status = ?11,
                     plan_id = ?12, plan_name = ?13, plan_amount = ?14,
-                    plan_period_months = ?15, trial_days = ?16,
+                    plan_period_days = ?15, trial_days = ?16,
                     plan_discount_monthly = ?17,
                     updated_at = ?18, synced = ?19
               WHERE company_id = ?20 AND id = ?21 AND deleted_at IS NULL",
@@ -218,7 +218,7 @@ impl SubscriptionRepository for SqliteSubscriptionRepository {
         .bind(s.plan_id.map(|id| id.to_string()))
         .bind(&s.plan_name)
         .bind(s.plan_amount.to_f64().unwrap_or(0.0))
-        .bind(s.plan_period_months as i64)
+        .bind(s.plan_period_days as i64)
         .bind(s.trial_days as i64)
         .bind(s.plan_discount_monthly.to_f64().unwrap_or(0.0))
         .bind(ts(s.base.updated_at))
@@ -479,7 +479,7 @@ impl SubscriptionRepository for SqliteSubscriptionRepository {
               payment_method_kind, payment_method_label, payment_method_expiry,
               gateway, gateway_subscription_id, card_status,
               pix_auto_rec_id, pix_auto_status,
-              plan_id, plan_name, plan_amount, plan_period_months, trial_days,
+              plan_id, plan_name, plan_amount, plan_period_days, trial_days,
               plan_discount_monthly,
               created_at, updated_at, deleted_at, synced)
              VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?20,?21,?22,?23)
@@ -498,7 +498,7 @@ impl SubscriptionRepository for SqliteSubscriptionRepository {
                 plan_id = excluded.plan_id,
                 plan_name = excluded.plan_name,
                 plan_amount = excluded.plan_amount,
-                plan_period_months = excluded.plan_period_months,
+                plan_period_days = excluded.plan_period_days,
                 trial_days = excluded.trial_days,
                 plan_discount_monthly = excluded.plan_discount_monthly,
                 updated_at = excluded.updated_at,
@@ -522,7 +522,7 @@ impl SubscriptionRepository for SqliteSubscriptionRepository {
         .bind(s.plan_id.map(|id| id.to_string()))
         .bind(&s.plan_name)
         .bind(s.plan_amount.to_f64().unwrap_or(0.0))
-        .bind(s.plan_period_months as i64)
+        .bind(s.plan_period_days as i64)
         .bind(s.trial_days as i64)
         .bind(s.plan_discount_monthly.to_f64().unwrap_or(0.0))
         .bind(ts(s.base.created_at))

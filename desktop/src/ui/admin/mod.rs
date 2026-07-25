@@ -49,6 +49,8 @@ struct CompanyDto {
     subdomain: String,
     created_at: String,
     plan: String,
+    #[serde(default)]
+    plan_id: String,
     status: String,
     active: bool,
     #[serde(default)]
@@ -185,7 +187,7 @@ struct PlanDto {
     id: String,
     name: String,
     amount: f64,
-    period_months: i32,
+    period_days: i32,
     trial_days: i32,
     description: String,
     highlight_label: String,
@@ -235,11 +237,11 @@ fn apply_company_filter(ui: &MainWindow, cache: &CompaniesCache) {
             "suspended" => !c.active,
             _ => true,
         })
-        // Filtro por plano: "none" = sem assinatura (status "none").
+        // Filtro por plano (id do catálogo): "none" = sem plano.
         .filter(|c| match plan_filter.as_str() {
             "all" => true,
-            "none" => c.status == "none",
-            kind => c.plan == kind,
+            "none" => c.plan_id.is_empty(),
+            plan_id => c.plan_id == plan_id,
         })
         .map(|c| AdminCompanyRow {
             id: c.id.clone().into(),
@@ -247,6 +249,7 @@ fn apply_company_filter(ui: &MainWindow, cache: &CompaniesCache) {
             subdomain: c.subdomain.clone().into(),
             created_at: c.created_at.clone().into(),
             plan: c.plan.clone().into(),
+            plan_id: c.plan_id.clone().into(),
             status: c.status.clone().into(),
             active: c.active,
             domain: c.domain.clone().into(),
@@ -277,27 +280,20 @@ fn apply_company_filter(ui: &MainWindow, cache: &CompaniesCache) {
     ui.global::<AdminState>().set_company_plan_filter_label(plan_label.into());
 }
 
-/// Monta as opções do filtro "Planos" a partir dos planos CADASTRADOS
-/// (catálogo): "Todos" + um item por tipo de plano existente + "Sem plano".
+/// Monta as opções de plano a partir do catálogo CADASTRADO (por plano, não
+/// por tipo, já que o período agora é em DIAS):
+/// - filtro "Planos" das Empresas: "Todos" + cada plano (key = id) + "Sem plano";
+/// - seletor do cadastro/edição: só planos ATIVOS (key = id).
 fn set_plan_filter_options(ui: &MainWindow, plans: &[PlanDto]) {
     let mut opts: Vec<FilterOption> = vec![FilterOption {
         key: "all".into(),
         label: "Todos".into(),
     }];
-    let mut seen: std::collections::HashSet<&str> = std::collections::HashSet::new();
     for p in plans {
-        // period_months → tipo (mesmo mapeamento do core::PlanKind).
-        let kind = match p.period_months {
-            6 => "semestral",
-            12 => "annual",
-            _ => "monthly",
-        };
-        if seen.insert(kind) {
-            opts.push(FilterOption {
-                key: kind.into(),
-                label: p.name.clone().into(),
-            });
-        }
+        opts.push(FilterOption {
+            key: p.id.clone().into(),
+            label: p.name.clone().into(),
+        });
     }
     opts.push(FilterOption {
         key: "none".into(),
@@ -306,23 +302,15 @@ fn set_plan_filter_options(ui: &MainWindow, plans: &[PlanDto]) {
     ui.global::<AdminState>()
         .set_company_plan_filter_options(ModelRc::new(VecModel::from(opts)));
 
-    // Opções do SELETOR de plano no cadastro/edição: só planos ATIVOS, sem
-    // "Todos"/"Sem plano" (dedup por tipo).
-    let mut form_opts: Vec<FilterOption> = Vec::new();
-    let mut seen_form: std::collections::HashSet<&str> = std::collections::HashSet::new();
-    for p in plans.iter().filter(|p| p.active) {
-        let kind = match p.period_months {
-            6 => "semestral",
-            12 => "annual",
-            _ => "monthly",
-        };
-        if seen_form.insert(kind) {
-            form_opts.push(FilterOption {
-                key: kind.into(),
-                label: p.name.clone().into(),
-            });
-        }
-    }
+    // Seletor de plano no cadastro/edição: só planos ATIVOS (key = id).
+    let form_opts: Vec<FilterOption> = plans
+        .iter()
+        .filter(|p| p.active)
+        .map(|p| FilterOption {
+            key: p.id.clone().into(),
+            label: p.name.clone().into(),
+        })
+        .collect();
     ui.global::<AdminState>()
         .set_company_form_plan_options(ModelRc::new(VecModel::from(form_opts)));
 }
@@ -384,7 +372,7 @@ fn apply_plan_filter(ui: &MainWindow, cache: &PlansCache) {
             name: p.name.clone().into(),
             amount_display: brl(p.amount).into(),
             monthly_display: format!("{}/mês", brl(p.monthly_price)).into(),
-            period_months: p.period_months,
+            period_days: p.period_days,
             trial_days: p.trial_days,
             description: p.description.clone().into(),
             highlight_label: p.highlight_label.clone().into(),
@@ -757,7 +745,7 @@ fn setup_plan_form(ui: &MainWindow, plans_cache: &PlansCache) {
                 ui.global::<AdminState>().set_plan_name(p.name.clone().into());
                 // Valores numéricos com vírgula (padrão pt-BR).
                 ui.global::<AdminState>().set_plan_amount(format!("{:.2}", p.amount).replace('.', ",").into());
-                ui.global::<AdminState>().set_plan_period(p.period_months.to_string().into());
+                ui.global::<AdminState>().set_plan_period(p.period_days.to_string().into());
                 ui.global::<AdminState>().set_plan_trial(p.trial_days.to_string().into());
                 ui.global::<AdminState>().set_plan_description(p.description.clone().into());
                 ui.global::<AdminState>().set_plan_highlight(p.highlight_label.clone().into());
@@ -818,7 +806,7 @@ fn setup_plan_persist(
                 return;
             }
             let body = serde_json::json!({
-                "name": name, "amount": amount, "period_months": period,
+                "name": name, "amount": amount, "period_days": period,
                 "trial_days": trial, "description": description,
                 "highlight_label": highlight, "active": active,
             });
@@ -1485,8 +1473,13 @@ fn fill_company_form(ui: &MainWindow, f: &CompanyFormDto) {
     // Coordenadas: número → texto; None fica vazio.
     g.set_company_form_latitude(f.latitude.map(|v| v.to_string()).unwrap_or_default().into());
     g.set_company_form_longitude(f.longitude.map(|v| v.to_string()).unwrap_or_default().into());
-    // Plano atual da assinatura.
-    let plan = if f.plan.is_empty() { "monthly".to_string() } else { f.plan.clone() };
+    // Plano atual (id do catálogo). Se vazio, cai no 1º plano ativo.
+    let plan = if f.plan.is_empty() {
+        let opts = g.get_company_form_plan_options();
+        opts.row_data(0).map(|o| o.key.to_string()).unwrap_or_default()
+    } else {
+        f.plan.clone()
+    };
     g.set_company_form_plan(plan.into());
     // Desconto (R$/mês) em pt-BR; 0 fica vazio (mostra o placeholder).
     let discount = if f.discount > 0.0 {

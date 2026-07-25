@@ -27,7 +27,7 @@ struct CatalogPlan {
     id: String,
     name: String,
     amount: f64,
-    period_months: i32,
+    period_days: i32,
     trial_days: i32,
     description: String,
     highlight_label: String,
@@ -209,7 +209,7 @@ async fn reapply(
         // Baseline = menor mensalidade entre planos de 1 mês (para "economize").
         let baseline = catalog
             .iter()
-            .filter(|p| p.period_months == 1)
+            .filter(|p| p.period_days == 1)
             .map(|p| p.monthly_price)
             .fold(f64::INFINITY, f64::min);
         let baseline = if baseline.is_finite() { baseline } else { 0.0 };
@@ -414,7 +414,7 @@ fn catalog_to_plan(p: &CatalogPlan) -> Option<letaf_core::plan::model::Plan> {
         id,
         name: p.name.clone(),
         amount: letaf_core::money::from_db_f64(p.amount),
-        period_months: p.period_months,
+        period_days: p.period_days,
         trial_days: p.trial_days,
         description: p.description.clone(),
         highlight_label: p.highlight_label.clone(),
@@ -428,8 +428,8 @@ fn catalog_to_plan(p: &CatalogPlan) -> Option<letaf_core::plan::model::Plan> {
 
 /// Monta o card a partir de um plano do catálogo (dinâmico).
 fn catalog_plan_card(p: &CatalogPlan, baseline_monthly: f64) -> PlanCardData {
-    let cycle_display = if p.period_months > 1 {
-        format!("{} a cada {} meses", money_br(letaf_core::money::from_db_f64(p.amount)), p.period_months)
+    let cycle_display = if p.period_days > 1 {
+        format!("{} a cada {} meses", money_br(letaf_core::money::from_db_f64(p.amount)), p.period_days)
     } else {
         "Cobrado Mensalmente".to_string()
     };
@@ -786,7 +786,7 @@ fn catalog_plan_view(sub: &Subscription) -> Option<letaf_core::subscription::mod
     if !sub.is_catalog_plan() {
         return None;
     }
-    let months = sub.plan_period_months.max(1);
+    let months = sub.plan_period_days.max(1);
     let monthly = sub.plan_amount / rust_decimal::Decimal::from(months);
     Some(letaf_core::subscription::model::Plan {
         kind: sub.plan_kind,

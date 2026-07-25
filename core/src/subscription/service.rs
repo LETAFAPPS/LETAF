@@ -12,7 +12,7 @@ use super::model::{
 };
 use super::repository::SubscriptionRepository;
 use crate::error::CoreError;
-use crate::util::add_months;
+use crate::util::{add_days, add_months};
 
 /// Service de Assinatura — orquestra catálogo + persistência.
 ///
@@ -128,7 +128,8 @@ impl SubscriptionService {
             (
                 sub.plan_name.clone(),
                 sub.plan_amount,
-                sub.plan_period_months.max(1) as u32,
+                // Desconto (R$/mês) abatido por ~mês do ciclo: dias → meses (~30d).
+                (sub.plan_period_days.max(1) as u32).div_ceil(30),
             )
         } else {
             let p = self.plan_for(sub.plan_kind);
@@ -220,15 +221,55 @@ impl SubscriptionService {
         sub.plan_id = Some(plan.id);
         sub.plan_name = plan.name.clone();
         sub.plan_amount = plan.amount;
-        sub.plan_period_months = plan.period_months.max(1);
+        sub.plan_period_days = plan.period_days.max(1);
         sub.trial_days = plan.trial_days.max(0);
         sub.status = SubscriptionStatus::Active;
-        // 1ª cobrança: após o trial (se houver) ou ao fim do 1º ciclo.
+        // 1ª cobrança: após o trial (se houver) ou ao fim do 1º ciclo (dias).
         sub.next_charge_date = Some(if plan.trial_days > 0 {
             today + chrono::Duration::days(plan.trial_days as i64)
         } else {
-            add_months(today, plan.period_months.max(1))
+            add_days(today, plan.period_days.max(1))
         });
+        sub.base.updated_at = chrono::Utc::now().naive_utc();
+        sub.base.synced = false;
+        self.repo.update_subscription(&sub).await?;
+        Ok(sub)
+    }
+
+    /// Super admin define o PLANO (catálogo) da assinatura sem forçar
+    /// ativação: snapshot dos termos do plano; a próxima cobrança só é
+    /// recalculada quando a assinatura está ativa. Bloqueia se houver
+    /// recorrência ativa (o valor do mandato mudaria).
+    pub async fn admin_set_plan(
+        &self,
+        company_id: Uuid,
+        plan: &crate::plan::model::Plan,
+        today: NaiveDate,
+    ) -> Result<Subscription, CoreError> {
+        let mut sub = self
+            .repo
+            .find_current(company_id)
+            .await?
+            .ok_or_else(|| CoreError::NotFound("Assinatura não encontrada".into()))?;
+        if sub.has_active_card() {
+            return Err(CoreError::Validation(
+                "Cancele o cartão recorrente antes de trocar de plano e cadastre-o novamente com o novo valor.".into(),
+            ));
+        }
+        if sub.has_active_pix_auto() {
+            return Err(CoreError::Validation(
+                "Cancele o PIX Automático antes de trocar de plano e ative-o novamente com o novo valor.".into(),
+            ));
+        }
+        sub.plan_id = Some(plan.id);
+        sub.plan_name = plan.name.clone();
+        sub.plan_amount = plan.amount;
+        sub.plan_period_days = plan.period_days.max(1);
+        sub.trial_days = plan.trial_days.max(0);
+        // Próxima cobrança só faz sentido com assinatura ativa.
+        if matches!(sub.status, SubscriptionStatus::Active) {
+            sub.next_charge_date = Some(add_days(today, plan.period_days.max(1)));
+        }
         sub.base.updated_at = chrono::Utc::now().naive_utc();
         sub.base.synced = false;
         self.repo.update_subscription(&sub).await?;
@@ -744,12 +785,13 @@ impl SubscriptionService {
         let Some(mut sub) = self.repo.find_current(company_id).await? else {
             return Ok(());
         };
-        // Ciclo vem de `terms()` (respeita `plan_period_months` dos planos de
-        // catálogo), não de `plan_kind` — que fica `Monthly` em planos de
-        // catálogo e faria a próxima cobrança cair 1 mês à frente sempre,
-        // cobrando um plano anual/semestral meses antes do previsto.
-        let months = self.terms(&sub).months as i32;
-        sub.next_charge_date = Some(add_months(today, months));
+        // Planos de catálogo avançam pelo `plan_period_days` EXATO; planos
+        // legados (por `plan_kind`) avançam pelos meses do ciclo.
+        sub.next_charge_date = Some(if sub.is_catalog_plan() {
+            add_days(today, sub.plan_period_days.max(1))
+        } else {
+            add_months(today, self.terms(&sub).months as i32)
+        });
         sub.base.updated_at = chrono::Utc::now().naive_utc();
         sub.base.synced = false;
         self.repo.update_subscription(&sub).await
@@ -846,8 +888,13 @@ impl SubscriptionService {
             None,
         );
         self.repo.create_invoice(&invoice).await?;
-        // Atualiza next_charge_date para o próximo ciclo (período do plano).
-        sub.next_charge_date = Some(add_months(today, terms.months as i32));
+        // Atualiza next_charge_date para o próximo ciclo (período do plano):
+        // catálogo em DIAS exatos; legado por meses.
+        sub.next_charge_date = Some(if sub.is_catalog_plan() {
+            add_days(today, sub.plan_period_days.max(1))
+        } else {
+            add_months(today, terms.months as i32)
+        });
         sub.base.updated_at = chrono::Utc::now().naive_utc();
         sub.base.synced = false;
         self.repo.update_subscription(&sub).await?;

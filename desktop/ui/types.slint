@@ -33,7 +33,9 @@ export struct AdminCompanyRow {
     name: string,
     subdomain: string,
     created-at: string,
+    // Nome do plano (exibição) + id (para pré-selecionar no modal).
     plan: string,
+    plan-id: string,
     status: string,
     active: bool,
     // Domínio público completo (ex.: "ebenezer.letaf.app").
@@ -129,7 +131,7 @@ export struct AdminPlanRow {
     name: string,
     amount-display: string,        // "R$ 200,00"
     monthly-display: string,       // "R$ 200,00/mês"
-    period-months: int,
+    period-days: int,
     trial-days: int,
     description: string,
     highlight-label: string,

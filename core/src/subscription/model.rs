@@ -154,9 +154,9 @@ pub struct Subscription {
     /// Valor cobrado por ciclo (R$) do plano do catálogo.
     #[serde(default)]
     pub plan_amount: Decimal,
-    /// Meses por cobrança do plano do catálogo.
+    /// Dias por cobrança do plano do catálogo.
     #[serde(default)]
-    pub plan_period_months: i32,
+    pub plan_period_days: i32,
     /// Período gratuito (dias) do plano do catálogo (aplicado ao assinar).
     #[serde(default)]
     pub trial_days: i32,
@@ -183,7 +183,7 @@ impl Subscription {
             plan_id: None,
             plan_name: String::new(),
             plan_amount: Decimal::ZERO,
-            plan_period_months: 0,
+            plan_period_days: 0,
             trial_days: 0,
             plan_discount_monthly: Decimal::ZERO,
         }

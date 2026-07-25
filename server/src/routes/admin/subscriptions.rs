@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use uuid::Uuid;
 
-use letaf_core::subscription::model::{PlanKind, SubscriptionStatus};
+use letaf_core::subscription::model::SubscriptionStatus;
 
 use crate::context::AppState;
 use crate::error::ServerError;
@@ -48,7 +48,7 @@ pub(super) async fn list_subscriptions(
                 company_id: c.id,
                 logo: c.logo_data.clone().unwrap_or_default(),
                 company_name: c.name,
-                plan: sub.plan_kind.as_str().to_string(),
+                plan: sub.plan_name.clone(),
                 status: sub.status.as_str().to_string(),
                 next_charge: sub
                     .next_charge_date
@@ -67,10 +67,10 @@ pub(super) async fn list_subscriptions(
 /// comercial. A autoridade é o backend (§11) — a UI só solicita.
 #[derive(Deserialize)]
 pub(super) struct UpdateSubscriptionRequest {
-    /// "monthly" | "semestral" | "annual".
+    /// Id do plano do catálogo.
     #[serde(default)]
     plan: Option<String>,
-    /// "active" | "overdue" | "cancelled".
+    /// "active" | "inactive" | "overdue" | "cancelled".
     #[serde(default)]
     status: Option<String>,
     /// Desconto comercial em R$/mês (>= 0).
@@ -93,12 +93,11 @@ pub(super) async fn update_subscription(
     // e recalcula a próxima cobrança; aplicar o status depois preserva a
     // intenção (ex.: cancelar após trocar de plano).
     let mut changes: Vec<String> = Vec::new();
-    if let Some(plan) = body.plan {
-        state
-            .subscription_service
-            .change_plan(company_id, PlanKind::from_str(&plan), today)
-            .await?;
-        changes.push(format!("plano: {plan}"));
+    if let Some(plan_id) = body.plan.as_deref().and_then(|s| Uuid::parse_str(s).ok()) {
+        if let Some(plan) = state.plan_service.find_by_id(plan_id).await? {
+            state.subscription_service.admin_set_plan(company_id, &plan, today).await?;
+            changes.push(format!("plano: {}", plan.name));
+        }
     }
     if let Some(status) = body.status {
         state

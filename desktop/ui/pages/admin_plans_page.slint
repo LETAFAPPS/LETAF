@@ -78,8 +78,8 @@ component PlanCard inherits Rectangle {
                 }
             }
             Text {
-                text: root.p.amount-display + " a cada " + root.p.period-months
-                    + (root.p.period-months == 1 ? " mês" : " meses") + " · " + root.p.monthly-display
+                text: root.p.amount-display + " a cada " + root.p.period-days
+                    + (root.p.period-days == 1 ? " dia" : " dias") + " · " + root.p.monthly-display
                     + (root.p.trial-days > 0 ? " · " + root.p.trial-days + " dias grátis" : "");
                 font-size: 11.5px; color: Theme.text-secondary; overflow: elide;
             }

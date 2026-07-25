@@ -1715,7 +1715,7 @@ export component MainWindow inherits Window {
                     manage-subscription(c) => {
                         AdminState.sub-edit-company-id = c.id;
                         AdminState.sub-edit-company-name = c.name;
-                        AdminState.sub-edit-plan = c.plan == "" ? "monthly" : c.plan;
+                        AdminState.sub-edit-plan = c.plan-id;
                         AdminState.sub-edit-status = c.status == "none" ? "inactive" : c.status;
                         AdminState.sub-edit-discount = c.discount;
                         AdminState.sub-edit-open = true;

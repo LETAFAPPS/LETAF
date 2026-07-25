@@ -25,7 +25,7 @@ pub(crate) struct PlanPayload {
     pub id: Uuid,
     pub name: String,
     pub amount: f64,
-    pub period_months: i32,
+    pub period_days: i32,
     pub trial_days: i32,
     pub description: String,
     pub highlight_label: String,
@@ -41,7 +41,7 @@ pub(crate) fn plan_payload(p: Plan) -> PlanPayload {
         id: p.id,
         name: p.name,
         amount: p.amount.to_f64().unwrap_or(0.0),
-        period_months: p.period_months,
+        period_days: p.period_days,
         trial_days: p.trial_days,
         description: p.description,
         highlight_label: p.highlight_label,
@@ -101,7 +101,7 @@ fn default_true() -> bool {
 pub(super) struct PlanBody {
     name: String,
     amount: Decimal,
-    period_months: i32,
+    period_days: i32,
     #[serde(default)]
     trial_days: i32,
     #[serde(default)]
@@ -119,7 +119,7 @@ impl PlanBody {
         PlanInput {
             name: self.name,
             amount: self.amount,
-            period_months: self.period_months,
+            period_days: self.period_days,
             trial_days: self.trial_days,
             description: self.description,
             highlight_label: self.highlight_label,
