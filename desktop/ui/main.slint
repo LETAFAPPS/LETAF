@@ -1680,6 +1680,8 @@ export component MainWindow inherits Window {
                     form-uf <=> AdminState.company-form-uf;
                     form-latitude <=> AdminState.company-form-latitude;
                     form-longitude <=> AdminState.company-form-longitude;
+                    form-plan <=> AdminState.company-form-plan;
+                    plan-options: AdminState.company-form-plan-options;
                     geocode => { AdminState.company-geocode(); }
                     geocode-loading: AdminState.company-geocode-loading;
                     logo-image: AdminState.company-form-logo-image;
@@ -1723,6 +1725,9 @@ export component MainWindow inherits Window {
                     subscriptions: AdminState.subscriptions;
                     search <=> AdminState.sub-search;
                     filter <=> AdminState.sub-filter;
+                    plan-filter <=> AdminState.sub-plan-filter;
+                    plan-filter-options: AdminState.company-plan-filter-options;
+                    plan-filter-label: AdminState.sub-plan-filter-label;
                     filters-changed => { AdminState.filter-subscriptions(); }
                     manage(s) => {
                         AdminState.sub-edit-company-id = s.company-id;
@@ -1730,9 +1735,7 @@ export component MainWindow inherits Window {
                         AdminState.sub-edit-plan = s.plan;
                         AdminState.sub-edit-status = s.status;
                         AdminState.sub-edit-discount = s.discount;
-                        AdminState.invoices = [];
                         AdminState.sub-edit-open = true;
-                        AdminState.load-invoices(s.company-id);
                     }
                 }
                 if root.active-tab == "admin-admins": AdminAdminsPage {
@@ -2704,9 +2707,8 @@ export component MainWindow inherits Window {
         status <=> AdminState.sub-edit-status;
         discount <=> AdminState.sub-edit-discount;
         busy: AdminState.sub-edit-busy;
-        invoices: AdminState.invoices;
+        plans: AdminState.plans;
         save => { AdminState.save-subscription(); }
-        mark-paid(id) => { AdminState.mark-invoice-paid(id); }
         close => { AdminState.sub-edit-open = false; }
     }
 

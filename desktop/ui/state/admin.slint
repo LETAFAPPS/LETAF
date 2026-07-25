@@ -49,6 +49,8 @@ export global AdminState {
     in-out property <string> company-plan-filter-label: "Planos";
     in-out property <string> sub-search: "";
     in-out property <string> sub-filter: "all";       // all|active|overdue|cancelled
+    in-out property <string> sub-plan-filter: "all";  // all|<kind>|none
+    in-out property <string> sub-plan-filter-label: "Planos";
     callback filter-companies();
     callback filter-subscriptions();
     in-out property <bool> del-company-open: false;
@@ -68,6 +70,10 @@ export global AdminState {
     callback delete-user(string);
     in-out property <string> company-form-name: "";
     in-out property <string> company-form-subdomain: "";
+    // Plano da assinatura escolhido (kind) + opções = planos CADASTRADOS e
+    // ATIVOS do sistema (montadas no Rust).
+    in-out property <string> company-form-plan: "monthly";
+    in-out property <[FilterOption]> company-form-plan-options: [];
     in-out property <string> company-form-admin-name: "";
     in-out property <string> company-form-admin-email: "";
     in-out property <string> company-form-admin-password: "";

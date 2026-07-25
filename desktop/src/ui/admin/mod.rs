@@ -87,6 +87,8 @@ struct CompanyFormDto {
     logo_data: String,
     cover_data: String,
     discount: f64,
+    #[serde(default)]
+    plan: String,
     owner_name: String,
     owner_email: String,
     owner_phone: String,
@@ -292,17 +294,44 @@ fn set_plan_filter_options(ui: &MainWindow, plans: &[PlanDto]) {
     });
     ui.global::<AdminState>()
         .set_company_plan_filter_options(ModelRc::new(VecModel::from(opts)));
+
+    // Opções do SELETOR de plano no cadastro/edição: só planos ATIVOS, sem
+    // "Todos"/"Sem plano" (dedup por tipo).
+    let mut form_opts: Vec<FilterOption> = Vec::new();
+    let mut seen_form: std::collections::HashSet<&str> = std::collections::HashSet::new();
+    for p in plans.iter().filter(|p| p.active) {
+        let kind = match p.period_months {
+            6 => "semestral",
+            12 => "annual",
+            _ => "monthly",
+        };
+        if seen_form.insert(kind) {
+            form_opts.push(FilterOption {
+                key: kind.into(),
+                label: p.name.clone().into(),
+            });
+        }
+    }
+    ui.global::<AdminState>()
+        .set_company_form_plan_options(ModelRc::new(VecModel::from(form_opts)));
 }
 
 /// Aplica busca (nome da empresa) + filtro de status às assinaturas.
 fn apply_sub_filter(ui: &MainWindow, cache: &SubsCache) {
     let search = ui.global::<AdminState>().get_sub_search().to_string();
     let filter = ui.global::<AdminState>().get_sub_filter().to_string();
+    let plan_filter = ui.global::<AdminState>().get_sub_plan_filter().to_string();
     let Ok(all) = cache.lock() else { return };
     let rows: Vec<AdminSubscriptionRow> = all
         .iter()
         .filter(|s| matches(&s.company_name, &search))
         .filter(|s| filter == "all" || s.status == filter)
+        // Filtro por plano: "none" = sem plano; senão casa pelo tipo.
+        .filter(|s| match plan_filter.as_str() {
+            "all" => true,
+            "none" => s.plan.is_empty(),
+            kind => s.plan == kind,
+        })
         .map(|s| AdminSubscriptionRow {
             company_id: s.company_id.clone().into(),
             company_name: s.company_name.clone().into(),
@@ -314,6 +343,19 @@ fn apply_sub_filter(ui: &MainWindow, cache: &SubsCache) {
         })
         .collect();
     ui.global::<AdminState>().set_subscriptions(ModelRc::new(VecModel::from(rows)));
+
+    // Rótulo do botão "Planos" acompanha a seleção (nome do plano ou "Planos").
+    let plan_label = if plan_filter == "all" {
+        "Planos".to_string()
+    } else {
+        let opts = ui.global::<AdminState>().get_company_plan_filter_options();
+        (0..opts.row_count())
+            .filter_map(|i| opts.row_data(i))
+            .find(|o| o.key.as_str() == plan_filter)
+            .map(|o| o.label.to_string())
+            .unwrap_or_else(|| "Planos".to_string())
+    };
+    ui.global::<AdminState>().set_sub_plan_filter_label(plan_label.into());
 }
 
 /// Registra todos os callbacks do painel do administrador.
@@ -1289,6 +1331,7 @@ fn setup_company_persist(
             "uf": ui.global::<AdminState>().get_company_form_uf().trim(),
             "latitude": latitude,
             "longitude": longitude,
+            "plan": ui.global::<AdminState>().get_company_form_plan().to_string(),
             "logo_data": ui.global::<AdminState>().get_company_form_logo_data().to_string(),
             "cover_data": ui.global::<AdminState>().get_company_form_cover_data().to_string(),
             "plan_discount": discount,
@@ -1394,6 +1437,9 @@ fn fill_company_form(ui: &MainWindow, f: &CompanyFormDto) {
     // Coordenadas: número → texto; None fica vazio.
     g.set_company_form_latitude(f.latitude.map(|v| v.to_string()).unwrap_or_default().into());
     g.set_company_form_longitude(f.longitude.map(|v| v.to_string()).unwrap_or_default().into());
+    // Plano atual da assinatura.
+    let plan = if f.plan.is_empty() { "monthly".to_string() } else { f.plan.clone() };
+    g.set_company_form_plan(plan.into());
     // Desconto (R$/mês) em pt-BR; 0 fica vazio (mostra o placeholder).
     let discount = if f.discount > 0.0 {
         format!("{:.2}", f.discount).replace('.', ",")
@@ -1459,6 +1505,12 @@ fn clear_company_form(ui: &MainWindow) {
     ui.global::<AdminState>().set_company_form_uf(SharedString::new());
     ui.global::<AdminState>().set_company_form_latitude(SharedString::new());
     ui.global::<AdminState>().set_company_form_longitude(SharedString::new());
+    // Plano: 1º plano ativo disponível (senão mensal).
+    let default_plan = {
+        let opts = ui.global::<AdminState>().get_company_form_plan_options();
+        opts.row_data(0).map(|o| o.key.to_string()).unwrap_or_else(|| "monthly".into())
+    };
+    ui.global::<AdminState>().set_company_form_plan(default_plan.into());
     ui.global::<AdminState>().set_company_form_logo_data(SharedString::new());
     ui.global::<AdminState>().set_company_form_cover_data(SharedString::new());
     ui.global::<AdminState>().set_company_form_logo_image(slint::Image::default());

@@ -83,6 +83,9 @@ pub(super) struct CreateCompanyRequest {
     /// Desconto comercial em R$ por mês na mensalidade (0 = sem desconto).
     #[serde(default)]
     plan_discount: Option<f64>,
+    /// Plano da assinatura (kind): "monthly" | "semestral" | "annual".
+    #[serde(default)]
+    plan: Option<String>,
 }
 
 /// `Some("")`/só espaços → `None`; caso contrário devolve o texto aparado.
@@ -179,6 +182,16 @@ pub(super) async fn create_company(
     if let Err(e) = state.subscription_service.ensure_seed(company.id, today).await {
         tracing::error!("Falha ao criar assinatura da empresa {}: {e}", company.id);
     }
+    // Plano escolhido no cadastro (default mensal do seed). Best-effort.
+    if let Some(plan) = body.plan.as_deref().filter(|p| !p.trim().is_empty()) {
+        if let Err(e) = state
+            .subscription_service
+            .change_plan(company.id, letaf_core::subscription::model::PlanKind::from_str(plan), today)
+            .await
+        {
+            tracing::error!("Falha ao aplicar plano ({plan}) na empresa {}: {e}", company.id);
+        }
+    }
     // Telefone do proprietário (admin recém-criado). Best-effort.
     if body.admin_phone.as_deref().map(|p| !p.trim().is_empty()).unwrap_or(false) {
         let _ = state
@@ -235,6 +248,8 @@ pub(super) struct CompanyForm {
     cover_data: String,
     /// Desconto comercial atual (R$/mês) da assinatura.
     discount: f64,
+    /// Plano atual da assinatura (kind): "monthly" | "semestral" | "annual".
+    plan: String,
     /// Proprietário (admin inicial) — editável no cadastro em modo edição.
     owner_name: String,
     owner_email: String,
@@ -252,14 +267,12 @@ pub(super) async fn company_form(
         .find_by_id(id)
         .await?
         .ok_or_else(|| ServerError::Core(CoreError::NotFound("Empresa não encontrada".into())))?;
-    let discount = state
-        .subscription_service
-        .find_current(id)
-        .await
-        .ok()
-        .flatten()
-        .map(|s| s.plan_discount_monthly)
-        .unwrap_or_default();
+    let sub = state.subscription_service.find_current(id).await.ok().flatten();
+    let discount = sub.as_ref().map(|s| s.plan_discount_monthly).unwrap_or_default();
+    let plan = sub
+        .as_ref()
+        .map(|s| s.plan_kind.as_str().to_string())
+        .unwrap_or_else(|| "monthly".into());
     // Proprietário = admin inicial da empresa.
     let owner = state
         .auth_service
@@ -288,6 +301,7 @@ pub(super) async fn company_form(
         logo_data: c.logo_data.unwrap_or_default(),
         cover_data: c.cover_data.unwrap_or_default(),
         discount: rust_decimal::prelude::ToPrimitive::to_f64(&discount).unwrap_or(0.0),
+        plan,
         owner_name,
         owner_email,
         owner_phone,
@@ -325,6 +339,9 @@ pub(super) struct UpdateCompanyRequest {
     cover_data: Option<String>,
     #[serde(default)]
     plan_discount: Option<f64>,
+    /// Plano da assinatura (kind): "monthly" | "semestral" | "annual".
+    #[serde(default)]
+    plan: Option<String>,
     // Dados do proprietário (admin inicial) — editáveis na edição.
     #[serde(default)]
     admin_name: Option<String>,
@@ -411,6 +428,19 @@ pub(super) async fn update_company(
         orders_per_page: current.orders_per_page,
     };
     state.company_service.update_info(id, info).await?;
+
+    // Plano da assinatura — best-effort (garante o seed antes de trocar).
+    if let Some(plan) = body.plan.as_deref().filter(|p| !p.trim().is_empty()) {
+        let today = chrono::Utc::now().date_naive();
+        let _ = state.subscription_service.ensure_seed(id, today).await;
+        if let Err(e) = state
+            .subscription_service
+            .change_plan(id, letaf_core::subscription::model::PlanKind::from_str(plan), today)
+            .await
+        {
+            tracing::error!("Falha ao aplicar plano ({plan}) na empresa {id}: {e}");
+        }
+    }
 
     // Desconto comercial (R$/mês) — best-effort (a empresa já foi atualizada).
     if let Some(discount) = body.plan_discount {

@@ -1,111 +1,226 @@
-// Painel do administrador — Assinaturas & planos (cross-tenant).
+// Painel do administrador — Assinaturas (cross-tenant).
 // UI sem lógica (§1/§3): lista pronta do Rust (GET /admin/subscriptions).
+// Mesma estrutura da tela de Empresas: toolbar (busca + filtros) num card e
+// UM CARD POR ASSINATURA, com colunas de espaçamento uniforme.
 import { Theme } from "../theme.slint";
 import { AdminSubscriptionRow } from "../types.slint";
 import { EmptyState } from "../components/empty_state.slint";
-import { ListSearchBox, FilterChipSm } from "../components/list_toolbar.slint";
+import { ListSearchBox, ListFilterBtn, FilterOption } from "../components/list_toolbar.slint";
+
+// Badge de status da assinatura (retângulo arredondado).
+component SubStatusBadge inherits Rectangle {
+    in property <string> status;
+    width: label.preferred-width + 20px;
+    height: 22px;
+    border-radius: 6px;
+    background: root.status == "active" ? #2E7D3222
+        : (root.status == "overdue" ? #E6510022 : #9E9E9E22);
+    label := Text {
+        x: 10px;
+        text: root.status == "active" ? "Ativa"
+            : (root.status == "overdue" ? "Vencida" : "Cancelada");
+        font-size: 11px; font-weight: 700;
+        color: root.status == "active" ? #2E7D32
+            : (root.status == "overdue" ? #E65100 : Theme.text-secondary);
+        vertical-alignment: center;
+    }
+}
+
+// Card de UMA assinatura na lista.
+component SubscriptionCard inherits Rectangle {
+    in property <AdminSubscriptionRow> s;
+    callback manage();
+
+    height: 72px;
+    background: Theme.surface;
+    border-radius: 10px;
+    border-width: 1px;
+    border-color: Theme.card-border;
+    drop-shadow-blur: 8px;
+    drop-shadow-offset-y: 0px;
+    drop-shadow-color: Theme.card-shadow;
+
+    HorizontalLayout {
+        padding-left: 16px; padding-right: 14px;
+        spacing: 12px;
+
+        // Empresa.
+        VerticalLayout {
+            horizontal-stretch: 1;
+            alignment: center;
+            Text {
+                text: root.s.company-name;
+                font-size: 14px; font-weight: 700; color: Theme.text-primary;
+                overflow: elide;
+            }
+        }
+        // Plano.
+        VerticalLayout {
+            horizontal-stretch: 1;
+            alignment: center;
+            Text {
+                text: root.s.plan == "monthly" ? "Mensal"
+                    : (root.s.plan == "semestral" ? "Semestral"
+                        : (root.s.plan == "annual" ? "Anual" : root.s.plan));
+                font-size: 12.5px; color: Theme.text-primary;
+                horizontal-alignment: center;
+            }
+        }
+        // Status.
+        VerticalLayout {
+            horizontal-stretch: 1;
+            alignment: center;
+            HorizontalLayout { alignment: center; SubStatusBadge { status: root.s.status; } }
+        }
+        // Pagamento.
+        VerticalLayout {
+            horizontal-stretch: 1;
+            alignment: center;
+            Text {
+                text: root.s.payment-kind == "" ? "—" : root.s.payment-kind;
+                font-size: 12.5px; color: Theme.text-secondary;
+                horizontal-alignment: center;
+            }
+        }
+        // Próxima cobrança.
+        VerticalLayout {
+            horizontal-stretch: 1;
+            alignment: center;
+            Text {
+                text: root.s.next-charge == "" ? "—" : root.s.next-charge;
+                font-size: 12.5px; color: Theme.text-secondary;
+                horizontal-alignment: center;
+            }
+        }
+        // Ação: gerenciar.
+        VerticalLayout {
+            alignment: center;
+            manage-ta := TouchArea {
+                width: 104px; height: 32px;
+                clicked => { root.manage(); }
+                Rectangle {
+                    border-radius: 8px;
+                    border-width: 1.5px;
+                    border-color: Theme.btn-accent;
+                    background: manage-ta.has-hover
+                        ? Theme.btn-accent.transparentize(0.80)
+                        : Theme.btn-accent.transparentize(0.90);
+                    Text {
+                        text: "Gerenciar";
+                        font-size: 13px; font-weight: 700; color: Theme.btn-accent;
+                        horizontal-alignment: center; vertical-alignment: center;
+                        width: parent.width; height: parent.height;
+                    }
+                }
+            }
+        }
+    }
+}
 
 export component AdminSubscriptionsPage inherits VerticalLayout {
     in property <[AdminSubscriptionRow]> subscriptions;
     callback manage(AdminSubscriptionRow);
-    // Busca/filtro (aplicados no Rust sobre a lista completa).
+    // Busca/filtros (aplicados no Rust sobre a lista completa).
     in-out property <string> search;
-    in-out property <string> filter: "all";
+    in-out property <string> filter: "all";        // status: all|active|overdue|cancelled
+    in-out property <string> plan-filter: "all";   // plano: all|<kind>|none
+    in property <[FilterOption]> plan-filter-options;
+    in property <string> plan-filter-label: "Planos";
     callback filters-changed();
+
     spacing: 12px;
-    alignment: start;
 
-    Text {
-        text: "Assinaturas";
-        font-size: 20px; font-weight: 800; color: Theme.text-primary;
-    }
-    Text {
-        text: root.subscriptions.length + " Assinaturas.";
-        font-size: 13px; color: Theme.text-secondary;
-    }
-
-    // Busca + filtro de status.
-    HorizontalLayout {
-        spacing: 8px;
-        ListSearchBox {
-            horizontal-stretch: 1;
-            value <=> root.search;
-            placeholder: "Buscar por empresa...";
-            changed => { root.filters-changed(); }
+    // Cabeçalho.
+    VerticalLayout {
+        spacing: 2px;
+        Text {
+            text: "Assinaturas";
+            font-size: 20px; font-weight: 800; color: Theme.text-primary;
         }
-        FilterChipSm {
-            label: "Todas"; active: root.filter == "all";
-            clicked => { root.filter = "all"; root.filters-changed(); }
-        }
-        FilterChipSm {
-            label: "Ativas"; active: root.filter == "active";
-            clicked => { root.filter = "active"; root.filters-changed(); }
-        }
-        FilterChipSm {
-            label: "Vencidas"; active: root.filter == "overdue";
-            clicked => { root.filter = "overdue"; root.filters-changed(); }
-        }
-        FilterChipSm {
-            label: "Canceladas"; active: root.filter == "cancelled";
-            clicked => { root.filter = "cancelled"; root.filters-changed(); }
+        Text {
+            text: root.subscriptions.length + " Assinaturas.";
+            font-size: 13px; color: Theme.text-secondary;
         }
     }
 
-    if root.subscriptions.length == 0: EmptyState {
-        source: @image-url("../assets/empty/invoice.svg");
-        title: "Nenhuma assinatura";
-    }
-
-    if root.subscriptions.length > 0: Rectangle {
-        vertical-stretch: 1;
+    // Toolbar: busca + filtro de status + filtro de plano.
+    Rectangle {
+        height: 56px;
         background: Theme.surface;
-        border-radius: 12px;
+        border-radius: 10px;
         border-width: 1px;
         border-color: Theme.card-border;
-        drop-shadow-blur: 12px;
+        drop-shadow-blur: 8px;
         drop-shadow-offset-y: 0px;
         drop-shadow-color: Theme.card-shadow;
-        VerticalLayout {
-            padding: 8px;
-            alignment: start;   // linhas logo abaixo do cabeçalho
-            HorizontalLayout {
-                padding: 10px;
-                spacing: 12px;
-                Text { text: "EMPRESA"; horizontal-stretch: 2; font-size: 11px; font-weight: 700; color: Theme.text-secondary; }
-                Text { text: "PLANO"; horizontal-stretch: 1; font-size: 11px; font-weight: 700; color: Theme.text-secondary; }
-                Text { text: "STATUS"; horizontal-stretch: 1; font-size: 11px; font-weight: 700; color: Theme.text-secondary; }
-                Text { text: "PAGAMENTO"; horizontal-stretch: 1; font-size: 11px; font-weight: 700; color: Theme.text-secondary; }
-                Text { text: "PRÓX. COBRANÇA"; horizontal-stretch: 1; font-size: 11px; font-weight: 700; color: Theme.text-secondary; horizontal-alignment: right; }
-                Text { text: ""; width: 104px; }
-            }
-            Rectangle { height: 1px; background: Theme.border; }
-            for s in root.subscriptions: HorizontalLayout {
-                padding: 10px;
-                spacing: 12px;
-                Text { text: s.company-name; horizontal-stretch: 2; font-size: 13px; font-weight: 600; color: Theme.text-primary; overflow: elide; vertical-alignment: center; }
-                Text { text: s.plan == "monthly" ? "Mensal" : (s.plan == "semestral" ? "Semestral" : (s.plan == "annual" ? "Anual" : s.plan)); horizontal-stretch: 1; font-size: 13px; color: Theme.text-primary; vertical-alignment: center; }
-                Text { text: s.status == "active" ? "Ativa" : (s.status == "overdue" ? "Vencida" : "Cancelada"); horizontal-stretch: 1; font-size: 13px; font-weight: 700; color: s.status == "active" ? #2E7D32 : (s.status == "overdue" ? #E65100 : Theme.text-secondary); vertical-alignment: center; }
-                Text { text: s.payment-kind == "" ? "—" : s.payment-kind; horizontal-stretch: 1; font-size: 13px; color: Theme.text-secondary; vertical-alignment: center; }
-                Text { text: s.next-charge == "" ? "—" : s.next-charge; horizontal-stretch: 1; font-size: 13px; color: Theme.text-secondary; horizontal-alignment: right; vertical-alignment: center; }
-                // Ação: gerenciar (estilo tênue de ação).
-                manage-ta := TouchArea {
-                    width: 104px; height: 32px;
-                    clicked => { root.manage(s); }
-                    Rectangle {
-                        border-radius: 8px;
-                        border-width: 1.5px;
-                        border-color: Theme.btn-accent;
-                        background: manage-ta.has-hover
-                            ? Theme.btn-accent.transparentize(0.80)
-                            : Theme.btn-accent.transparentize(0.90);
-                        Text {
-                            text: "Gerenciar";
-                            font-size: 13px; font-weight: 700; color: Theme.btn-accent;
-                            horizontal-alignment: center; vertical-alignment: center;
-                            width: parent.width; height: parent.height;
-                        }
-                    }
+        HorizontalLayout {
+            padding-left: 12px; padding-right: 12px;
+            spacing: 10px;
+            VerticalLayout {
+                horizontal-stretch: 1;
+                alignment: center;
+                ListSearchBox {
+                    value <=> root.search;
+                    placeholder: "Buscar por empresa...";
+                    changed => { root.filters-changed(); }
                 }
+            }
+            VerticalLayout {
+                alignment: center;
+                ListFilterBtn {
+                    options: [
+                        { key: "all",       label: "Todas" },
+                        { key: "active",    label: "Ativas" },
+                        { key: "overdue",   label: "Vencidas" },
+                        { key: "cancelled", label: "Canceladas" },
+                    ];
+                    selected <=> root.filter;
+                    neutral-key: "all";
+                    label: root.filter == "active" ? "Ativas"
+                        : (root.filter == "overdue" ? "Vencidas"
+                            : (root.filter == "cancelled" ? "Canceladas" : "Status"));
+                    changed => { root.filters-changed(); }
+                }
+            }
+            VerticalLayout {
+                alignment: center;
+                ListFilterBtn {
+                    options: root.plan-filter-options;
+                    selected <=> root.plan-filter;
+                    neutral-key: "all";
+                    label: root.plan-filter-label;
+                    changed => { root.filters-changed(); }
+                }
+            }
+        }
+    }
+
+    // Empty state centralizado no espaço livre.
+    if root.subscriptions.length == 0: Rectangle {
+        vertical-stretch: 1;
+        VerticalLayout {
+            alignment: center;
+            EmptyState {
+                source: @image-url("../assets/empty/invoice.svg");
+                title: "Nenhuma assinatura";
+            }
+        }
+    }
+
+    // Lista: UM CARD POR ASSINATURA.
+    if root.subscriptions.length > 0: Flickable {
+        vertical-stretch: 1;
+        viewport-width: self.width;
+        viewport-height: cards.preferred-height;
+        cards := VerticalLayout {
+            spacing: 10px;
+            alignment: start;
+            // Folga p/ a sombra dos cards não ser recortada pelo Flickable.
+            padding-left: 14px; padding-right: 14px;
+            padding-top: 14px; padding-bottom: 14px;
+            for s in root.subscriptions: SubscriptionCard {
+                s: s;
+                manage => { root.manage(s); }
             }
         }
     }
