@@ -37,6 +37,11 @@ pub(super) struct CompanyRow {
     /// Proprietário: admin inicial da empresa.
     owner: String,
     owner_phone: String,
+    /// Assinatura: forma de pagamento, próxima fatura e desconto (R$/mês) —
+    /// migrados da tela de Assinaturas para o card da empresa.
+    payment_kind: String,
+    next_charge: String,
+    discount: String,
 }
 
 /// Cadastro de um novo estabelecimento (tenant) + seu administrador
@@ -711,9 +716,17 @@ pub(super) async fn list_companies(
     // tenant. Configurável por env, com default sensato.
     let base_domain = std::env::var("PUBLIC_BASE_DOMAIN").unwrap_or_else(|_| "letaf.app".into());
     for c in tenants {
-        let (plan, status) = match by_company.get(&c.id) {
-            Some(sub) => (sub.plan_kind.as_str().to_string(), sub.status.as_str().to_string()),
-            None => (String::new(), "none".to_string()),
+        let (plan, status, payment_kind, next_charge, discount) = match by_company.get(&c.id) {
+            Some(sub) => (
+                sub.plan_kind.as_str().to_string(),
+                sub.status.as_str().to_string(),
+                sub.payment_method.kind.clone(),
+                sub.next_charge_date
+                    .map(|d| d.format("%d/%m/%Y").to_string())
+                    .unwrap_or_default(),
+                sub.plan_discount_monthly.normalize().to_string(),
+            ),
+            None => (String::new(), "none".to_string(), String::new(), String::new(), "0".to_string()),
         };
         // Proprietário = admin inicial da empresa (1ª query por tenant; o
         // painel é de baixo volume — aceitável).
@@ -738,6 +751,9 @@ pub(super) async fn list_companies(
             plan,
             status,
             active: c.active,
+            payment_kind,
+            next_charge,
+            discount,
         });
     }
     Ok(Json(rows))

@@ -42,7 +42,6 @@ import { PrinterModal } from "modals/printer_modal.slint";
 import { PdvPage } from "pages/pdv_page.slint";
 import { AdminOverviewPage } from "pages/admin_overview_page.slint";
 import { AdminCompaniesPage } from "pages/admin_companies_page.slint";
-import { AdminSubscriptionsPage } from "pages/admin_subscriptions_page.slint";
 import { AdminAuditPage } from "pages/admin_audit_page.slint";
 import { AdminCompanyDetailModal } from "modals/admin_company_detail_modal.slint";
 import { AdminSubscriptionModal } from "modals/admin_subscription_modal.slint";
@@ -212,7 +211,7 @@ export component MainWindow inherits Window {
             // Sessão restaurada de super admin: carrega o painel ao abrir
             // (qualquer aba de plataforma).
             if root.active-tab == "admin-overview" || root.active-tab == "admin-companies"
-               || root.active-tab == "admin-subscriptions" || root.active-tab == "admin-admins"
+               || root.active-tab == "admin-admins"
                || root.active-tab == "admin-plans" || root.active-tab == "admin-audit" {
                 AdminState.refresh();
             }
@@ -1524,7 +1523,7 @@ export component MainWindow inherits Window {
                     // tela fechada).
                     root.subscription-refresh();
                 } else if tab == "admin-overview" || tab == "admin-companies"
-                       || tab == "admin-subscriptions" || tab == "admin-admins" || tab == "admin-audit"
+                       || tab == "admin-admins" || tab == "admin-audit"
                        || tab == "admin-plans" {
                     AdminState.refresh();
                 }
@@ -1711,6 +1710,15 @@ export component MainWindow inherits Window {
                     }
                     set-company-active(id, active) => { AdminState.set-company-active(id, active); }
                     open-detail(id) => { AdminState.open-company-detail(id); }
+                    // Gerenciar assinatura direto do card da empresa.
+                    manage-subscription(c) => {
+                        AdminState.sub-edit-company-id = c.id;
+                        AdminState.sub-edit-company-name = c.name;
+                        AdminState.sub-edit-plan = c.plan == "" ? "monthly" : c.plan;
+                        AdminState.sub-edit-status = c.status == "none" ? "inactive" : c.status;
+                        AdminState.sub-edit-discount = c.discount;
+                        AdminState.sub-edit-open = true;
+                    }
                     search <=> AdminState.company-search;
                     filter <=> AdminState.company-filter;
                     plan-filter <=> AdminState.company-plan-filter;
@@ -1720,23 +1728,6 @@ export component MainWindow inherits Window {
                 }
                 if root.active-tab == "admin-audit": AdminAuditPage {
                     entries: AdminState.audit-entries;
-                }
-                if root.active-tab == "admin-subscriptions": AdminSubscriptionsPage {
-                    subscriptions: AdminState.subscriptions;
-                    search <=> AdminState.sub-search;
-                    filter <=> AdminState.sub-filter;
-                    plan-filter <=> AdminState.sub-plan-filter;
-                    plan-filter-options: AdminState.company-plan-filter-options;
-                    plan-filter-label: AdminState.sub-plan-filter-label;
-                    filters-changed => { AdminState.filter-subscriptions(); }
-                    manage(s) => {
-                        AdminState.sub-edit-company-id = s.company-id;
-                        AdminState.sub-edit-company-name = s.company-name;
-                        AdminState.sub-edit-plan = s.plan;
-                        AdminState.sub-edit-status = s.status;
-                        AdminState.sub-edit-discount = s.discount;
-                        AdminState.sub-edit-open = true;
-                    }
                 }
                 if root.active-tab == "admin-admins": AdminAdminsPage {
                     users: AdminState.users;

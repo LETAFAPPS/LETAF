@@ -44,6 +44,10 @@ export struct AdminCompanyRow {
     owner-phone: string,
     // Logo da empresa (thumbnail do card). Imagem vazia = sem logo.
     logo: image,
+    // Assinatura (migrado da tela de Assinaturas para o card da empresa).
+    payment-kind: string,
+    next-charge: string,
+    discount: string,
 }
 
 export struct AdminInvoiceRow {

@@ -77,6 +77,8 @@ component CompanyCard inherits Rectangle {
     callback toggle-active();
     callback edit();
     callback remove();
+    // Gerenciar assinatura (abre o modal — migrado da tela de Assinaturas).
+    callback manage-subscription();
 
     height: 92px;
     background: Theme.surface;
@@ -191,7 +193,43 @@ component CompanyCard inherits Rectangle {
             HorizontalLayout { alignment: center; StatusBadge { status: root.c.status; } }
         }
 
-        // Ações: liga/desliga à ESQUERDA de visualizar/editar.
+        // Forma de pagamento (rótulo acima do valor).
+        VerticalLayout {
+            horizontal-stretch: 1;
+            alignment: center;
+            spacing: 2px;
+            Text {
+                text: "Forma de pagamento";
+                font-size: 10px; font-weight: 700; color: Theme.text-secondary;
+                horizontal-alignment: center;
+            }
+            Text {
+                text: root.c.payment-kind == "card" ? "Cartão"
+                    : (root.c.payment-kind == "pix" ? "Pix"
+                        : (root.c.payment-kind == "boleto" ? "Boleto"
+                            : (root.c.payment-kind == "" ? "—" : root.c.payment-kind)));
+                font-size: 12.5px; color: Theme.text-primary;
+                horizontal-alignment: center;
+            }
+        }
+        // Próxima fatura (rótulo acima da data).
+        VerticalLayout {
+            horizontal-stretch: 1;
+            alignment: center;
+            spacing: 2px;
+            Text {
+                text: "Próxima fatura";
+                font-size: 10px; font-weight: 700; color: Theme.text-secondary;
+                horizontal-alignment: center;
+            }
+            Text {
+                text: root.c.next-charge == "" ? "—" : root.c.next-charge;
+                font-size: 12.5px; color: Theme.text-primary;
+                horizontal-alignment: center;
+            }
+        }
+
+        // Ações: liga/desliga à ESQUERDA; gerenciar (maleta) + visualizar + editar.
         VerticalLayout {
             alignment: center;
             ToggleSwitch {
@@ -200,7 +238,16 @@ component CompanyCard inherits Rectangle {
             }
         }
         // Espaçador: separa o liga/desliga dos botões de ação.
-        Rectangle { width: 18px; }
+        Rectangle { width: 14px; }
+        VerticalLayout {
+            alignment: center;
+            IconActionBtn {
+                icon: @image-url("../assets/icons/1.2/app-maleta.svg");
+                hover-color: Theme.btn-accent;
+                hover-bg: Theme.row-hover;
+                clicked => { root.manage-subscription(); }
+            }
+        }
         VerticalLayout {
             alignment: center;
             IconActionBtn {
@@ -271,6 +318,8 @@ export component AdminCompaniesPage inherits VerticalLayout {
     callback set-company-active(string, bool);
     // Abre o detalhe consolidado da empresa. (id)
     callback open-detail(string);
+    // Abre o modal de gerenciar assinatura da empresa. (linha)
+    callback manage-subscription(AdminCompanyRow);
     // Busca/filtro (aplicados no Rust sobre a lista completa).
     in-out property <string> search;
     in-out property <string> filter: "all";        // status: all|active|suspended
@@ -455,6 +504,7 @@ export component AdminCompaniesPage inherits VerticalLayout {
                 toggle-active => { root.set-company-active(c.id, !c.active); }
                 edit => { root.edit-company(c.id); }
                 remove => { root.delete-company(c.id, c.name); }
+                manage-subscription => { root.manage-subscription(c); }
             }
         }
     }

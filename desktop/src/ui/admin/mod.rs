@@ -62,6 +62,12 @@ struct CompanyDto {
     /// Logo da empresa (base64) — decodificado para thumbnail no card.
     #[serde(default)]
     logo: String,
+    #[serde(default)]
+    payment_kind: String,
+    #[serde(default)]
+    next_charge: String,
+    #[serde(default)]
+    discount: String,
 }
 
 /// Dados brutos de uma empresa para pré-preencher o cadastro em edição
@@ -250,6 +256,9 @@ fn apply_company_filter(ui: &MainWindow, cache: &CompaniesCache) {
             logo: super::image::decode_pixel_buffer(&c.logo)
                 .map(slint::Image::from_rgba8)
                 .unwrap_or_default(),
+            payment_kind: c.payment_kind.clone().into(),
+            next_charge: c.next_charge.clone().into(),
+            discount: c.discount.clone().into(),
         })
         .collect();
     ui.global::<AdminState>().set_companies(ModelRc::new(VecModel::from(rows)));
