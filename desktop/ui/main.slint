@@ -45,6 +45,7 @@ import { AdminCompaniesPage } from "pages/admin_companies_page.slint";
 import { AdminAuditPage } from "pages/admin_audit_page.slint";
 import { AdminCompanyDetailModal } from "modals/admin_company_detail_modal.slint";
 import { AdminSubscriptionModal } from "modals/admin_subscription_modal.slint";
+import { AdminPlanModal } from "modals/admin_plan_modal.slint";
 import { AdminAdminsPage } from "pages/admin_admins_page.slint";
 import { AdminPlansPage } from "pages/admin_plans_page.slint";
 import { PdvSoldModal } from "modals/pdv_sold_modal.slint";
@@ -1742,18 +1743,11 @@ export component MainWindow inherits Window {
                 }
                 if root.active-tab == "admin-plans": AdminPlansPage {
                     plans: AdminState.plans;
-                    form-id <=> AdminState.plan-id;
-                    form-name <=> AdminState.plan-name;
-                    form-amount <=> AdminState.plan-amount;
-                    form-period <=> AdminState.plan-period;
-                    form-trial <=> AdminState.plan-trial;
-                    form-description <=> AdminState.plan-description;
-                    form-highlight <=> AdminState.plan-highlight;
-                    form-active <=> AdminState.plan-active;
+                    search <=> AdminState.plan-search;
                     new-plan => { AdminState.plan-new(); }
                     edit-plan(id) => { AdminState.plan-edit(id); }
-                    save-plan => { AdminState.plan-save(); }
                     delete-plan(id) => { AdminState.plan-delete(id); }
+                    filters-changed => { AdminState.filter-plans(); }
                 }
 
                 // Produtos — master-detail com editor inline (não há mais
@@ -2690,6 +2684,19 @@ export component MainWindow inherits Window {
         delete-target-name <=> AdminState.del-company-name;
         close => { AdminState.del-company-open = false; }
         confirm-delete => { AdminState.confirm-delete-company(); }
+    }
+
+    if AdminState.plan-modal-open: AdminPlanModal {
+        form-id: AdminState.plan-id;
+        form-name <=> AdminState.plan-name;
+        form-amount <=> AdminState.plan-amount;
+        form-period <=> AdminState.plan-period;
+        form-trial <=> AdminState.plan-trial;
+        form-description <=> AdminState.plan-description;
+        form-highlight <=> AdminState.plan-highlight;
+        form-active <=> AdminState.plan-active;
+        save => { AdminState.plan-save(); }
+        close => { AdminState.plan-modal-open = false; }
     }
 
     if AdminState.sub-edit-open: AdminSubscriptionModal {

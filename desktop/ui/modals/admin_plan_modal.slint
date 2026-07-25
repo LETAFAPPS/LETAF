@@ -1,0 +1,91 @@
+// Modal do super admin: cadastro/edição de um plano do catálogo.
+// UI sem lógica (§1/§3): salvar delega ao Rust (POST/PUT /admin/plans).
+import { Theme } from "../theme.slint";
+import { FormField } from "../components/form_fields.slint";
+import { OutlineBtn } from "../components/buttons.slint";
+import { ModalShell } from "../components/modal_shell.slint";
+
+// Interruptor liga/desliga (padrão do sistema).
+component Toggle inherits TouchArea {
+    in property <bool> on;
+    callback toggled();
+    width: 46px; height: 26px;
+    clicked => { root.toggled(); }
+    Rectangle {
+        border-radius: 13px;
+        background: root.on ? Theme.sidebar-sel-bg : Theme.border;
+        Rectangle {
+            width: 20px; height: 20px; border-radius: 10px;
+            background: white;
+            x: root.on ? parent.width - self.width - 3px : 3px;
+            y: (parent.height - self.height) / 2;
+            animate x { duration: 120ms; easing: ease-in-out; }
+        }
+    }
+}
+
+export component AdminPlanModal inherits Rectangle {
+    in property <string> form-id;
+    in-out property <string> form-name;
+    in-out property <string> form-amount;
+    in-out property <string> form-period;
+    in-out property <string> form-trial;
+    in-out property <string> form-description;
+    in-out property <string> form-highlight;
+    in-out property <bool> form-active;
+    callback save();
+    callback close();
+
+    width: 100%;
+    height: 100%;
+
+    ModalShell {
+        width: 100%;
+        height: 100%;
+        icon: @image-url("../assets/icons/1.2/inventory.svg");
+        icon-color: Theme.btn-accent;
+        title: root.form-id == "" ? "Novo plano" : "Editar plano";
+        message: "Catálogo de planos visível para a empresa.";
+        card-width: 460px;
+        close => { root.close(); }
+
+        VerticalLayout {
+            spacing: 12px;
+
+            FormField { label: "Nome"; value <=> root.form-name; placeholder: "Ex.: Mensal"; }
+            HorizontalLayout {
+                spacing: 10px;
+                FormField {
+                    horizontal-stretch: 1;
+                    label: "Valor por ciclo (R$)"; value <=> root.form-amount; placeholder: "200,00";
+                }
+                FormField {
+                    horizontal-stretch: 1;
+                    label: "Período (meses)"; value <=> root.form-period; placeholder: "1";
+                }
+            }
+            FormField { label: "Dias grátis (trial)"; value <=> root.form-trial; placeholder: "0"; }
+            FormField { label: "Descrição"; value <=> root.form-description; placeholder: "Cobrado todo mês"; }
+            FormField { label: "Selo de destaque"; value <=> root.form-highlight; placeholder: "MELHOR VALOR (opcional)"; }
+            HorizontalLayout {
+                spacing: 10px;
+                Text {
+                    text: "Ativo"; font-size: 13px; color: Theme.text-primary;
+                    vertical-alignment: center; horizontal-stretch: 1;
+                }
+                Toggle { on: root.form-active; toggled => { root.form-active = !root.form-active; } }
+            }
+            HorizontalLayout {
+                alignment: end;
+                padding-top: 2px;
+                OutlineBtn {
+                    label: "Salvar";
+                    accent: true;
+                    btn-color: Theme.btn-accent;
+                    width: 130px; height: 40px;
+                    clicked => { root.save(); }
+                }
+            }
+        }
+    }
+}

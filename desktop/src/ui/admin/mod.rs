@@ -372,6 +372,29 @@ fn apply_sub_filter(ui: &MainWindow, cache: &SubsCache) {
     ui.global::<AdminState>().set_sub_plan_filter_label(plan_label.into());
 }
 
+/// Aplica busca (nome) aos planos — reaplica sobre o cache, sem ir à rede.
+fn apply_plan_filter(ui: &MainWindow, cache: &PlansCache) {
+    let search = ui.global::<AdminState>().get_plan_search().to_string();
+    let Ok(all) = cache.lock() else { return };
+    let rows: Vec<AdminPlanRow> = all
+        .iter()
+        .filter(|p| matches(&p.name, &search))
+        .map(|p| AdminPlanRow {
+            id: p.id.clone().into(),
+            name: p.name.clone().into(),
+            amount_display: brl(p.amount).into(),
+            monthly_display: format!("{}/mês", brl(p.monthly_price)).into(),
+            period_months: p.period_months,
+            trial_days: p.trial_days,
+            description: p.description.clone().into(),
+            highlight_label: p.highlight_label.clone().into(),
+            active: p.active,
+            companies: p.companies as i32,
+        })
+        .collect();
+    ui.global::<AdminState>().set_plans(ModelRc::new(VecModel::from(rows)));
+}
+
 /// Registra todos os callbacks do painel do administrador.
 pub(crate) fn setup_admin(
     ui: &MainWindow,
@@ -646,7 +669,7 @@ fn setup_refresh(
                     .await
                     .unwrap_or_default();
             if let Ok(mut g) = plans_cache.lock() {
-                *g = plans.clone();
+                *g = plans;
             }
 
             let _ = slint::invoke_from_event_loop(move || {
@@ -682,22 +705,8 @@ fn setup_refresh(
                     .collect();
                 ui.global::<AdminState>().set_users(ModelRc::new(VecModel::from(admin_rows)));
 
-                let plan_rows: Vec<AdminPlanRow> = plans
-                    .into_iter()
-                    .map(|p| AdminPlanRow {
-                        id: p.id.into(),
-                        name: p.name.into(),
-                        amount_display: brl(p.amount).into(),
-                        monthly_display: format!("{}/mês", brl(p.monthly_price)).into(),
-                        period_months: p.period_months,
-                        trial_days: p.trial_days,
-                        description: p.description.into(),
-                        highlight_label: p.highlight_label.into(),
-                        active: p.active,
-                        companies: p.companies as i32,
-                    })
-                    .collect();
-                ui.global::<AdminState>().set_plans(ModelRc::new(VecModel::from(plan_rows)));
+                // Lista de planos já filtrada pela busca corrente.
+                apply_plan_filter(&ui, &plans_cache);
                 // Opções do filtro "Planos" = planos cadastrados.
                 if let Ok(g) = plans_cache.lock() {
                     set_plan_filter_options(&ui, &g);
@@ -733,6 +742,8 @@ fn setup_plan_form(ui: &MainWindow, plans_cache: &PlansCache) {
             ui.global::<AdminState>().set_plan_description(SharedString::new());
             ui.global::<AdminState>().set_plan_highlight(SharedString::new());
             ui.global::<AdminState>().set_plan_active(true);
+            // "+": abre o modal de cadastro limpo.
+            ui.global::<AdminState>().set_plan_modal_open(true);
         });
     }
     {
@@ -751,6 +762,18 @@ fn setup_plan_form(ui: &MainWindow, plans_cache: &PlansCache) {
                 ui.global::<AdminState>().set_plan_description(p.description.clone().into());
                 ui.global::<AdminState>().set_plan_highlight(p.highlight_label.clone().into());
                 ui.global::<AdminState>().set_plan_active(p.active);
+                // Ícone de editar: abre o modal pré-preenchido.
+                ui.global::<AdminState>().set_plan_modal_open(true);
+            }
+        });
+    }
+    // Busca por nome (reaplica sobre o cache).
+    {
+        let ui_weak = ui.as_weak();
+        let plans_cache = plans_cache.clone();
+        ui.global::<AdminState>().on_filter_plans(move || {
+            if let Some(ui) = ui_weak.upgrade() {
+                apply_plan_filter(&ui, &plans_cache);
             }
         });
     }
@@ -819,7 +842,18 @@ fn setup_plan_persist(
                         .send()
                         .await
                 };
-                report(ui_weak, result, "Plano Salvo").await;
+                let outcome = write_outcome(result).await;
+                let _ = slint::invoke_from_event_loop(move || {
+                    let Some(ui) = ui_weak.upgrade() else { return };
+                    match outcome {
+                        Ok(()) => {
+                            show_toast(&ui, "Plano Salvo", "success");
+                            ui.global::<AdminState>().set_plan_modal_open(false);
+                            ui.global::<AdminState>().invoke_refresh();
+                        }
+                        Err(msg) => show_toast(&ui, &msg, "error"),
+                    }
+                });
             });
         });
     }

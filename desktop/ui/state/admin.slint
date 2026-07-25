@@ -123,6 +123,10 @@ export global AdminState {
     // "Gerenciar empresa": super admin entra na empresa (impersonation). (id)
     callback company-impersonate(string);
     in-out property <[AdminPlanRow]> plans: [];
+    in-out property <string> plan-search: "";
+    // `true` = modal de cadastro/edição de plano aberto (padrão da tela de
+    // Empresas: o cadastro vive num modal, não num painel fixo).
+    in-out property <bool> plan-modal-open: false;
     in-out property <string> plan-id: "";
     in-out property <string> plan-name: "";
     in-out property <string> plan-amount: "";
@@ -135,4 +139,5 @@ export global AdminState {
     callback plan-edit(string);
     callback plan-save();
     callback plan-delete(string);
+    callback filter-plans();
 }
