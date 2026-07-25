@@ -1655,12 +1655,22 @@ export component MainWindow inherits Window {
                 // ── Painel do administrador (super admin) ──
                 if root.active-tab == "admin-overview": AdminOverviewPage {
                     companies: AdminState.companies-count;
+                    active-companies: AdminState.active-companies;
+                    suspended-companies: AdminState.suspended-companies;
                     active-subs: AdminState.active-subs;
                     overdue-subs: AdminState.overdue-subs;
                     cancelled-subs: AdminState.cancelled-subs;
+                    inactive-subs: AdminState.inactive-subs;
                     admins: AdminState.admins-count;
                     new-companies-month: AdminState.new-companies-month;
+                    referrals: AdminState.referrals;
                     mrr: AdminState.mrr;
+                    annual-revenue: AdminState.annual-revenue;
+                    arpa: AdminState.arpa;
+                    top-plan: AdminState.top-plan;
+                    revenue-max: AdminState.revenue-max;
+                    revenue-points: AdminState.revenue-points;
+                    recent-companies: AdminState.recent-companies;
                 }
                 if root.active-tab == "admin-companies": AdminCompaniesPage {
                     companies: AdminState.companies;

@@ -22,7 +22,7 @@ use crate::ui::auth::{apply_login, update_ui_after_login};
 use crate::AdminState;
 use crate::{
     AdminCompanyDetail, AdminCompanyOrderRow, AdminCompanyRow, AdminInvoiceRow,
-    AdminPlanRow, AdminRoleRow, AdminScreenOption,
+    AdminPlanRow, AdminRecentCompany, AdminRevenuePoint, AdminRoleRow, AdminScreenOption,
     AdminSubscriptionRow,
     AdminUserRow, FilterOption, MainWindow,
     HTTP_CLIENT,
@@ -52,12 +52,54 @@ fn screen_label(key: &str) -> &'static str {
 #[derive(Deserialize)]
 struct OverviewDto {
     companies: i64,
+    #[serde(default)]
+    active_companies: i64,
+    #[serde(default)]
+    suspended_companies: i64,
     active_subscriptions: i64,
     overdue_subscriptions: i64,
     cancelled_subscriptions: i64,
+    #[serde(default)]
+    inactive_subscriptions: i64,
     super_admins: i64,
     new_companies_month: i64,
     mrr: String,
+    #[serde(default = "default_money")]
+    annual_revenue: String,
+    #[serde(default = "default_money")]
+    arpa: String,
+    #[serde(default = "default_dash")]
+    top_plan: String,
+    #[serde(default)]
+    referrals: i64,
+    #[serde(default)]
+    revenue_months: Vec<RevenuePointDto>,
+    #[serde(default)]
+    recent_companies: Vec<RecentCompanyDto>,
+}
+
+fn default_money() -> String {
+    "R$ 0,00".to_string()
+}
+
+fn default_dash() -> String {
+    "—".to_string()
+}
+
+/// Um ponto do gráfico de receita anual (GET /admin/overview).
+#[derive(Deserialize)]
+struct RevenuePointDto {
+    label: String,
+    amount: f64,
+    amount_brl: String,
+}
+
+/// Uma empresa recém-cadastrada (GET /admin/overview).
+#[derive(Deserialize)]
+struct RecentCompanyDto {
+    name: String,
+    subdomain: String,
+    created_label: String,
 }
 
 #[derive(Deserialize, Clone)]
@@ -931,13 +973,49 @@ fn setup_refresh(
             let _ = slint::invoke_from_event_loop(move || {
                 let Some(ui) = ui_weak.upgrade() else { return };
                 if let Some(o) = overview {
-                    ui.global::<AdminState>().set_companies_count(o.companies as i32);
-                    ui.global::<AdminState>().set_active_subs(o.active_subscriptions as i32);
-                    ui.global::<AdminState>().set_overdue_subs(o.overdue_subscriptions as i32);
-                    ui.global::<AdminState>().set_cancelled_subs(o.cancelled_subscriptions as i32);
-                    ui.global::<AdminState>().set_admins_count(o.super_admins as i32);
-                    ui.global::<AdminState>().set_new_companies_month(o.new_companies_month as i32);
-                    ui.global::<AdminState>().set_mrr(SharedString::from(o.mrr));
+                    let g = ui.global::<AdminState>();
+                    g.set_companies_count(o.companies as i32);
+                    g.set_active_companies(o.active_companies as i32);
+                    g.set_suspended_companies(o.suspended_companies as i32);
+                    g.set_active_subs(o.active_subscriptions as i32);
+                    g.set_overdue_subs(o.overdue_subscriptions as i32);
+                    g.set_cancelled_subs(o.cancelled_subscriptions as i32);
+                    g.set_inactive_subs(o.inactive_subscriptions as i32);
+                    g.set_admins_count(o.super_admins as i32);
+                    g.set_new_companies_month(o.new_companies_month as i32);
+                    g.set_referrals(o.referrals as i32);
+                    g.set_mrr(SharedString::from(o.mrr));
+                    g.set_annual_revenue(SharedString::from(o.annual_revenue));
+                    g.set_arpa(SharedString::from(o.arpa));
+                    g.set_top_plan(SharedString::from(o.top_plan));
+                    // Gráfico de receita anual (+ escala = maior valor mensal).
+                    let max = o
+                        .revenue_months
+                        .iter()
+                        .map(|p| p.amount)
+                        .fold(0.0_f64, f64::max);
+                    g.set_revenue_max(max as f32);
+                    let points: Vec<AdminRevenuePoint> = o
+                        .revenue_months
+                        .into_iter()
+                        .map(|p| AdminRevenuePoint {
+                            label: p.label.into(),
+                            value: p.amount as f32,
+                            amount: p.amount_brl.into(),
+                        })
+                        .collect();
+                    g.set_revenue_points(ModelRc::new(VecModel::from(points)));
+                    // Últimas empresas cadastradas.
+                    let recents: Vec<AdminRecentCompany> = o
+                        .recent_companies
+                        .into_iter()
+                        .map(|c| AdminRecentCompany {
+                            name: c.name.into(),
+                            subdomain: c.subdomain.into(),
+                            date: c.created_label.into(),
+                        })
+                        .collect();
+                    g.set_recent_companies(ModelRc::new(VecModel::from(recents)));
                 }
                 // Guarda as listas completas e exibe já filtradas pela
                 // busca/filtro correntes (mantém o estado da UI no refresh).

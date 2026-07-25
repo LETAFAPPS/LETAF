@@ -1,16 +1,28 @@
-// Painel do administrador — visão geral (KPIs cross-tenant).
-// UI sem lógica (§1/§3): os números vêm prontos do Rust (ui/admin),
-// que os busca online em GET /admin/overview.
+// Painel do super admin — Dashboard (visão geral cross-tenant).
+// UI sem lógica (§1/§3): todos os números/séries vêm prontos do Rust
+// (ui/admin), que os busca online em GET /admin/overview. Aqui só renderiza.
 import { Theme } from "../theme.slint";
+import { AdminRevenuePoint, AdminRecentCompany } from "../types.slint";
+import { AssetIcon } from "../components/icons.slint";
 
-// Card de contagem (número grande + rótulo). `accent` pinta o número na
-// cor de destaque (usado no cartão de receita).
+// ── Cores dos status (reaproveitadas nas quebras) ──
+// active=verde, overdue=laranja, cancelled=vermelho, inactive=cinza.
+global Palette {
+    out property <color> active: #2E7D32;
+    out property <color> overdue: #E65100;
+    out property <color> cancelled: #C62828;
+    out property <color> inactive: #9E9E9E;
+    out property <color> company-on: #1E88E5;
+    out property <color> company-off: #BDBDBD;
+}
+
+// Card de KPI (número grande + rótulo). `accent` pinta em destaque.
 component KpiCard inherits Rectangle {
     in property <string> label;
     in property <string> value;
     in property <bool> accent: false;
     horizontal-stretch: 1;
-    height: 108px;
+    height: 104px;
     background: Theme.surface;
     border-radius: 12px;
     border-width: 1px;
@@ -24,18 +36,41 @@ component KpiCard inherits Rectangle {
         alignment: center;
         Text {
             text: root.value;
-            font-size: root.accent ? 26px : 30px;
+            font-size: root.accent ? 25px : 27px;
             font-weight: 800;
             color: root.accent ? Theme.btn-accent : Theme.text-primary;
+            overflow: elide;
         }
         Text {
             text: root.label;
-            font-size: 13px; color: Theme.text-secondary;
+            font-size: 12.5px; color: Theme.text-secondary;
+            overflow: elide;
         }
     }
 }
 
-// Item da quebra de status (bolinha colorida + contagem + rótulo).
+// Painel branco com título e conteúdo livre (@children).
+component Panel inherits Rectangle {
+    in property <string> title;
+    background: Theme.surface;
+    border-radius: 12px;
+    border-width: 1px;
+    border-color: Theme.card-border;
+    drop-shadow-blur: 12px;
+    drop-shadow-offset-y: 0px;
+    drop-shadow-color: Theme.card-shadow;
+    VerticalLayout {
+        padding: 18px;
+        spacing: 14px;
+        if root.title != "": Text {
+            text: root.title;
+            font-size: 13px; font-weight: 700; color: Theme.text-secondary;
+        }
+        @children
+    }
+}
+
+// Item da quebra de status (bolinha + contagem + rótulo).
 component StatusItem inherits HorizontalLayout {
     in property <string> label;
     in property <int> value;
@@ -58,62 +93,276 @@ component StatusItem inherits HorizontalLayout {
     }
 }
 
+// Um segmento da barra de proporção (largura ∝ valor).
+component ProportionSegment inherits Rectangle {
+    in property <int> value;
+    in property <color> tone;
+    horizontal-stretch: root.value * 1.0;
+    background: root.tone;
+}
+
+// Gráfico de barras verticais da receita mensal (12 meses).
+component RevenueChart inherits VerticalLayout {
+    in property <[AdminRevenuePoint]> points;
+    in property <float> max-value;
+    property <length> plot-height: 150px;
+
+    spacing: 8px;
+
+    // Área das barras.
+    HorizontalLayout {
+        height: root.plot-height;
+        spacing: 6px;
+        for p in root.points: VerticalLayout {
+            horizontal-stretch: 1;
+            alignment: end;
+            bar := TouchArea {
+                height: root.max-value > 0
+                    ? max(3px, (root.plot-height - 4px) * (p.value / root.max-value))
+                    : 3px;
+                // Tooltip com o valor do mês ao passar o mouse.
+                if self.has-hover && p.value > 0: Rectangle {
+                    y: -26px;
+                    width: tip.preferred-width + 14px;
+                    height: 22px;
+                    border-radius: 6px;
+                    background: Theme.text-primary;
+                    tip := Text {
+                        text: p.amount;
+                        color: Theme.surface;
+                        font-size: 10.5px; font-weight: 700;
+                        horizontal-alignment: center;
+                        width: parent.width;
+                    }
+                }
+                Rectangle {
+                    width: parent.width;
+                    height: parent.height;
+                    border-radius: 4px;
+                    background: bar.has-hover
+                        ? Theme.btn-accent
+                        : Theme.btn-accent.transparentize(0.35);
+                    animate background { duration: 120ms; }
+                }
+            }
+        }
+    }
+    // Rótulos dos meses.
+    HorizontalLayout {
+        spacing: 6px;
+        for p in root.points: Text {
+            horizontal-stretch: 1;
+            text: p.label;
+            font-size: 10px; color: Theme.text-secondary;
+            horizontal-alignment: center;
+        }
+    }
+}
+
+// Card pequeno de métrica secundária (rótulo + valor + badge opcional).
+component MiniStat inherits Rectangle {
+    in property <string> label;
+    in property <string> value;
+    in property <string> badge;
+    horizontal-stretch: 1;
+    height: 92px;
+    background: Theme.surface;
+    border-radius: 12px;
+    border-width: 1px;
+    border-color: Theme.card-border;
+    drop-shadow-blur: 12px;
+    drop-shadow-offset-y: 0px;
+    drop-shadow-color: Theme.card-shadow;
+    VerticalLayout {
+        padding: 16px;
+        spacing: 6px;
+        alignment: center;
+        HorizontalLayout {
+            spacing: 8px;
+            Text {
+                text: root.label;
+                font-size: 12.5px; color: Theme.text-secondary;
+                vertical-alignment: center;
+            }
+            if root.badge != "": Rectangle {
+                width: bt.preferred-width + 14px; height: 18px;
+                border-radius: 9px;
+                background: Theme.btn-accent.transparentize(0.85);
+                bt := Text {
+                    text: root.badge;
+                    font-size: 10px; font-weight: 700; color: Theme.btn-accent;
+                    x: 7px; vertical-alignment: center;
+                }
+            }
+        }
+        Text {
+            text: root.value;
+            font-size: 20px; font-weight: 800; color: Theme.text-primary;
+            overflow: elide;
+        }
+    }
+}
+
+// Linha de "última empresa cadastrada".
+component RecentRow inherits Rectangle {
+    in property <AdminRecentCompany> c;
+    height: 46px;
+    HorizontalLayout {
+        spacing: 12px;
+        // Avatar (ícone de empresa).
+        VerticalLayout {
+            alignment: center;
+            Rectangle {
+                width: 34px; height: 34px; border-radius: 9px;
+                background: Theme.btn-accent.transparentize(0.88);
+                AssetIcon {
+                    width: parent.width; height: parent.height; icon-size: 18px;
+                    icon-color: Theme.btn-accent;
+                    source: @image-url("../assets/icons/1.2/empresa.svg");
+                }
+            }
+        }
+        VerticalLayout {
+            horizontal-stretch: 1;
+            alignment: center;
+            spacing: 1px;
+            Text {
+                text: root.c.name;
+                font-size: 13px; font-weight: 700; color: Theme.text-primary; overflow: elide;
+            }
+            Text {
+                text: root.c.subdomain;
+                font-size: 11px; color: Theme.text-secondary; overflow: elide;
+            }
+        }
+        VerticalLayout {
+            alignment: center;
+            Text {
+                text: root.c.date;
+                font-size: 11.5px; color: Theme.text-secondary;
+            }
+        }
+    }
+}
+
 export component AdminOverviewPage inherits VerticalLayout {
     in property <int> companies;
+    in property <int> active-companies;
+    in property <int> suspended-companies;
     in property <int> active-subs;
     in property <int> overdue-subs;
     in property <int> cancelled-subs;
+    in property <int> inactive-subs;
     in property <int> admins;
     in property <int> new-companies-month;
+    in property <int> referrals;
     in property <string> mrr: "R$ 0,00";
-    spacing: 8px;
+    in property <string> annual-revenue: "R$ 0,00";
+    in property <string> arpa: "R$ 0,00";
+    in property <string> top-plan: "—";
+    in property <float> revenue-max;
+    in property <[AdminRevenuePoint]> revenue-points;
+    in property <[AdminRecentCompany]> recent-companies;
 
-    Text {
-        text: "Dashboard";
-        font-size: 20px; font-weight: 800; color: Theme.text-primary;
-    }
-    Text {
-        text: "Visão geral de todas as empresas do sistema.";
-        font-size: 13px; color: Theme.text-secondary;
+    spacing: 16px;
+
+    // Cabeçalho.
+    VerticalLayout {
+        spacing: 2px;
+        Text {
+            text: "Dashboard";
+            font-size: 20px; font-weight: 800; color: Theme.text-primary;
+        }
+        Text {
+            text: "Visão geral de todas as empresas do sistema.";
+            font-size: 13px; color: Theme.text-secondary;
+        }
     }
 
-    // Linha primária: receita (destaque) + empresas + novas no mês.
+    // Linha primária de KPIs.
     HorizontalLayout {
-        padding-top: 12px;
         spacing: 16px;
         KpiCard { label: "Receita mensal (MRR)"; value: root.mrr; accent: true; }
+        KpiCard { label: "Receita anual (12m)"; value: root.annual-revenue; }
         KpiCard { label: "Empresas"; value: "\{root.companies}"; }
         KpiCard { label: "Novas no mês"; value: "\{root.new-companies-month}"; }
         KpiCard { label: "Administradores"; value: "\{root.admins}"; }
     }
 
-    // Quebra de status das assinaturas.
-    Rectangle {
-        height: 92px;
-        background: Theme.surface;
-        border-radius: 12px;
-        border-width: 1px;
-        border-color: Theme.card-border;
-        drop-shadow-blur: 12px;
-        drop-shadow-offset-y: 0px;
-        drop-shadow-color: Theme.card-shadow;
-        VerticalLayout {
-            padding: 18px;
-            spacing: 12px;
-            Text {
-                text: "Assinaturas por status";
-                font-size: 13px; font-weight: 700; color: Theme.text-secondary;
-            }
+    // Gráfico de receita anual.
+    Panel {
+        title: "Receita dos últimos 12 meses";
+        RevenueChart {
+            points: root.revenue-points;
+            max-value: root.revenue-max;
+        }
+    }
+
+    // Quebras lado a lado: assinaturas por status × empresas.
+    HorizontalLayout {
+        spacing: 16px;
+
+        // Assinaturas por status.
+        Panel {
+            horizontal-stretch: 1;
+            title: "Assinaturas por status";
             HorizontalLayout {
-                spacing: 32px;
+                spacing: 28px;
                 alignment: start;
-                StatusItem { label: "Ativas"; value: root.active-subs; dot: #2E7D32; }
-                StatusItem { label: "Vencidas"; value: root.overdue-subs; dot: #E65100; }
-                StatusItem { label: "Canceladas"; value: root.cancelled-subs; dot: Theme.text-secondary; }
+                StatusItem { label: "Ativas"; value: root.active-subs; dot: Palette.active; }
+                StatusItem { label: "Vencidas"; value: root.overdue-subs; dot: Palette.overdue; }
+                StatusItem { label: "Canceladas"; value: root.cancelled-subs; dot: Palette.cancelled; }
+                StatusItem { label: "Inativas"; value: root.inactive-subs; dot: Palette.inactive; }
+            }
+            // Barra de proporção empilhada.
+            Rectangle {
+                height: 10px; border-radius: 5px; clip: true;
+                background: Theme.row-hover;
+                HorizontalLayout {
+                    ProportionSegment { value: root.active-subs; tone: Palette.active; }
+                    ProportionSegment { value: root.overdue-subs; tone: Palette.overdue; }
+                    ProportionSegment { value: root.cancelled-subs; tone: Palette.cancelled; }
+                    ProportionSegment { value: root.inactive-subs; tone: Palette.inactive; }
+                }
+            }
+        }
+
+        // Empresas: ativas × suspensas.
+        Panel {
+            horizontal-stretch: 1;
+            title: "Empresas";
+            HorizontalLayout {
+                spacing: 28px;
+                alignment: start;
+                StatusItem { label: "Ativas"; value: root.active-companies; dot: Palette.company-on; }
+                StatusItem { label: "Suspensas"; value: root.suspended-companies; dot: Palette.company-off; }
+            }
+            Rectangle {
+                height: 10px; border-radius: 5px; clip: true;
+                background: Theme.row-hover;
+                HorizontalLayout {
+                    ProportionSegment { value: root.active-companies; tone: Palette.company-on; }
+                    ProportionSegment { value: root.suspended-companies; tone: Palette.company-off; }
+                }
             }
         }
     }
 
-    // Empurra o conteúdo para o topo.
-    Rectangle { vertical-stretch: 1; }
+    // Métricas secundárias.
+    HorizontalLayout {
+        spacing: 16px;
+        MiniStat { label: "Ticket médio (ARPA)"; value: root.arpa; }
+        MiniStat { label: "Plano mais popular"; value: root.top-plan; }
+        MiniStat { label: "Indicações"; value: "\{root.referrals}"; badge: "Em breve"; }
+    }
+
+    // Últimas empresas cadastradas.
+    Panel {
+        title: "Últimas empresas cadastradas";
+        if root.recent-companies.length == 0: Text {
+            text: "Nenhuma empresa cadastrada ainda.";
+            font-size: 13px; color: Theme.text-secondary;
+        }
+        for c in root.recent-companies: RecentRow { c: c; }
+    }
 }

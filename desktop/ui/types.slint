@@ -147,6 +147,20 @@ export struct AdminScreenOption {
     on: bool,
 }
 
+// Ponto do gráfico de receita anual (um mês) — dashboard do super admin.
+export struct AdminRevenuePoint {
+    label: string,     // "jan", "fev", ...
+    value: float,      // valor numérico (altura da barra)
+    amount: string,    // "R$ 1.234,56" (rótulo/tooltip)
+}
+
+// Empresa recém-cadastrada (lista "últimas do sistema") — dashboard.
+export struct AdminRecentCompany {
+    name: string,
+    subdomain: string,
+    date: string,      // "25/07/2026"
+}
+
 // Linha do catálogo de planos (painel super admin).
 export struct AdminPlanRow {
     id: string,

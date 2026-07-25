@@ -11,7 +11,8 @@
 // Todo este estado é cross-tenant e ONLINE (rotas /admin/*), sem espelho
 // local — ver desktop/src/ui/admin.
 import { AdminCompanyRow, AdminCompanyDetail, AdminCompanyOrderRow, AdminSubscriptionRow,
-         AdminInvoiceRow, AdminUserRow, AdminPlanRow, AdminRoleRow, AdminScreenOption } from "../types.slint";
+         AdminInvoiceRow, AdminUserRow, AdminPlanRow, AdminRoleRow, AdminScreenOption,
+         AdminRevenuePoint, AdminRecentCompany } from "../types.slint";
 import { FilterOption } from "../components/list_toolbar.slint";
 
 export global AdminState {
@@ -22,6 +23,18 @@ export global AdminState {
     in-out property <int> admins-count: 0;
     in-out property <int> new-companies-month: 0;
     in-out property <string> mrr: "R$ 0,00";
+    // ── Dashboard (visão geral) — métricas extras ──
+    in-out property <int> active-companies: 0;
+    in-out property <int> suspended-companies: 0;
+    in-out property <int> inactive-subs: 0;
+    in-out property <int> referrals: 0;             // indicações (futuro)
+    in-out property <string> annual-revenue: "R$ 0,00";
+    in-out property <string> arpa: "R$ 0,00";       // ticket médio
+    in-out property <string> top-plan: "—";
+    // Maior valor mensal da série (define a escala do gráfico de barras).
+    in-out property <float> revenue-max: 0;
+    in-out property <[AdminRevenuePoint]> revenue-points: [];
+    in-out property <[AdminRecentCompany]> recent-companies: [];
     in-out property <[AdminCompanyRow]> companies: [];
     in-out property <[AdminSubscriptionRow]> subscriptions: [];
     in-out property <bool> detail-open: false;

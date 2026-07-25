@@ -237,6 +237,7 @@ mod tests {
             "tenants",               // helper de listagem interna
             "plan_usage",            // helper de contagem
             "email_available",       // helper de validação
+            "require_valid_role",    // helper de validação de função
             "ensure_platform_admin", // bootstrap no startup, sem requisição
         ];
 
