@@ -73,6 +73,10 @@ pub(super) struct CreateCompanyRequest {
     #[serde(default)]
     uf: Option<String>,
     #[serde(default)]
+    latitude: Option<f64>,
+    #[serde(default)]
+    longitude: Option<f64>,
+    #[serde(default)]
     logo_data: Option<String>,
     #[serde(default)]
     cover_data: Option<String>,
@@ -140,6 +144,8 @@ pub(super) async fn create_company(
         zip_code: none_if_blank(body.zip_code),
         city: none_if_blank(body.city),
         uf: none_if_blank(body.uf),
+        latitude: body.latitude,
+        longitude: body.longitude,
         logo_data: none_if_blank(body.logo_data),
         cover_data: none_if_blank(body.cover_data),
         products_per_page: 20,
@@ -223,6 +229,8 @@ pub(super) struct CompanyForm {
     zip_code: String,
     city: String,
     uf: String,
+    latitude: Option<f64>,
+    longitude: Option<f64>,
     logo_data: String,
     cover_data: String,
     /// Desconto comercial atual (R$/mês) da assinatura.
@@ -275,6 +283,8 @@ pub(super) async fn company_form(
         zip_code: c.zip_code.unwrap_or_default(),
         city: c.city.unwrap_or_default(),
         uf: c.uf.unwrap_or_default(),
+        latitude: c.latitude,
+        longitude: c.longitude,
         logo_data: c.logo_data.unwrap_or_default(),
         cover_data: c.cover_data.unwrap_or_default(),
         discount: rust_decimal::prelude::ToPrimitive::to_f64(&discount).unwrap_or(0.0),
@@ -305,6 +315,10 @@ pub(super) struct UpdateCompanyRequest {
     city: Option<String>,
     #[serde(default)]
     uf: Option<String>,
+    #[serde(default)]
+    latitude: Option<f64>,
+    #[serde(default)]
+    longitude: Option<f64>,
     #[serde(default)]
     logo_data: Option<String>,
     #[serde(default)]
@@ -389,6 +403,8 @@ pub(super) async fn update_company(
         zip_code: none_if_blank(body.zip_code),
         city: none_if_blank(body.city),
         uf: none_if_blank(body.uf),
+        latitude: body.latitude,
+        longitude: body.longitude,
         logo_data: none_if_blank(body.logo_data),
         cover_data: none_if_blank(body.cover_data),
         products_per_page: current.products_per_page,

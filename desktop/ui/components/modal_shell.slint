@@ -90,7 +90,11 @@ export component ModalShell inherits Rectangle {
                         wrap: word-wrap;
                     }
 
-                    Rectangle { height: 1px; background: Theme.border; }
+                    // Divisor só quando há cabeçalho (ícone/título/mensagem);
+                    // sem cabeçalho não faz sentido uma linha solta no topo.
+                    if root.icon.width > 0 || root.title != "" || root.message != "": Rectangle {
+                        height: 1px; background: Theme.border;
+                    }
 
                     // Corpo/ações do modal (normalmente a linha de OutlineBtn).
                     @children

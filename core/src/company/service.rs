@@ -26,6 +26,8 @@ pub struct UpdateInfoInput {
     pub zip_code: Option<String>,
     pub city: Option<String>,
     pub uf: Option<String>,
+    pub latitude: Option<f64>,
+    pub longitude: Option<f64>,
     pub logo_data: Option<String>,
     pub cover_data: Option<String>,
     pub products_per_page: i32,
@@ -179,6 +181,8 @@ impl CompanyService {
         company.zip_code = input.zip_code;
         company.city = input.city;
         company.uf = input.uf.map(|s| s.trim().to_uppercase()).filter(|s| !s.is_empty());
+        company.latitude = input.latitude;
+        company.longitude = input.longitude;
         company.logo_data = input.logo_data;
         company.cover_data = input.cover_data;
         company.products_per_page = products_per_page;
@@ -240,6 +244,8 @@ impl CompanyService {
             zip_code: None,
             city: None,
             uf: None,
+            latitude: None,
+            longitude: None,
             logo_data: None,
             cover_data: None,
             products_per_page: 20,

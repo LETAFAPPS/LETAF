@@ -25,6 +25,8 @@ struct CompanyRow {
     zip_code: Option<String>,
     city: Option<String>,
     uf: Option<String>,
+    latitude: Option<f64>,
+    longitude: Option<f64>,
     logo_data: Option<String>,
     cover_data: Option<String>,
     products_per_page: i64,
@@ -55,6 +57,8 @@ impl TryFrom<CompanyRow> for Company {
             zip_code: r.zip_code,
             city: r.city,
             uf: r.uf,
+            latitude: r.latitude,
+            longitude: r.longitude,
             logo_data: r.logo_data,
             cover_data: r.cover_data,
             products_per_page: r.products_per_page as i32,
@@ -151,9 +155,10 @@ impl CompanyRepository for SqliteCompanyRepository {
             "UPDATE companies SET name = ?1, subdomain = ?2, store_override = ?3,
              address = ?4, phone = ?5, whatsapp = ?6, email = ?7, instagram = ?8,
              document = ?9, neighborhood = ?10, zip_code = ?11, city = ?12, uf = ?13,
-             logo_data = ?14, cover_data = ?15,
-             products_per_page = ?16, orders_per_page = ?17, updated_at = ?18, synced = ?19
-             WHERE id = ?20 AND deleted_at IS NULL",
+             latitude = ?14, longitude = ?15,
+             logo_data = ?16, cover_data = ?17,
+             products_per_page = ?18, orders_per_page = ?19, updated_at = ?20, synced = ?21
+             WHERE id = ?22 AND deleted_at IS NULL",
         )
         .bind(&company.name)
         .bind(&company.subdomain)
@@ -168,6 +173,8 @@ impl CompanyRepository for SqliteCompanyRepository {
         .bind(&company.zip_code)
         .bind(&company.city)
         .bind(&company.uf)
+        .bind(company.latitude)
+        .bind(company.longitude)
         .bind(&company.logo_data)
         .bind(&company.cover_data)
         .bind(company.products_per_page as i64)
@@ -236,11 +243,11 @@ impl CompanyRepository for SqliteCompanyRepository {
         sqlx::query(
             "INSERT INTO companies (id, name, subdomain, store_override,
                 address, phone, whatsapp, email, instagram, document,
-                neighborhood, zip_code, city, uf,
+                neighborhood, zip_code, city, uf, latitude, longitude,
                 logo_data, cover_data, products_per_page, orders_per_page,
                 created_at, updated_at, deleted_at, synced)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12,
-                ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22)
+                ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24)
              ON CONFLICT (id) DO UPDATE SET
                  name = excluded.name,
                  subdomain = excluded.subdomain,
@@ -255,6 +262,8 @@ impl CompanyRepository for SqliteCompanyRepository {
                  zip_code = excluded.zip_code,
                  city = excluded.city,
                  uf = excluded.uf,
+                 latitude = excluded.latitude,
+                 longitude = excluded.longitude,
                  logo_data = excluded.logo_data,
                  cover_data = excluded.cover_data,
                  products_per_page = excluded.products_per_page,
@@ -278,6 +287,8 @@ impl CompanyRepository for SqliteCompanyRepository {
         .bind(&company.zip_code)
         .bind(&company.city)
         .bind(&company.uf)
+        .bind(company.latitude)
+        .bind(company.longitude)
         .bind(&company.logo_data)
         .bind(&company.cover_data)
         .bind(company.products_per_page as i64)

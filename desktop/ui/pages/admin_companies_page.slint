@@ -238,6 +238,11 @@ export component AdminCompaniesPage inherits VerticalLayout {
     in-out property <string> form-zip;
     in-out property <string> form-city;
     in-out property <string> form-uf;
+    in-out property <string> form-latitude;
+    in-out property <string> form-longitude;
+    // Geocodificação do endereço → coordenadas (no Rust; §1/§3).
+    callback geocode();
+    in property <bool> geocode-loading: false;
     in property <image> logo-image;
     in property <image> cover-image;
     in property <bool> logo-loading;
@@ -346,7 +351,7 @@ export component AdminCompaniesPage inherits VerticalLayout {
     VerticalLayout {
         spacing: 2px;
         Text {
-            text: root.show-form ? (root.editing ? "Editar empresa" : "Nova empresa") : "Empresas";
+            text: root.show-form ? (root.editing ? "Editar Empresa" : "Nova Empresa") : "Empresas";
             font-size: 20px; font-weight: 800; color: Theme.text-primary;
         }
         Text {
@@ -423,7 +428,7 @@ export component AdminCompaniesPage inherits VerticalLayout {
             alignment: center;
             EmptyState {
                 source: @image-url("../assets/empty/not-found.svg");
-                title: "Nenhuma empresa";
+                title: "Nenhuma Empresa";
             }
         }
     }
@@ -637,6 +642,33 @@ export component AdminCompaniesPage inherits VerticalLayout {
                             error: root.err-uf;
                         }
                     }
+                    // Coordenadas (mapa/entrega) + geocodificação do endereço.
+                    HorizontalLayout {
+                        spacing: 10px;
+                        FormField {
+                            horizontal-stretch: 1;
+                            label: "Latitude";
+                            value <=> root.form-latitude;
+                            placeholder: root.geocode-loading ? "Buscando…" : "-23.5505";
+                            icon: @image-url("../assets/icons/1.2/fixar.svg");
+                        }
+                        FormField {
+                            horizontal-stretch: 1;
+                            label: "Longitude";
+                            value <=> root.form-longitude;
+                            placeholder: root.geocode-loading ? "Buscando…" : "-46.6333";
+                            icon: @image-url("../assets/icons/1.2/fixar.svg");
+                        }
+                    }
+                    HorizontalLayout {
+                        alignment: start;
+                        OutlineBtn {
+                            label: root.geocode-loading ? "Buscando…" : "Buscar do endereço";
+                            icon: @image-url("../assets/icons/1.2/fixar.svg");
+                            height: 34px;
+                            clicked => { root.geocode(); }
+                        }
+                    }
                 }
             }
 
@@ -699,7 +731,7 @@ export component AdminCompaniesPage inherits VerticalLayout {
                 padding-bottom: 8px;
                 spacing: 10px;
                 if root.editing: OutlineBtn {
-                    label: "Excluir";
+                    label: "Excluir Empresa";
                     btn-color: Theme.danger;
                     icon: @image-url("../assets/icons/1.2/lixeira.svg");
                     width: 160px; height: 40px;

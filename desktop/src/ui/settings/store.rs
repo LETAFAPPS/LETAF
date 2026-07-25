@@ -55,6 +55,9 @@ pub(crate) fn setup_save_store_info(
 
         handle.spawn(async move {
             let cid = state.company_id();
+            // Coordenadas não são editadas nesta tela; preserva as atuais
+            // (definidas no painel do super admin) para não zerá-las no save.
+            let current = state.company_service.find_by_id(cid).await.ok().flatten();
             let input = letaf_core::company::service::UpdateInfoInput {
                 name,
                 address: some_if_filled(address),
@@ -67,6 +70,8 @@ pub(crate) fn setup_save_store_info(
                 zip_code: some_if_filled(zip_digits),
                 city: some_if_filled(city),
                 uf: some_if_filled(uf),
+                latitude: current.as_ref().and_then(|c| c.latitude),
+                longitude: current.as_ref().and_then(|c| c.longitude),
                 logo_data: some_if_filled(logo),
                 cover_data: some_if_filled(cover),
                 products_per_page,

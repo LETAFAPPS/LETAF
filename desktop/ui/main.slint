@@ -187,7 +187,7 @@ export component MainWindow inherits Window {
     // banner fixo no topo e o botão de sair. A autoridade é o backend (§11):
     // aqui é só UI — o token com escopo do tenant é que dá (ou não) o acesso.
     in-out property <bool> impersonating: false;
-    in-out property <string> impersonating-company: "";
+    in-out property <string> impersonating-subdomain: "";
     callback exit-impersonation();
 
     // ── Navegacao ───────────────────────────────────
@@ -1414,23 +1414,16 @@ export component MainWindow inherits Window {
         // Banner de impersonation: fixo no topo enquanto o super admin
         // gerencia uma empresa (telas reais do ERP). "Sair" volta ao painel.
         if root.impersonating: Rectangle {
-            height: 42px;
+            height: 50px;
             // Mesma cor do menu lateral (a pedido).
             background: Theme.sidebar-bg;
             HorizontalLayout {
-                padding-left: 16px; padding-right: 10px;
-                spacing: 10px;
-                Text {
-                    horizontal-stretch: 1;
-                    text: "Gerenciando: " + root.impersonating-company;
-                    color: white; font-size: 13px; font-weight: 700;
-                    vertical-alignment: center; overflow: elide;
-                }
-                // Sair da empresa = X.
+                padding-left: 10px; padding-right: 10px;
+                // Sair da empresa = X (à esquerda, centralizado no botão).
                 VerticalLayout {
                     alignment: center;
                     exit-ta := TouchArea {
-                        width: 30px; height: 30px;
+                        width: 32px; height: 32px;
                         clicked => { root.exit-impersonation(); }
                         Rectangle {
                             width: parent.width; height: parent.height;
@@ -1444,6 +1437,24 @@ export component MainWindow inherits Window {
                         }
                     }
                 }
+                // Centro: "Gerenciando" + subdomínio (menor) abaixo.
+                VerticalLayout {
+                    horizontal-stretch: 1;
+                    alignment: center;
+                    spacing: 1px;
+                    Text {
+                        text: "Gerenciando";
+                        color: white; font-size: 13px; font-weight: 700;
+                        horizontal-alignment: center;
+                    }
+                    Text {
+                        text: root.impersonating-subdomain;
+                        color: #ffffffcc; font-size: 11px;
+                        horizontal-alignment: center; overflow: elide;
+                    }
+                }
+                // Espaçador à direita = largura do X, para centralizar o texto.
+                Rectangle { width: 32px; }
             }
         }
 
@@ -1667,6 +1678,10 @@ export component MainWindow inherits Window {
                     form-zip <=> AdminState.company-form-zip;
                     form-city <=> AdminState.company-form-city;
                     form-uf <=> AdminState.company-form-uf;
+                    form-latitude <=> AdminState.company-form-latitude;
+                    form-longitude <=> AdminState.company-form-longitude;
+                    geocode => { AdminState.company-geocode(); }
+                    geocode-loading: AdminState.company-geocode-loading;
                     logo-image: AdminState.company-form-logo-image;
                     cover-image: AdminState.company-form-cover-image;
                     logo-loading: AdminState.company-form-logo-loading;

@@ -80,6 +80,10 @@ struct CompanyFormDto {
     zip_code: String,
     city: String,
     uf: String,
+    #[serde(default)]
+    latitude: Option<f64>,
+    #[serde(default)]
+    longitude: Option<f64>,
     logo_data: String,
     cover_data: String,
     discount: f64,
@@ -339,6 +343,7 @@ pub(crate) fn setup_admin(
     setup_company_persist(ui, handle, &auth_token, &server_url);
     setup_company_pickers(ui, handle);
     setup_company_cep(ui, handle);
+    setup_company_geocode(ui, handle);
     setup_company_form_helpers(ui);
     setup_plan_form(ui, &plans_cache);
     setup_plan_persist(ui, handle, &auth_token, &server_url);
@@ -450,12 +455,12 @@ fn setup_impersonation(
                 .await;
                 state.session.save_perms(true, false, &dto.perms).await;
                 state.session.save_user_name(&dto.user.name).await;
-                let company_name = dto.company_name.clone();
+                let subdomain = dto.subdomain;
                 update_ui_after_login(ui_weak.clone(), UserRole::Admin, dto.perms, dto.user.name);
                 let _ = slint::invoke_from_event_loop(move || {
                     if let Some(ui) = ui_weak.upgrade() {
                         ui.set_impersonating(true);
-                        ui.set_impersonating_company(company_name.into());
+                        ui.set_impersonating_subdomain(subdomain.into());
                     }
                 });
             });
@@ -489,7 +494,7 @@ fn setup_impersonation(
                 let _ = slint::invoke_from_event_loop(move || {
                     if let Some(ui) = ui_weak.upgrade() {
                         ui.set_impersonating(false);
-                        ui.set_impersonating_company(SharedString::new());
+                        ui.set_impersonating_subdomain(SharedString::new());
                     }
                 });
             });
@@ -1259,6 +1264,13 @@ fn setup_company_persist(
             }
         }
         let discount = parse_money_br(&ui.global::<AdminState>().get_company_form_discount());
+        // Coordenadas: string → f64 (aceita vírgula ou ponto); vazio → null.
+        let parse_coord = |s: slint::SharedString| -> Option<f64> {
+            let t = s.trim().replace(',', ".");
+            if t.is_empty() { None } else { t.parse::<f64>().ok() }
+        };
+        let latitude = parse_coord(ui.global::<AdminState>().get_company_form_latitude());
+        let longitude = parse_coord(ui.global::<AdminState>().get_company_form_longitude());
         let body = serde_json::json!({
             "name": name,
             "subdomain": subdomain,
@@ -1275,6 +1287,8 @@ fn setup_company_persist(
             "zip_code": ui.global::<AdminState>().get_company_form_zip().trim(),
             "city": ui.global::<AdminState>().get_company_form_city().trim(),
             "uf": ui.global::<AdminState>().get_company_form_uf().trim(),
+            "latitude": latitude,
+            "longitude": longitude,
             "logo_data": ui.global::<AdminState>().get_company_form_logo_data().to_string(),
             "cover_data": ui.global::<AdminState>().get_company_form_cover_data().to_string(),
             "plan_discount": discount,
@@ -1377,6 +1391,9 @@ fn fill_company_form(ui: &MainWindow, f: &CompanyFormDto) {
     g.set_company_form_zip(f.zip_code.clone().into());
     g.set_company_form_city(f.city.clone().into());
     g.set_company_form_uf(f.uf.clone().into());
+    // Coordenadas: número → texto; None fica vazio.
+    g.set_company_form_latitude(f.latitude.map(|v| v.to_string()).unwrap_or_default().into());
+    g.set_company_form_longitude(f.longitude.map(|v| v.to_string()).unwrap_or_default().into());
     // Desconto (R$/mês) em pt-BR; 0 fica vazio (mostra o placeholder).
     let discount = if f.discount > 0.0 {
         format!("{:.2}", f.discount).replace('.', ",")
@@ -1440,6 +1457,8 @@ fn clear_company_form(ui: &MainWindow) {
     ui.global::<AdminState>().set_company_form_zip(SharedString::new());
     ui.global::<AdminState>().set_company_form_city(SharedString::new());
     ui.global::<AdminState>().set_company_form_uf(SharedString::new());
+    ui.global::<AdminState>().set_company_form_latitude(SharedString::new());
+    ui.global::<AdminState>().set_company_form_longitude(SharedString::new());
     ui.global::<AdminState>().set_company_form_logo_data(SharedString::new());
     ui.global::<AdminState>().set_company_form_cover_data(SharedString::new());
     ui.global::<AdminState>().set_company_form_logo_image(slint::Image::default());
@@ -1569,6 +1588,68 @@ fn setup_company_cep(ui: &MainWindow, handle: &tokio::runtime::Handle) {
                             ui.global::<AdminState>().set_company_form_uf(SharedString::from(v.uf));
                         }
                     }
+                }
+            });
+        });
+    });
+}
+
+/// Geocodifica o endereço preenchido → latitude/longitude, via
+/// OpenStreetMap/Nominatim (gratuito, sem chave; exige User-Agent). É só
+/// conveniência de UX: o backend apenas armazena as coordenadas (§11).
+fn setup_company_geocode(ui: &MainWindow, handle: &tokio::runtime::Handle) {
+    let ui_weak = ui.as_weak();
+    let handle = handle.clone();
+    ui.global::<AdminState>().on_company_geocode(move || {
+        let Some(ui) = ui_weak.upgrade() else { return };
+        let g = ui.global::<AdminState>();
+        // Monta o endereço a partir dos campos já preenchidos.
+        let parts = [
+            g.get_company_form_address().trim().to_string(),
+            g.get_company_form_neighborhood().trim().to_string(),
+            g.get_company_form_city().trim().to_string(),
+            g.get_company_form_uf().trim().to_string(),
+        ];
+        let query = parts.iter().filter(|p| !p.is_empty()).cloned().collect::<Vec<_>>().join(", ");
+        if query.is_empty() {
+            show_toast(&ui, "Preencha o endereço antes de buscar as coordenadas", "error");
+            return;
+        }
+        let query = format!("{query}, Brasil");
+        let ui_weak = ui_weak.clone();
+        handle.spawn(async move {
+            let uw = ui_weak.clone();
+            let _ = slint::invoke_from_event_loop(move || {
+                if let Some(ui) = uw.upgrade() {
+                    ui.global::<AdminState>().set_company_geocode_loading(true);
+                }
+            });
+            #[derive(serde::Deserialize)]
+            struct Hit {
+                #[serde(default)] lat: String,
+                #[serde(default)] lon: String,
+            }
+            let hits: Option<Vec<Hit>> = match HTTP_CLIENT
+                .get("https://nominatim.openstreetmap.org/search")
+                .query(&[("q", query.as_str()), ("format", "json"), ("limit", "1")])
+                // Nominatim exige identificar o app no User-Agent.
+                .header("User-Agent", "LETAF-ERP/1.0 (suporte@letaf.app)")
+                .send()
+                .await
+            {
+                Ok(r) if r.status().is_success() => r.json::<Vec<Hit>>().await.ok(),
+                _ => None,
+            };
+            let _ = slint::invoke_from_event_loop(move || {
+                let Some(ui) = ui_weak.upgrade() else { return };
+                ui.global::<AdminState>().set_company_geocode_loading(false);
+                match hits.and_then(|v| v.into_iter().next()) {
+                    Some(h) if !h.lat.is_empty() && !h.lon.is_empty() => {
+                        ui.global::<AdminState>().set_company_form_latitude(h.lat.into());
+                        ui.global::<AdminState>().set_company_form_longitude(h.lon.into());
+                        show_toast(&ui, "Coordenadas encontradas", "success");
+                    }
+                    _ => show_toast(&ui, "Não foi possível localizar o endereço", "error"),
                 }
             });
         });
