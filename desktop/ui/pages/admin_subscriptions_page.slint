@@ -45,17 +45,17 @@ component SubscriptionCard inherits Rectangle {
         padding-left: 14px; padding-right: 14px;
         spacing: 12px;
 
-        // Logo da empresa (igual à tela de Empresas).
+        // Logo da empresa (do cadastro). Sem logo → ícone CINZA de fallback.
         VerticalLayout {
             alignment: center;
             Rectangle {
                 width: 56px; height: 56px;
                 border-radius: 14px;
-                background: Theme.btn-accent.transparentize(0.88);
+                background: #9E9E9E1F;
                 clip: true;
                 AssetIcon {
                     width: parent.width; height: parent.height; icon-size: 26px;
-                    icon-color: Theme.btn-accent;
+                    icon-color: Theme.text-secondary;
                     source: @image-url("../assets/icons/1.2/empresa.svg");
                 }
                 Image {
@@ -105,7 +105,10 @@ component SubscriptionCard inherits Rectangle {
                 horizontal-alignment: center;
             }
             Text {
-                text: root.s.payment-kind == "" ? "—" : root.s.payment-kind;
+                text: root.s.payment-kind == "card" ? "Cartão"
+                    : (root.s.payment-kind == "pix" ? "Pix"
+                        : (root.s.payment-kind == "boleto" ? "Boleto"
+                            : (root.s.payment-kind == "" ? "—" : root.s.payment-kind)));
                 font-size: 12.5px; color: Theme.text-primary;
                 horizontal-alignment: center;
             }
@@ -116,7 +119,7 @@ component SubscriptionCard inherits Rectangle {
             alignment: center;
             spacing: 2px;
             Text {
-                text: "Próxima fatura";
+                text: "Próxima Fatura";
                 font-size: 10px; font-weight: 700; color: Theme.text-secondary;
                 horizontal-alignment: center;
             }
