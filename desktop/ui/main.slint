@@ -1419,24 +1419,8 @@ export component MainWindow inherits Window {
             background: Theme.sidebar-bg;
             HorizontalLayout {
                 padding-left: 10px; padding-right: 10px;
-                // Sair da empresa = X (à esquerda, centralizado no botão).
-                VerticalLayout {
-                    alignment: center;
-                    exit-ta := TouchArea {
-                        width: 32px; height: 32px;
-                        clicked => { root.exit-impersonation(); }
-                        Rectangle {
-                            width: parent.width; height: parent.height;
-                            border-radius: 6px;
-                            background: exit-ta.has-hover ? #ffffff33 : transparent;
-                            Text {
-                                text: "✕"; color: white; font-size: 15px; font-weight: 700;
-                                horizontal-alignment: center; vertical-alignment: center;
-                                width: parent.width; height: parent.height;
-                            }
-                        }
-                    }
-                }
+                // Espaçador à esquerda = largura do X, para centralizar o texto.
+                Rectangle { width: 32px; }
                 // Centro: "Gerenciando" + subdomínio (menor) abaixo.
                 VerticalLayout {
                     horizontal-stretch: 1;
@@ -1453,8 +1437,24 @@ export component MainWindow inherits Window {
                         horizontal-alignment: center; overflow: elide;
                     }
                 }
-                // Espaçador à direita = largura do X, para centralizar o texto.
-                Rectangle { width: 32px; }
+                // Sair da empresa = X (à direita do texto, centralizado no botão).
+                VerticalLayout {
+                    alignment: center;
+                    exit-ta := TouchArea {
+                        width: 32px; height: 32px;
+                        clicked => { root.exit-impersonation(); }
+                        Rectangle {
+                            width: parent.width; height: parent.height;
+                            border-radius: 6px;
+                            background: exit-ta.has-hover ? #ffffff33 : transparent;
+                            Text {
+                                text: "✕"; color: white; font-size: 15px;
+                                horizontal-alignment: center; vertical-alignment: center;
+                                width: parent.width; height: parent.height;
+                            }
+                        }
+                    }
+                }
             }
         }
 
