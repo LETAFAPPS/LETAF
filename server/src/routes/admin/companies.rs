@@ -168,29 +168,16 @@ pub(super) async fn create_company(
         return Err(ServerError::Core(e));
     }
 
-    // 4) Assinatura: TODA empresa nasce com plano (mensal, via `ensure_seed`
-    //    — idempotente). Antes a assinatura só era criada quando havia
-    //    desconto, então empresas sem desconto ficavam "Sem plano" e era
-    //    preciso passar em Assinaturas para acertar.
-    //
-    //    O desconto comercial (R$/mês) segue OPCIONAL; quando informado, o
-    //    billing (que usa `terms()`) passa a cobrar já com o abatimento.
-    //
-    //    Best-effort: a empresa e o admin já são válidos — uma falha aqui é
-    //    só logada, para não desfazer um cadastro correto.
-    let today = chrono::Utc::now().date_naive();
-    if let Err(e) = state.subscription_service.ensure_seed(company.id, today).await {
+    // 4) Assinatura: a empresa nasce INATIVA — sem forma de pagamento, sem
+    //    próxima cobrança e sem histórico de faturas. O plano escolhido no
+    //    cadastro fica registrado, mas a assinatura só é cobrada após ser
+    //    ativada (super admin/tenant). O desconto comercial (R$/mês) segue
+    //    OPCIONAL. Best-effort: falha aqui é só logada.
+    let plan_kind = letaf_core::subscription::model::PlanKind::from_str(
+        body.plan.as_deref().unwrap_or("monthly"),
+    );
+    if let Err(e) = state.subscription_service.create_inactive(company.id, plan_kind).await {
         tracing::error!("Falha ao criar assinatura da empresa {}: {e}", company.id);
-    }
-    // Plano escolhido no cadastro (default mensal do seed). Best-effort.
-    if let Some(plan) = body.plan.as_deref().filter(|p| !p.trim().is_empty()) {
-        if let Err(e) = state
-            .subscription_service
-            .change_plan(company.id, letaf_core::subscription::model::PlanKind::from_str(plan), today)
-            .await
-        {
-            tracing::error!("Falha ao aplicar plano ({plan}) na empresa {}: {e}", company.id);
-        }
     }
     // Telefone do proprietário (admin recém-criado). Best-effort.
     if body.admin_phone.as_deref().map(|p| !p.trim().is_empty()).unwrap_or(false) {

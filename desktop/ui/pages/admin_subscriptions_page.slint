@@ -19,7 +19,8 @@ component SubStatusBadge inherits Rectangle {
     label := Text {
         x: 10px;
         text: root.status == "active" ? "Ativa"
-            : (root.status == "overdue" ? "Vencida" : "Cancelada");
+            : (root.status == "overdue" ? "Vencida"
+                : (root.status == "cancelled" ? "Cancelada" : "Inativa"));
         font-size: 11px; font-weight: 700;
         color: root.status == "active" ? #2E7D32
             : (root.status == "overdue" ? #E65100 : Theme.text-secondary);
@@ -210,12 +211,14 @@ export component AdminSubscriptionsPage inherits VerticalLayout {
                         { key: "active",    label: "Ativas" },
                         { key: "overdue",   label: "Vencidas" },
                         { key: "cancelled", label: "Canceladas" },
+                        { key: "inactive",  label: "Inativas" },
                     ];
                     selected <=> root.filter;
                     neutral-key: "all";
                     label: root.filter == "active" ? "Ativas"
                         : (root.filter == "overdue" ? "Vencidas"
-                            : (root.filter == "cancelled" ? "Canceladas" : "Status"));
+                            : (root.filter == "cancelled" ? "Canceladas"
+                                : (root.filter == "inactive" ? "Inativas" : "Status")));
                     changed => { root.filters-changed(); }
                 }
             }

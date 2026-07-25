@@ -274,6 +274,26 @@ impl SubscriptionService {
         Ok(sub)
     }
 
+    /// Cria a assinatura de uma empresa recém-cadastrada em estado INATIVO:
+    /// sem forma de pagamento, sem próxima cobrança e sem histórico de
+    /// faturas. O plano fica registrado (escolhido no cadastro), mas a
+    /// assinatura só é cobrada após ser ativada. Idempotente.
+    pub async fn create_inactive(
+        &self,
+        company_id: Uuid,
+        plan: PlanKind,
+    ) -> Result<Subscription, CoreError> {
+        if let Some(existing) = self.repo.find_current(company_id).await? {
+            return Ok(existing);
+        }
+        let mut sub = Subscription::new(company_id, plan);
+        sub.status = crate::subscription::model::SubscriptionStatus::Inactive;
+        sub.payment_method = crate::subscription::model::PaymentMethod::none();
+        sub.next_charge_date = None;
+        self.repo.create_subscription(&sub).await?;
+        Ok(sub)
+    }
+
     async fn seed_history(
         &self,
         company_id: Uuid,

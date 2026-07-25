@@ -847,6 +847,7 @@ fn plan_for(kind: PlanKind) -> letaf_core::subscription::model::Plan {
 fn build_status_view(sub: &Subscription) -> (&'static str, String) {
     match sub.status {
         SubscriptionStatus::Active => ("active", String::new()),
+        SubscriptionStatus::Inactive => ("inactive", "Assinatura ainda não ativada".to_string()),
         SubscriptionStatus::Cancelled => ("cancelled", "Assinatura cancelada".to_string()),
         SubscriptionStatus::Overdue => {
             let today = Local::now().date_naive();

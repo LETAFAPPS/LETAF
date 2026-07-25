@@ -84,6 +84,7 @@ export component AdminSubscriptionModal inherits Rectangle {
                 HorizontalLayout {
                     spacing: 8px;
                     SelectChip { label: "Ativa"; active: root.status == "active"; clicked => { root.status = "active"; } }
+                    SelectChip { label: "Inativa"; active: root.status == "inactive"; clicked => { root.status = "inactive"; } }
                     SelectChip { label: "Vencida"; active: root.status == "overdue"; clicked => { root.status = "overdue"; } }
                     SelectChip { label: "Cancelada"; active: root.status == "cancelled"; clicked => { root.status = "cancelled"; } }
                 }

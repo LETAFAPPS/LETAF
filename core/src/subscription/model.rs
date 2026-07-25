@@ -53,6 +53,9 @@ pub enum SubscriptionStatus {
     Active,
     Cancelled,
     Overdue,
+    /// Empresa recém-criada: ainda sem ativação/forma de pagamento. Não é
+    /// cobrada (billing ignora) até ser ativada pelo super admin/tenant.
+    Inactive,
 }
 
 impl SubscriptionStatus {
@@ -61,6 +64,7 @@ impl SubscriptionStatus {
             Self::Active => "active",
             Self::Cancelled => "cancelled",
             Self::Overdue => "overdue",
+            Self::Inactive => "inactive",
         }
     }
 
@@ -71,6 +75,7 @@ impl SubscriptionStatus {
         match s {
             "cancelled" => Self::Cancelled,
             "overdue" => Self::Overdue,
+            "inactive" => Self::Inactive,
             _ => Self::Active,
         }
     }
@@ -95,6 +100,15 @@ impl PaymentMethod {
             kind: "card".into(),
             label: "•••• 4242".into(),
             expiry: "08/28".into(),
+        }
+    }
+
+    /// Sem forma de pagamento cadastrada (empresa recém-criada / inativa).
+    pub fn none() -> Self {
+        Self {
+            kind: String::new(),
+            label: String::new(),
+            expiry: String::new(),
         }
     }
 }
