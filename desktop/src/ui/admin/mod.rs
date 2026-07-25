@@ -21,7 +21,7 @@ use crate::context::DesktopState;
 use crate::ui::auth::{apply_login, update_ui_after_login};
 use crate::AdminState;
 use crate::{
-    AdminAuditRow, AdminCompanyDetail, AdminCompanyOrderRow, AdminCompanyRow, AdminInvoiceRow,
+    AdminCompanyDetail, AdminCompanyOrderRow, AdminCompanyRow, AdminInvoiceRow,
     AdminPlanRow,
     AdminSubscriptionRow,
     AdminUserRow, FilterOption, MainWindow,
@@ -168,14 +168,6 @@ struct CompanyDetailDto {
     last_order_at: String,
 }
 
-#[derive(Deserialize)]
-struct AuditDto {
-    actor: String,
-    action: String,
-    target: String,
-    details: String,
-    at: String,
-}
 
 #[derive(Deserialize, Clone)]
 struct AdminDto {
@@ -690,10 +682,6 @@ fn setup_refresh(
                 get_json(&format!("{server_url}/admin/plans"), &token)
                     .await
                     .unwrap_or_default();
-            let audit: Vec<AuditDto> =
-                get_json(&format!("{server_url}/admin/audit"), &token)
-                    .await
-                    .unwrap_or_default();
             if let Ok(mut g) = plans_cache.lock() {
                 *g = plans;
             }
@@ -732,18 +720,6 @@ fn setup_refresh(
                 if let Ok(g) = plans_cache.lock() {
                     set_plan_filter_options(&ui, &g);
                 }
-
-                let audit_rows: Vec<AdminAuditRow> = audit
-                    .into_iter()
-                    .map(|a| AdminAuditRow {
-                        actor: a.actor.into(),
-                        action: a.action.into(),
-                        target: a.target.into(),
-                        details: a.details.into(),
-                        at: a.at.into(),
-                    })
-                    .collect();
-                ui.global::<AdminState>().set_audit_entries(ModelRc::new(VecModel::from(audit_rows)));
             });
         });
     });

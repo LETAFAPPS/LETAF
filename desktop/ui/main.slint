@@ -13,7 +13,7 @@ import { CollabPermRow, CollabRoleRow, CollabEmployeeRow } from "types.slint";
 import { AdminState } from "state/admin.slint";
 // Re-export: torna o global acessível do Rust (ui.global::<AdminState>()).
 export { AdminState }
-import { AdminCompanyRow, AdminCompanyDetail, AdminCompanyOrderRow, AdminSubscriptionRow, AdminInvoiceRow, AdminAuditRow, AdminUserRow, AdminPlanRow } from "types.slint";
+import { AdminCompanyRow, AdminCompanyDetail, AdminCompanyOrderRow, AdminSubscriptionRow, AdminInvoiceRow, AdminUserRow, AdminPlanRow } from "types.slint";
 import { CustomersPage } from "pages/customers_page.slint";
 import { OrdersPage, CalendarPopup } from "pages/orders_page.slint";
 import { SettingsPage } from "pages/settings_page.slint";
@@ -42,7 +42,6 @@ import { PrinterModal } from "modals/printer_modal.slint";
 import { PdvPage } from "pages/pdv_page.slint";
 import { AdminOverviewPage } from "pages/admin_overview_page.slint";
 import { AdminCompaniesPage } from "pages/admin_companies_page.slint";
-import { AdminAuditPage } from "pages/admin_audit_page.slint";
 import { AdminCompanyDetailModal } from "modals/admin_company_detail_modal.slint";
 import { AdminSubscriptionModal } from "modals/admin_subscription_modal.slint";
 import { AdminPlanModal } from "modals/admin_plan_modal.slint";
@@ -214,7 +213,7 @@ export component MainWindow inherits Window {
             // (qualquer aba de plataforma).
             if root.active-tab == "admin-overview" || root.active-tab == "admin-companies"
                || root.active-tab == "admin-admins"
-               || root.active-tab == "admin-plans" || root.active-tab == "admin-audit" {
+               || root.active-tab == "admin-plans" {
                 AdminState.refresh();
             }
         }
@@ -1525,7 +1524,7 @@ export component MainWindow inherits Window {
                     // tela fechada).
                     root.subscription-refresh();
                 } else if tab == "admin-overview" || tab == "admin-companies"
-                       || tab == "admin-admins" || tab == "admin-audit"
+                       || tab == "admin-admins"
                        || tab == "admin-plans" {
                     AdminState.refresh();
                 }
@@ -1728,9 +1727,6 @@ export component MainWindow inherits Window {
                     plan-filter-options: AdminState.company-plan-filter-options;
                     plan-filter-label: AdminState.company-plan-filter-label;
                     filters-changed => { AdminState.filter-companies(); }
-                }
-                if root.active-tab == "admin-audit": AdminAuditPage {
-                    entries: AdminState.audit-entries;
                 }
                 if root.active-tab == "admin-admins": AdminAdminsPage {
                     users: AdminState.users;

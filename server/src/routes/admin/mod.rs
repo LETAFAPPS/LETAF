@@ -35,7 +35,6 @@ const DEFAULT_ADMIN_EMAIL: &str = "admin@letaf.app";
 const DEFAULT_ADMIN_NAME: &str = "Master Admin";
 
 mod admins;
-mod audit_log;
 mod companies;
 mod overview;
 mod plans;
@@ -72,7 +71,6 @@ pub fn routes() -> Router<AppState> {
         .route("/admin/admins/{id}", put(admins::update_admin).delete(admins::delete_admin))
         .route("/admin/plans", get(plans::list_plans).post(plans::create_plan))
         .route("/admin/plans/{id}", put(plans::update_plan).delete(plans::delete_plan))
-        .route("/admin/audit", get(audit_log::list_audit))
 }
 
 /// Guard: exige `super_admin`. `verify_role` NÃO checa `company_id`
@@ -250,7 +248,6 @@ mod tests {
             ("overview.rs", include_str!("overview.rs")),
             ("companies.rs", include_str!("companies.rs")),
             ("subscriptions.rs", include_str!("subscriptions.rs")),
-            ("audit_log.rs", include_str!("audit_log.rs")),
             ("admins.rs", include_str!("admins.rs")),
             ("plans.rs", include_str!("plans.rs")),
         ];

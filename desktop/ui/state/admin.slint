@@ -11,7 +11,7 @@
 // Todo este estado é cross-tenant e ONLINE (rotas /admin/*), sem espelho
 // local — ver desktop/src/ui/admin.
 import { AdminCompanyRow, AdminCompanyDetail, AdminCompanyOrderRow, AdminSubscriptionRow,
-         AdminInvoiceRow, AdminAuditRow, AdminUserRow, AdminPlanRow } from "../types.slint";
+         AdminInvoiceRow, AdminUserRow, AdminPlanRow } from "../types.slint";
 import { FilterOption } from "../components/list_toolbar.slint";
 
 export global AdminState {
@@ -24,7 +24,6 @@ export global AdminState {
     in-out property <string> mrr: "R$ 0,00";
     in-out property <[AdminCompanyRow]> companies: [];
     in-out property <[AdminSubscriptionRow]> subscriptions: [];
-    in-out property <[AdminAuditRow]> audit-entries: [];
     in-out property <bool> detail-open: false;
     in-out property <AdminCompanyDetail> detail;
     in-out property <[AdminCompanyOrderRow]> detail-orders: [];
