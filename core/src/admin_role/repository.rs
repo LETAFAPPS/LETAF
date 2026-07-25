@@ -23,4 +23,12 @@ pub trait AdminRoleRepository: Send + Sync {
     async fn role_for_user(&self, user_id: Uuid) -> Result<Option<AdminRole>, CoreError>;
     /// Id da função de cada usuário informado (para listar sem N+1).
     async fn roles_of_users(&self, user_ids: &[Uuid]) -> Result<Vec<(Uuid, Uuid)>, CoreError>;
+
+    /// Ativa/desativa o acesso de um admin (só tem efeito em admins com
+    /// função atribuída; o master não tem linha e é sempre ativo).
+    async fn set_user_active(&self, user_id: Uuid, active: bool) -> Result<(), CoreError>;
+    /// `true` se o admin pode logar (sem linha = ativo).
+    async fn is_user_active(&self, user_id: Uuid) -> Result<bool, CoreError>;
+    /// `active` de cada usuário informado (ausente = ativo).
+    async fn active_of_users(&self, user_ids: &[Uuid]) -> Result<Vec<(Uuid, bool)>, CoreError>;
 }

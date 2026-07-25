@@ -196,6 +196,14 @@ struct AdminDto {
     role_id: String,
     #[serde(default)]
     role_name: String,
+    #[serde(default)]
+    avatar: String,
+    #[serde(default = "default_true")]
+    active: bool,
+}
+
+fn default_true() -> bool {
+    true
 }
 
 /// Função de administrador vinda de GET /admin/roles.
@@ -254,6 +262,10 @@ fn apply_user_filter(ui: &MainWindow, cache: &UsersCache) {
             email: u.email.clone().into(),
             role_id: u.role_id.clone().into(),
             role_name: u.role_name.clone().into(),
+            avatar: super::image::decode_pixel_buffer(&u.avatar)
+                .map(slint::Image::from_rgba8)
+                .unwrap_or_default(),
+            active: u.active,
         })
         .collect();
     ui.global::<AdminState>().set_users(ModelRc::new(VecModel::from(rows)));
@@ -1236,6 +1248,34 @@ fn setup_persist(
                     .send()
                     .await;
                 report(ui_weak, result, "Administrador Removido").await;
+            });
+        });
+    }
+    // Ativar/desativar o acesso de um administrador (o master é barrado no
+    // backend — §11). PUT /admin/admins/{id}/active.
+    {
+        let ui_weak = ui.as_weak();
+        let handle = handle.clone();
+        let auth_token = auth_token.clone();
+        let server_url = server_url.to_string();
+        ui.global::<AdminState>().on_set_user_active(move |id, active| {
+            let id = id.to_string();
+            if id.is_empty() {
+                return;
+            }
+            let ui_weak = ui_weak.clone();
+            let auth_token = auth_token.clone();
+            let server_url = server_url.clone();
+            handle.spawn(async move {
+                let Some(token) = auth_token.read().await.clone() else { return };
+                let result = HTTP_CLIENT
+                    .put(format!("{server_url}/admin/admins/{id}/active"))
+                    .bearer_auth(&token)
+                    .json(&serde_json::json!({ "active": active }))
+                    .send()
+                    .await;
+                let msg = if active { "Usuário Ativado" } else { "Usuário Desativado" };
+                report(ui_weak, result, msg).await;
             });
         });
     }

@@ -25,11 +25,33 @@ component IconActionBtn inherits TouchArea {
     }
 }
 
+// Interruptor liga/desliga (ativa/desativa o acesso do usuário).
+component ToggleSwitch inherits TouchArea {
+    in property <bool> on;
+    width: 46px; height: 26px;
+    Rectangle {
+        width: parent.width; height: parent.height;
+        border-radius: self.height / 2;
+        background: root.on ? #1E88E5 : #BDBDBD;
+        animate background { duration: 120ms; }
+        Rectangle {
+            width: 20px; height: 20px; border-radius: 10px;
+            background: white;
+            x: root.on ? parent.width - self.width - 3px : 3px;
+            y: (parent.height - self.height) / 2;
+            animate x { duration: 120ms; }
+        }
+    }
+}
+
 // Card de UM usuário na lista.
 component UserCard inherits Rectangle {
     in property <AdminUserRow> u;
+    // `true` = super admin master (só edição — sem toggle nem excluir).
+    property <bool> is-master: root.u.role-id == "";
     callback edit();
     callback remove();
+    callback toggle-active();
 
     height: 72px;
     background: Theme.surface;
@@ -44,37 +66,54 @@ component UserCard inherits Rectangle {
         padding-left: 14px; padding-right: 14px;
         spacing: 12px;
 
-        // Avatar (inicial do nome).
+        // Avatar do perfil (foto se houver; senão ícone cinza).
         VerticalLayout {
             alignment: center;
             Rectangle {
                 width: 44px; height: 44px;
                 border-radius: 12px;
-                background: Theme.btn-accent.transparentize(0.88);
+                background: #9E9E9E1F;
+                clip: true;
                 AssetIcon {
                     width: parent.width; height: parent.height; icon-size: 22px;
-                    icon-color: Theme.btn-accent;
+                    icon-color: Theme.text-secondary;
                     source: @image-url("../assets/icons/1.2/usuario.svg");
+                }
+                Image {
+                    source: root.u.avatar;
+                    width: parent.width; height: parent.height;
+                    image-fit: cover;
                 }
             }
         }
 
-        // Nome + e-mail.
+        // Nome + e-mail (+ função / master).
         VerticalLayout {
             horizontal-stretch: 1;
             alignment: center;
             spacing: 2px;
             Text {
                 text: root.u.name;
-                font-size: 14px; font-weight: 700; color: Theme.text-primary; overflow: elide;
+                font-size: 14px; font-weight: 700;
+                color: root.u.active ? Theme.text-primary : Theme.text-secondary;
+                overflow: elide;
             }
             Text {
-                text: root.u.email;
+                text: root.u.email + (root.is-master ? " · Super Admin" : (root.u.role-name == "" ? "" : " · " + root.u.role-name));
                 font-size: 12px; color: Theme.text-secondary; overflow: elide;
             }
         }
 
-        // Ações: editar + excluir (só-ícone).
+        // Ativo/inativo (só para não-master).
+        if !root.is-master: VerticalLayout {
+            alignment: center;
+            ToggleSwitch {
+                on: root.u.active;
+                clicked => { root.toggle-active(); }
+            }
+        }
+        Rectangle { width: 8px; }
+        // Editar (sempre).
         VerticalLayout {
             alignment: center;
             IconActionBtn {
@@ -84,7 +123,8 @@ component UserCard inherits Rectangle {
                 clicked => { root.edit(); }
             }
         }
-        VerticalLayout {
+        // Excluir (só para não-master; o master é gerido só no DB).
+        if !root.is-master: VerticalLayout {
             alignment: center;
             IconActionBtn {
                 icon: @image-url("../assets/icons/1.2/lixeira.svg");
@@ -103,6 +143,8 @@ export component AdminAdminsPage inherits VerticalLayout {
     callback edit-user(string);
     // Exclusão pede confirmação: passa (id, nome) para o modal.
     callback delete-user(string, string);
+    // Ativa/desativa o acesso do usuário (id, novo-estado).
+    callback set-user-active(string, bool);
     callback filters-changed();
 
     spacing: 12px;
@@ -173,6 +215,7 @@ export component AdminAdminsPage inherits VerticalLayout {
                 u: u;
                 edit => { root.edit-user(u.id); }
                 remove => { root.delete-user(u.id, u.name); }
+                toggle-active => { root.set-user-active(u.id, !u.active); }
             }
         }
     }

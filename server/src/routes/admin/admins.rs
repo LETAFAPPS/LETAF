@@ -21,6 +21,10 @@ pub(super) struct AdminRow {
     id: Uuid,
     name: String,
     email: String,
+    /// Foto de perfil (base64) ou "" — thumbnail do card.
+    avatar: String,
+    /// Acesso ativo (`false` = desativado, não loga). Master é sempre ativo.
+    active: bool,
     /// Função de administrador (id + nome). Vazio = master (acesso total).
     role_id: String,
     role_name: String,
@@ -38,10 +42,17 @@ pub(super) async fn list_admins(
         .into_iter()
         .filter(|u| u.role.is_super_admin())
         .collect();
-    // Atribuições usuário→função e nomes das funções (sem N+1).
+    // Atribuições usuário→função, nomes e status ativo (sem N+1).
     let ids: Vec<Uuid> = users.iter().map(|u| u.base.id).collect();
     let assignments = state.admin_role_service.roles_of_users(&ids).await.unwrap_or_default();
     let user_role: std::collections::HashMap<Uuid, Uuid> = assignments.into_iter().collect();
+    let active_map: std::collections::HashMap<Uuid, bool> = state
+        .admin_role_service
+        .active_of_users(&ids)
+        .await
+        .unwrap_or_default()
+        .into_iter()
+        .collect();
     let role_name: std::collections::HashMap<Uuid, String> = state
         .admin_role_service
         .find_all()
@@ -55,6 +66,8 @@ pub(super) async fn list_admins(
         .map(|u| {
             let rid = user_role.get(&u.base.id);
             AdminRow {
+                active: active_map.get(&u.base.id).copied().unwrap_or(true),
+                avatar: u.avatar.clone().unwrap_or_default(),
                 id: u.base.id,
                 name: u.name,
                 email: u.email,
@@ -64,6 +77,35 @@ pub(super) async fn list_admins(
         })
         .collect();
     Ok(Json(rows))
+}
+
+/// Ativa/desativa o acesso de um admin restrito. O master (sem função) e o
+/// próprio usuário logado não podem ser desativados (§11).
+#[derive(Deserialize)]
+pub(super) struct SetActiveRequest {
+    active: bool,
+}
+
+pub(super) async fn set_admin_active(
+    State(state): State<AppState>,
+    auth: AuthClaims,
+    Path(id): Path<Uuid>,
+    Json(body): Json<SetActiveRequest>,
+) -> Result<Json<Value>, ServerError> {
+    auth.require_screen("admins")?;
+    if !body.active && id == auth.0.sub {
+        return Err(ServerError::Core(CoreError::Validation(
+            "Você não pode desativar o próprio usuário.".into(),
+        )));
+    }
+    // Master (sem função) é sempre ativo — não pode ser desativado.
+    if !body.active && state.admin_role_service.role_for_user(id).await?.is_none() {
+        return Err(ServerError::Core(CoreError::Validation(
+            "O super admin master não pode ser desativado.".into(),
+        )));
+    }
+    state.admin_role_service.set_user_active(id, body.active).await?;
+    Ok(Json(json!({ "ok": true })))
 }
 
 #[derive(Deserialize)]

@@ -1740,6 +1740,7 @@ export component MainWindow inherits Window {
                         AdminState.del-user-name = name;
                         AdminState.del-user-open = true;
                     }
+                    set-user-active(id, active) => { AdminState.set-user-active(id, active); }
                     filters-changed => { AdminState.filter-users(); }
                 }
                 if root.active-tab == "admin-roles": AdminRolesPage {

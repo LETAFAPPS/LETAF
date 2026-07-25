@@ -75,6 +75,7 @@ export global AdminState {
     callback edit-user(string);
     callback save-user(string, string, string, string);
     callback delete-user(string);
+    callback set-user-active(string, bool);
     in-out property <string> company-form-name: "";
     in-out property <string> company-form-subdomain: "";
     // Plano da assinatura escolhido (kind) + opções = planos CADASTRADOS e

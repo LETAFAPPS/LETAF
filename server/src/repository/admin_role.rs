@@ -180,4 +180,39 @@ impl AdminRoleRepository for PgAdminRoleRepository {
         .map_err(map_db)?;
         Ok(rows)
     }
+
+    async fn set_user_active(&self, user_id: Uuid, active: bool) -> Result<(), CoreError> {
+        sqlx::query("UPDATE admin_user_roles SET active = $2 WHERE user_id = $1")
+            .bind(user_id)
+            .bind(active)
+            .execute(&self.pool)
+            .await
+            .map_err(map_db)?;
+        Ok(())
+    }
+
+    async fn is_user_active(&self, user_id: Uuid) -> Result<bool, CoreError> {
+        let row: Option<(bool,)> =
+            sqlx::query_as("SELECT active FROM admin_user_roles WHERE user_id = $1")
+                .bind(user_id)
+                .fetch_optional(&self.pool)
+                .await
+                .map_err(map_db)?;
+        // Sem linha (master) = sempre ativo.
+        Ok(row.map(|(a,)| a).unwrap_or(true))
+    }
+
+    async fn active_of_users(&self, user_ids: &[Uuid]) -> Result<Vec<(Uuid, bool)>, CoreError> {
+        if user_ids.is_empty() {
+            return Ok(Vec::new());
+        }
+        let rows: Vec<(Uuid, bool)> = sqlx::query_as(
+            "SELECT user_id, active FROM admin_user_roles WHERE user_id = ANY($1)",
+        )
+        .bind(user_ids)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(map_db)?;
+        Ok(rows)
+    }
 }

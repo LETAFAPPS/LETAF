@@ -64,6 +64,18 @@ impl AdminRoleService {
     pub async fn roles_of_users(&self, user_ids: &[Uuid]) -> Result<Vec<(Uuid, Uuid)>, CoreError> {
         self.repo.roles_of_users(user_ids).await
     }
+
+    pub async fn set_user_active(&self, user_id: Uuid, active: bool) -> Result<(), CoreError> {
+        self.repo.set_user_active(user_id, active).await
+    }
+
+    pub async fn is_user_active(&self, user_id: Uuid) -> Result<bool, CoreError> {
+        self.repo.is_user_active(user_id).await
+    }
+
+    pub async fn active_of_users(&self, user_ids: &[Uuid]) -> Result<Vec<(Uuid, bool)>, CoreError> {
+        self.repo.active_of_users(user_ids).await
+    }
 }
 
 /// Valida e monta uma `AdminRole` a partir da entrada.
