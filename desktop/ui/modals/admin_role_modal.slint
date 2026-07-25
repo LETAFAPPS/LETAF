@@ -21,9 +21,9 @@ export component AdminRoleModal inherits Rectangle {
     ModalShell {
         width: 100%;
         height: 100%;
-        icon: @image-url("../assets/icons/1.2/admin.svg");
+        icon: @image-url("../assets/icons/1.2/app-maleta.svg");
         icon-color: Theme.btn-accent;
-        title: root.form-id == "" ? "Nova função" : "Editar função";
+        title: root.form-id == "" ? "Nova Função" : "Editar Função";
         message: "Selecione as telas do painel que esta função libera.";
         card-width: 440px;
         close => { root.close(); }
@@ -35,7 +35,7 @@ export component AdminRoleModal inherits Rectangle {
                 label: "Nome";
                 value <=> root.form-name;
                 placeholder: "Ex.: Suporte";
-                icon: @image-url("../assets/icons/1.2/admin.svg");
+                icon: @image-url("../assets/icons/1.2/app-maleta.svg");
             }
 
             Text {
@@ -66,18 +66,20 @@ export component AdminRoleModal inherits Rectangle {
                                 color: s.on ? Theme.btn-accent : Theme.text-primary;
                                 vertical-alignment: center;
                             }
-                            // Checkbox.
-                            Rectangle {
-                                width: 20px; height: 20px; border-radius: 5px;
-                                y: (parent.height - self.height) / 2;
-                                border-width: 1.5px;
-                                border-color: s.on ? Theme.btn-accent : Theme.border;
-                                background: s.on ? Theme.btn-accent : transparent;
-                                Text {
-                                    text: s.on ? "✓" : "";
-                                    color: white; font-size: 13px; font-weight: 700;
-                                    horizontal-alignment: center; vertical-alignment: center;
-                                    width: parent.width; height: parent.height;
+                            // Checkbox (centralizado verticalmente na linha).
+                            VerticalLayout {
+                                alignment: center;
+                                Rectangle {
+                                    width: 20px; height: 20px; border-radius: 5px;
+                                    border-width: 1.5px;
+                                    border-color: s.on ? Theme.btn-accent : Theme.border;
+                                    background: s.on ? Theme.btn-accent : transparent;
+                                    Text {
+                                        text: s.on ? "✓" : "";
+                                        color: white; font-size: 13px; font-weight: 700;
+                                        horizontal-alignment: center; vertical-alignment: center;
+                                        width: parent.width; height: parent.height;
+                                    }
                                 }
                             }
                         }
