@@ -236,7 +236,7 @@ component SubsPanel inherits Rectangle {
         if root.subs.length == 0: EmptyState {
             source: @image-url("../assets/illustrations/business-workflow.svg");
             title: "Nenhuma subcategoria";
-            art-size: 120px;
+            art-size: 170px;
         }
         for s in root.subs: Rectangle {
             height: 60px;
@@ -383,7 +383,7 @@ export component CategoriesPage inherits Rectangle {
                 source: @image-url("../assets/illustrations/document-management.svg");
                 title: "Nenhuma categoria";
                 subtitle: "Crie a primeira para organizar seus produtos";
-                art-size: 140px;
+                art-size: 200px;
             }
             // Existem categorias, mas nenhuma selecionada → instrução.
             if root.category-tree.length > 0: Text {

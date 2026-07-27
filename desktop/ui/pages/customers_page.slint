@@ -82,7 +82,7 @@ component OrdersCard inherits Rectangle {
         if root.orders.length == 0: EmptyState {
             source: @image-url("../assets/illustrations/understand-customers.svg");
             title: "Nenhum pedido";
-            art-size: 120px;
+            art-size: 170px;
         }
         for o[i] in root.orders: Rectangle {
             height: (i >= root.win-start && i < root.win-start + 5) ? 46px : 0px;
@@ -184,7 +184,7 @@ component InfoPanel inherits Rectangle {
                 if root.addresses.length == 0: EmptyState {
                     source: @image-url("../assets/illustrations/online-delivery.svg");
                     title: "Nenhum endereço";
-                    art-size: 110px;
+                    art-size: 160px;
                 }
                 for a in root.addresses: VerticalLayout {
                     spacing: 2px;
@@ -433,7 +433,7 @@ export component CustomersPage inherits Rectangle {
                 alignment: center;
                 // Base VAZIA → ilustração no centro da tela (não na lista).
                 if root.customers.length == 0: EmptyState {
-                    art-size: 140px;
+                    art-size: 200px;
                     source: @image-url("../assets/illustrations/understand-customers.svg");
                     title: "Nenhum cliente";
                     subtitle: "Cadastre o primeiro para começar";
