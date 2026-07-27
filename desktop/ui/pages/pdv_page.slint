@@ -647,7 +647,7 @@ export component PdvPage inherits VerticalLayout {
                             : @image-url("../assets/illustrations/online-shopping-store.svg");
                         title: root.search-text != "" ? "Nada encontrado" : "Sem produtos";
                         subtitle: root.search-text != "" ? "Tente outro termo de busca" : "";
-                        art-size: 180px;
+                        art-size: 220px;
                     }
                 }
                 if root.products.length > 0: ScrollView { vertical-scrollbar-policy: ScrollBarPolicy.always-off; horizontal-scrollbar-policy: ScrollBarPolicy.always-off;
@@ -935,7 +935,7 @@ export component PdvPage inherits VerticalLayout {
                                             source: @image-url("../assets/illustrations/online-shopping-store.svg");
                                             title: "Carrinho vazio";
                                             subtitle: "Adicione itens para começar";
-                                            art-size: 170px;
+                                            art-size: 210px;
                                         }
                                     }
                                 }
