@@ -42,8 +42,7 @@ export component AdminPlanModal inherits Rectangle {
     ModalShell {
         width: 100%;
         height: 100%;
-        icon: @image-url("../assets/icons/inventory.svg");
-        icon-color: Theme.btn-accent;
+        colored-icon: @image-url("../assets/icons-orange/ticket.svg");
         title: root.form-id == "" ? "Novo Plano" : "Editar Plano";
         message: "Catálogo de planos visível para a empresa.";
         card-width: 460px;

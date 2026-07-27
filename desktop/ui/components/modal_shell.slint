@@ -34,8 +34,12 @@ import { AssetIcon } from "icons.slint";
 
 export component ModalShell inherits Rectangle {
     /// Ícone do sistema exibido no topo (opcional — vazio esconde).
+    /// Monocromático: recolorido por `icon-color`.
     in property <image> icon;
     in property <color> icon-color: Theme.text-secondary;
+    /// Ícone COLORIDO (laranja da marca) alternativo: renderizado como está,
+    /// sem recolorir. Tem prioridade sobre `icon` quando definido.
+    in property <image> colored-icon;
     in property <string> title;
     in property <string> message;
     in property <length> card-width: 400px;
@@ -63,7 +67,18 @@ export component ModalShell inherits Rectangle {
                     padding: 28px;
                     spacing: 14px;
 
-                    if root.icon.width > 0: HorizontalLayout {
+                    // Ícone colorido (laranja) tem prioridade — exibido como
+                    // Image; senão o ícone monocromático recolorido.
+                    if root.colored-icon.width > 0: HorizontalLayout {
+                        alignment: center;
+                        Image {
+                            width: 52px;
+                            height: 52px;
+                            source: root.colored-icon;
+                            image-fit: contain;
+                        }
+                    }
+                    if root.colored-icon.width <= 0 && root.icon.width > 0: HorizontalLayout {
                         alignment: center;
                         AssetIcon {
                             width: 44px;
@@ -92,7 +107,7 @@ export component ModalShell inherits Rectangle {
 
                     // Divisor só quando há cabeçalho (ícone/título/mensagem);
                     // sem cabeçalho não faz sentido uma linha solta no topo.
-                    if root.icon.width > 0 || root.title != "" || root.message != "": Rectangle {
+                    if root.colored-icon.width > 0 || root.icon.width > 0 || root.title != "" || root.message != "": Rectangle {
                         height: 1px; background: Theme.border;
                     }
 

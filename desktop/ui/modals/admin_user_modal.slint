@@ -27,8 +27,7 @@ export component AdminUserModal inherits Rectangle {
     ModalShell {
         width: 100%;
         height: 100%;
-        icon: @image-url("../assets/icons/customers.svg");
-        icon-color: Theme.btn-accent;
+        colored-icon: @image-url("../assets/icons-orange/refer-a-friend.svg");
         title: root.form-id == "" ? "Novo Administrador" : "Editar Administrador";
         message: "Gerencie os acessos de administradores.";
         card-width: 440px;

@@ -22,6 +22,8 @@ component KpiCard inherits Rectangle {
     in property <string> label;
     in property <string> value;
     in property <bool> accent: false;
+    // Ícone laranja decorativo (colorido) no canto — opcional.
+    in property <image> icon;
     horizontal-stretch: 1;
     // `min-width: 0` para a largura ser dividida igualmente entre os cards
     // (sem isso, o texto mais largo faz o card ficar maior que os demais).
@@ -34,6 +36,14 @@ component KpiCard inherits Rectangle {
     drop-shadow-blur: 12px;
     drop-shadow-offset-y: 0px;
     drop-shadow-color: Theme.card-shadow;
+    // Ícone laranja no canto superior direito (embelezamento).
+    if root.icon.width > 0: Image {
+        x: parent.width - self.width - 16px;
+        y: 16px;
+        width: 34px; height: 34px;
+        source: root.icon;
+        image-fit: contain;
+    }
     VerticalLayout {
         padding: 18px;
         spacing: 6px;
@@ -251,10 +261,22 @@ export component AdminOverviewPage inherits VerticalLayout {
     HorizontalLayout {
         vertical-stretch: 0;
         spacing: 16px;
-        KpiCard { label: "Receita Mensal"; value: root.mrr; accent: true; }
-        KpiCard { label: "Ticket Médio"; value: root.arpa; }
-        KpiCard { label: "Empresas"; value: "\{root.companies}"; }
-        KpiCard { label: "Receita Anual"; value: root.annual-revenue; }
+        KpiCard {
+            label: "Receita Mensal"; value: root.mrr; accent: true;
+            icon: @image-url("../assets/icons-orange/online-earning.svg");
+        }
+        KpiCard {
+            label: "Ticket Médio"; value: root.arpa;
+            icon: @image-url("../assets/icons-orange/ticket.svg");
+        }
+        KpiCard {
+            label: "Empresas"; value: "\{root.companies}";
+            icon: @image-url("../assets/icons-orange/presentation-board.svg");
+        }
+        KpiCard {
+            label: "Receita Anual"; value: root.annual-revenue;
+            icon: @image-url("../assets/icons-orange/traffic-growth.svg");
+        }
     }
 
     // Gráfico de receita anual (jan–dez, ano atual × anterior).
@@ -339,9 +361,20 @@ export component AdminOverviewPage inherits VerticalLayout {
                     }
                 }
             }
-            Text {
-                text: "\{root.referrals}";
-                font-size: 24px; font-weight: 800; color: Theme.text-primary;
+            // Valor + ícone laranja de indicação (embelezamento).
+            HorizontalLayout {
+                alignment: start;
+                spacing: 10px;
+                Text {
+                    text: "\{root.referrals}";
+                    font-size: 24px; font-weight: 800; color: Theme.text-primary;
+                    vertical-alignment: center;
+                }
+                Image {
+                    width: 40px; height: 40px;
+                    source: @image-url("../assets/icons-orange/refer-a-friend.svg");
+                    image-fit: contain;
+                }
             }
         }
     }
