@@ -1,4 +1,5 @@
 import { Theme } from "../theme.slint";
+import { ModalHeader } from "../components/modal_header.slint";
 import { AssetIcon } from "../components/icons.slint";
 import { Card } from "../components/cards.slint";
 import { FormField } from "../components/form_fields.slint";
@@ -64,18 +65,10 @@ export component CardModal inherits Rectangle {
                     padding: 24px;
                     spacing: 10px;
 
-                    // Header
-                    HorizontalLayout {
-                        Text {
-                            horizontal-stretch: 1;
-                            text: "Cadastrar Cartão";
-                            font-size: 18px; font-weight: 700;
-                            color: Theme.text-primary;
-                            vertical-alignment: center;
-                        }
+                    ModalHeader {
+                        icon: @image-url("../assets/icons-orange/network-protection.svg");
+                        title: "Cadastrar Cartão";
                     }
-
-                    Rectangle { height: 1px; background: Theme.border; }
 
                     Text {
                         text: "Os dados do cartão são enviados com segurança ao servidor e tokenizados na Efi. Nada sensível é armazenado neste computador.";

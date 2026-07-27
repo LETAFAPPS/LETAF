@@ -49,7 +49,11 @@ component WalletFormModal inherits Rectangle {
                             padding-top: 18px; padding-bottom: 14px;
                             spacing: 4px;
                             HorizontalLayout {
-                                spacing: 8px;
+                                spacing: 12px;
+                                VerticalLayout {
+                                    alignment: center;
+                                    Image { width: 40px; height: 40px; image-fit: contain; source: @image-url("../assets/icons-orange/empty-wallet.svg"); }
+                                }
                                 VerticalLayout {
                                     horizontal-stretch: 1; spacing: 2px;
                                     Text { text: root.title; font-size: 16px; font-weight: 700; color: Theme.text-primary; }

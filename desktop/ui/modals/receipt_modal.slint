@@ -53,7 +53,11 @@ export component ReceiptModal inherits Rectangle {
                             padding-left: 20px; padding-right: 20px;
                             padding-top: 18px; padding-bottom: 14px;
                             HorizontalLayout {
-                                spacing: 8px;
+                                spacing: 12px;
+                                VerticalLayout {
+                                    alignment: center;
+                                    Image { width: 40px; height: 40px; image-fit: contain; source: @image-url("../assets/icons-orange/article.svg"); }
+                                }
                                 VerticalLayout {
                                     horizontal-stretch: 1; spacing: 2px;
                                     Text {

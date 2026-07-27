@@ -41,6 +41,11 @@ export component PdvCartModal inherits Rectangle {
             spacing: 12px;
 
             HorizontalLayout {
+                spacing: 12px;
+                VerticalLayout {
+                    alignment: center;
+                    Image { width: 36px; height: 36px; image-fit: contain; source: @image-url("../assets/icons-orange/empty-shopping-cart.svg"); }
+                }
                 Text {
                     text: "Itens do Carrinho";
                     font-size: 16px; font-weight: 800;

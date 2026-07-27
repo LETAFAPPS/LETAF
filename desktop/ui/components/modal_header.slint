@@ -1,0 +1,46 @@
+// Cabeçalho PADRÃO de modal: ícone laranja grande + título (e subtítulo
+// opcional) centralizados, seguidos de um divisor. Uniformiza o topo de
+// TODOS os modais do sistema — o mesmo visual do ModalShell, mas para os
+// modais que montam o próprio card/overlay (§8: fonte única do estilo).
+//
+// Uso:
+//   ModalHeader {
+//       icon: @image-url("../assets/icons-orange/promotion.svg");
+//       title: root.editing ? "Editar Cupom" : "Novo Cupom";
+//       subtitle: "opcional";
+//   }
+import { Theme } from "../theme.slint";
+
+export component ModalHeader inherits VerticalLayout {
+    // Ícone colorido (laranja da marca) — exibido como está, sem recolorir.
+    in property <image> icon;
+    in property <string> title;
+    in property <string> subtitle;
+
+    spacing: 10px;
+
+    if root.icon.width > 0: HorizontalLayout {
+        alignment: center;
+        Image {
+            width: 96px;
+            height: 96px;
+            source: root.icon;
+            image-fit: contain;
+        }
+    }
+    if root.title != "": Text {
+        text: root.title;
+        font-size: 18px;
+        font-weight: 700;
+        color: Theme.text-primary;
+        horizontal-alignment: center;
+    }
+    if root.subtitle != "": Text {
+        text: root.subtitle;
+        font-size: 13px;
+        color: Theme.text-secondary;
+        horizontal-alignment: center;
+        wrap: word-wrap;
+    }
+    Rectangle { height: 1px; background: Theme.border; }
+}

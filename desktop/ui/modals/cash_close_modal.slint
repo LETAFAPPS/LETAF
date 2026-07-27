@@ -66,6 +66,11 @@ export component CashCloseModal inherits Rectangle {
                             padding-top: 18px; padding-bottom: 14px;
                             spacing: 2px;
                             HorizontalLayout {
+                                spacing: 12px;
+                                VerticalLayout {
+                                    alignment: center;
+                                    Image { width: 40px; height: 40px; image-fit: contain; source: @image-url("../assets/icons-orange/online-earning.svg"); }
+                                }
                                 VerticalLayout {
                                     horizontal-stretch: 1; spacing: 2px;
                                     Text {

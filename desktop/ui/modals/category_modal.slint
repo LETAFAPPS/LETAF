@@ -1,6 +1,7 @@
 import { ScrollView } from "std-widgets.slint";
 import { AssetIcon } from "../components/icons.slint";
 import { Theme } from "../theme.slint";
+import { ModalHeader } from "../components/modal_header.slint";
 import { CategoryData, CategoryIconOption } from "../types.slint";
 import { Card } from "../components/cards.slint";
 import { FormField } from "../components/form_fields.slint";
@@ -37,16 +38,10 @@ export component CategoryModal inherits Rectangle {
                     padding: 24px;
                     spacing: 12px;
 
-                    HorizontalLayout {
-                        Text {
-                            text: root.editing-id != "" ? "Editar Categoria" : "Nova Categoria";
-                            font-size: 18px; font-weight: 700;
-                            color: Theme.text-primary;
-                            horizontal-stretch: 1; vertical-alignment: center;
-                        }
+                    ModalHeader {
+                        icon: @image-url("../assets/icons-orange/content-management.svg");
+                        title: root.editing-id != "" ? "Editar Categoria" : "Nova Categoria";
                     }
-
-                    Rectangle { height: 1px; background: Theme.border; }
 
                     VerticalLayout {
                         FormField { label: "Nome"; value <=> root.category-name; placeholder: "Nome da categoria"; }
