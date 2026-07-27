@@ -643,8 +643,8 @@ export component PdvPage inherits VerticalLayout {
                 if root.products.length == 0: Rectangle {
                     EmptyState {
                         source: root.search-text != ""
-                            ? @image-url("../assets/empty/not-found.svg")
-                            : @image-url("../assets/empty/out-of-stock.svg");
+                            ? @image-url("../assets/illustrations/smart-web-search.svg")
+                            : @image-url("../assets/illustrations/online-shopping-store.svg");
                         title: root.search-text != "" ? "Nada encontrado" : "Sem produtos";
                         subtitle: root.search-text != "" ? "Tente outro termo de busca" : "";
                         art-size: 130px;
@@ -932,7 +932,7 @@ export component PdvPage inherits VerticalLayout {
                                         alignment: center;
                                         padding: 16px;
                                         EmptyState {
-                                            source: @image-url("../assets/empty/empty-cart.svg");
+                                            source: @image-url("../assets/illustrations/online-shopping-store.svg");
                                             title: "Carrinho vazio";
                                             subtitle: "Adicione itens para começar";
                                             art-size: 116px;
