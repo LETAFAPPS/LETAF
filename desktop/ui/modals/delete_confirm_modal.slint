@@ -17,8 +17,7 @@ export component DeleteConfirmModal inherits Rectangle {
     ModalShell {
         width: 100%;
         height: 100%;
-        icon: @image-url("../assets/icons/lixeira.svg");
-        icon-color: Theme.danger;
+        colored-icon: @image-url("../assets/icons-orange/empty-trash.svg");
         title: "Confirmar Exclusão";
         message: "Deseja excluir '" + root.delete-target-name + "'? Esta ação não pode ser desfeita.";
         card-width: 400px;
