@@ -116,7 +116,7 @@ export component Sidebar inherits Rectangle {
                 if root.nav.admin-overview:
                     SidebarSection { title: "PLATAFORMA"; compact: !root.expanded; }
                 if root.nav.admin-overview: SidebarItem {
-                    icon-source: @image-url("../assets/icons/1.2/dashboard.svg");
+                    icon-source: @image-url("../assets/icons/dashboard.svg");
                     label: "Dashboard";
                     compact: !root.expanded;
                     active: root.active-tab == "admin-overview";
@@ -127,7 +127,7 @@ export component Sidebar inherits Rectangle {
                 if root.nav.admin-companies:
                     SidebarSection { title: "GESTÃO"; compact: !root.expanded; }
                 if root.nav.admin-companies: SidebarItem {
-                    icon-source: @image-url("../assets/icons/1.2/empresa.svg");
+                    icon-source: @image-url("../assets/icons/empresa.svg");
                     label: "Empresas";
                     compact: !root.expanded;
                     active: root.active-tab == "admin-companies";
@@ -138,7 +138,7 @@ export component Sidebar inherits Rectangle {
                 if root.nav.admin-plans:
                     SidebarSection { title: "FINANCEIRO"; compact: !root.expanded; }
                 if root.nav.admin-plans: SidebarItem {
-                    icon-source: @image-url("../assets/icons/1.2/inventory.svg");
+                    icon-source: @image-url("../assets/icons/inventory.svg");
                     label: "Planos";
                     compact: !root.expanded;
                     active: root.active-tab == "admin-plans";
@@ -149,14 +149,14 @@ export component Sidebar inherits Rectangle {
                 if root.nav.admin-admins || root.nav.admin-roles:
                     SidebarSection { title: "PERMISSÕES"; compact: !root.expanded; }
                 if root.nav.admin-admins: SidebarItem {
-                    icon-source: @image-url("../assets/icons/1.2/customers.svg");
+                    icon-source: @image-url("../assets/icons/customers.svg");
                     label: "Usuários";
                     compact: !root.expanded;
                     active: root.active-tab == "admin-admins";
                     clicked => { root.navigate("admin-admins"); }
                 }
                 if root.nav.admin-roles: SidebarItem {
-                    icon-source: @image-url("../assets/icons/1.2/app-maleta.svg");
+                    icon-source: @image-url("../assets/icons/app-maleta.svg");
                     label: "Funções";
                     compact: !root.expanded;
                     active: root.active-tab == "admin-roles";
@@ -167,14 +167,14 @@ export component Sidebar inherits Rectangle {
                 if root.store-access || root.nav.dashboard || root.nav.reports:
                     SidebarSection { title: "PRINCIPAL"; compact: !root.expanded; }
                 if root.store-access || root.nav.dashboard: SidebarItem {
-                    icon-source: @image-url("../assets/icons/1.2/dashboard.svg");
+                    icon-source: @image-url("../assets/icons/dashboard.svg");
                     label: "Dashboard";
                     compact: !root.expanded;
                     active: root.active-tab == "dashboard";
                     clicked => { root.navigate("dashboard"); }
                 }
                 if root.store-access || root.nav.reports: SidebarItem {
-                    icon-source: @image-url("../assets/icons/1.2/grafico.svg");
+                    icon-source: @image-url("../assets/icons/grafico.svg");
                     label: "Relatórios";
                     compact: !root.expanded;
                     active: root.active-tab == "reports";
@@ -185,14 +185,14 @@ export component Sidebar inherits Rectangle {
                 if root.store-access || root.nav.pdv || root.nav.orders:
                     SidebarSection { title: "VENDAS"; compact: !root.expanded; }
                 if root.store-access || root.nav.pdv: SidebarItem {
-                    icon-source: @image-url("../assets/icons/1.2/compras-fornecedores.svg");
+                    icon-source: @image-url("../assets/icons/compras-fornecedores.svg");
                     label: "PDV";
                     compact: !root.expanded;
                     active: root.active-tab == "pdv";
                     clicked => { root.navigate("pdv"); }
                 }
                 if root.store-access || root.nav.orders: SidebarItem {
-                    icon-source: @image-url("../assets/icons/1.2/orders.svg");
+                    icon-source: @image-url("../assets/icons/orders.svg");
                     label: "Pedidos";
                     compact: !root.expanded;
                     badge: root.orders-count > 0 ? root.orders-count : "";
@@ -204,14 +204,14 @@ export component Sidebar inherits Rectangle {
                 if root.store-access || root.nav.cash || root.nav.finance:
                     SidebarSection { title: "FINANCEIRO"; compact: !root.expanded; }
                 if root.store-access || root.nav.cash: SidebarItem {
-                    icon-source: @image-url("../assets/icons/1.2/cash.svg");
+                    icon-source: @image-url("../assets/icons/cash.svg");
                     label: "Caixa";
                     compact: !root.expanded;
                     active: root.active-tab == "cash";
                     clicked => { root.navigate("cash"); }
                 }
                 if root.store-access || root.nav.finance: SidebarItem {
-                    icon-source: @image-url("../assets/icons/1.2/financeiro.svg");
+                    icon-source: @image-url("../assets/icons/financeiro.svg");
                     label: "Financeiro";
                     compact: !root.expanded;
                     badge: root.finance-overdue-count > 0 ? root.finance-overdue-count : "";
@@ -223,14 +223,14 @@ export component Sidebar inherits Rectangle {
                 if root.store-access || root.nav.products || root.nav.inventory || root.nav.addons || root.nav.categories:
                     SidebarSection { title: "CADASTROS"; compact: !root.expanded; }
                 if root.store-access || root.nav.products: SidebarItem {
-                    icon-source: @image-url("../assets/icons/1.2/products.svg");
+                    icon-source: @image-url("../assets/icons/products.svg");
                     label: "Produtos";
                     compact: !root.expanded;
                     active: root.active-tab == "products";
                     clicked => { root.navigate("products"); }
                 }
                 if root.store-access || root.nav.inventory: SidebarItem {
-                    icon-source: @image-url("../assets/icons/1.2/lote.svg");
+                    icon-source: @image-url("../assets/icons/lote.svg");
                     label: "Estoque";
                     compact: !root.expanded;
                     badge: root.stock-out-count > 0 ? root.stock-out-count : "";
@@ -238,14 +238,14 @@ export component Sidebar inherits Rectangle {
                     clicked => { root.navigate("inventory"); }
                 }
                 if root.store-access || root.nav.addons: SidebarItem {
-                    icon-source: @image-url("../assets/icons/1.2/addons.svg");
+                    icon-source: @image-url("../assets/icons/addons.svg");
                     label: "Adicionais";
                     compact: !root.expanded;
                     active: root.active-tab == "addons";
                     clicked => { root.navigate("addons"); }
                 }
                 if root.store-access || root.nav.categories: SidebarItem {
-                    icon-source: @image-url("../assets/icons/1.2/categories.svg");
+                    icon-source: @image-url("../assets/icons/categories.svg");
                     label: "Categorias";
                     compact: !root.expanded;
                     active: root.active-tab == "categories";
@@ -256,14 +256,14 @@ export component Sidebar inherits Rectangle {
                 if root.store-access || root.nav.banners || root.nav.coupons:
                     SidebarSection { title: "PROMOÇÕES"; compact: !root.expanded; }
                 if root.store-access || root.nav.banners: SidebarItem {
-                    icon-source: @image-url("../assets/icons/1.2/banners.svg");
+                    icon-source: @image-url("../assets/icons/banners.svg");
                     label: "Banners";
                     compact: !root.expanded;
                     active: root.active-tab == "banners";
                     clicked => { root.navigate("banners"); }
                 }
                 if root.store-access || root.nav.coupons: SidebarItem {
-                    icon-source: @image-url("../assets/icons/1.2/coupons.svg");
+                    icon-source: @image-url("../assets/icons/coupons.svg");
                     label: "Cupons";
                     compact: !root.expanded;
                     active: root.active-tab == "coupons";
@@ -274,14 +274,14 @@ export component Sidebar inherits Rectangle {
                 if root.store-access || root.nav.customers || root.nav.collaborators:
                     SidebarSection { title: "USUÁRIOS"; compact: !root.expanded; }
                 if root.store-access || root.nav.customers: SidebarItem {
-                    icon-source: @image-url("../assets/icons/1.2/usuario.svg");
+                    icon-source: @image-url("../assets/icons/usuario.svg");
                     label: "Clientes";
                     compact: !root.expanded;
                     active: root.active-tab == "customers";
                     clicked => { root.navigate("customers"); }
                 }
                 if root.store-access || root.nav.collaborators: SidebarItem {
-                    icon-source: @image-url("../assets/icons/1.2/user.svg");
+                    icon-source: @image-url("../assets/icons/user.svg");
                     label: "Usuários";
                     compact: !root.expanded;
                     active: root.active-tab == "collaborators";
@@ -292,7 +292,7 @@ export component Sidebar inherits Rectangle {
                 if root.store-access || root.nav.subscription:
                     SidebarSection { title: "ASSINATURA"; compact: !root.expanded; }
                 if root.store-access || root.nav.subscription: SidebarItem {
-                    icon-source: @image-url("../assets/icons/1.2/subscription.svg");
+                    icon-source: @image-url("../assets/icons/subscription.svg");
                     label: "Plano & Cobrança";
                     compact: !root.expanded;
                     badge: root.subscription-pending-count > 0
@@ -305,7 +305,7 @@ export component Sidebar inherits Rectangle {
                 // ── SISTEMA ─────────────────────────────── (somente Admin)
                 if root.store-access: SidebarSection { title: "SISTEMA"; compact: !root.expanded; }
                 if root.store-access: SidebarItem {
-                    icon-source: @image-url("../assets/icons/1.2/settings.svg");
+                    icon-source: @image-url("../assets/icons/settings.svg");
                     label: "Configurações";
                     compact: !root.expanded;
                     active: root.active-tab == "settings";
@@ -369,14 +369,14 @@ export component Sidebar inherits Rectangle {
                     AssetIcon {
                         width: 100%; height: 100%; icon-size: 18px;
                         icon-color: logout-ta.has-hover ? #E57373 : Theme.sidebar-text;
-                        source: @image-url("../assets/icons/1.2/logout.svg");
+                        source: @image-url("../assets/icons/logout.svg");
                     }
                 }
             }
         }
         // Colapsada: só "Sair" (o Perfil só aparece no menu normal — a pedido).
         if !root.expanded: SidebarItem {
-            icon-source: @image-url("../assets/icons/1.2/logout.svg");
+            icon-source: @image-url("../assets/icons/logout.svg");
             label: "Sair";
             compact: true;
             clicked => { root.request-logout(); }
@@ -421,8 +421,8 @@ export component Sidebar inherits Rectangle {
                 icon-size: 16px;
                 icon-color: Theme.sidebar-text;
                 source: Theme.dark-mode
-                    ? @image-url("../assets/icons/1.2/modo-claro.svg")
-                    : @image-url("../assets/icons/1.2/modo-escuro.svg");
+                    ? @image-url("../assets/icons/modo-claro.svg")
+                    : @image-url("../assets/icons/modo-escuro.svg");
             }
         }
     }

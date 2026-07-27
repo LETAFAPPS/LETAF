@@ -103,12 +103,12 @@ component FinanceListRow inherits Rectangle {
             if root.data.kind == "receivable": AssetIcon {
                 width: 100%; height: 100%; icon-size: 18px;
                 icon-color: #2E7D32;
-                source: @image-url("../assets/icons/1.2/entrada-estoque.svg");
+                source: @image-url("../assets/icons/entrada-estoque.svg");
             }
             if root.data.kind != "receivable": AssetIcon {
                 width: 100%; height: 100%; icon-size: 18px;
                 icon-color: #E53935;
-                source: @image-url("../assets/icons/1.2/saida-estoque.svg");
+                source: @image-url("../assets/icons/saida-estoque.svg");
             }
         }
 
@@ -248,7 +248,7 @@ component FinanceListRow inherits Rectangle {
                 width: 30px; height: 30px;
                 border-radius: 6px;
                 background: del-ta.has-hover ? #FFEBEE : transparent;
-                AssetIcon { width: parent.width; height: parent.height; icon-size: 14px; icon-color: del-ta.has-hover ? #C62828 : Theme.text-secondary; source: @image-url("../assets/icons/1.2/fechar.svg"); }
+                AssetIcon { width: parent.width; height: parent.height; icon-size: 14px; icon-color: del-ta.has-hover ? #C62828 : Theme.text-secondary; source: @image-url("../assets/icons/fechar.svg"); }
             }
         }
     }
@@ -426,7 +426,7 @@ component DayDetailRow inherits Rectangle {
                         width: 26px; height: 26px;
                         border-radius: 5px;
                         background: del-ta.has-hover ? #FFEBEE : transparent;
-                        AssetIcon { width: parent.width; height: parent.height; icon-size: 12px; icon-color: del-ta.has-hover ? #C62828 : Theme.text-secondary; source: @image-url("../assets/icons/1.2/fechar.svg"); }
+                        AssetIcon { width: parent.width; height: parent.height; icon-size: 12px; icon-color: del-ta.has-hover ? #C62828 : Theme.text-secondary; source: @image-url("../assets/icons/fechar.svg"); }
                     }
                 }
             }
@@ -818,7 +818,7 @@ export component FinancePage inherits Rectangle {
                             AssetIcon {
                                 width: 100%; height: 100%; icon-size: 16px;
                                 icon-color: Theme.text-primary;
-                                source: @image-url("../assets/icons/1.2/seta-esquerda.svg");
+                                source: @image-url("../assets/icons/seta-esquerda.svg");
                             }
                         }
                     }
@@ -836,7 +836,7 @@ export component FinancePage inherits Rectangle {
                             AssetIcon {
                                 width: 100%; height: 100%; icon-size: 16px;
                                 icon-color: Theme.text-primary;
-                                source: @image-url("../assets/icons/1.2/seta-direita.svg");
+                                source: @image-url("../assets/icons/seta-direita.svg");
                             }
                         }
                     }

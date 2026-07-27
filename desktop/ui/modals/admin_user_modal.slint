@@ -27,7 +27,7 @@ export component AdminUserModal inherits Rectangle {
     ModalShell {
         width: 100%;
         height: 100%;
-        icon: @image-url("../assets/icons/1.2/customers.svg");
+        icon: @image-url("../assets/icons/customers.svg");
         icon-color: Theme.btn-accent;
         title: root.form-id == "" ? "Novo Administrador" : "Editar Administrador";
         message: "Gerencie os acessos de administradores.";
@@ -41,13 +41,13 @@ export component AdminUserModal inherits Rectangle {
                 label: "Nome";
                 value <=> root.form-name;
                 placeholder: "Nome do administrador";
-                icon: @image-url("../assets/icons/1.2/usuario.svg");
+                icon: @image-url("../assets/icons/usuario.svg");
             }
             FormField {
                 label: "E-mail";
                 value <=> root.form-email;
                 placeholder: "email@dominio.com";
-                icon: @image-url("../assets/icons/1.2/email.svg");
+                icon: @image-url("../assets/icons/email.svg");
             }
             PasswordField {
                 label: "Senha";

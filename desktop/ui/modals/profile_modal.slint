@@ -87,14 +87,14 @@ export component ProfileModal inherits Rectangle {
                                 if root.avatar.width == 0 && !root.avatar-loading: AssetIcon {
                                     width: 64px; height: 64px; icon-size: 30px;
                                     icon-color: Theme.btn-accent;
-                                    source: @image-url("../assets/icons/1.2/user.svg");
+                                    source: @image-url("../assets/icons/user.svg");
                                 }
                                 // Spinner enquanto a imagem é processada.
                                 if root.avatar-loading: Image {
                                     width: 24px; height: 24px;
                                     x: (parent.width - self.width) / 2;
                                     y: (parent.height - self.height) / 2;
-                                    source: @image-url("../assets/icons/1.2/atualizar.svg");
+                                    source: @image-url("../assets/icons/atualizar.svg");
                                     colorize: Theme.btn-accent;
                                     image-fit: contain;
                                     transform-rotation: root.spin;
@@ -117,7 +117,7 @@ export component ProfileModal inherits Rectangle {
                                 AssetIcon {
                                     width: parent.width; height: parent.height; icon-size: 11px;
                                     icon-color: white;
-                                    source: @image-url("../assets/icons/1.2/camera.svg");
+                                    source: @image-url("../assets/icons/camera.svg");
                                 }
                             }
                             }

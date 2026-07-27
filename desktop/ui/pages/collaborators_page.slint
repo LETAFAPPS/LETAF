@@ -92,7 +92,7 @@ component AddBtn inherits TouchArea {
             AssetIcon {
                 width: 16px; height: parent.height; icon-size: 15px;
                 icon-color: Theme.btn-accent;
-                source: @image-url("../assets/icons/1.2/adicionar.svg");
+                source: @image-url("../assets/icons/adicionar.svg");
             }
             Text {
                 text: root.label;
@@ -125,7 +125,7 @@ component MarkAllBtn inherits TouchArea {
             AssetIcon {
                 width: 16px; height: parent.height; icon-size: 14px;
                 icon-color: root.active ? Theme.btn-accent : Theme.text-secondary;
-                source: @image-url("../assets/icons/1.2/confirmar.svg");
+                source: @image-url("../assets/icons/confirmar.svg");
             }
             Text {
                 text: root.active ? "Desmarcar tudo" : "Marcar tudo";
@@ -207,7 +207,7 @@ component RoleSelect inherits Rectangle {
             AssetIcon {
                 width: 16px; height: parent.height; icon-size: 15px;
                 icon-color: Theme.icon-box-fg;
-                source: @image-url("../assets/icons/1.2/seguranca.svg");
+                source: @image-url("../assets/icons/seguranca.svg");
             }
             Text {
                 horizontal-stretch: 1;
@@ -390,11 +390,11 @@ export component CollaboratorsPage inherits Rectangle {
                                         IconSquare {
                                             box: 38px;
                                             accent-bg: r.id == root.editing-role-id;
-                                            icon: @image-url("../assets/icons/1.2/seguranca.svg");
+                                            icon: @image-url("../assets/icons/seguranca.svg");
                                         }
                                         Rectangle { horizontal-stretch: 1; }
-                                        IconBtnSq { icon: @image-url("../assets/icons/1.2/editar.svg"); clicked => { root.edit-role(r.id); } }
-                                        IconBtnSq { icon: @image-url("../assets/icons/1.2/lixeira.svg"); danger: true; clicked => { root.request-delete(r.id, r.name, "job-role"); } }
+                                        IconBtnSq { icon: @image-url("../assets/icons/editar.svg"); clicked => { root.edit-role(r.id); } }
+                                        IconBtnSq { icon: @image-url("../assets/icons/lixeira.svg"); danger: true; clicked => { root.request-delete(r.id, r.name, "job-role"); } }
                                     }
                                     VerticalLayout {
                                         spacing: 2px;
@@ -422,7 +422,7 @@ export component CollaboratorsPage inherits Rectangle {
                     // Cabeçalho do editor.
                     HorizontalLayout {
                         spacing: 12px;
-                        IconSquare { box: 40px; accent-bg: true; icon: @image-url("../assets/icons/1.2/seguranca.svg"); }
+                        IconSquare { box: 40px; accent-bg: true; icon: @image-url("../assets/icons/seguranca.svg"); }
                         VerticalLayout {
                             horizontal-stretch: 1;
                             alignment: center;
@@ -474,7 +474,7 @@ export component CollaboratorsPage inherits Rectangle {
                         OutlineBtn { label: "Cancelar"; neutral: true; width: 100px; height: 40px; clicked => { root.new-role(); } }
                         ActionBtn {
                             label: "Salvar Função"; bg-color: Theme.btn-accent; width: 144px; height: 40px;
-                            icon: @image-url("../assets/icons/1.2/confirmar.svg");
+                            icon: @image-url("../assets/icons/confirmar.svg");
                             clicked => { root.save-role(root.editing-role-id, root.role-name); }
                         }
                     }
@@ -530,8 +530,8 @@ export component CollaboratorsPage inherits Rectangle {
                                             }
                                         }
                                         Rectangle { horizontal-stretch: 1; }
-                                        if !e.is-admin: IconBtnSq { icon: @image-url("../assets/icons/1.2/editar.svg"); clicked => { root.edit-employee(e.id); } }
-                                        if !e.is-admin: IconBtnSq { icon: @image-url("../assets/icons/1.2/lixeira.svg"); danger: true; clicked => { root.request-delete(e.id, e.name, "employee"); } }
+                                        if !e.is-admin: IconBtnSq { icon: @image-url("../assets/icons/editar.svg"); clicked => { root.edit-employee(e.id); } }
+                                        if !e.is-admin: IconBtnSq { icon: @image-url("../assets/icons/lixeira.svg"); danger: true; clicked => { root.request-delete(e.id, e.name, "employee"); } }
                                     }
                                     VerticalLayout {
                                         spacing: 2px;
@@ -557,7 +557,7 @@ export component CollaboratorsPage inherits Rectangle {
                     spacing: 16px;
                     HorizontalLayout {
                         spacing: 12px;
-                        IconSquare { box: 40px; accent-bg: true; icon: @image-url("../assets/icons/1.2/user.svg"); }
+                        IconSquare { box: 40px; accent-bg: true; icon: @image-url("../assets/icons/user.svg"); }
                         VerticalLayout {
                             alignment: center;
                             spacing: 2px;
@@ -598,7 +598,7 @@ export component CollaboratorsPage inherits Rectangle {
                         OutlineBtn { label: "Cancelar"; neutral: true; width: 100px; height: 40px; clicked => { root.new-employee(); } }
                         ActionBtn {
                             label: "Salvar Funcionário"; bg-color: Theme.btn-accent; width: 164px; height: 40px;
-                            icon: @image-url("../assets/icons/1.2/confirmar.svg");
+                            icon: @image-url("../assets/icons/confirmar.svg");
                             clicked => { root.save-employee(root.emp-id, root.emp-name, root.emp-email, root.emp-password, root.emp-role-index); }
                         }
                     }

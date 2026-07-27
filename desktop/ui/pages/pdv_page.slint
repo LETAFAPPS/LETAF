@@ -202,7 +202,7 @@ export component PdvPage inherits VerticalLayout {
                             width: 22px; height: 22px;
                             icon-size: 20px;
                             icon-color: Theme.text-secondary;
-                            source: @image-url("../assets/icons/1.2/codigo-barras.svg");
+                            source: @image-url("../assets/icons/codigo-barras.svg");
                         }
                     }
                     Rectangle {
@@ -282,7 +282,7 @@ export component PdvPage inherits VerticalLayout {
                         AssetIcon {
                             width: 22px; height: parent.height; icon-size: 18px;
                             icon-color: Theme.text-secondary;
-                            source: @image-url("../assets/icons/1.2/compras-fornecedores.svg");
+                            source: @image-url("../assets/icons/compras-fornecedores.svg");
                         }
                         Text {
                             text: root.cart-count + (root.cart-count == 1 ? " item" : " itens");
@@ -437,7 +437,7 @@ export component PdvPage inherits VerticalLayout {
                     AssetIcon {
                         width: 22px; height: parent.height; icon-size: 20px;
                         icon-color: Theme.text-secondary;
-                        source: @image-url("../assets/icons/1.2/user.svg");
+                        source: @image-url("../assets/icons/user.svg");
                     }
                     VerticalLayout {
                         alignment: center;
@@ -472,7 +472,7 @@ export component PdvPage inherits VerticalLayout {
                             border-radius: 6px; border-width: 1px;
                             border-color: cli-clear-ta.has-hover ? #EF5350 : Theme.border;
                             background: cli-clear-ta.has-hover ? #FFEBEE : Theme.surface;
-                            AssetIcon { width: parent.width; height: parent.height; icon-size: 13px; icon-color: cli-clear-ta.has-hover ? #C62828 : Theme.text-secondary; source: @image-url("../assets/icons/1.2/fechar.svg"); }
+                            AssetIcon { width: parent.width; height: parent.height; icon-size: 13px; icon-color: cli-clear-ta.has-hover ? #C62828 : Theme.text-secondary; source: @image-url("../assets/icons/fechar.svg"); }
                         }
                     }
                 }
@@ -686,7 +686,7 @@ export component PdvPage inherits VerticalLayout {
                                         if !p.has-image: AssetIcon {
                                             width: 64px; height: 64px; icon-size: 30px;
                                             icon-color: #BDBDBD;
-                                            source: @image-url("../assets/icons/1.2/products.svg");
+                                            source: @image-url("../assets/icons/products.svg");
                                         }
                                     }
                                     VerticalLayout {
@@ -917,7 +917,7 @@ export component PdvPage inherits VerticalLayout {
                                                 border-width: 1px;
                                                 border-color: rem-ta.has-hover ? #EF5350 : Theme.border;
                                                 background: rem-ta.has-hover ? #FFEBEE : Theme.surface;
-                                                AssetIcon { width: parent.width; height: parent.height; icon-size: 11px; icon-color: rem-ta.has-hover ? #C62828 : Theme.text-secondary; source: @image-url("../assets/icons/1.2/fechar.svg"); }
+                                                AssetIcon { width: parent.width; height: parent.height; icon-size: 11px; icon-color: rem-ta.has-hover ? #C62828 : Theme.text-secondary; source: @image-url("../assets/icons/fechar.svg"); }
                                             }
                                         }
                                     }
@@ -982,7 +982,7 @@ export component PdvPage inherits VerticalLayout {
                         Rectangle {
                             border-radius: 4px;
                             background: disc-edit-ta.has-hover ? Theme.row-hover : transparent;
-                            AssetIcon { width: parent.width; height: parent.height; icon-size: 12px; icon-color: disc-edit-ta.has-hover ? Theme.primary : Theme.text-secondary; source: @image-url("../assets/icons/1.2/editar.svg"); }
+                            AssetIcon { width: parent.width; height: parent.height; icon-size: 12px; icon-color: disc-edit-ta.has-hover ? Theme.primary : Theme.text-secondary; source: @image-url("../assets/icons/editar.svg"); }
                         }
                     }
                     if !root.discount-editing: Text {
@@ -1020,7 +1020,7 @@ export component PdvPage inherits VerticalLayout {
                         Rectangle {
                             border-radius: 4px;
                             background: disc-ok-ta.has-hover ? Theme.sidebar-sel-bg : transparent;
-                            AssetIcon { width: parent.width; height: parent.height; icon-size: 12px; icon-color: disc-ok-ta.has-hover ? white : Theme.primary; source: @image-url("../assets/icons/1.2/confirmar.svg"); }
+                            AssetIcon { width: parent.width; height: parent.height; icon-size: 12px; icon-color: disc-ok-ta.has-hover ? white : Theme.primary; source: @image-url("../assets/icons/confirmar.svg"); }
                         }
                     }
             }
@@ -1036,7 +1036,7 @@ export component PdvPage inherits VerticalLayout {
                         Rectangle {
                             border-radius: 4px;
                             background: add-edit-ta.has-hover ? Theme.row-hover : transparent;
-                            AssetIcon { width: parent.width; height: parent.height; icon-size: 12px; icon-color: add-edit-ta.has-hover ? Theme.primary : Theme.text-secondary; source: @image-url("../assets/icons/1.2/editar.svg"); }
+                            AssetIcon { width: parent.width; height: parent.height; icon-size: 12px; icon-color: add-edit-ta.has-hover ? Theme.primary : Theme.text-secondary; source: @image-url("../assets/icons/editar.svg"); }
                         }
                     }
                     if !root.additional-editing: Text {
@@ -1074,7 +1074,7 @@ export component PdvPage inherits VerticalLayout {
                         Rectangle {
                             border-radius: 4px;
                             background: add-ok-ta.has-hover ? Theme.sidebar-sel-bg : transparent;
-                            AssetIcon { width: parent.width; height: parent.height; icon-size: 12px; icon-color: add-ok-ta.has-hover ? white : Theme.primary; source: @image-url("../assets/icons/1.2/confirmar.svg"); }
+                            AssetIcon { width: parent.width; height: parent.height; icon-size: 12px; icon-color: add-ok-ta.has-hover ? white : Theme.primary; source: @image-url("../assets/icons/confirmar.svg"); }
                         }
                     }
             }
@@ -1126,9 +1126,9 @@ export component PdvPage inherits VerticalLayout {
                     alignment: stretch;
                     spacing: 6px;
                     for opt[oi] in [
-                        { value: "cash",  label: "Dinheiro", icon: @image-url("../assets/icons/1.2/pay-dinheiro.svg") },
-                        { value: "card",  label: "Cartão",   icon: @image-url("../assets/icons/1.2/app-cartao.svg") },
-                        { value: "pix",   label: "Pix",      icon: @image-url("../assets/icons/1.2/pay-pix.svg") },
+                        { value: "cash",  label: "Dinheiro", icon: @image-url("../assets/icons/pay-dinheiro.svg") },
+                        { value: "card",  label: "Cartão",   icon: @image-url("../assets/icons/app-cartao.svg") },
+                        { value: "pix",   label: "Pix",      icon: @image-url("../assets/icons/pay-pix.svg") },
                     ]: pay-ta := TouchArea {
                         horizontal-stretch: 1;
                         min-width: 72px; height: 40px;
@@ -1179,7 +1179,7 @@ export component PdvPage inherits VerticalLayout {
                                 AssetIcon {
                                     width: 18px; height: parent.height; icon-size: 16px;
                                     icon-color: root.payment-method == "wallet" ? white : Theme.text-primary;
-                                    source: @image-url("../assets/icons/1.2/pay-carteira.svg");
+                                    source: @image-url("../assets/icons/pay-carteira.svg");
                                 }
                                 Text {
                                     text: "Carteira";
@@ -1337,7 +1337,7 @@ export component PdvPage inherits VerticalLayout {
                 ActionBtn {
                     label: "Finalizar Venda";
                     bg-color: Theme.btn-accent;
-                    icon: @image-url("../assets/icons/1.2/confirmar.svg");
+                    icon: @image-url("../assets/icons/confirmar.svg");
                     min-width: 160px; height: 40px;
                     enabled: root.cart-count > 0;
                     clicked => { root.finalize(); }

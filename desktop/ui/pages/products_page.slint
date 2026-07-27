@@ -139,7 +139,7 @@ component ProductRow inherits TouchArea {
                     if root.data.product-image.width <= 0 && !root.data.has-cover-color: AssetIcon {
                         width: 100%; height: 100%; icon-size: 20px;
                         icon-color: Theme.text-secondary;
-                        source: @image-url("../assets/icons/1.2/products.svg");
+                        source: @image-url("../assets/icons/products.svg");
                     }
                 }
             }
@@ -326,7 +326,7 @@ export component ProductsPage inherits Rectangle {
                                 AssetIcon {
                                     width: 100%; height: 100%; icon-size: 16px;
                                     icon-color: Theme.btn-accent;
-                                    source: @image-url("../assets/icons/1.2/adicionar.svg");
+                                    source: @image-url("../assets/icons/adicionar.svg");
                                 }
                             }
                         }
@@ -497,7 +497,7 @@ export component ProductsPage inherits Rectangle {
                                             height: parent.height;
                                             icon-size: 26px;
                                             icon-color: #FF9800;
-                                            source: @image-url("../assets/icons/1.2/atualizar.svg");
+                                            source: @image-url("../assets/icons/atualizar.svg");
                                         }
                                     }
                                 }
@@ -548,7 +548,7 @@ export component ProductsPage inherits Rectangle {
                                         if root.editing-id != "": OutlineBtn {
                                             label: "Excluir"; width: 110px; height: 32px;
                                             btn-color: #EF5350;
-                                            icon: @image-url("../assets/icons/1.2/fechar.svg");
+                                            icon: @image-url("../assets/icons/fechar.svg");
                                             clicked => { root.request-delete(root.detail-product.id, root.detail-product.name, "product"); }
                                         }
                                         ActionBtn {
@@ -576,7 +576,7 @@ export component ProductsPage inherits Rectangle {
                                 if root.editing-id != "": OutlineBtn {
                                     label: "Excluir"; horizontal-stretch: 1; height: 32px;
                                     btn-color: #EF5350;
-                                    icon: @image-url("../assets/icons/1.2/fechar.svg");
+                                    icon: @image-url("../assets/icons/fechar.svg");
                                     clicked => { root.request-delete(root.detail-product.id, root.detail-product.name, "product"); }
                                 }
                                 ActionBtn {
@@ -668,7 +668,7 @@ export component ProductsPage inherits Rectangle {
                                 AssetIcon {
                                     width: 24px; height: 24px; icon-size: 22px;
                                     icon-color: Theme.primary;
-                                    source: @image-url("../assets/icons/1.2/compras-fornecedores.svg");
+                                    source: @image-url("../assets/icons/compras-fornecedores.svg");
                                 }
                             }
                             VerticalLayout {

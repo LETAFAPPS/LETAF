@@ -113,7 +113,7 @@ component CompanyCard inherits Rectangle {
                 AssetIcon {
                     width: parent.width; height: parent.height; icon-size: 28px;
                     icon-color: Theme.btn-accent;
-                    source: @image-url("../assets/icons/1.2/empresa.svg");
+                    source: @image-url("../assets/icons/empresa.svg");
                 }
                 Image {
                     source: root.c.logo;
@@ -247,7 +247,7 @@ component CompanyCard inherits Rectangle {
         VerticalLayout {
             alignment: center;
             IconActionBtn {
-                icon: @image-url("../assets/icons/1.2/app-maleta.svg");
+                icon: @image-url("../assets/icons/app-maleta.svg");
                 hover-color: Theme.btn-accent;
                 hover-bg: Theme.row-hover;
                 clicked => { root.manage-subscription(); }
@@ -256,7 +256,7 @@ component CompanyCard inherits Rectangle {
         VerticalLayout {
             alignment: center;
             IconActionBtn {
-                icon: @image-url("../assets/icons/1.2/visualizar.svg");
+                icon: @image-url("../assets/icons/visualizar.svg");
                 hover-color: Theme.btn-accent;
                 hover-bg: Theme.row-hover;
                 clicked => { root.open-detail(); }
@@ -265,7 +265,7 @@ component CompanyCard inherits Rectangle {
         VerticalLayout {
             alignment: center;
             IconActionBtn {
-                icon: @image-url("../assets/icons/1.2/editar.svg");
+                icon: @image-url("../assets/icons/editar.svg");
                 hover-color: Theme.btn-accent;
                 hover-bg: Theme.row-hover;
                 clicked => { root.edit(); }
@@ -404,7 +404,7 @@ export component AdminCompaniesPage inherits VerticalLayout {
                 AssetIcon {
                     width: parent.width; height: parent.height; icon-size: 17px;
                     icon-color: back-ta.has-hover ? Theme.btn-accent : Theme.text-secondary;
-                    source: @image-url("../assets/icons/1.2/seta-esquerda.svg");
+                    source: @image-url("../assets/icons/seta-esquerda.svg");
                 }
             }
         }
@@ -542,7 +542,7 @@ export component AdminCompaniesPage inherits VerticalLayout {
                             label: "Nome da empresa";
                             value <=> root.form-name;
                             placeholder: "Ex.: Padaria do Zé";
-                            icon: @image-url("../assets/icons/1.2/app-maleta.svg");
+                            icon: @image-url("../assets/icons/app-maleta.svg");
                             error: root.err-name;
                         }
                         FormField {
@@ -550,7 +550,7 @@ export component AdminCompaniesPage inherits VerticalLayout {
                             label: "Subdomínio";
                             value <=> root.form-subdomain;
                             placeholder: "padaria-do-ze";
-                            icon: @image-url("../assets/icons/1.2/link.svg");
+                            icon: @image-url("../assets/icons/link.svg");
                             error: root.err-subdomain;
                             // Subdomínio é a identidade do tenant: imutável na edição.
                             enabled: !root.editing;
@@ -561,7 +561,7 @@ export component AdminCompaniesPage inherits VerticalLayout {
                         label: "CNPJ / CPF";
                         value <=> root.form-document;
                         placeholder: "Somente números";
-                        icon: @image-url("../assets/icons/1.2/arquivo.svg");
+                        icon: @image-url("../assets/icons/arquivo.svg");
                         error: root.err-document;
                         force-end-cursor: true;
                         edited(v) => { root.form-document = root.mask-field("document", v); }
@@ -608,7 +608,7 @@ export component AdminCompaniesPage inherits VerticalLayout {
                             label: "Desconto na mensalidade (R$/mês)";
                             value <=> root.form-discount;
                             placeholder: "0,00 — abatido do plano";
-                            icon: @image-url("../assets/icons/1.2/pay-moeda.svg");
+                            icon: @image-url("../assets/icons/pay-moeda.svg");
                             error: root.err-discount;
                             force-end-cursor: true;
                             edited(v) => { root.form-discount = root.mask-field("money", v); }
@@ -618,7 +618,7 @@ export component AdminCompaniesPage inherits VerticalLayout {
                             label: "Período grátis (dias)";
                             value <=> root.form-trial;
                             placeholder: "0 — sem período grátis";
-                            icon: @image-url("../assets/icons/1.2/calendario.svg");
+                            icon: @image-url("../assets/icons/calendario.svg");
                             force-end-cursor: true;
                             // Só dígitos.
                             edited(v) => { root.form-trial = root.mask-field("digits", v); }
@@ -667,7 +667,7 @@ export component AdminCompaniesPage inherits VerticalLayout {
                             label: "Telefone";
                             value <=> root.form-phone;
                             placeholder: "(00) 0000-0000";
-                            icon: @image-url("../assets/icons/1.2/telefone.svg");
+                            icon: @image-url("../assets/icons/telefone.svg");
                             error: root.err-phone;
                             force-end-cursor: true;
                             edited(v) => { root.form-phone = root.mask-field("phone", v); }
@@ -677,7 +677,7 @@ export component AdminCompaniesPage inherits VerticalLayout {
                             label: "WhatsApp";
                             value <=> root.form-whatsapp;
                             placeholder: "(00) 00000-0000";
-                            icon: @image-url("../assets/icons/1.2/social-whatsapp.svg");
+                            icon: @image-url("../assets/icons/social-whatsapp.svg");
                             error: root.err-whatsapp;
                             force-end-cursor: true;
                             edited(v) => { root.form-whatsapp = root.mask-field("phone", v); }
@@ -687,7 +687,7 @@ export component AdminCompaniesPage inherits VerticalLayout {
                         label: "E-mail da empresa";
                         value <=> root.form-email;
                         placeholder: "contato@empresa.com";
-                        icon: @image-url("../assets/icons/1.2/email.svg");
+                        icon: @image-url("../assets/icons/email.svg");
                         error: root.err-company-email;
                     }
                 }
@@ -702,7 +702,7 @@ export component AdminCompaniesPage inherits VerticalLayout {
                         label: "Endereço";
                         value <=> root.form-address;
                         placeholder: "Rua e número";
-                        icon: @image-url("../assets/icons/1.2/marcador.svg");
+                        icon: @image-url("../assets/icons/marcador.svg");
                         error: root.err-address;
                     }
                     HorizontalLayout {
@@ -712,7 +712,7 @@ export component AdminCompaniesPage inherits VerticalLayout {
                             label: "Bairro";
                             value <=> root.form-neighborhood;
                             placeholder: "Bairro";
-                            icon: @image-url("../assets/icons/1.2/marcador.svg");
+                            icon: @image-url("../assets/icons/marcador.svg");
                             error: root.err-neighborhood;
                         }
                         FormField {
@@ -720,7 +720,7 @@ export component AdminCompaniesPage inherits VerticalLayout {
                             label: "CEP";
                             value <=> root.form-zip;
                             placeholder: "00000-000";
-                            icon: @image-url("../assets/icons/1.2/marcador.svg");
+                            icon: @image-url("../assets/icons/marcador.svg");
                             error: root.err-cep;
                             force-end-cursor: true;
                             // Máscara + consulta de CEP (cidade/UF) no Rust (§1/§3).
@@ -737,7 +737,7 @@ export component AdminCompaniesPage inherits VerticalLayout {
                             label: "Cidade";
                             value <=> root.form-city;
                             placeholder: root.cep-loading ? "Buscando…" : "Cidade";
-                            icon: @image-url("../assets/icons/1.2/marcador.svg");
+                            icon: @image-url("../assets/icons/marcador.svg");
                             error: root.err-city;
                         }
                         FormField {
@@ -756,21 +756,21 @@ export component AdminCompaniesPage inherits VerticalLayout {
                             label: "Latitude";
                             value <=> root.form-latitude;
                             placeholder: root.geocode-loading ? "Buscando…" : "-23.5505";
-                            icon: @image-url("../assets/icons/1.2/fixar.svg");
+                            icon: @image-url("../assets/icons/fixar.svg");
                         }
                         FormField {
                             horizontal-stretch: 1;
                             label: "Longitude";
                             value <=> root.form-longitude;
                             placeholder: root.geocode-loading ? "Buscando…" : "-46.6333";
-                            icon: @image-url("../assets/icons/1.2/fixar.svg");
+                            icon: @image-url("../assets/icons/fixar.svg");
                         }
                     }
                     HorizontalLayout {
                         alignment: start;
                         OutlineBtn {
                             label: root.geocode-loading ? "Buscando…" : "Buscar do endereço";
-                            icon: @image-url("../assets/icons/1.2/fixar.svg");
+                            icon: @image-url("../assets/icons/fixar.svg");
                             height: 34px;
                             clicked => { root.geocode(); }
                         }
@@ -795,7 +795,7 @@ export component AdminCompaniesPage inherits VerticalLayout {
                             label: "Nome";
                             value <=> root.form-admin-name;
                             placeholder: "Nome do responsável";
-                            icon: @image-url("../assets/icons/1.2/usuario.svg");
+                            icon: @image-url("../assets/icons/usuario.svg");
                             error: root.err-admin-name;
                         }
                         FormField {
@@ -803,7 +803,7 @@ export component AdminCompaniesPage inherits VerticalLayout {
                             label: "Telefone do proprietário";
                             value <=> root.form-admin-phone;
                             placeholder: "(00) 00000-0000";
-                            icon: @image-url("../assets/icons/1.2/telefone.svg");
+                            icon: @image-url("../assets/icons/telefone.svg");
                             error: root.err-admin-phone;
                             force-end-cursor: true;
                             edited(v) => { root.form-admin-phone = root.mask-field("phone", v); }
@@ -813,7 +813,7 @@ export component AdminCompaniesPage inherits VerticalLayout {
                         label: "E-mail";
                         value <=> root.form-admin-email;
                         placeholder: "email@dominio.com";
-                        icon: @image-url("../assets/icons/1.2/email.svg");
+                        icon: @image-url("../assets/icons/email.svg");
                         error: root.err-admin-email;
                     }
                     PasswordField {
@@ -839,7 +839,7 @@ export component AdminCompaniesPage inherits VerticalLayout {
                 if root.editing: OutlineBtn {
                     label: "Excluir Empresa";
                     btn-color: Theme.danger;
-                    icon: @image-url("../assets/icons/1.2/lixeira.svg");
+                    icon: @image-url("../assets/icons/lixeira.svg");
                     width: 160px; height: 40px;
                     clicked => { root.delete-company(root.edit-id, root.form-name); }
                 }

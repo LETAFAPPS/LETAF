@@ -495,7 +495,7 @@ component LeftPanel inherits VerticalLayout {
                             spacing: 10px;
                             PaymentChip { kind: opt.kind; width: 44px; height: 22px; y: (parent.height - 22px) / 2; }
                             Text { horizontal-stretch: 1; text: opt.title; font-size: 12px; font-weight: 700; color: Theme.text-primary; vertical-alignment: center; overflow: elide; }
-                            if opt.is-active: AssetIcon { width: 14px; height: 14px; icon-size: 14px; icon-color: Theme.primary; source: @image-url("../assets/icons/1.2/confirmar.svg"); }
+                            if opt.is-active: AssetIcon { width: 14px; height: 14px; icon-size: 14px; icon-color: Theme.primary; source: @image-url("../assets/icons/confirmar.svg"); }
                         }
                     }
                 }
@@ -633,7 +633,7 @@ component RightPanel inherits VerticalLayout {
                             background: baixar-ta.has-hover ? Theme.row-hover : Theme.surface;
                             HorizontalLayout {
                                 alignment: center; spacing: 6px;
-                                VerticalLayout { alignment: center; AssetIcon { width: 14px; height: 14px; icon-size: 14px; icon-color: Theme.text-primary; source: @image-url("../assets/icons/1.2/download.svg"); } }
+                                VerticalLayout { alignment: center; AssetIcon { width: 14px; height: 14px; icon-size: 14px; icon-color: Theme.text-primary; source: @image-url("../assets/icons/download.svg"); } }
                                 Text { text: "Baixar Todos"; font-size: 12px; font-weight: 700; color: Theme.text-primary; vertical-alignment: center; }
                             }
                         }

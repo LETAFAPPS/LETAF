@@ -69,7 +69,7 @@ component RoleCard inherits Rectangle {
         VerticalLayout {
             alignment: center;
             IconActionBtn {
-                icon: @image-url("../assets/icons/1.2/editar.svg");
+                icon: @image-url("../assets/icons/editar.svg");
                 hover-color: Theme.btn-accent;
                 hover-bg: Theme.row-hover;
                 clicked => { root.edit(); }
@@ -78,7 +78,7 @@ component RoleCard inherits Rectangle {
         VerticalLayout {
             alignment: center;
             IconActionBtn {
-                icon: @image-url("../assets/icons/1.2/lixeira.svg");
+                icon: @image-url("../assets/icons/lixeira.svg");
                 hover-color: Theme.danger;
                 hover-bg: #FFEBEE;
                 clicked => { root.remove(); }

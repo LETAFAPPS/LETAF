@@ -83,8 +83,8 @@ component LoginField inherits VerticalLayout {
                 width: 34px; height: 34px; icon-size: 20px;
                 icon-color: eye-ta.has-hover ? #4a4640 : #8a857e;
                 source: root.show-pass
-                    ? @image-url("../assets/icons/1.2/ocultar.svg")
-                    : @image-url("../assets/icons/1.2/visualizar.svg");
+                    ? @image-url("../assets/icons/ocultar.svg")
+                    : @image-url("../assets/icons/visualizar.svg");
             }
         }
 
@@ -347,17 +347,17 @@ export component LoginPage inherits Rectangle {
                 VerticalLayout {
                     spacing: 14px;
                     FeatureRow {
-                        icon: @image-url("../assets/icons/1.2/wifi.svg");
+                        icon: @image-url("../assets/icons/wifi.svg");
                         title: "Funciona Offline";
                         desc: "Cada estação opera sozinha, sem depender da rede.";
                     }
                     FeatureRow {
-                        icon: @image-url("../assets/icons/1.2/atualizar.svg");
+                        icon: @image-url("../assets/icons/atualizar.svg");
                         title: "Sincroniza Automaticamente";
                         desc: "Quando a conexão volta, tudo é reconciliado.";
                     }
                     FeatureRow {
-                        icon: @image-url("../assets/icons/1.2/seguranca.svg");
+                        icon: @image-url("../assets/icons/seguranca.svg");
                         title: "Dados Protegidos";
                         desc: "Acesso restrito e criptografado por estabelecimento.";
                     }
@@ -441,7 +441,7 @@ export component LoginPage inherits Rectangle {
                     label: "Email";
                     value <=> root.email;
                     placeholder: "usuario@email.com";
-                    icon: @image-url("../assets/icons/1.2/email.svg");
+                    icon: @image-url("../assets/icons/email.svg");
                     accepted => { root.do-login(); }
                 }
                 Rectangle { height: 20px; }
@@ -449,7 +449,7 @@ export component LoginPage inherits Rectangle {
                     label: "Senha";
                     value <=> root.password;
                     placeholder: "Sua senha";
-                    icon: @image-url("../assets/icons/1.2/cadeado-aberto.svg");
+                    icon: @image-url("../assets/icons/cadeado-aberto.svg");
                     is-password: true;
                     accepted => { root.do-login(); }
                 }
@@ -575,7 +575,7 @@ export component LoginPage inherits Rectangle {
                         AssetIcon {
                             width: 16px; height: 16px; icon-size: 16px;
                             icon-color: back-ta.has-hover ? #1c1a18 : #6a6460;
-                            source: @image-url("../assets/icons/1.2/seta-esquerda.svg");
+                            source: @image-url("../assets/icons/seta-esquerda.svg");
                         }
                         back-lbl := Text {
                             text: root.recovery-step == 1 ? "Voltar para o login" : "Voltar";
@@ -626,7 +626,7 @@ export component LoginPage inherits Rectangle {
                     label: "Email";
                     value <=> root.recovery-email;
                     placeholder: "usuario@email.com";
-                    icon: @image-url("../assets/icons/1.2/email.svg");
+                    icon: @image-url("../assets/icons/email.svg");
                     accepted => { root.forgot-request(); }
                 }
                 if root.recovery-step == 2: VerticalLayout {
@@ -645,7 +645,7 @@ export component LoginPage inherits Rectangle {
                     label: "Nova senha";
                     value <=> root.recovery-new-password;
                     placeholder: "Mínimo 6 caracteres";
-                    icon: @image-url("../assets/icons/1.2/cadeado-aberto.svg");
+                    icon: @image-url("../assets/icons/cadeado-aberto.svg");
                     is-password: true;
                     accepted => { root.reset-submit(); }
                 }

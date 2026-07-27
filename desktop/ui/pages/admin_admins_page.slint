@@ -77,7 +77,7 @@ component UserCard inherits Rectangle {
                 AssetIcon {
                     width: parent.width; height: parent.height; icon-size: 22px;
                     icon-color: Theme.text-secondary;
-                    source: @image-url("../assets/icons/1.2/usuario.svg");
+                    source: @image-url("../assets/icons/usuario.svg");
                 }
                 Image {
                     source: root.u.avatar;
@@ -117,7 +117,7 @@ component UserCard inherits Rectangle {
         VerticalLayout {
             alignment: center;
             IconActionBtn {
-                icon: @image-url("../assets/icons/1.2/editar.svg");
+                icon: @image-url("../assets/icons/editar.svg");
                 hover-color: Theme.btn-accent;
                 hover-bg: Theme.row-hover;
                 clicked => { root.edit(); }
@@ -127,7 +127,7 @@ component UserCard inherits Rectangle {
         if !root.is-master: VerticalLayout {
             alignment: center;
             IconActionBtn {
-                icon: @image-url("../assets/icons/1.2/lixeira.svg");
+                icon: @image-url("../assets/icons/lixeira.svg");
                 hover-color: Theme.danger;
                 hover-bg: #FFEBEE;
                 clicked => { root.remove(); }

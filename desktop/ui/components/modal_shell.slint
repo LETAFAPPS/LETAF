@@ -8,7 +8,7 @@
 // - Componente sem lógica de negócio; só renderiza e expõe `close()`.
 // - Fonte ÚNICA do visual dos modais: antes cada modal reimplementava overlay +
 //   card + título + divisor, divergindo entre telas.
-// - Só ícones do sistema (`assets/icons/1.2/*.svg`). NADA de emoji — a fonte não
+// - Só ícones do sistema (`assets/icons/*.svg`). NADA de emoji — a fonte não
 //   os renderiza de forma consistente e o glifo saía quebrado.
 //
 // Ações: use `OutlineBtn` (o mesmo das abas de Relatórios). A ação principal vai
@@ -17,7 +17,7 @@
 //
 // Uso:
 //   ModalShell {
-//       icon: @image-url("../assets/icons/1.2/lixeira.svg");
+//       icon: @image-url("../assets/icons/lixeira.svg");
 //       icon-color: Theme.danger;
 //       title: "Confirmar exclusão";
 //       message: "Esta ação não pode ser desfeita.";
