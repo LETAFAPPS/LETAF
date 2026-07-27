@@ -120,16 +120,15 @@ component PrimaryBtn inherits TouchArea {
     Rectangle {
         width: 100%; height: 100%;
         border-radius: 10px;
-        // Normal por padrão (contorno/texto cinza, sem fundo); fica laranja
-        // (estilo tênue de destaque) apenas quando selecionado (hover/press).
-        border-width: 1.5px;
-        border-color: root.has-hover ? Theme.btn-accent : #d8d2ca;
-        background: root.has-hover ? Theme.btn-accent.transparentize(0.85) : transparent;
+        // Botão sólido na cor do menu lateral (a pedido); hover clareia
+        // levemente. Texto claro para contraste.
+        background: root.has-hover ? Theme.sidebar-bg-light : Theme.sidebar-bg;
+        animate background { duration: 120ms; }
         Text {
             text: root.label;
             font-size: 15px;
             font-weight: 700;
-            color: root.has-hover ? Theme.btn-accent : #4a4640;
+            color: #f5f3ef;
             horizontal-alignment: center;
             vertical-alignment: center;
         }
