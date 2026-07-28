@@ -36,6 +36,7 @@ struct SubscriptionRow {
     plan_period_days: i32,
     trial_days: i32,
     plan_discount_monthly: Decimal,
+    plan_discount_name: String,
     created_at: NaiveDateTime,
     updated_at: NaiveDateTime,
     deleted_at: Option<NaiveDateTime>,
@@ -72,6 +73,7 @@ impl From<SubscriptionRow> for Subscription {
             plan_period_days: r.plan_period_days,
             trial_days: r.trial_days,
             plan_discount_monthly: r.plan_discount_monthly,
+            plan_discount_name: r.plan_discount_name,
         }
     }
 }
@@ -188,9 +190,9 @@ impl SubscriptionRepository for PgSubscriptionRepository {
               gateway, gateway_subscription_id, card_status,
               pix_auto_rec_id, pix_auto_status,
               plan_id, plan_name, plan_amount, plan_period_days, trial_days,
-              plan_discount_monthly,
+              plan_discount_monthly, plan_discount_name,
               created_at, updated_at, deleted_at, synced)
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23)",
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24)",
         )
         .bind(s.base.id)
         .bind(s.base.company_id)
@@ -211,6 +213,7 @@ impl SubscriptionRepository for PgSubscriptionRepository {
         .bind(s.plan_period_days)
         .bind(s.trial_days)
         .bind(s.plan_discount_monthly)
+        .bind(&s.plan_discount_name)
         .bind(s.base.created_at)
         .bind(s.base.updated_at)
         .bind(s.base.deleted_at)
@@ -231,9 +234,9 @@ impl SubscriptionRepository for PgSubscriptionRepository {
                     pix_auto_rec_id = $10, pix_auto_status = $11,
                     plan_id = $12, plan_name = $13, plan_amount = $14,
                     plan_period_days = $15, trial_days = $16,
-                    plan_discount_monthly = $17,
-                    updated_at = $18, synced = $19
-              WHERE company_id = $20 AND id = $21 AND deleted_at IS NULL",
+                    plan_discount_monthly = $17, plan_discount_name = $18,
+                    updated_at = $19, synced = $20
+              WHERE company_id = $21 AND id = $22 AND deleted_at IS NULL",
         )
         .bind(s.plan_kind.as_str())
         .bind(s.next_charge_date)
@@ -252,6 +255,7 @@ impl SubscriptionRepository for PgSubscriptionRepository {
         .bind(s.plan_period_days)
         .bind(s.trial_days)
         .bind(s.plan_discount_monthly)
+        .bind(&s.plan_discount_name)
         .bind(s.base.updated_at)
         .bind(s.base.synced)
         .bind(s.base.company_id)
@@ -510,9 +514,9 @@ impl SubscriptionRepository for PgSubscriptionRepository {
               gateway, gateway_subscription_id, card_status,
               pix_auto_rec_id, pix_auto_status,
               plan_id, plan_name, plan_amount, plan_period_days, trial_days,
-              plan_discount_monthly,
+              plan_discount_monthly, plan_discount_name,
               created_at, updated_at, deleted_at, synced)
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24)
              ON CONFLICT (id) DO UPDATE SET
                 plan_kind = EXCLUDED.plan_kind,
                 next_charge_date = EXCLUDED.next_charge_date,
@@ -531,6 +535,7 @@ impl SubscriptionRepository for PgSubscriptionRepository {
                 plan_period_days = EXCLUDED.plan_period_days,
                 trial_days = EXCLUDED.trial_days,
                 plan_discount_monthly = EXCLUDED.plan_discount_monthly,
+                plan_discount_name = EXCLUDED.plan_discount_name,
                 updated_at = EXCLUDED.updated_at,
                 deleted_at = EXCLUDED.deleted_at,
                 synced = EXCLUDED.synced
@@ -555,6 +560,7 @@ impl SubscriptionRepository for PgSubscriptionRepository {
         .bind(s.plan_period_days)
         .bind(s.trial_days)
         .bind(s.plan_discount_monthly)
+        .bind(&s.plan_discount_name)
         .bind(s.base.created_at)
         .bind(s.base.updated_at)
         .bind(s.base.deleted_at)

@@ -1730,6 +1730,7 @@ export component MainWindow inherits Window {
                         AdminState.sub-edit-plan = c.plan-id;
                         AdminState.sub-edit-status = c.status == "none" ? "inactive" : c.status;
                         AdminState.sub-edit-discount = c.discount;
+                        AdminState.sub-edit-discount-name = c.discount-name;
                         AdminState.sub-edit-open = true;
                     }
                     search <=> AdminState.company-search;
@@ -2778,6 +2779,7 @@ export component MainWindow inherits Window {
         plan <=> AdminState.sub-edit-plan;
         status <=> AdminState.sub-edit-status;
         discount <=> AdminState.sub-edit-discount;
+        discount-name <=> AdminState.sub-edit-discount-name;
         busy: AdminState.sub-edit-busy;
         plans: AdminState.plans;
         save => { AdminState.save-subscription(); }

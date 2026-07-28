@@ -29,6 +29,8 @@ pub(super) struct SubscriptionRow {
     payment_kind: String,
     /// Desconto comercial em R$/mês (número puro, ex.: "10").
     discount: String,
+    /// Nome/rótulo do desconto (ex.: "Fidelidade"). Vazio = sem rótulo.
+    discount_name: String,
 }
 
 pub(super) async fn list_subscriptions(
@@ -56,6 +58,7 @@ pub(super) async fn list_subscriptions(
                     .unwrap_or_default(),
                 payment_kind: sub.payment_method.kind.clone(),
                 discount: sub.plan_discount_monthly.normalize().to_string(),
+                discount_name: sub.plan_discount_name.clone(),
             });
         }
     }
@@ -76,6 +79,9 @@ pub(super) struct UpdateSubscriptionRequest {
     /// Desconto comercial em R$/mês (>= 0).
     #[serde(default)]
     discount: Option<f64>,
+    /// Nome/rótulo do desconto. Aplicado quando presente.
+    #[serde(default)]
+    discount_name: Option<String>,
 }
 
 pub(super) async fn update_subscription(
@@ -110,6 +116,10 @@ pub(super) async fn update_subscription(
         let dec = Decimal::from_f64(discount).unwrap_or_default().max(Decimal::ZERO);
         state.subscription_service.set_plan_discount(company_id, dec).await?;
         changes.push(format!("desconto: {dec}"));
+    }
+    if let Some(name) = body.discount_name {
+        state.subscription_service.set_plan_discount_name(company_id, name.clone()).await?;
+        changes.push(format!("nome do desconto: {name}"));
     }
     let label = state
         .company_service

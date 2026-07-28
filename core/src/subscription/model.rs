@@ -165,6 +165,11 @@ pub struct Subscription {
     /// (`× meses`). `0` = sem desconto. Preservado ao trocar de plano.
     #[serde(default)]
     pub plan_discount_monthly: Decimal,
+    /// Nome/rótulo comercial do desconto (ex.: "Fidelidade", "Parceria"),
+    /// definido pelo super admin. Exibido no card de pagamento da loja.
+    /// Vazio = sem rótulo. Preservado ao trocar de plano.
+    #[serde(default)]
+    pub plan_discount_name: String,
 }
 
 impl Subscription {
@@ -186,6 +191,7 @@ impl Subscription {
             plan_period_days: 0,
             trial_days: 0,
             plan_discount_monthly: Decimal::ZERO,
+            plan_discount_name: String::new(),
         }
     }
 

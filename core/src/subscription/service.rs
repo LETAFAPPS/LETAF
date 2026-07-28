@@ -166,6 +166,26 @@ impl SubscriptionService {
         Ok(sub)
     }
 
+    /// Define o NOME/rótulo comercial do desconto (super admin). Separado do
+    /// valor para os fluxos que só ajustam o valor (cadastro de empresa) não
+    /// apagarem o rótulo. Preservado ao trocar de plano.
+    pub async fn set_plan_discount_name(
+        &self,
+        company_id: Uuid,
+        discount_name: String,
+    ) -> Result<Subscription, CoreError> {
+        let mut sub = self
+            .repo
+            .find_current(company_id)
+            .await?
+            .ok_or_else(|| CoreError::NotFound("Assinatura não encontrada".into()))?;
+        sub.plan_discount_name = discount_name.trim().to_string();
+        sub.base.updated_at = chrono::Utc::now().naive_utc();
+        sub.base.synced = false;
+        self.repo.update_subscription(&sub).await?;
+        Ok(sub)
+    }
+
     /// Define o status da assinatura CORRENTE de uma empresa (painel do
     /// super admin). Diferente de `mark_active`/`mark_overdue` (que operam
     /// por `subscription_id`), aqui a chave é o `company_id`, alinhado às

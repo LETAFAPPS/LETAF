@@ -193,7 +193,8 @@ async fn reapply(
         .find_invoices(cid)
         .await
         .unwrap_or_default();
-    let view = build_subscription_view(&sub);
+    let terms = state.subscription_service.terms(&sub);
+    let view = build_subscription_view(&sub, &terms);
 
     // Catálogo do super admin (online). Se vier, é a fonte dos cards;
     // vazio/offline → fallback nos planos fixos locais (offline-first §7).
@@ -332,13 +333,29 @@ fn build_payment_methods(
     options
 }
 
-fn build_subscription_view(sub: &Subscription) -> SubscriptionData {
+fn build_subscription_view(
+    sub: &Subscription,
+    terms: &letaf_core::subscription::service::PlanTerms,
+) -> SubscriptionData {
     // Assinatura de plano do catálogo (super admin) → mostra os termos
     // do snapshot (name/amount/period). Assinatura legada → cai no
-    // catálogo fixo `plan_for(plan_kind)`.
+    // catálogo fixo `plan_for(plan_kind)`. O `plan` dá só rótulo/descrição;
+    // os VALORES vêm de `terms()` (backend, JÁ com o desconto — §11).
     let plan = catalog_plan_view(sub).unwrap_or_else(|| plan_for(sub.plan_kind));
 
-    let cycle_total = plan.total_per_charge;
+    let months = rust_decimal::Decimal::from(terms.months.max(1));
+    // Valores líquidos (com desconto): ciclo e mensalidade equivalente.
+    let cycle_total = terms.amount;
+    let monthly = terms.amount / months;
+    // Desconto abatido no ciclo (bruto − líquido); mostra a linha se > 0.
+    let discount_cycle = (terms.gross_amount - terms.amount).max(rust_decimal::Decimal::ZERO);
+    let has_discount = discount_cycle > rust_decimal::Decimal::ZERO;
+    let discount_label = if sub.plan_discount_name.trim().is_empty() {
+        "Desconto".to_string()
+    } else {
+        format!("Desconto · {}", sub.plan_discount_name.trim())
+    };
+    let discount_amount = format!("- {}", money_br(discount_cycle));
     let charge_line_label = format!("Plano · {}", plan.label);
     let next_charge_display = sub
         .next_charge_date
@@ -369,7 +386,7 @@ fn build_subscription_view(sub: &Subscription) -> SubscriptionData {
             "{}. Sistema completo, sem limites de uso.",
             plan.description
         )),
-        monthly_display: SharedString::from(money_br(plan.monthly_price)),
+        monthly_display: SharedString::from(money_br(monthly)),
         cycle_display: SharedString::from(money_br(cycle_total)),
         next_charge_display: SharedString::from(next_charge_display),
         has_next_charge: sub.next_charge_date.is_some(),
@@ -377,8 +394,13 @@ fn build_subscription_view(sub: &Subscription) -> SubscriptionData {
         payment_method_label: SharedString::from(payment_label),
         payment_method_detail: SharedString::from(payment_detail),
         charge_line_label: SharedString::from(charge_line_label),
-        charge_line_amount: SharedString::from(money_br(plan.monthly_price)),
+        // Linha "Plano ·" mostra o valor BRUTO por mês; o desconto vai numa
+        // linha própria abaixo (net no total).
+        charge_line_amount: SharedString::from(money_br(terms.gross_amount / months)),
         charge_total_display: SharedString::from(money_br(cycle_total)),
+        has_discount,
+        discount_label: SharedString::from(discount_label),
+        discount_amount: SharedString::from(discount_amount),
         current_plan_kind: SharedString::from(sub.plan_kind.as_str()),
         card_active: sub.has_active_card(),
         pix_auto_active: sub.has_active_pix_auto(),

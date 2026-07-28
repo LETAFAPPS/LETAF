@@ -33,6 +33,7 @@ struct SubscriptionRow {
     plan_period_days: i64,
     trial_days: i64,
     plan_discount_monthly: f64,
+    plan_discount_name: String,
     created_at: String,
     updated_at: String,
     deleted_at: Option<String>,
@@ -64,6 +65,7 @@ impl TryFrom<SubscriptionRow> for Subscription {
             plan_period_days: r.plan_period_days as i32,
             trial_days: r.trial_days as i32,
             plan_discount_monthly: letaf_core::money::from_db_f64(r.plan_discount_monthly),
+            plan_discount_name: r.plan_discount_name,
         })
     }
 }
@@ -157,9 +159,9 @@ impl SubscriptionRepository for SqliteSubscriptionRepository {
               gateway, gateway_subscription_id, card_status,
               pix_auto_rec_id, pix_auto_status,
               plan_id, plan_name, plan_amount, plan_period_days, trial_days,
-              plan_discount_monthly,
+              plan_discount_monthly, plan_discount_name,
               created_at, updated_at, deleted_at, synced)
-             VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?20,?21,?22,?23)",
+             VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?20,?21,?22,?23,?24)",
         )
         .bind(s.base.id.to_string())
         .bind(s.base.company_id.to_string())
@@ -180,6 +182,7 @@ impl SubscriptionRepository for SqliteSubscriptionRepository {
         .bind(s.plan_period_days as i64)
         .bind(s.trial_days as i64)
         .bind(s.plan_discount_monthly.to_f64().unwrap_or(0.0))
+        .bind(&s.plan_discount_name)
         .bind(ts(s.base.created_at))
         .bind(ts(s.base.updated_at))
         .bind(s.base.deleted_at.map(ts))
@@ -200,9 +203,9 @@ impl SubscriptionRepository for SqliteSubscriptionRepository {
                     pix_auto_rec_id = ?10, pix_auto_status = ?11,
                     plan_id = ?12, plan_name = ?13, plan_amount = ?14,
                     plan_period_days = ?15, trial_days = ?16,
-                    plan_discount_monthly = ?17,
-                    updated_at = ?18, synced = ?19
-              WHERE company_id = ?20 AND id = ?21 AND deleted_at IS NULL",
+                    plan_discount_monthly = ?17, plan_discount_name = ?18,
+                    updated_at = ?19, synced = ?20
+              WHERE company_id = ?21 AND id = ?22 AND deleted_at IS NULL",
         )
         .bind(s.plan_kind.as_str())
         .bind(s.next_charge_date.map(date_str))
@@ -221,6 +224,7 @@ impl SubscriptionRepository for SqliteSubscriptionRepository {
         .bind(s.plan_period_days as i64)
         .bind(s.trial_days as i64)
         .bind(s.plan_discount_monthly.to_f64().unwrap_or(0.0))
+        .bind(&s.plan_discount_name)
         .bind(ts(s.base.updated_at))
         .bind(s.base.synced)
         .bind(s.base.company_id.to_string())
@@ -480,9 +484,9 @@ impl SubscriptionRepository for SqliteSubscriptionRepository {
               gateway, gateway_subscription_id, card_status,
               pix_auto_rec_id, pix_auto_status,
               plan_id, plan_name, plan_amount, plan_period_days, trial_days,
-              plan_discount_monthly,
+              plan_discount_monthly, plan_discount_name,
               created_at, updated_at, deleted_at, synced)
-             VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?20,?21,?22,?23)
+             VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?20,?21,?22,?23,?24)
              ON CONFLICT (id) DO UPDATE SET
                 plan_kind = excluded.plan_kind,
                 next_charge_date = excluded.next_charge_date,
@@ -501,6 +505,7 @@ impl SubscriptionRepository for SqliteSubscriptionRepository {
                 plan_period_days = excluded.plan_period_days,
                 trial_days = excluded.trial_days,
                 plan_discount_monthly = excluded.plan_discount_monthly,
+                plan_discount_name = excluded.plan_discount_name,
                 updated_at = excluded.updated_at,
                 deleted_at = excluded.deleted_at,
                 synced = excluded.synced
@@ -525,6 +530,7 @@ impl SubscriptionRepository for SqliteSubscriptionRepository {
         .bind(s.plan_period_days as i64)
         .bind(s.trial_days as i64)
         .bind(s.plan_discount_monthly.to_f64().unwrap_or(0.0))
+        .bind(&s.plan_discount_name)
         .bind(ts(s.base.created_at))
         .bind(ts(s.base.updated_at))
         .bind(s.base.deleted_at.map(ts))

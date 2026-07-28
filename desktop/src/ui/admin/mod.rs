@@ -127,6 +127,8 @@ struct CompanyDto {
     next_charge: String,
     #[serde(default)]
     discount: String,
+    #[serde(default)]
+    discount_name: String,
 }
 
 /// Dados brutos de uma empresa para pré-preencher o cadastro em edição
@@ -541,6 +543,7 @@ fn apply_company_filter(ui: &MainWindow, cache: &CompaniesCache) {
             payment_kind: c.payment_kind.clone().into(),
             next_charge: c.next_charge.clone().into(),
             discount: c.discount.clone().into(),
+            discount_name: c.discount_name.clone().into(),
         })
         .collect();
     ui.global::<AdminState>().set_companies(ModelRc::new(VecModel::from(rows)));
@@ -1586,6 +1589,7 @@ fn setup_persist(
             }
             let plan = ui.global::<AdminState>().get_sub_edit_plan().to_string();
             let status = ui.global::<AdminState>().get_sub_edit_status().to_string();
+            let discount_name = ui.global::<AdminState>().get_sub_edit_discount_name().to_string();
             // Aceita vírgula ou ponto como separador decimal.
             let discount: f64 = ui
                 .global::<AdminState>().get_sub_edit_discount()
@@ -1597,6 +1601,7 @@ fn setup_persist(
             ui.global::<AdminState>().set_sub_edit_busy(true);
             let body = serde_json::json!({
                 "plan": plan, "status": status, "discount": discount,
+                "discount_name": discount_name,
             });
             let ui_weak = ui.as_weak();
             let auth_token = auth_token.clone();

@@ -50,6 +50,7 @@ export global AdminState {
     in-out property <string> sub-edit-plan: "monthly";
     in-out property <string> sub-edit-status: "active";
     in-out property <string> sub-edit-discount: "0";
+    in-out property <string> sub-edit-discount-name: "";
     callback save-subscription();
     in-out property <[AdminInvoiceRow]> invoices: [];
     callback load-invoices(string);

@@ -57,6 +57,8 @@ export struct AdminCompanyRow {
     payment-kind: string,
     next-charge: string,
     discount: string,
+    // Nome/rótulo do desconto (pré-preenche o modal de gerenciar).
+    discount-name: string,
 }
 
 export struct AdminInvoiceRow {
@@ -1402,6 +1404,12 @@ export struct SubscriptionData {
     charge-line-amount: string,
     /// "R$ 200,00" / "R$ 1.140,00".
     charge-total-display: string,
+    /// Desconto comercial: `true` mostra a linha no card de pagamento.
+    has-discount: bool,
+    /// Rótulo do desconto ("Desconto · Fidelidade" ou só "Desconto").
+    discount-label: string,
+    /// Valor do desconto no ciclo, já com sinal ("- R$ 60,00").
+    discount-amount: string,
     /// Plano atualmente ativo ("monthly" | "semestral" | "annual") — usado
     /// pra realçar o card escolhido.
     current-plan-kind: string,

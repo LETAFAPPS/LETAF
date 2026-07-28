@@ -37,6 +37,7 @@ export component AdminSubscriptionModal inherits Rectangle {
     in-out property <string> plan;      // "monthly" | "semestral" | "annual"
     in-out property <string> status;    // "active" | "overdue" | "cancelled"
     in-out property <string> discount;  // R$/mês (número puro)
+    in-out property <string> discount-name;  // rótulo do desconto (ex.: "Fidelidade")
     in property <bool> busy;
     // Planos CADASTRADOS no sistema (catálogo). As chips vêm daqui.
     in property <[AdminPlanRow]> plans;
@@ -91,6 +92,12 @@ export component AdminSubscriptionModal inherits Rectangle {
                 label: "Desconto (R$/mês)";
                 value <=> root.discount;
                 placeholder: "0";
+            }
+
+            FormField {
+                label: "Nome do desconto";
+                value <=> root.discount-name;
+                placeholder: "Ex.: Fidelidade, Parceria";
             }
 
             // Ação alinhada à direita.
