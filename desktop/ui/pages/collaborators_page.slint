@@ -393,7 +393,7 @@ export component CollaboratorsPage inherits Rectangle {
                                             icon: @image-url("../assets/icons/seguranca.svg");
                                         }
                                         Rectangle { horizontal-stretch: 1; }
-                                        IconBtnSq { icon: @image-url("../assets/icons/editar.svg"); clicked => { root.edit-role(r.id); } }
+                                        // Editar é ao clicar no card; só o excluir fica como botão.
                                         IconBtnSq { icon: @image-url("../assets/icons/lixeira.svg"); danger: true; clicked => { root.request-delete(r.id, r.name, "job-role"); } }
                                     }
                                     VerticalLayout {
@@ -530,7 +530,7 @@ export component CollaboratorsPage inherits Rectangle {
                                             }
                                         }
                                         Rectangle { horizontal-stretch: 1; }
-                                        if !e.is-admin: IconBtnSq { icon: @image-url("../assets/icons/editar.svg"); clicked => { root.edit-employee(e.id); } }
+                                        // Editar é ao clicar no card; só o excluir fica como botão.
                                         if !e.is-admin: IconBtnSq { icon: @image-url("../assets/icons/lixeira.svg"); danger: true; clicked => { root.request-delete(e.id, e.name, "employee"); } }
                                     }
                                     VerticalLayout {
