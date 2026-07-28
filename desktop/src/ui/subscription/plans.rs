@@ -429,9 +429,9 @@ fn catalog_to_plan(p: &CatalogPlan) -> Option<letaf_core::plan::model::Plan> {
 /// Monta o card a partir de um plano do catálogo (dinâmico).
 fn catalog_plan_card(p: &CatalogPlan, baseline_monthly: f64) -> PlanCardData {
     let cycle_display = if p.period_days > 1 {
-        format!("{} a cada {} meses", money_br(letaf_core::money::from_db_f64(p.amount)), p.period_days)
+        format!("{} a cada {} dias", money_br(letaf_core::money::from_db_f64(p.amount)), p.period_days)
     } else {
-        "Cobrado Mensalmente".to_string()
+        "Cobrado diariamente".to_string()
     };
     let savings = baseline_monthly - p.monthly_price; // f64 (catalog admin)
     let savings_label = if savings > 0.5 {
@@ -786,8 +786,9 @@ fn catalog_plan_view(sub: &Subscription) -> Option<letaf_core::subscription::mod
     if !sub.is_catalog_plan() {
         return None;
     }
-    let months = sub.plan_period_days.max(1);
-    let monthly = sub.plan_amount / rust_decimal::Decimal::from(months);
+    let days = sub.plan_period_days.max(1);
+    // Mensalidade equivalente (R$/mês) = valor por ciclo ÷ (dias ÷ 30).
+    let monthly = sub.plan_amount * rust_decimal::Decimal::from(30) / rust_decimal::Decimal::from(days);
     Some(letaf_core::subscription::model::Plan {
         kind: sub.plan_kind,
         label: sub.plan_name.clone(),
@@ -795,10 +796,10 @@ fn catalog_plan_view(sub: &Subscription) -> Option<letaf_core::subscription::mod
         total_per_charge: sub.plan_amount,
         savings_label: String::new(),
         highlight_label: String::new(),
-        description: if months > 1 {
-            format!("Cobrado a cada {months} meses")
+        description: if days > 1 {
+            format!("Cobrado a cada {days} dias")
         } else {
-            "Cobrado mensalmente · Cancele quando quiser".to_string()
+            "Cobrado diariamente · Cancele quando quiser".to_string()
         },
     })
 }
