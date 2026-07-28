@@ -159,10 +159,28 @@ impl SubscriptionService {
             .find_current(company_id)
             .await?
             .ok_or_else(|| CoreError::NotFound("Assinatura não encontrada".into()))?;
-        sub.plan_discount_monthly = discount_monthly.max(Decimal::ZERO);
-        sub.base.updated_at = chrono::Utc::now().naive_utc();
-        sub.base.synced = false;
-        self.repo.update_subscription(&sub).await?;
+        let new_val = discount_monthly.max(Decimal::ZERO);
+        // Só valida/grava quando o valor MUDA — o painel reenvia o desconto em
+        // todo save (mudar só o status não deve disparar as regras abaixo).
+        if crate::money::round2(new_val) != crate::money::round2(sub.plan_discount_monthly) {
+            // Recorrência ativa no gateway cobra um valor de MANDATO fixo; mudar
+            // o desconto agora faria o valor exibido divergir do cobrado até o
+            // recadastro. Bloqueia (mesmo critério da troca de plano).
+            if sub.has_active_card() {
+                return Err(CoreError::Validation(
+                    "Cancele o cartão recorrente antes de alterar o desconto e cadastre-o novamente com o novo valor.".into(),
+                ));
+            }
+            if sub.has_active_pix_auto() {
+                return Err(CoreError::Validation(
+                    "Cancele o PIX Automático antes de alterar o desconto e ative-o novamente com o novo valor.".into(),
+                ));
+            }
+            sub.plan_discount_monthly = new_val;
+            sub.base.updated_at = chrono::Utc::now().naive_utc();
+            sub.base.synced = false;
+            self.repo.update_subscription(&sub).await?;
+        }
         Ok(sub)
     }
 
