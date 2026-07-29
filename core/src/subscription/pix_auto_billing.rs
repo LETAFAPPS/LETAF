@@ -66,7 +66,15 @@ impl PixAutoBillingService {
                 cpf: customer_cpf,
             },
             notification_url: self.notification_url.clone(),
-            custom_id: sub.base.id.to_string(),
+            // `contrato` do mandato precisa ser ÚNICO por recorrência na Efi
+            // (reusar o id da assinatura dá 400 "contrato já tem recorrência
+            // ativa" ao reativar). Prefixo do id da assinatura (rastreio) +
+            // timestamp em hex → alfanumérico e < 35 chars (a Efi corta em 35).
+            custom_id: {
+                let sub_hex = sub.base.id.simple().to_string();
+                let prefix: String = sub_hex.chars().take(16).collect();
+                format!("{prefix}{:x}", chrono::Utc::now().timestamp_millis())
+            },
         };
         let created = self.gateway.create_recurrence(&input).await?;
         let updated = self
