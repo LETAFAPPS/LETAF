@@ -4,6 +4,7 @@ members = [
     "server",
     "desktop",
     "web",
+    "cardwin",
 ]
 resolver = "2"
 

@@ -1,0 +1,12 @@
+[package]
+name = "letaf-cardwin"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "letaf-cardwin"
+path = "src/main.rs"
+
+[dependencies]
+tao = "0.35.3"
+wry = "0.55.1"
