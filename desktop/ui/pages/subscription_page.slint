@@ -397,6 +397,52 @@ component LeftPanel inherits VerticalLayout {
         }
     }
 
+    // Formas de pagamento recorrente — ACIMA do plano atual (a pedido).
+    // Quando já há informação salva, o botão indica (verde: "cadastrado"/
+    // "ativo"); ao passar o mouse vira a ação de cancelar (vermelho).
+    HorizontalLayout {
+        spacing: 10px;
+        card-ta := TouchArea {
+            horizontal-stretch: 1; height: 34px;
+            clicked => { if root.data.card-active { root.cancel-card(); } else { root.open-card-modal(); } }
+            Rectangle {
+                border-radius: 8px;
+                border-width: 1px;
+                border-color: root.data.card-active ? (card-ta.has-hover ? #E53935 : #2E7D32) : Theme.border;
+                background: card-ta.has-hover ? (root.data.card-active ? #FDECEA : #00000008) : Theme.surface;
+                Text {
+                    width: parent.width; height: parent.height;
+                    text: root.data.card-active
+                        ? (card-ta.has-hover ? "Cancelar cartão" : "Cartão cadastrado")
+                        : "+ Cartão";
+                    font-size: 12px; font-weight: 700;
+                    color: root.data.card-active ? (card-ta.has-hover ? #E53935 : #2E7D32) : Theme.text-primary;
+                    horizontal-alignment: center; vertical-alignment: center;
+                }
+            }
+        }
+        pixauto-ta := TouchArea {
+            horizontal-stretch: 1; height: 34px;
+            clicked => { if root.data.pix-auto-active { root.cancel-pix-auto(); } else { root.open-pix-auto(); } }
+            Rectangle {
+                border-radius: 8px;
+                border-width: root.data.pix-auto-active ? 1px : 1.5px;
+                border-color: root.data.pix-auto-active ? (pixauto-ta.has-hover ? #E53935 : #2E7D32) : Theme.sidebar-sel-bg;
+                background: pixauto-ta.has-hover ? Theme.row-hover
+                    : (root.data.pix-auto-active ? Theme.surface : transparent);
+                Text {
+                    width: parent.width; height: parent.height;
+                    text: root.data.pix-auto-active
+                        ? (pixauto-ta.has-hover ? "Cancelar PIX Auto" : "PIX Auto ativo")
+                        : "+ PIX Auto";
+                    font-size: 12px; font-weight: 700;
+                    color: root.data.pix-auto-active ? (pixauto-ta.has-hover ? #E53935 : #2E7D32) : Theme.sidebar-sel-bg;
+                    horizontal-alignment: center; vertical-alignment: center;
+                }
+            }
+        }
+    }
+
     // PLANO ATUAL
     Rectangle {
         border-radius: 16px;
@@ -554,35 +600,6 @@ component LeftPanel inherits VerticalLayout {
         }
     }
 
-    // Botões: + Cartão (contorno) · + PIX Auto (marrom)
-    HorizontalLayout {
-        spacing: 10px;
-        card-ta := TouchArea {
-            horizontal-stretch: 1; height: 32px;
-            clicked => { if root.data.card-active { root.cancel-card(); } else { root.open-card-modal(); } }
-            Rectangle {
-                border-radius: 8px;
-                border-width: 1px;
-                border-color: root.data.card-active ? #E53935 : Theme.border;
-                background: card-ta.has-hover ? (root.data.card-active ? #FDECEA : #00000008) : Theme.surface;
-                Text { width: parent.width; height: parent.height; text: root.data.card-active ? "Cancelar cartão" : "+ Cartão"; font-size: 12px; font-weight: 700; color: root.data.card-active ? #E53935 : Theme.text-primary; horizontal-alignment: center; vertical-alignment: center; }
-            }
-        }
-        pixauto-ta := TouchArea {
-            horizontal-stretch: 1; height: 32px;
-            clicked => { if root.data.pix-auto-active { root.cancel-pix-auto(); } else { root.open-pix-auto(); } }
-            Rectangle {
-                border-radius: 8px;
-                // "+ PIX Auto" = outline de destaque (estilo Relatórios);
-                // "Cancelar PIX Auto" = outline vermelho (ação de cancelar).
-                border-width: root.data.pix-auto-active ? 1px : 1.5px;
-                border-color: root.data.pix-auto-active ? #E53935 : Theme.sidebar-sel-bg;
-                background: pixauto-ta.has-hover ? Theme.row-hover
-                    : (root.data.pix-auto-active ? Theme.surface : transparent);
-                Text { width: parent.width; height: parent.height; text: root.data.pix-auto-active ? "Cancelar PIX Auto" : "+ PIX Auto"; font-size: 12px; font-weight: 700; color: root.data.pix-auto-active ? #E53935 : Theme.sidebar-sel-bg; horizontal-alignment: center; vertical-alignment: center; }
-            }
-        }
-    }
 }
 
 // ── Coluna direita: escolher plano + faturas ───────────────────────
