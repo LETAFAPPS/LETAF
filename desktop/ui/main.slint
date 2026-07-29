@@ -831,6 +831,8 @@ export component MainWindow inherits Window {
     in-out property <float>            pdv-split-v3: 0;
     /// Restante do rateio formatado (informativo).
     in-out property <string>           pdv-split-remaining-display: "";
+    /// Troco do rateio formatado (quando o pago excede o total).
+    in-out property <string>           pdv-split-change-display: "";
     in-out property <string>           pdv-customer-id: "";
     in-out property <string>           pdv-customer-name: "";
     in-out property <string>           pdv-delivery-street: "";
@@ -1642,6 +1644,7 @@ export component MainWindow inherits Window {
             split-v2 <=> root.pdv-split-v2;
             split-v3 <=> root.pdv-split-v3;
             split-remaining-display: root.pdv-split-remaining-display;
+            split-change-display: root.pdv-split-change-display;
             split-amount-changed(i, v) => { root.pdv-split-amount-changed(i, v); }
             customer-name: root.pdv-customer-name;
             wallet-has-account: root.pdv-wallet-has-account;

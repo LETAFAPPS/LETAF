@@ -133,5 +133,12 @@ pub(crate) fn apply_state_to_ui(ui: &MainWindow, pdv: &Arc<Mutex<PdvState>>) {
             + ui.get_pdv_split_v2() as f64
             + ui.get_pdv_split_v3() as f64;
         ui.set_pdv_split_remaining_display(SharedString::from(fmt_brl((total - paid).max(0.0))));
+        // Troco do rateio: quando o pago excede o total (não bloqueia).
+        let change = (paid - total).max(0.0);
+        ui.set_pdv_split_change_display(if change > 0.0 {
+            SharedString::from(fmt_brl(change))
+        } else {
+            SharedString::default()
+        });
     }
 }

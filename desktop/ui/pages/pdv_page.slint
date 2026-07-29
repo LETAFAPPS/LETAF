@@ -151,8 +151,11 @@ export component PdvPage inherits VerticalLayout {
     in-out property <float> split-v2;
     in-out property <float> split-v3;
     in property <string> split-remaining-display;
+    in property <string> split-change-display;
     /// Restante do rateio (cru) — dirige a revelação progressiva.
     property <float> split-remaining: max(0, root.total-amount - root.split-v1 - root.split-v2 - root.split-v3);
+    /// Troco do rateio (cru): quanto o pago excede o total.
+    property <float> split-change: max(0, root.split-v1 + root.split-v2 + root.split-v3 - root.total-amount);
     /// Revela a 2ª forma quando a 1ª tem método + valor e ainda falta.
     property <bool> split-show-2:
         root.split-enabled && root.split-m1 != "" && root.split-v1 > 0
@@ -247,13 +250,14 @@ export component PdvPage inherits VerticalLayout {
         + (!root.split-enabled && root.payment-method == "cash" ? 52px : 0px)                         // input Valor Pago
         + (!root.split-enabled && root.payment-method == "card" ? 52px : 0px)                         // Crédito/Débito
         + (!root.split-enabled && root.payment-method == "wallet" ? 64px : 0px)                       // box da carteira
-        + (!root.split-enabled && root.remaining-display != "" ? 58px : 0px)                          // display RESTANTE
+        + (!root.split-enabled && root.remaining-display != "" ? 74px : 0px)                          // display RESTANTE (bloco + divisor + spacing)
         + (!root.split-enabled && root.payment-method == "cash" && root.remaining-display != "" ? 54px : 0px) // botões do restante
-        + (!root.split-enabled && root.change-display != "" ? 44px : 0px)                             // display Troco
+        + (!root.split-enabled && root.change-display != "" ? 74px : 0px)                             // display Troco (bloco + divisor + spacing)
         + (root.split-enabled ? 60px : 0px)                                                          // extra da 1ª linha do rateio
         + (root.split-show-2 ? 100px : 0px)                                                          // 2ª linha do rateio
         + (root.split-show-3 ? 100px : 0px)                                                          // 3ª linha do rateio
-        + (root.split-enabled && root.split-remaining > 0.005 ? 26px : 0px);                         // "Restante" do rateio
+        + (root.split-enabled && root.split-remaining > 0.005 ? 26px : 0px)                          // "Restante" do rateio
+        + (root.split-enabled && root.split-change > 0.005 ? 26px : 0px);                            // "Troco" do rateio
 
     /// Devolve o foco à barra de busca (e zera o contador de inputs
     /// ativos). Chamada de fora (ex.: ao fechar o modal de venda) para
@@ -1576,6 +1580,19 @@ export component PdvPage inherits VerticalLayout {
                         Text {
                             text: root.split-remaining-display;
                             font-size: 13px; font-weight: 800; color: Theme.danger;
+                            vertical-alignment: center;
+                        }
+                    }
+                    // Troco do rateio — quando o pago excede o total.
+                    if root.split-change > 0.005: HorizontalLayout {
+                        Text {
+                            text: "Troco"; font-size: 10px; font-weight: 700;
+                            color: Theme.text-secondary; vertical-alignment: center;
+                        }
+                        Rectangle { horizontal-stretch: 1; }
+                        Text {
+                            text: root.split-change-display;
+                            font-size: 13px; font-weight: 800; color: #2E7D32;
                             vertical-alignment: center;
                         }
                     }
