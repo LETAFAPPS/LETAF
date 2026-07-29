@@ -105,40 +105,31 @@ pub(crate) fn apply_state_to_ui(ui: &MainWindow, pdv: &Arc<Mutex<PdvState>>) {
     ui.set_pdv_total_amount(total as f32);
     ui.set_pdv_cart_count(count);
 
-    // Troco / restante (só relevante em payment_method == "cash").
+    // Troco / restante — mesmo bloco (abaixo do TOTAL) para o fluxo
+    // único (Dinheiro) e para o rateio (pagamento parcial). O valor
+    // pago vem do campo Valor Pago ou da soma das linhas do rateio.
     let method = ui.get_pdv_payment_method().to_string();
-    if method == "cash" {
-        let paid = g.amount_paid;
-        if paid >= total && total > 0.0 {
-            let change = (paid - total).max(0.0);
-            ui.set_pdv_change_display(SharedString::from(fmt_brl(change)));
-            ui.set_pdv_remaining_display(SharedString::default());
-        } else if paid > 0.0 && paid < total {
-            let remaining = (total - paid).max(0.0);
-            ui.set_pdv_remaining_display(SharedString::from(fmt_brl(remaining)));
-            ui.set_pdv_change_display(SharedString::default());
-        } else {
-            ui.set_pdv_change_display(SharedString::default());
-            ui.set_pdv_remaining_display(SharedString::default());
-        }
+    let split = ui.get_pdv_split_enabled();
+    let paid = if split {
+        ui.get_pdv_split_v1() as f64 + ui.get_pdv_split_v2() as f64 + ui.get_pdv_split_v3() as f64
+    } else if method == "cash" {
+        g.amount_paid
     } else {
-        ui.set_pdv_change_display(SharedString::default());
-        ui.set_pdv_remaining_display(SharedString::default());
-    }
-
-    // Rateio (pagamento parcial): restante = total - soma das linhas.
-    // Só informativo; não bloqueia a finalização.
-    if ui.get_pdv_split_enabled() {
-        let paid = ui.get_pdv_split_v1() as f64
-            + ui.get_pdv_split_v2() as f64
-            + ui.get_pdv_split_v3() as f64;
-        ui.set_pdv_split_remaining_display(SharedString::from(fmt_brl((total - paid).max(0.0))));
-        // Troco do rateio: quando o pago excede o total (não bloqueia).
+        0.0
+    };
+    if paid >= total && paid > 0.0 && total > 0.0 {
         let change = (paid - total).max(0.0);
-        ui.set_pdv_split_change_display(if change > 0.0 {
+        ui.set_pdv_change_display(if change > 0.0 {
             SharedString::from(fmt_brl(change))
         } else {
             SharedString::default()
         });
+        ui.set_pdv_remaining_display(SharedString::default());
+    } else if paid > 0.0 && paid < total {
+        ui.set_pdv_remaining_display(SharedString::from(fmt_brl((total - paid).max(0.0))));
+        ui.set_pdv_change_display(SharedString::default());
+    } else {
+        ui.set_pdv_change_display(SharedString::default());
+        ui.set_pdv_remaining_display(SharedString::default());
     }
 }
