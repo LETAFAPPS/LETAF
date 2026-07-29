@@ -107,7 +107,7 @@ const TEMPLATE: &str = r##"<!DOCTYPE html>
         <div><label>CVV</label><input id="cvv" inputmode="numeric" placeholder="123" maxlength="4" required></div>
       </div>
 
-      <div class="sec">Titular (antifraude)</div>
+      <div class="sec">Titular (Antifraude)</div>
       <div class="row">
         <div><label>CPF/CNPJ</label><input id="cpf" inputmode="numeric" placeholder="000.000.000-00" required></div>
         <div><label>Nascimento</label><input id="birth" type="date" required></div>

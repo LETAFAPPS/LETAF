@@ -1503,6 +1503,10 @@ export component MainWindow inherits Window {
                 } else if tab == "orders" {
                     root.order-detail-id = "";
                     root.refresh-orders();
+                } else if tab == "pdv" {
+                    // Recarrega produtos/categorias ao abrir o PDV — senão um
+                    // produto recém-cadastrado não aparece até reiniciar o app.
+                    root.pdv-refresh();
                 } else if tab == "settings" {
                     root.refresh-business-hours();
                 } else if tab == "banners" {
