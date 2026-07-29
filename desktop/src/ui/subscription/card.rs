@@ -64,28 +64,6 @@ fn open_in_browser(url: &str) -> bool {
         .is_ok()
 }
 
-/// Abre a URL numa JANELA DO PRÓPRIO APP (WebView), via o binário auxiliar
-/// `letaf-cardwin` que fica ao lado do executável. A tokenização segue
-/// client-side (Efi.js); nada de cartão passa pelo nosso servidor (§11).
-/// `false` se o binário não for encontrado/não iniciar (o chamador cai no
-/// navegador como fallback).
-fn open_in_card_window(url: &str) -> bool {
-    let Ok(exe) = std::env::current_exe() else {
-        return false;
-    };
-    let Some(dir) = exe.parent() else {
-        return false;
-    };
-    let bin = if cfg!(windows) {
-        dir.join("letaf-cardwin.exe")
-    } else {
-        dir.join("letaf-cardwin")
-    };
-    if !bin.exists() {
-        return false;
-    }
-    std::process::Command::new(bin).arg(url).spawn().is_ok()
-}
 
 pub(crate) fn setup_card(
     ui: &MainWindow,
@@ -156,14 +134,13 @@ pub(crate) fn setup_card(
                     return;
                 }
             };
-            // 2) Abre a página de cadastro (Efi.js) numa janela do PRÓPRIO app
-            //    (WebView). Se o binário auxiliar não estiver disponível, cai
-            //    no navegador externo como fallback.
+            // 2) Abre a etapa SEGURA de cartão (Efi.js) no navegador — a
+            //    tokenização é client-side (PAN/CVV não passam pelo nosso
+            //    servidor). É o análogo à autorização do PIX Automático, que
+            //    acontece no app do banco.
             let page = format!("{}/pay/card?s={}", url, session);
-            if open_in_card_window(&page) {
-                toast(&ui_weak, "Abri a janela de cadastro do cartão. Aguardando…".into(), "info");
-            } else if open_in_browser(&page) {
-                toast(&ui_weak, "Abri o navegador para cadastrar o cartão. Aguardando…".into(), "info");
+            if open_in_browser(&page) {
+                toast(&ui_weak, "Abri o navegador para a etapa segura do cartão. Aguardando…".into(), "info");
             } else {
                 toast(&ui_weak, format!("Abra no navegador: {page}"), "info");
             }

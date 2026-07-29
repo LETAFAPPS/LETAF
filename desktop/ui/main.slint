@@ -2274,7 +2274,7 @@ export component MainWindow inherits Window {
                 download-invoice(id) => { root.subscription-download-invoice(id); }
                 download-all => { root.subscription-download-all(); }
                 pay-invoice(id) => { root.subscription-pay-invoice(id); }
-                open-card-modal => { root.subscription-open-card-modal(); }
+                open-card-modal => { root.card-modal-open = true; }
                 cancel-card => { root.subscription-cancel-card(); }
                 open-pix-auto => { root.subscription-open-pix-auto(); }
                 cancel-pix-auto => { root.subscription-cancel-pix-auto(); }
@@ -2845,32 +2845,14 @@ export component MainWindow inherits Window {
 
     // ── Assinatura: modal de cadastro de cartão recorrente (Efi).
     if root.card-modal-open: CardModal {
-        number <=> root.card-form-number;
-        holder <=> root.card-form-holder;
-        expiry <=> root.card-form-expiry;
-        cvv <=> root.card-form-cvv;
-        cpf <=> root.card-form-cpf;
-        email <=> root.card-form-email;
-        phone <=> root.card-form-phone;
-        birth <=> root.card-form-birth;
-        error <=> root.card-form-error;
-        error-number <=> root.card-error-number;
-        error-holder <=> root.card-error-holder;
-        error-expiry <=> root.card-error-expiry;
-        error-cvv <=> root.card-error-cvv;
-        error-cpf <=> root.card-error-cpf;
-        error-birth <=> root.card-error-birth;
-        error-email <=> root.card-error-email;
-        error-phone <=> root.card-error-phone;
         loading: root.card-modal-loading;
-        fmt-card-number(t) => { root.card-fmt-number(t) }
-        fmt-card-expiry(t) => { root.card-fmt-expiry(t) }
-        fmt-cvv(t) => { root.card-fmt-cvv(t) }
-        fmt-cpf-cnpj(t) => { root.card-fmt-cpf-cnpj(t) }
-        fmt-birth(t) => { root.card-fmt-birth(t) }
-        fmt-phone(t) => { root.card-fmt-phone(t) }
         close => { root.card-modal-close(); }
-        submit => { root.card-modal-submit(); }
+        // "Cadastrar cartão": fecha o modal e abre a etapa segura (Efi.js) —
+        // reaproveita o fluxo de sessão + navegador já existente.
+        submit => {
+            root.card-modal-open = false;
+            root.subscription-open-card-modal();
+        }
     }
 
     // ── Assinatura: modal de ativação do Pix Automático.

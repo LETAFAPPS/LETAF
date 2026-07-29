@@ -44,8 +44,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             libfontconfig-dev libasound2-dev libxcb1-dev libxcb-render0-dev \
-            libxcb-shape0-dev libxcb-xfixes0-dev libxkbcommon-dev \
-            libwebkit2gtk-4.1-dev
+            libxcb-shape0-dev libxcb-xfixes0-dev libxkbcommon-dev
 
       # `-D warnings` faz o clippy FALHAR em qualquer warning — o critério
       # de "pronto" do projeto (AI_RULES §Rust idiomático).
@@ -95,8 +94,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             libfontconfig-dev libasound2-dev libxcb1-dev libxcb-render0-dev \
-            libxcb-shape0-dev libxcb-xfixes0-dev libxkbcommon-dev \
-            libwebkit2gtk-4.1-dev
+            libxcb-shape0-dev libxcb-xfixes0-dev libxkbcommon-dev
 
       # As migrações são aplicadas pelo próprio teste (sqlx::migrate!).
       - name: Testes de integração

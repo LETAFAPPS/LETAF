@@ -41,31 +41,24 @@ jobs:
       - uses: Swatinem/rust-cache@v2
 
       # Dependências de sistema do Linux: Slint (winit/fontconfig/xcb/
-      # xkbcommon) + rodio (ALSA, alarme de pedidos) + WebKitGTK (janela de
-      # cadastro de cartão, crate letaf-cardwin). No Windows/macOS o webview
-      # usa WebView2/WKWebView (nativos, sem dependência a instalar).
+      # xkbcommon) + rodio (ALSA, alarme de pedidos).
       - name: Deps de sistema (Linux)
         if: matrix.os == 'ubuntu-latest'
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             libfontconfig-dev libasound2-dev libxcb1-dev libxcb-render0-dev \
-            libxcb-shape0-dev libxcb-xfixes0-dev libxkbcommon-dev \
-            libwebkit2gtk-4.1-dev
+            libxcb-shape0-dev libxcb-xfixes0-dev libxkbcommon-dev
 
       - name: Build (release)
-        run: cargo build -p letaf-desktop -p letaf-cardwin --release --locked
+        run: cargo build -p letaf-desktop --release --locked
 
-      - name: Empacota binários + sha256
+      - name: Empacota binário + sha256
         shell: bash
         run: |
           mkdir -p dist
           cp "target/release/letaf-desktop${{ matrix.ext }}" "dist/${{ matrix.bin }}"
           sha256sum "dist/${{ matrix.bin }}" | cut -d' ' -f1 > "dist/${{ matrix.bin }}.sha256"
-          # Binário auxiliar do webview (cadastro de cartão) — vai junto no
-          # artefato; o desktop o procura ao lado do próprio executável.
-          cp "target/release/letaf-cardwin${{ matrix.ext }}" "dist/letaf-cardwin${{ matrix.ext }}"
-          sha256sum "dist/letaf-cardwin${{ matrix.ext }}" | cut -d' ' -f1 > "dist/letaf-cardwin${{ matrix.ext }}.sha256"
 
       - uses: actions/upload-artifact@v4
         with:
