@@ -65,6 +65,12 @@ pub(crate) fn apply_state_to_ui(ui: &MainWindow, pdv: &Arc<Mutex<PdvState>>) {
 
     let cart_rows: Vec<PdvCartRow> = g.cart.iter().map(|line| {
         let subtotal = (line.qty * line.unit_price).max(0.0);
+        // Miniatura do produto reaproveitando o cache do refresh (clone
+        // barato — Rc interno). Placeholder quando não há imagem.
+        let (image, has_image) = match g.image_cache.get(&line.product_id) {
+            Some(buf) => (Image::from_rgba8(buf.clone()), true),
+            None => (Image::default(), false),
+        };
         PdvCartRow {
             line_id: SharedString::from(line.line_id.to_string()),
             product_id: SharedString::from(line.product_id.to_string()),
@@ -74,6 +80,8 @@ pub(crate) fn apply_state_to_ui(ui: &MainWindow, pdv: &Arc<Mutex<PdvState>>) {
             addons_summary: SharedString::from(line.addons_summary.clone()),
             addons_json: SharedString::from(line.addons_json.clone().unwrap_or_default()),
             line_total_display: SharedString::from(fmt_brl(subtotal)),
+            product_image: image,
+            has_image,
         }
     }).collect();
     let subtotal: f64 = g.subtotal().max(0.0);

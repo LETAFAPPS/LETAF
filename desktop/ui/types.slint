@@ -522,6 +522,10 @@ export struct PdvCartRow {
     addons-json: string,
     /// `unit-price * qty` formatado em pt-BR ("R$ 19.00").
     line-total-display: string,
+    /// Miniatura do produto (decodificada no refresh). Vazia quando o
+    /// produto não tem imagem — a UI cai num placeholder.
+    product-image: image,
+    has-image: bool,
 }
 
 /// Chip de categoria no painel esquerdo do PDV.

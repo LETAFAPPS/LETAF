@@ -23,7 +23,7 @@ export component PdvCartModal inherits Rectangle {
     TouchArea { clicked => { root.close(); } }
 
     Rectangle {
-        width: 480px;
+        width: 560px;
         height: min(640px, parent.height - 80px);
         x: (parent.width - self.width) / 2;
         y: (parent.height - self.height) / 2;
@@ -82,9 +82,30 @@ export component PdvCartModal inherits Rectangle {
                             padding: 10px;
                             spacing: 6px;
                             HorizontalLayout {
-                                spacing: 8px;
+                                spacing: 10px;
+                                // Miniatura do produto (fallback p/ ícone sem imagem).
+                                VerticalLayout {
+                                    alignment: center;
+                                    Rectangle {
+                                        width: 48px; height: 48px;
+                                        border-radius: 8px;
+                                        background: Theme.bg;
+                                        clip: true;
+                                        if it.has-image: Image {
+                                            width: 48px; height: 48px;
+                                            source: it.product-image;
+                                            image-fit: cover;
+                                        }
+                                        if !it.has-image: AssetIcon {
+                                            width: 48px; height: 48px; icon-size: 22px;
+                                            icon-color: #BDBDBD;
+                                            source: @image-url("../assets/icons/products.svg");
+                                        }
+                                    }
+                                }
                                 VerticalLayout {
                                     horizontal-stretch: 1;
+                                    alignment: center;
                                     spacing: 1px;
                                     Text { text: it.name; font-size: 13px; font-weight: 600; color: Theme.text-primary; overflow: elide; }
                                     if it.addons-summary != "": Text { text: it.addons-summary; font-size: 11px; color: Theme.text-secondary; wrap: word-wrap; }
