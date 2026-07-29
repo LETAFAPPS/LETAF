@@ -10,6 +10,11 @@
 /// Renderiza a página de cadastro com o `payee_code` da conta, o plano
 /// e o valor. `cobrancas_base` é a base da API Cobranças (define o CDN
 /// do Efi.js: homologação x produção).
+/// Logo (wordmark) do LETAF embutida — evita uma rota estática só p/ isto.
+/// É branca (feita p/ fundo escuro); na página a colocamos sobre um chip
+/// escuro (cor do menu lateral).
+const LOGO_PNG: &[u8] = include_bytes!("../../desktop/ui/assets/brand/letaf-wordmark.png");
+
 pub fn render(
     cobrancas_base: &str,
     payee_code: &str,
@@ -17,13 +22,16 @@ pub fn render(
     plan_label: &str,
     amount: f64,
 ) -> String {
+    use base64::{engine::general_purpose::STANDARD, Engine as _};
     let amount_display = format!("R$ {:.2}", amount).replace('.', ",");
+    let logo = format!("data:image/png;base64,{}", STANDARD.encode(LOGO_PNG));
     TEMPLATE
         .replace("{{CDN}}", cobrancas_base)
         .replace("{{PAYEE}}", payee_code)
         .replace("{{TOKEN}}", session_token)
         .replace("{{PLAN}}", &html_escape(plan_label))
         .replace("{{AMOUNT}}", &amount_display)
+        .replace("{{LOGO}}", &logo)
 }
 
 pub fn error_page(message: &str) -> String {
@@ -51,16 +59,16 @@ const TEMPLATE: &str = r##"<!DOCTYPE html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Cadastrar cartão · LETAF</title>
+<title>Cadastrar Cartão · LETAF</title>
 <style>
   /* Padrão visual dos modais do LETAF (tema claro + laranja da marca). */
   :root{--bg:#f8f7f4;--card:#ffffff;--bd:#e4dfd8;--tx:#1c1a18;--mut:#6a6460;--pri:#e8731c;--err:#c62828;--ok:#2e7d32}
   *{box-sizing:border-box}
   body{font-family:system-ui,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--tx);margin:0;padding:24px}
   .wrap{max-width:520px;margin:0 auto}
-  .emblem{width:60px;height:60px;margin:2px auto 12px;border-radius:16px;background:#fbe7d3;
-    display:flex;align-items:center;justify-content:center}
-  .emblem svg{width:30px;height:30px;stroke:var(--pri)}
+  .brand{display:flex;justify-content:center;margin:2px 0 14px}
+  .brand span{display:inline-flex;align-items:center;background:#1a1a18;border-radius:14px;padding:12px 22px}
+  .brand img{height:28px;display:block}
   h1{font-size:20px;font-weight:800;margin:0 0 4px;text-align:center}
   .sub{color:var(--mut);font-size:13px;margin:0 0 18px;text-align:center}
   .card{background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:22px;
@@ -84,12 +92,8 @@ const TEMPLATE: &str = r##"<!DOCTYPE html>
 </head>
 <body>
 <div class="wrap">
-  <div class="emblem">
-    <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-      <rect x="2" y="5" width="20" height="14" rx="2"></rect><path d="M2 10h20"></path>
-    </svg>
-  </div>
-  <h1>Cadastrar cartão</h1>
+  <div class="brand"><span><img src="{{LOGO}}" alt="LETAF"></span></div>
+  <h1>Cadastrar Cartão</h1>
   <p class="sub">LETAF · Plano {{PLAN}} · <b>{{AMOUNT}}</b> · cobrança automática recorrente</p>
   <div class="card">
     <form id="f" autocomplete="on">
@@ -127,8 +131,8 @@ const TEMPLATE: &str = r##"<!DOCTYPE html>
         <div><label>UF</label><input id="state" placeholder="SP" maxlength="2" required></div>
       </div>
 
-      <button id="btn" type="submit">Cadastrar cartão</button>
-      <p class="pay" style="margin-top:10px">Os dados do cartão são protegidos e tokenizados pela Efí no seu navegador — não passam pelos nossos servidores.</p>
+      <button id="btn" type="submit">Cadastrar Cartão</button>
+      <p class="pay" style="margin-top:10px">Os dados do cartão são protegidos e tokenizados pela Efí no seu navegador, não passam pelos nossos servidores.</p>
     </form>
     <div id="msg"></div>
   </div>
