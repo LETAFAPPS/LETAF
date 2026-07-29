@@ -89,7 +89,20 @@ export component PdvCartModal inherits Rectangle {
                                     Text { text: it.name; font-size: 13px; font-weight: 600; color: Theme.text-primary; overflow: elide; }
                                     if it.addons-summary != "": Text { text: it.addons-summary; font-size: 11px; color: Theme.text-secondary; wrap: word-wrap; }
                                 }
-                                Text { text: it.line-total-display; font-size: 13px; font-weight: 700; color: Theme.primary; vertical-alignment: center; }
+                                // Excluir item — fica ACIMA do valor (linha 1).
+                                VerticalLayout {
+                                    alignment: center;
+                                    rem-ta := TouchArea {
+                                        width: 30px; height: 28px;
+                                        clicked => { root.remove(it.line-id); }
+                                        Rectangle {
+                                            border-radius: 6px; border-width: 1px;
+                                            border-color: rem-ta.has-hover ? #EF5350 : Theme.border;
+                                            background: rem-ta.has-hover ? #FFEBEE : Theme.surface;
+                                            AssetIcon { width: parent.width; height: parent.height; icon-size: 12px; icon-color: rem-ta.has-hover ? #C62828 : Theme.text-secondary; source: @image-url("../assets/icons/fechar.svg"); }
+                                        }
+                                    }
+                                }
                             }
                             HorizontalLayout {
                                 spacing: 6px;
@@ -119,6 +132,8 @@ export component PdvCartModal inherits Rectangle {
                                     }
                                 }
                                 Rectangle { horizontal-stretch: 1; }
+                                // Valor do item — fica ABAIXO do excluir (linha 2).
+                                Text { text: it.line-total-display; font-size: 13px; font-weight: 700; color: Theme.primary; vertical-alignment: center; }
                             }
                         }
                     }

@@ -985,11 +985,20 @@ export component PdvPage inherits VerticalLayout {
                                                 wrap: word-wrap;
                                             }
                                         }
-                                        Text {
-                                            text: it.line-total-display;
-                                            font-size: 12px; font-weight: 700;
-                                            color: Theme.primary;
-                                            vertical-alignment: center;
+                                        // Excluir item — fica ACIMA do valor (linha 1).
+                                        VerticalLayout {
+                                            alignment: center;
+                                            rem-ta := TouchArea {
+                                                width: 26px; height: 24px;
+                                                clicked => { root.remove-line(it.line-id); }
+                                                Rectangle {
+                                                    border-radius: 4px;
+                                                    border-width: 1px;
+                                                    border-color: rem-ta.has-hover ? #EF5350 : Theme.border;
+                                                    background: rem-ta.has-hover ? #FFEBEE : Theme.surface;
+                                                    AssetIcon { width: parent.width; height: parent.height; icon-size: 11px; icon-color: rem-ta.has-hover ? #C62828 : Theme.text-secondary; source: @image-url("../assets/icons/fechar.svg"); }
+                                                }
+                                            }
                                         }
                                     }
                                     HorizontalLayout {
@@ -1043,16 +1052,12 @@ export component PdvPage inherits VerticalLayout {
                                             }
                                         }
                                         Rectangle { horizontal-stretch: 1; }
-                                        rem-ta := TouchArea {
-                                            width: 26px; height: 24px;
-                                            clicked => { root.remove-line(it.line-id); }
-                                            Rectangle {
-                                                border-radius: 4px;
-                                                border-width: 1px;
-                                                border-color: rem-ta.has-hover ? #EF5350 : Theme.border;
-                                                background: rem-ta.has-hover ? #FFEBEE : Theme.surface;
-                                                AssetIcon { width: parent.width; height: parent.height; icon-size: 11px; icon-color: rem-ta.has-hover ? #C62828 : Theme.text-secondary; source: @image-url("../assets/icons/fechar.svg"); }
-                                            }
+                                        // Valor do item — fica ABAIXO do excluir (linha 2).
+                                        Text {
+                                            text: it.line-total-display;
+                                            font-size: 12px; font-weight: 700;
+                                            color: Theme.primary;
+                                            vertical-alignment: center;
                                         }
                                     }
                                 }
