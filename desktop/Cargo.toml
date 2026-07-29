@@ -36,6 +36,7 @@ rodio = { version = "0.20", default-features = false, features = ["mp3"] }
 # sem dependência de fontes do SO. CUPS (Linux/macOS) e Windows
 # imprimem PDF nativamente.
 printpdf = "0.7"
+arboard = "3.6.1"
 
 [build-dependencies]
 slint-build = "1"

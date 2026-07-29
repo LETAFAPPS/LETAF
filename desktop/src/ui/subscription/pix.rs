@@ -347,9 +347,31 @@ pub(crate) fn set_error_view(ui_weak: &slint::Weak<MainWindow>, message: String)
     });
 }
 
-/// Best-effort: tenta xclip → wl-copy (Wayland) → xsel. Sem nada
-/// instalado retorna false (toast informa).
+// Instância de clipboard mantida VIVA na thread da UI: no X11 o conteúdo do
+// clipboard é servido pelo processo dono enquanto ele existe — se criássemos
+// e descartássemos a cada cópia, o texto sumiria após colar. Como o callback
+// de copiar roda sempre na thread do event-loop, o thread_local persiste pela
+// vida do app.
+thread_local! {
+    static CLIPBOARD: std::cell::RefCell<Option<arboard::Clipboard>> =
+        std::cell::RefCell::new(arboard::Clipboard::new().ok());
+}
+
+/// Copia para o clipboard: crate nativa (arboard) e, como fallback, as
+/// ferramentas de linha de comando (xclip → wl-copy → xsel). `false` só se
+/// tudo falhar (o toast informa para selecionar manualmente).
 fn write_clipboard(text: &str) -> bool {
+    // 1) Crate nativa (não depende de xclip/wl-copy instalados).
+    let ok = CLIPBOARD.with(|c| {
+        c.borrow_mut()
+            .as_mut()
+            .map(|cb| cb.set_text(text.to_string()).is_ok())
+            .unwrap_or(false)
+    });
+    if ok {
+        return true;
+    }
+    // 2) Fallback: ferramentas de linha de comando, se existirem.
     let cmds = [
         ("xclip", vec!["-selection", "clipboard"]),
         ("wl-copy", vec![]),
