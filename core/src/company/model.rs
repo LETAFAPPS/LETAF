@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use chrono::NaiveDateTime;
+use rust_decimal::Decimal;
 
 /// Entidade Company — base do multi-tenant.
 ///
@@ -80,6 +81,11 @@ pub struct Company {
     /// cards de produtos (mais informações por linha).
     #[serde(default = "default_orders_per_page")]
     pub orders_per_page: i32,
+    /// Taxa de entrega (frete) cobrada em pedidos do tipo Delivery.
+    /// Configurável em Configurações; default 0 (sem taxa). Aplicada
+    /// automaticamente pelo backend quando o pedido é de entrega.
+    #[serde(default)]
+    pub delivery_fee: Decimal,
     /// Fuso da loja como offset fixo de UTC em MINUTOS (ex.: -180 = BRT).
     /// Usado para validar janelas de horário (disponibilidade de produto e
     /// loja aberta) no backend a partir do `updated_at`/agora em UTC. Offset
@@ -121,6 +127,7 @@ impl Company {
             cover_data: None,
             products_per_page: 20,
             orders_per_page: 20,
+            delivery_fee: Decimal::ZERO,
             utc_offset_minutes: default_utc_offset(),
             active: true,
             created_at: now,

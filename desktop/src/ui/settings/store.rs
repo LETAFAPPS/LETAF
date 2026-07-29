@@ -10,6 +10,25 @@ use crate::MainWindow;
 use super::super::helpers::show_toast;
 use super::super::image::{decode_pixel_buffer, pick_image_file, process_image_file, process_image_file_large};
 
+/// Faz o parse de um valor monetário digitado (ex.: "5", "5,00", "R$ 5,00",
+/// "1.234,56") para `Decimal`, sempre >= 0. Vírgula é o separador decimal
+/// (pt-BR); pontos são tratados como separador de milhar quando há vírgula.
+fn parse_money(s: &str) -> rust_decimal::Decimal {
+    use std::str::FromStr;
+    let cleaned: String = s
+        .chars()
+        .filter(|c| c.is_ascii_digit() || *c == ',' || *c == '.')
+        .collect();
+    let normalized = if cleaned.contains(',') {
+        cleaned.replace('.', "").replace(',', ".")
+    } else {
+        cleaned
+    };
+    rust_decimal::Decimal::from_str(&normalized)
+        .unwrap_or(rust_decimal::Decimal::ZERO)
+        .max(rust_decimal::Decimal::ZERO)
+}
+
 /// Callback: salva informações do estabelecimento (nome, endereço, telefone, logo, capa).
 pub(crate) fn setup_save_store_info(
     ui: &MainWindow,
@@ -38,6 +57,7 @@ pub(crate) fn setup_save_store_info(
         let cover        = ui_ref.get_store_cover_data().to_string();
         let products_per_page = ui_ref.get_products_per_page();
         let orders_per_page   = ui_ref.get_orders_per_page();
+        let delivery_fee_raw  = ui_ref.get_store_delivery_fee().to_string();
 
         // Normalização defensiva: telefones/documentos/CEP guardados só
         // com dígitos no banco (formatação acontece na UI). Isso evita
@@ -76,6 +96,7 @@ pub(crate) fn setup_save_store_info(
                 cover_data: some_if_filled(cover),
                 products_per_page,
                 orders_per_page,
+                delivery_fee: parse_money(&delivery_fee_raw),
             };
             let result = state.company_service.update_info(cid, input).await;
             match result {

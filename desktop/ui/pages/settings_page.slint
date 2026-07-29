@@ -138,6 +138,9 @@ export component SettingsPage inherits VerticalLayout {
     in-out property <int>    products-per-page: 20;
     /// Quantidade de pedidos exibidos por página (idem).
     in-out property <int>    orders-per-page: 20;
+    /// Taxa de entrega (frete) como texto pt-BR (ex.: "5,00"). Vazio = 0.
+    /// Aplicada automaticamente em pedidos de entrega no PDV.
+    in-out property <string> store-delivery-fee;
 
     /// Impressoras cadastradas (lista refrescada por Rust via
     /// `refresh-printers`). Cada linha tem rótulo, tipo, sistema,
@@ -644,6 +647,58 @@ export component SettingsPage inherits VerticalLayout {
                     }
                     PaginationStepper {
                         value <=> root.orders-per-page;
+                    }
+                }
+            }
+        }
+    }
+
+    // ── Entrega ─────────────────────────────────────────────────
+    // Taxa de entrega (frete) aplicada automaticamente em pedidos do
+    // tipo Delivery no PDV. Salva junto com o botão global do header.
+    Card {
+        border-radius: 10px;
+        VerticalLayout {
+            padding: 14px;
+            spacing: 10px;
+            Text {
+                text: "Entrega";
+                font-size: 14px; font-weight: 700;
+                color: Theme.text-primary;
+            }
+            HorizontalLayout {
+                spacing: 10px;
+                VerticalLayout {
+                    spacing: 2px;
+                    horizontal-stretch: 1;
+                    Text {
+                        text: "Taxa de entrega (R$)";
+                        font-size: 11px; font-weight: 500;
+                        color: Theme.text-secondary;
+                    }
+                    Text {
+                        text: "Somada automaticamente ao total quando o pedido é de entrega. Deixe vazio ou 0 para não cobrar.";
+                        font-size: 10px;
+                        color: Theme.text-secondary;
+                        wrap: word-wrap;
+                    }
+                }
+                Rectangle {
+                    width: 120px; height: 34px;
+                    border-radius: 6px; border-width: 1px;
+                    border-color: fee-input.has-focus ? Theme.primary : Theme.border;
+                    background: Theme.surface;
+                    fee-input := TextInput {
+                        x: 10px; y: 0; width: parent.width - 20px; height: parent.height;
+                        text <=> root.store-delivery-fee;
+                        font-size: 13px; color: Theme.text-primary;
+                        vertical-alignment: center; horizontal-alignment: right;
+                        single-line: true;
+                    }
+                    if root.store-delivery-fee == "": Text {
+                        x: 10px; y: 0; width: parent.width - 20px; height: parent.height;
+                        text: "0,00"; font-size: 12px; color: #BDBDBD;
+                        vertical-alignment: center; horizontal-alignment: right;
                     }
                 }
             }

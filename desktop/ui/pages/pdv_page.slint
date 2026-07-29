@@ -119,6 +119,9 @@ export component PdvPage inherits VerticalLayout {
     in property <string> subtotal-display;
     in property <string> discount-display;
     in property <string> additional-display;
+    /// Taxa de entrega formatada; vazia quando não há taxa ou o pedido
+    /// não é de entrega. Mostrada como linha própria no rodapé.
+    in property <string> delivery-fee-display;
     in property <string> total-display;
     in-out property <string> discount-input;
     in-out property <string> additional-input;
@@ -239,6 +242,7 @@ export component PdvPage inherits VerticalLayout {
     /// (o Slint ignora vertical-stretch no aninhamento do carrinho).
     property <length> cart-footer-h:
         334px
+        + (root.delivery-fee-display != "" ? 28px : 0px)                                             // linha Taxa de entrega
         + 30px                                                                                       // toggle "Pagamento parcial"
         + (!root.split-enabled && root.payment-method == "cash" ? 52px : 0px)                         // input Valor Pago
         + (!root.split-enabled && root.payment-method == "card" ? 52px : 0px)                         // Crédito/Débito
@@ -1209,6 +1213,15 @@ export component PdvPage inherits VerticalLayout {
                     }
             }
 
+            // Taxa de entrega — só aparece em pedido de entrega com taxa > 0.
+            // Calculada e formatada pelo Rust (a partir da config da empresa).
+            if root.delivery-fee-display != "": HorizontalLayout {
+                spacing: 6px;
+                Text { text: "Taxa de entrega"; font-size: 12px; font-weight: 600; color: Theme.text-secondary; vertical-alignment: center; }
+                Rectangle { horizontal-stretch: 1; }
+                Text { text: root.delivery-fee-display; font-size: 14px; font-weight: 700; color: Theme.text-primary; vertical-alignment: center; }
+            }
+
             // Divisor horizontal
             Rectangle { height: 1px; background: Theme.border; }
 
@@ -1285,7 +1298,7 @@ export component PdvPage inherits VerticalLayout {
                             }
                         }
                         Text {
-                            text: "Pagamento parcial";
+                            text: "Pagamento Parcial";
                             font-size: 12px; font-weight: 700;
                             color: Theme.text-primary;
                             vertical-alignment: center;

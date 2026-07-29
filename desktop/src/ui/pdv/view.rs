@@ -79,12 +79,20 @@ pub(crate) fn apply_state_to_ui(ui: &MainWindow, pdv: &Arc<Mutex<PdvState>>) {
     let subtotal: f64 = g.subtotal().max(0.0);
     let discount = g.discount_value.min(subtotal).max(0.0);
     let additional = g.additional_value.max(0.0);
-    let total = (subtotal - discount + additional).max(0.0);
+    // Taxa de entrega só entra no total quando o pedido é de entrega.
+    let is_delivery = ui.get_pdv_sale_type() == "delivery";
+    let delivery_fee = g.delivery_fee_for(is_delivery);
+    let total = (subtotal - discount + additional + delivery_fee).max(0.0);
     let count: i32 = g.cart.iter().map(|l| l.qty as i32).sum();
     ui.set_pdv_cart(ModelRc::new(VecModel::from(cart_rows)));
     ui.set_pdv_subtotal_display(SharedString::from(fmt_brl(subtotal)));
     ui.set_pdv_discount_display(SharedString::from(fmt_brl(discount)));
     ui.set_pdv_additional_display(SharedString::from(fmt_brl(additional)));
+    ui.set_pdv_delivery_fee_display(if delivery_fee > 0.0 {
+        SharedString::from(fmt_brl(delivery_fee))
+    } else {
+        SharedString::default()
+    });
     ui.set_pdv_total_display(SharedString::from(fmt_brl(total)));
     ui.set_pdv_total_amount(total as f32);
     ui.set_pdv_cart_count(count);

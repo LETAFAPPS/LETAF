@@ -32,6 +32,8 @@ pub struct UpdateInfoInput {
     pub cover_data: Option<String>,
     pub products_per_page: i32,
     pub orders_per_page: i32,
+    /// Taxa de entrega (frete). Clamp para >= 0 no service.
+    pub delivery_fee: rust_decimal::Decimal,
 }
 
 /// Service para o domínio Company.
@@ -187,6 +189,7 @@ impl CompanyService {
         company.cover_data = input.cover_data;
         company.products_per_page = products_per_page;
         company.orders_per_page = orders_per_page;
+        company.delivery_fee = input.delivery_fee.max(rust_decimal::Decimal::ZERO);
         company.updated_at = chrono::Utc::now().naive_utc();
         company.synced = false;
         self.repo.update(&company).await?;
@@ -250,6 +253,7 @@ impl CompanyService {
             cover_data: None,
             products_per_page: 20,
             orders_per_page: 20,
+            delivery_fee: rust_decimal::Decimal::ZERO,
             utc_offset_minutes: -180,
             active: true,
             created_at: epoch,

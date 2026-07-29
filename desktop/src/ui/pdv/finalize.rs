@@ -57,7 +57,12 @@ pub(crate) fn setup_finalize(
         let number = ui_ref.get_pdv_delivery_number().to_string();
         let neigh = ui_ref.get_pdv_delivery_neighborhood().to_string();
 
-        let (items, discount, additional, total, amount_paid) = {
+        // Taxa de entrega: aplicada só em pedido de entrega, a partir da
+        // config local da empresa (§11 — não é valor vindo da requisição).
+        // É embutida no `additional_amount` (que já SOMA ao total); o core
+        // recomputa o total. A nota detalha o valor da taxa.
+        let is_delivery = sale_type == "delivery";
+        let (items, discount, additional, total, amount_paid, delivery_fee) = {
             let Ok(g) = pdv.lock() else { return };
             if g.cart.is_empty() {
                 ui_ref.set_pdv_finalize_error(SharedString::from("Carrinho vazio."));
@@ -71,7 +76,15 @@ pub(crate) fn setup_finalize(
                 notes: None,
                 addons_json: line.addons_json.clone(),
             }).collect();
-            (items, g.discount_value, g.additional_value, g.total(), g.amount_paid)
+            let fee = g.delivery_fee_for(is_delivery);
+            (
+                items,
+                g.discount_value,
+                g.additional_value + fee,
+                g.total_with_delivery(is_delivery),
+                g.amount_paid,
+                fee,
+            )
         };
         if sale_type == "delivery"
             && (street.trim().is_empty() || number.trim().is_empty() || neigh.trim().is_empty())
@@ -178,7 +191,11 @@ pub(crate) fn setup_finalize(
             DeliveryType::Pickup
         };
         let base_notes = if sale_type == "delivery" {
-            format!("[Entrega] {}, {}, {}", street.trim(), number.trim(), neigh.trim())
+            let mut n = format!("[Entrega] {}, {}, {}", street.trim(), number.trim(), neigh.trim());
+            if delivery_fee > 0.0 {
+                n.push_str(&format!(" · Taxa de entrega: R$ {delivery_fee:.2}"));
+            }
+            n
         } else {
             "[Balcão]".to_string()
         };

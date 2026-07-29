@@ -595,6 +595,9 @@ export component MainWindow inherits Window {
     /// Configurada em SettingsPage e persistida em Company.
     in-out property <int>    products-per-page: 20;
     in-out property <int>    orders-per-page: 20;
+    /// Taxa de entrega (frete) como texto pt-BR. Persistida em Company;
+    /// aplicada automaticamente em pedidos de entrega no PDV.
+    in-out property <string> store-delivery-fee;
 
     // ── Sidebar (status de sync + identidade do usuário) ───
     // Regras aplicadas (AI_RULES.md §7, §11):
@@ -807,6 +810,8 @@ export component MainWindow inherits Window {
     in-out property <string>           pdv-amount-paid-input: "";
     in-out property <string>           pdv-change-display: "";
     in-out property <string>           pdv-remaining-display: "";
+    /// Taxa de entrega formatada; vazia fora de pedido de entrega ou sem taxa.
+    in-out property <string>           pdv-delivery-fee-display: "";
     // ── Pagamento parcial (rateio) ───────────────────────────
     /// Toggle do rateio (padrão desativado). Quando ativo, o método
     /// único é ignorado e o pagamento é montado em até 3 linhas.
@@ -899,6 +904,8 @@ export component MainWindow inherits Window {
     callback pdv-recalc();
 
     changed pdv-payment-method => { root.pdv-recalc(); }
+    // Trocar Balcão↔Entrega recalcula o total (a taxa de entrega entra/sai).
+    changed pdv-sale-type => { root.pdv-recalc(); }
     // Customer picker
     callback pdv-open-customer-picker();
     callback pdv-customer-search-changed(string);
@@ -1612,6 +1619,7 @@ export component MainWindow inherits Window {
             subtotal-display: root.pdv-subtotal-display;
             discount-display: root.pdv-discount-display;
             additional-display: root.pdv-additional-display;
+            delivery-fee-display: root.pdv-delivery-fee-display;
             total-display: root.pdv-total-display;
             discount-input <=> root.pdv-discount-input;
             additional-input <=> root.pdv-additional-input;
@@ -2423,6 +2431,7 @@ export component MainWindow inherits Window {
                 store-synced: root.store-synced;
                 products-per-page <=> root.products-per-page;
                 orders-per-page <=> root.orders-per-page;
+                store-delivery-fee <=> root.store-delivery-fee;
                 set-store-override(v) => { root.set-store-override(v); }
                 save-store-info => { root.save-store-info(); }
                 pick-store-logo => { root.pick-store-logo(); }

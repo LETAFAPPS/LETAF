@@ -129,6 +129,10 @@ pub(crate) fn setup_refresh(
             let products = state.product_service.find_all(cid).await.unwrap_or_default();
             let categories = state.category_service.find_all(cid).await.unwrap_or_default();
             let customers = state.customer_service.find_all(cid).await.unwrap_or_default();
+            // Taxa de entrega configurada na empresa (fonte de verdade).
+            let delivery_fee = state.company_service.find_by_id(cid).await.ok().flatten()
+                .and_then(|c| c.delivery_fee.to_f64())
+                .unwrap_or(0.0);
             // Decodifica imagens AQUI (fora do event loop Slint) —
             // `SharedPixelBuffer` é `Send` então passamos para a
             // closure do `invoke_from_event_loop`. Decodificação só
@@ -156,6 +160,7 @@ pub(crate) fn setup_refresh(
                 g.categories = cat_tuples;
                 g.customers_all = customer_tuples;
                 g.image_cache = new_cache;
+                g.delivery_fee = delivery_fee;
             }
             let pdv = pdv.clone();
             let _ = slint::invoke_from_event_loop(move || {

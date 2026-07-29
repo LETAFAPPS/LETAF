@@ -6,6 +6,7 @@ use uuid::Uuid;
 use letaf_core::company::model::Company;
 use letaf_core::company::repository::CompanyRepository;
 use letaf_core::error::CoreError;
+use rust_decimal::prelude::ToPrimitive;
 
 use super::helpers::{map_db, parse_timestamp, parse_uuid, ts};
 
@@ -31,6 +32,7 @@ struct CompanyRow {
     cover_data: Option<String>,
     products_per_page: i64,
     orders_per_page: i64,
+    delivery_fee: f64,
     utc_offset_minutes: i64,
     created_at: String,
     updated_at: String,
@@ -63,6 +65,7 @@ impl TryFrom<CompanyRow> for Company {
             cover_data: r.cover_data,
             products_per_page: r.products_per_page as i32,
             orders_per_page: r.orders_per_page as i32,
+            delivery_fee: letaf_core::money::from_db_f64(r.delivery_fee),
             utc_offset_minutes: r.utc_offset_minutes as i32,
             // `active` é controle de plataforma (server-authoritative). O
             // SQLite local não guarda a coluna; o bloqueio é aplicado no gate
@@ -157,8 +160,9 @@ impl CompanyRepository for SqliteCompanyRepository {
              document = ?9, neighborhood = ?10, zip_code = ?11, city = ?12, uf = ?13,
              latitude = ?14, longitude = ?15,
              logo_data = ?16, cover_data = ?17,
-             products_per_page = ?18, orders_per_page = ?19, updated_at = ?20, synced = ?21
-             WHERE id = ?22 AND deleted_at IS NULL",
+             products_per_page = ?18, orders_per_page = ?19,
+             delivery_fee = ?22, updated_at = ?20, synced = ?21
+             WHERE id = ?23 AND deleted_at IS NULL",
         )
         .bind(&company.name)
         .bind(&company.subdomain)
@@ -181,6 +185,7 @@ impl CompanyRepository for SqliteCompanyRepository {
         .bind(company.orders_per_page as i64)
         .bind(ts(company.updated_at))
         .bind(company.synced)
+        .bind(company.delivery_fee.to_f64().unwrap_or(0.0))
         .bind(company.id.to_string())
         .execute(&self.pool)
         .await
@@ -245,9 +250,9 @@ impl CompanyRepository for SqliteCompanyRepository {
                 address, phone, whatsapp, email, instagram, document,
                 neighborhood, zip_code, city, uf, latitude, longitude,
                 logo_data, cover_data, products_per_page, orders_per_page,
-                created_at, updated_at, deleted_at, synced)
+                created_at, updated_at, deleted_at, synced, delivery_fee)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12,
-                ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24)
+                ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25)
              ON CONFLICT (id) DO UPDATE SET
                  name = excluded.name,
                  subdomain = excluded.subdomain,
@@ -268,6 +273,7 @@ impl CompanyRepository for SqliteCompanyRepository {
                  cover_data = excluded.cover_data,
                  products_per_page = excluded.products_per_page,
                  orders_per_page = excluded.orders_per_page,
+                 delivery_fee = excluded.delivery_fee,
                  updated_at = excluded.updated_at,
                  deleted_at = excluded.deleted_at,
                  synced = excluded.synced
@@ -297,6 +303,7 @@ impl CompanyRepository for SqliteCompanyRepository {
         .bind(ts(company.updated_at))
         .bind(company.deleted_at.map(ts))
         .bind(company.synced)
+        .bind(company.delivery_fee.to_f64().unwrap_or(0.0))
         .execute(&self.pool)
         .await
         .map_err(map_db)?;

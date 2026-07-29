@@ -1,5 +1,6 @@
 use async_trait::async_trait;
 use chrono::NaiveDateTime;
+use rust_decimal::Decimal;
 use sqlx::prelude::FromRow;
 use sqlx::PgPool;
 use uuid::Uuid;
@@ -32,6 +33,7 @@ struct CompanyRow {
     cover_data: Option<String>,
     products_per_page: i32,
     orders_per_page: i32,
+    delivery_fee: Decimal,
     utc_offset_minutes: i32,
     active: bool,
     created_at: NaiveDateTime,
@@ -63,6 +65,7 @@ impl From<CompanyRow> for Company {
             cover_data: r.cover_data,
             products_per_page: r.products_per_page,
             orders_per_page: r.orders_per_page,
+            delivery_fee: r.delivery_fee,
             utc_offset_minutes: r.utc_offset_minutes,
             active: r.active,
             created_at: r.created_at,
@@ -186,8 +189,9 @@ impl CompanyRepository for PgCompanyRepository {
              document = $9, neighborhood = $10, zip_code = $11, city = $12, uf = $13,
              latitude = $14, longitude = $15,
              logo_data = $16, cover_data = $17,
-             products_per_page = $18, orders_per_page = $19, active = $20, updated_at = $21, synced = $22
-             WHERE id = $23 AND deleted_at IS NULL",
+             products_per_page = $18, orders_per_page = $19, active = $20, updated_at = $21, synced = $22,
+             delivery_fee = $23
+             WHERE id = $24 AND deleted_at IS NULL",
         )
         .bind(&company.name)
         .bind(&company.subdomain)
@@ -211,6 +215,7 @@ impl CompanyRepository for PgCompanyRepository {
         .bind(company.active)
         .bind(company.updated_at)
         .bind(company.synced)
+        .bind(company.delivery_fee)
         .bind(company.id)
         .execute(&self.pool)
         .await
@@ -275,9 +280,9 @@ impl CompanyRepository for PgCompanyRepository {
                 address, phone, whatsapp, email, instagram, document,
                 neighborhood, zip_code, city, uf, latitude, longitude,
                 logo_data, cover_data, products_per_page, orders_per_page,
-                created_at, updated_at, deleted_at, synced)
+                created_at, updated_at, deleted_at, synced, delivery_fee)
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12,
-                $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24)
+                $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25)
              ON CONFLICT (id) DO UPDATE SET
                  name = EXCLUDED.name,
                  -- subdomain NÃO é atualizado no conflito: é a CHAVE de
@@ -301,6 +306,7 @@ impl CompanyRepository for PgCompanyRepository {
                  cover_data = EXCLUDED.cover_data,
                  products_per_page = EXCLUDED.products_per_page,
                  orders_per_page = EXCLUDED.orders_per_page,
+                 delivery_fee = EXCLUDED.delivery_fee,
                  updated_at = EXCLUDED.updated_at,
                  -- deleted_at NÃO é atualizado no conflito: excluir a empresa é
                  -- operação de plataforma/admin, nunca algo que um cliente de
@@ -335,6 +341,7 @@ impl CompanyRepository for PgCompanyRepository {
         .bind(company.updated_at)
         .bind(company.deleted_at)
         .bind(company.synced)
+        .bind(company.delivery_fee)
         .execute(&self.pool)
         .await
         .map_err(map_db)?;

@@ -44,6 +44,11 @@ pub(crate) struct PdvState {
     pub(crate) additional_value: f64,
     /// Valor pago em dinheiro digitado pelo operador (R$).
     pub(crate) amount_paid: f64,
+    /// Taxa de entrega (frete) configurada na empresa (R$). Carregada no
+    /// refresh a partir de `company.delivery_fee`. Aplicada ao total
+    /// somente quando o pedido é do tipo entrega (§11: fonte de verdade
+    /// é a config local, não um valor digitado na venda).
+    pub(crate) delivery_fee: f64,
     /// Largura atual (em px lógicos) do painel de categorias, recebida
     /// do Slint via `cats-width-changed`. Usada para decidir se os
     /// chips cabem numa linha ou precisam ser divididos em duas. 0 =
@@ -65,6 +70,7 @@ impl PdvState {
             discount_value: 0.0,
             additional_value: 0.0,
             amount_paid: 0.0,
+            delivery_fee: 0.0,
             cats_width: 0.0,
         }
     }
@@ -73,8 +79,19 @@ impl PdvState {
         self.cart.iter().map(|l| l.qty * l.unit_price).sum()
     }
 
+    /// Taxa de entrega efetiva: só cobra quando o pedido é de entrega.
+    pub(crate) fn delivery_fee_for(&self, is_delivery: bool) -> f64 {
+        if is_delivery { self.delivery_fee.max(0.0) } else { 0.0 }
+    }
+
+    /// Total base (sem taxa de entrega) — itens - desconto + acréscimo.
     pub(crate) fn total(&self) -> f64 {
         (self.subtotal() - self.discount_value + self.additional_value).max(0.0)
+    }
+
+    /// Total considerando a taxa de entrega quando aplicável.
+    pub(crate) fn total_with_delivery(&self, is_delivery: bool) -> f64 {
+        (self.total() + self.delivery_fee_for(is_delivery)).max(0.0)
     }
 }
 
