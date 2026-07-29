@@ -40,7 +40,7 @@ component SplitPayLine inherits VerticalLayout {
         spacing: 6px;
         if root.allow-cash: TouchArea {
             horizontal-stretch: 1; min-width: 60px; height: 36px;
-            clicked => { root.method = "cash"; }
+            clicked => { root.method = "cash"; split-line-input.focus(); }
             Rectangle {
                 border-radius: 5px; border-width: 1px;
                 border-color: root.method == "cash" ? Theme.primary : Theme.border;
@@ -55,7 +55,7 @@ component SplitPayLine inherits VerticalLayout {
         }
         if root.allow-card: TouchArea {
             horizontal-stretch: 1; min-width: 60px; height: 36px;
-            clicked => { root.method = "card"; }
+            clicked => { root.method = "card"; split-line-input.focus(); }
             Rectangle {
                 border-radius: 5px; border-width: 1px;
                 border-color: root.method == "card" ? Theme.primary : Theme.border;
@@ -70,7 +70,7 @@ component SplitPayLine inherits VerticalLayout {
         }
         if root.allow-pix: TouchArea {
             horizontal-stretch: 1; min-width: 60px; height: 36px;
-            clicked => { root.method = "pix"; }
+            clicked => { root.method = "pix"; split-line-input.focus(); }
             Rectangle {
                 border-radius: 5px; border-width: 1px;
                 border-color: root.method == "pix" ? Theme.primary : Theme.border;
