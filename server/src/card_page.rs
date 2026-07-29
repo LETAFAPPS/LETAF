@@ -38,10 +38,10 @@ pub fn error_page(message: &str) -> String {
     format!(
         "<!DOCTYPE html><html lang=\"pt-BR\"><head><meta charset=\"utf-8\">\
          <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\
-         <title>LETAF</title></head><body style=\"font-family:system-ui;background:#f8f7f4;color:#1c1a18;\
+         <title>LETAF</title></head><body style=\"font-family:system-ui;background:#1a1a18;color:#f5f3ef;\
          display:flex;align-items:center;justify-content:center;height:100vh;margin:0\">\
          <div style=\"text-align:center;padding:24px\"><h2>Não foi possível abrir o cadastro</h2>\
-         <p style=\"color:#6a6460\">{}</p></div></body></html>",
+         <p style=\"color:#a8a29a\">{}</p></div></body></html>",
         html_escape(message)
     )
 }
@@ -62,15 +62,15 @@ const TEMPLATE: &str = r##"<!DOCTYPE html>
 <title>Cadastrar Cartão · LETAF</title>
 <style>
   /* Padrão visual dos modais do LETAF (tema claro + laranja da marca). */
-  :root{--bg:#f8f7f4;--card:#ffffff;--bd:#e4dfd8;--tx:#1c1a18;--mut:#6a6460;--pri:#e8731c;--err:#c62828;--ok:#2e7d32}
+  :root{--bg:#1a1a18;--card:#ffffff;--bd:#e4dfd8;--tx:#1c1a18;--mut:#6a6460;--pri:#e8731c;--err:#c62828;--ok:#2e7d32}
   *{box-sizing:border-box}
   body{font-family:system-ui,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--tx);margin:0;padding:24px}
   .wrap{max-width:520px;margin:0 auto}
   .brand{display:flex;justify-content:center;margin:2px 0 14px}
-  .brand span{display:inline-flex;align-items:center;background:#1a1a18;border-radius:14px;padding:12px 22px}
+  .brand span{display:inline-flex;align-items:center;background:transparent;padding:6px 0}
   .brand img{height:28px;display:block}
-  h1{font-size:20px;font-weight:800;margin:0 0 4px;text-align:center}
-  .sub{color:var(--mut);font-size:13px;margin:0 0 18px;text-align:center}
+  h1{font-size:20px;font-weight:800;margin:0 0 4px;text-align:center;color:#f5f3ef}
+  .sub{color:#a8a29a;font-size:13px;margin:0 0 18px;text-align:center}
   .card{background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:22px;
     box-shadow:0 10px 28px rgba(0,0,0,.06)}
   label{display:block;font-size:12px;color:var(--mut);margin:10px 0 4px}
