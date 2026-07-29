@@ -52,10 +52,10 @@ export component ProductConfiguratorModal inherits Rectangle {
             alignment: center;
             Card {
                 width: 480px;
-                // Altura ADAPTATIVA ao conteúdo, com teto de 85% da janela:
-                // produtos com muitas opções scrollam no body; poucos itens
-                // deixam o modal compacto (sem espaço vazio).
-                max-height: root.height * 85%;
+                // Altura ADAPTATIVA ao conteúdo, com teto de 80% da janela
+                // (o corpo abaixo é quem calcula a altura; aqui só o teto de
+                // segurança). Poucos itens → modal compacto; muitos → rola.
+                max-height: root.height * 80%;
                 // Recorta os cantos quadrados de header/footer pelo
                 // border-radius do Card (senão vazam nas pontas).
                 clip: true;
@@ -69,7 +69,7 @@ export component ProductConfiguratorModal inherits Rectangle {
 
                     // ── Header fixo (padrão dos modais): miniatura do produto
                     //    + nome, centralizados, com divisor. Sem kicker/ícone.
-                    Rectangle {
+                    hdr := Rectangle {
                         background: Theme.surface;
                         vertical-stretch: 0;
                         VerticalLayout {
@@ -112,9 +112,13 @@ export component ProductConfiguratorModal inherits Rectangle {
                     // rolagem aparecer.
                     Rectangle {
                         background: Theme.bg;
-                        vertical-stretch: 1;
-                        ScrollView { vertical-scrollbar-policy: ScrollBarPolicy.always-off; horizontal-scrollbar-policy: ScrollBarPolicy.always-off;
-                            VerticalLayout {
+                        // Altura = conteúdo, limitada ao espaço restante até
+                        // 80% da tela (descontando header e footer). Cresce
+                        // com as informações e só rola quando passa do teto —
+                        // sem cortar nem sobrar espaço.
+                        height: min(vp.preferred-height, max(80px, root.height * 80% - hdr.preferred-height - ftr.preferred-height));
+                        ScrollView { width: 100%; height: 100%; vertical-scrollbar-policy: ScrollBarPolicy.always-off; horizontal-scrollbar-policy: ScrollBarPolicy.always-off;
+                            vp := VerticalLayout {
                                 alignment: start;
                                 padding: 20px;
                                 spacing: 14px;
@@ -222,7 +226,7 @@ export component ProductConfiguratorModal inherits Rectangle {
                     // Antes sobrava muito espaço vertical no footer, dando
                     // a sensação de que os controles estavam desconectados
                     // da ação principal.
-                    Rectangle {
+                    ftr := Rectangle {
                         background: Theme.surface;
                         vertical-stretch: 0;
                         VerticalLayout {
