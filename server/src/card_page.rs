@@ -30,10 +30,10 @@ pub fn error_page(message: &str) -> String {
     format!(
         "<!DOCTYPE html><html lang=\"pt-BR\"><head><meta charset=\"utf-8\">\
          <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\
-         <title>LETAF</title></head><body style=\"font-family:system-ui;background:#0f1320;color:#e7e9ee;\
+         <title>LETAF</title></head><body style=\"font-family:system-ui;background:#f8f7f4;color:#1c1a18;\
          display:flex;align-items:center;justify-content:center;height:100vh;margin:0\">\
          <div style=\"text-align:center;padding:24px\"><h2>Não foi possível abrir o cadastro</h2>\
-         <p style=\"color:#9aa0ad\">{}</p></div></body></html>",
+         <p style=\"color:#6a6460\">{}</p></div></body></html>",
         html_escape(message)
     )
 }
@@ -53,31 +53,43 @@ const TEMPLATE: &str = r##"<!DOCTYPE html>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Cadastrar cartão · LETAF</title>
 <style>
-  :root{--bg:#0f1320;--card:#171c2b;--bd:#2a3145;--tx:#e7e9ee;--mut:#9aa0ad;--pri:#f97316;--err:#ef4444;--ok:#22c55e}
+  /* Padrão visual dos modais do LETAF (tema claro + laranja da marca). */
+  :root{--bg:#f8f7f4;--card:#ffffff;--bd:#e4dfd8;--tx:#1c1a18;--mut:#6a6460;--pri:#e8731c;--err:#c62828;--ok:#2e7d32}
   *{box-sizing:border-box}
   body{font-family:system-ui,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--tx);margin:0;padding:24px}
   .wrap{max-width:520px;margin:0 auto}
-  h1{font-size:20px;margin:0 0 4px}
-  .sub{color:var(--mut);font-size:13px;margin:0 0 18px}
-  .card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:20px}
+  .emblem{width:60px;height:60px;margin:2px auto 12px;border-radius:16px;background:#fbe7d3;
+    display:flex;align-items:center;justify-content:center}
+  .emblem svg{width:30px;height:30px;stroke:var(--pri)}
+  h1{font-size:20px;font-weight:800;margin:0 0 4px;text-align:center}
+  .sub{color:var(--mut);font-size:13px;margin:0 0 18px;text-align:center}
+  .card{background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:22px;
+    box-shadow:0 10px 28px rgba(0,0,0,.06)}
   label{display:block;font-size:12px;color:var(--mut);margin:10px 0 4px}
-  input,select{width:100%;background:#0e1220;border:1px solid var(--bd);border-radius:8px;color:var(--tx);
+  input,select{width:100%;background:#fff;border:1px solid var(--bd);border-radius:8px;color:var(--tx);
     font-size:14px;padding:10px}
+  input::placeholder{color:#b3aca3}
   input:focus,select:focus{outline:none;border-color:var(--pri)}
   .row{display:flex;gap:12px}.row>div{flex:1}
   .sec{font-size:12px;font-weight:700;color:var(--mut);margin:18px 0 2px;border-top:1px solid var(--bd);padding-top:14px}
-  button{margin-top:18px;width:100%;background:var(--pri);border:0;border-radius:8px;color:#111;
+  button{margin-top:18px;width:100%;background:var(--pri);border:0;border-radius:10px;color:#fff;
     font-size:15px;font-weight:700;padding:13px;cursor:pointer}
+  button:hover{background:#d1650f}
   button:disabled{opacity:.6;cursor:default}
   #msg{margin-top:14px;font-size:13px;padding:10px;border-radius:8px;display:none}
-  #msg.err{display:block;background:#2a1417;color:var(--err)}
-  #msg.ok{display:block;background:#10261a;color:var(--ok)}
-  .pay{font-size:13px;color:var(--mut)}
+  #msg.err{display:block;background:#fdecea;color:var(--err)}
+  #msg.ok{display:block;background:#eaf5ec;color:var(--ok)}
+  .pay{font-size:12px;color:var(--mut)}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <h1>Cadastrar cartão de crédito</h1>
+  <div class="emblem">
+    <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="2" y="5" width="20" height="14" rx="2"></rect><path d="M2 10h20"></path>
+    </svg>
+  </div>
+  <h1>Cadastrar cartão</h1>
   <p class="sub">LETAF · Plano {{PLAN}} · <b>{{AMOUNT}}</b> · cobrança automática recorrente</p>
   <div class="card">
     <form id="f" autocomplete="on">

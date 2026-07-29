@@ -18,6 +18,13 @@ use tao::window::WindowBuilder;
 use wry::WebViewBuilder;
 
 fn main() -> wry::Result<()> {
+    // WebKitGTK renderiza EM BRANCO em vários ambientes (Wayland,
+    // virtualizado, certos drivers) quando usa o renderer DMABUF/compositing.
+    // Desligar esses caminhos força a renderização por software e resolve a
+    // janela preta. Precisa vir ANTES de inicializar o GTK/WebView.
+    std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
+    std::env::set_var("WEBKIT_DISABLE_COMPOSITING_MODE", "1");
+
     let url = std::env::args().nth(1).unwrap_or_default();
     if url.is_empty() {
         eprintln!("uso: letaf-cardwin <url>");
