@@ -52,12 +52,13 @@ export component ProductConfiguratorModal inherits Rectangle {
             alignment: center;
             Card {
                 width: 480px;
-                // Altura adaptativa: até 80% da janela, mas no máximo
-                // 640px. O body scrolla quando o produto tem muitas
-                // variações/adicionais — nunca corta header/footer.
-                height: min(root.height * 80%, 640px);
-                // Recorta pelo border-radius do Card; sem isso, os
-                // Rectangles de header/footer ocultam os cantos.
+                // Altura ADAPTATIVA ao conteúdo, com teto de 85% da janela:
+                // produtos com muitas opções scrollam no body; poucos itens
+                // deixam o modal compacto (sem espaço vazio).
+                max-height: root.height * 85%;
+                // Recorta os cantos quadrados de header/footer pelo
+                // border-radius do Card (senão vazam nas pontas).
+                clip: true;
 
                 // Absorve cliques internos para não fechar.
                 TouchArea { }
@@ -70,6 +71,7 @@ export component ProductConfiguratorModal inherits Rectangle {
                     //    + nome, centralizados, com divisor. Sem kicker/ícone.
                     Rectangle {
                         background: Theme.surface;
+                        vertical-stretch: 0;
                         VerticalLayout {
                             padding-left: 24px; padding-right: 24px;
                             padding-top: 20px; padding-bottom: 14px;
@@ -79,7 +81,7 @@ export component ProductConfiguratorModal inherits Rectangle {
                                 Rectangle {
                                     width: 60px; height: 60px;
                                     border-radius: 14px;
-                                    background: Theme.btn-accent.transparentize(0.88);
+                                    background: Theme.bg;
                                     clip: true;
                                     Image {
                                         width: parent.width; height: parent.height;
@@ -222,6 +224,7 @@ export component ProductConfiguratorModal inherits Rectangle {
                     // da ação principal.
                     Rectangle {
                         background: Theme.surface;
+                        vertical-stretch: 0;
                         VerticalLayout {
                             padding-left: 14px; padding-right: 14px;
                             padding-top: 10px; padding-bottom: 12px;
