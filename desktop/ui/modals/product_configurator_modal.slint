@@ -24,6 +24,7 @@ import { ActionBtn } from "../components/buttons.slint";
 export component ProductConfiguratorModal inherits Rectangle {
     in property <string> config-product-id;
     in property <string> config-product-name;
+    in property <image>  config-product-image;
     in property <int>    config-qty;
     in property <[ConfigVariation]> config-variations;
     in property <[ConfigAddonGroup]> config-addon-groups;
@@ -65,33 +66,36 @@ export component ProductConfiguratorModal inherits Rectangle {
                     padding: 0px;
                     spacing: 0px;
 
-                    // ── Header fixo ──
+                    // ── Header fixo (padrão dos modais): miniatura do produto
+                    //    + nome, centralizados, com divisor. Sem kicker/ícone.
                     Rectangle {
                         background: Theme.surface;
                         VerticalLayout {
-                            padding-left: 22px; padding-right: 22px;
-                            padding-top: 18px; padding-bottom: 14px;
+                            padding-left: 24px; padding-right: 24px;
+                            padding-top: 20px; padding-bottom: 14px;
+                            spacing: 10px;
                             HorizontalLayout {
-                                spacing: 12px;
-                                VerticalLayout {
-                                    alignment: center;
-                                    Image { width: 40px; height: 40px; image-fit: contain; source: @image-url("../assets/icons-orange/creative-package.svg"); }
-                                }
-                                VerticalLayout {
-                                    horizontal-stretch: 1; spacing: 2px;
-                                    Text {
-                                        text: root.config-edit-idx >= 0 ? "Editar item" : "Configurar";
-                                        font-size: 10px; font-weight: 700;
-                                        color: Theme.primary; letter-spacing: 1px;
-                                    }
-                                    Text {
-                                        text: root.config-product-name;
-                                        font-size: 16px; font-weight: 700;
-                                        color: Theme.text-primary;
-                                        overflow: elide;
+                                alignment: center;
+                                Rectangle {
+                                    width: 60px; height: 60px;
+                                    border-radius: 14px;
+                                    background: Theme.btn-accent.transparentize(0.88);
+                                    clip: true;
+                                    Image {
+                                        width: parent.width; height: parent.height;
+                                        source: root.config-product-image;
+                                        image-fit: cover;
                                     }
                                 }
                             }
+                            Text {
+                                text: root.config-product-name;
+                                font-size: 18px; font-weight: 700;
+                                color: Theme.text-primary;
+                                horizontal-alignment: center;
+                                overflow: elide;
+                            }
+                            Rectangle { height: 1px; background: Theme.border; }
                         }
                     }
 
@@ -250,12 +254,11 @@ export component ProductConfiguratorModal inherits Rectangle {
                                         drop-shadow-offset-y: 0px;
                                         drop-shadow-color: Theme.card-shadow;
                                         background: Theme.surface;
-                                        HorizontalLayout {
-                                            alignment: center;
-                                            VerticalLayout {
-                                                alignment: center;
-                                                Text { text: root.config-qty; font-size: 13px; font-weight: 600; color: Theme.text-primary; }
-                                            }
+                                        Text {
+                                            text: root.config-qty;
+                                            font-size: 13px; font-weight: 600; color: Theme.text-primary;
+                                            width: parent.width; height: parent.height;
+                                            horizontal-alignment: center; vertical-alignment: center;
                                         }
                                     }
                                     cfg-inc-ta := TouchArea {

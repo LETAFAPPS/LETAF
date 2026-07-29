@@ -155,6 +155,12 @@ pub(crate) fn setup_start_product_config(
             // "Price mismatch" no sync.
             let base_price = letaf_core::discount::effective_unit_price(&product, 1.0);
             let product_name = product.name.clone();
+            // Miniatura do produto (decodifica fora do event loop; buffer é Send).
+            let product_img = product
+                .image_data
+                .as_deref()
+                .filter(|s| !s.is_empty())
+                .and_then(super::super::image::decode_pixel_buffer);
             // Move para o event loop e monta os modelos Slint.
             let _ = slint::invoke_from_event_loop(move || {
                 let Some(ui) = ui_weak2.upgrade() else { return };
@@ -197,6 +203,9 @@ pub(crate) fn setup_start_product_config(
                 }).collect();
                 ui.set_config_product_id(SharedString::from(pid_str));
                 ui.set_config_product_name(SharedString::from(product_name));
+                ui.set_config_product_image(
+                    product_img.map(slint::Image::from_rgba8).unwrap_or_default(),
+                );
                 ui.set_config_base_price(base_price.to_f64().unwrap_or(0.0) as f32);
                 ui.set_config_qty(1);
                 ui.set_config_variations(ModelRc::new(VecModel::from(vars_ui)));
@@ -292,6 +301,11 @@ pub(crate) fn setup_edit_order_edit_item(
             // "Price mismatch" no sync.
             let base_price = letaf_core::discount::effective_unit_price(&product, 1.0);
             let product_name = product.name.clone();
+            let product_img = product
+                .image_data
+                .as_deref()
+                .filter(|s| !s.is_empty())
+                .and_then(super::super::image::decode_pixel_buffer);
 
             let _ = slint::invoke_from_event_loop(move || {
                 let Some(ui) = ui_weak2.upgrade() else { return };
@@ -349,6 +363,9 @@ pub(crate) fn setup_edit_order_edit_item(
                 }).collect();
                 ui.set_config_product_id(SharedString::from(pid_str));
                 ui.set_config_product_name(SharedString::from(product_name));
+                ui.set_config_product_image(
+                    product_img.map(slint::Image::from_rgba8).unwrap_or_default(),
+                );
                 ui.set_config_base_price(base_price.to_f64().unwrap_or(0.0) as f32);
                 ui.set_config_qty(qty_i.max(1));
                 ui.set_config_variations(ModelRc::new(VecModel::from(vars_ui)));
@@ -658,6 +675,7 @@ pub(crate) fn setup_config_cancel(ui: &MainWindow) {
 fn reset_config_state(ui: &MainWindow) {
     ui.set_config_product_id(SharedString::default());
     ui.set_config_product_name(SharedString::default());
+    ui.set_config_product_image(slint::Image::default());
     ui.set_config_variations(ModelRc::new(VecModel::from(Vec::<crate::ConfigVariation>::new())));
     ui.set_config_addon_groups(ModelRc::new(VecModel::from(Vec::<crate::ConfigAddonGroup>::new())));
     ui.set_config_qty(1);

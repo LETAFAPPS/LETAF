@@ -748,6 +748,7 @@ export component MainWindow inherits Window {
     /// caso contrário, a seção de configuração aparece no EditOrderModal.
     in-out property <string> config-product-id: "";
     in-out property <string> config-product-name: "";
+    in-out property <image>  config-product-image;
     in-out property <float>  config-base-price: 0;
     in-out property <int>    config-qty: 1;
     in-out property <[ConfigVariation]> config-variations: [];
@@ -2647,6 +2648,7 @@ export component MainWindow inherits Window {
     if root.config-product-id != "": ProductConfiguratorModal {
         config-product-id: root.config-product-id;
         config-product-name: root.config-product-name;
+        config-product-image: root.config-product-image;
         config-qty: root.config-qty;
         config-variations: root.config-variations;
         config-addon-groups: root.config-addon-groups;
