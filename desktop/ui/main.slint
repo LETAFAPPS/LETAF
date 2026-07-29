@@ -807,6 +807,25 @@ export component MainWindow inherits Window {
     in-out property <string>           pdv-amount-paid-input: "";
     in-out property <string>           pdv-change-display: "";
     in-out property <string>           pdv-remaining-display: "";
+    // ── Pagamento parcial (rateio) ───────────────────────────
+    /// Toggle do rateio (padrão desativado). Quando ativo, o método
+    /// único é ignorado e o pagamento é montado em até 3 linhas.
+    in-out property <bool>             pdv-split-enabled: false;
+    /// Método escolhido em cada linha: "" | "cash" | "card" | "pix".
+    in-out property <string>           pdv-split-m1: "";
+    in-out property <string>           pdv-split-m2: "";
+    in-out property <string>           pdv-split-m3: "";
+    /// Texto digitado no valor de cada linha (edição).
+    in-out property <string>           pdv-split-v1-input: "";
+    in-out property <string>           pdv-split-v2-input: "";
+    in-out property <string>           pdv-split-v3-input: "";
+    /// Valor parseado (float) de cada linha — Rust escreve, Slint lê
+    /// para revelar progressivamente as próximas formas.
+    in-out property <float>            pdv-split-v1: 0;
+    in-out property <float>            pdv-split-v2: 0;
+    in-out property <float>            pdv-split-v3: 0;
+    /// Restante do rateio formatado (informativo).
+    in-out property <string>           pdv-split-remaining-display: "";
     in-out property <string>           pdv-customer-id: "";
     in-out property <string>           pdv-customer-name: "";
     in-out property <string>           pdv-delivery-street: "";
@@ -871,6 +890,8 @@ export component MainWindow inherits Window {
     callback pdv-discount-changed(string);
     callback pdv-additional-changed(string);
     callback pdv-amount-paid-changed(string);
+    /// Rateio: valor de uma linha mudou (índice 0..2, texto cru).
+    callback pdv-split-amount-changed(int, string);
     callback pdv-use-address(string);
     /// Recálculo solicitado pelo Slint quando uma propriedade
     /// reativa muda (ex.: payment-method). Faz o Rust reescrever
@@ -1602,6 +1623,18 @@ export component MainWindow inherits Window {
             amount-paid-input <=> root.pdv-amount-paid-input;
             change-display: root.pdv-change-display;
             remaining-display: root.pdv-remaining-display;
+            split-enabled <=> root.pdv-split-enabled;
+            split-m1 <=> root.pdv-split-m1;
+            split-m2 <=> root.pdv-split-m2;
+            split-m3 <=> root.pdv-split-m3;
+            split-v1-input <=> root.pdv-split-v1-input;
+            split-v2-input <=> root.pdv-split-v2-input;
+            split-v3-input <=> root.pdv-split-v3-input;
+            split-v1 <=> root.pdv-split-v1;
+            split-v2 <=> root.pdv-split-v2;
+            split-v3 <=> root.pdv-split-v3;
+            split-remaining-display: root.pdv-split-remaining-display;
+            split-amount-changed(i, v) => { root.pdv-split-amount-changed(i, v); }
             customer-name: root.pdv-customer-name;
             wallet-has-account: root.pdv-wallet-has-account;
             wallet-balance-display: root.pdv-wallet-balance-display;

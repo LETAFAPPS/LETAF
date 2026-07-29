@@ -49,6 +49,9 @@ pub(crate) fn setup_finalize(
         let primary = ui_ref.get_pdv_payment_method().to_string();
         let card_type = ui_ref.get_pdv_payment_card_type().to_string();
         let secondary = ui_ref.get_pdv_secondary_payment().to_string();
+        // Pagamento parcial (rateio): quando ativo, o método único é
+        // ignorado e o pagamento é montado a partir das linhas do split.
+        let split_enabled = ui_ref.get_pdv_split_enabled();
         let customer_id_str = ui_ref.get_pdv_customer_id().to_string();
         let street = ui_ref.get_pdv_delivery_street().to_string();
         let number = ui_ref.get_pdv_delivery_number().to_string();
@@ -82,7 +85,7 @@ pub(crate) fn setup_finalize(
         // Forma de pagamento obrigatória (sem seleção por padrão).
         // Mensagem em pt-BR — evita o erro técnico do core ("Unknown
         // payment method ''").
-        if primary.trim().is_empty() {
+        if !split_enabled && primary.trim().is_empty() {
             ui_ref.set_pdv_finalize_error(SharedString::from(
                 "Selecione uma forma de pagamento."
             ));
@@ -97,7 +100,19 @@ pub(crate) fn setup_finalize(
         //   secundário (já que o dinheiro foi pagamento parcial).
         //   Nota registra "[Pago R$ X em dinheiro + R$ Y em <forma>]".
         // - Pix → "pix".
-        let (payment_method_final, extra_note) = match primary.as_str() {
+        let (payment_method_final, extra_note) = if split_enabled {
+            // Rateio: soma as linhas preenchidas, registra o método
+            // dominante e detalha o rateio na nota. Não exige fechar o
+            // total nem calcula troco (decisão de produto).
+            match build_split_payment(&ui_ref) {
+                Ok(pair) => pair,
+                Err(msg) => {
+                    ui_ref.set_pdv_finalize_error(SharedString::from(msg.clone()));
+                    show_toast(&ui_ref, &msg, "warning");
+                    return;
+                }
+            }
+        } else { match primary.as_str() {
             "card" => (card_type.clone(), String::new()),
             "pix" => ("pix".to_string(), String::new()),
             "wallet" => {
@@ -155,7 +170,7 @@ pub(crate) fn setup_finalize(
                 }
             }
             _ => (primary.clone(), String::new()),
-        };
+        }};
 
         let delivery_type = if sale_type == "delivery" {
             DeliveryType::Delivery
@@ -249,6 +264,8 @@ pub(crate) fn setup_finalize(
                         ui.set_pdv_additional_input(SharedString::default());
                         ui.set_pdv_amount_paid_input(SharedString::default());
                         ui.set_pdv_secondary_payment(SharedString::default());
+                        // Reseta o rateio (pagamento parcial) — próxima venda começa desativado.
+                        reset_split(&ui);
                         // Limpa a forma de pagamento — próxima venda começa sem seleção.
                         ui.set_pdv_payment_method(SharedString::default());
                         ui.set_pdv_customer_addresses(
@@ -291,5 +308,72 @@ pub(crate) fn setup_finalize(
             });
         });
     });
+}
+
+/// Monta o pagamento a partir das linhas do rateio (pagamento parcial).
+/// Retorna `(payment_method, nota)` — o método dominante (maior valor)
+/// vira o `payment_method` registrado e a nota detalha o rateio.
+/// Regra de produto: não exige fechar o total nem calcula troco; apenas
+/// registra as formas escolhidas e seus valores.
+fn build_split_payment(ui: &MainWindow) -> Result<(String, String), String> {
+    let lines = [
+        (ui.get_pdv_split_m1().to_string(), ui.get_pdv_split_v1() as f64),
+        (ui.get_pdv_split_m2().to_string(), ui.get_pdv_split_v2() as f64),
+        (ui.get_pdv_split_m3().to_string(), ui.get_pdv_split_v3() as f64),
+    ];
+    let filled: Vec<(String, f64)> = lines
+        .into_iter()
+        .filter(|(method, value)| !method.is_empty() && *value > 0.0)
+        .collect();
+    if filled.is_empty() {
+        return Err("Preencha ao menos uma forma de pagamento no rateio.".to_string());
+    }
+    // Método dominante (maior valor) é o registrado como `payment_method`.
+    let dominant = filled
+        .iter()
+        .max_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal))
+        .map(|(method, _)| method.as_str())
+        .unwrap_or("cash");
+    let note_parts: Vec<String> = filled
+        .iter()
+        .map(|(method, value)| format!("R$ {:.2} em {}", value, split_label(method)))
+        .collect();
+    let note = format!("[Rateio: {}]", note_parts.join(" + "));
+    Ok((map_split_method(dominant).to_string(), note))
+}
+
+/// Mapeia o método do chip do rateio para o valor aceito pelo core.
+/// "card" isolado é ambíguo (crédito/débito) → assume crédito.
+fn map_split_method(method: &str) -> &'static str {
+    match method {
+        "cash" => "cash",
+        "pix" => "pix",
+        "card" => "credit",
+        _ => "cash",
+    }
+}
+
+/// Rótulo humano (pt-BR) do método para a nota do rateio.
+fn split_label(method: &str) -> &str {
+    match method {
+        "cash" => "dinheiro",
+        "card" => "cartão",
+        "pix" => "pix",
+        other => other,
+    }
+}
+
+/// Reseta os campos do rateio (pagamento parcial) para o padrão desativado.
+fn reset_split(ui: &MainWindow) {
+    ui.set_pdv_split_enabled(false);
+    ui.set_pdv_split_m1(SharedString::default());
+    ui.set_pdv_split_m2(SharedString::default());
+    ui.set_pdv_split_m3(SharedString::default());
+    ui.set_pdv_split_v1_input(SharedString::default());
+    ui.set_pdv_split_v2_input(SharedString::default());
+    ui.set_pdv_split_v3_input(SharedString::default());
+    ui.set_pdv_split_v1(0.0);
+    ui.set_pdv_split_v2(0.0);
+    ui.set_pdv_split_v3(0.0);
 }
 

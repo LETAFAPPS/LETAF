@@ -43,6 +43,7 @@ pub(crate) fn setup_pdv(
     setup_discount_changed(ui, pdv.clone());
     setup_additional_changed(ui, pdv.clone());
     setup_amount_paid_changed(ui, pdv.clone());
+    setup_split_amount_changed(ui, pdv.clone());
     setup_recalc(ui, pdv);
 }
 
@@ -88,6 +89,25 @@ pub(crate) fn setup_amount_paid_changed(ui: &MainWindow, pdv: Arc<Mutex<PdvState
         if let Some(ui) = ui_weak.upgrade() {
             apply_state_to_ui(&ui, &pdv);
         }
+    });
+}
+
+/// Parse do valor de cada linha do rateio (pagamento parcial). Guarda o
+/// valor parseado na prop float correspondente e recalcula o restante
+/// (feito em `apply_state_to_ui`). Só o parse string→float vive no Rust;
+/// a revelação progressiva das próximas linhas é reativa no Slint.
+pub(crate) fn setup_split_amount_changed(ui: &MainWindow, pdv: Arc<Mutex<PdvState>>) {
+    let ui_weak = ui.as_weak();
+    ui.on_pdv_split_amount_changed(move |line, raw| {
+        let Some(ui) = ui_weak.upgrade() else { return };
+        let value = parse_amount(raw.as_str()) as f32;
+        match line {
+            0 => ui.set_pdv_split_v1(value),
+            1 => ui.set_pdv_split_v2(value),
+            2 => ui.set_pdv_split_v3(value),
+            _ => {}
+        }
+        apply_state_to_ui(&ui, &pdv);
     });
 }
 

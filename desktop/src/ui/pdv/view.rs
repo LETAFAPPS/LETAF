@@ -109,4 +109,13 @@ pub(crate) fn apply_state_to_ui(ui: &MainWindow, pdv: &Arc<Mutex<PdvState>>) {
         ui.set_pdv_change_display(SharedString::default());
         ui.set_pdv_remaining_display(SharedString::default());
     }
+
+    // Rateio (pagamento parcial): restante = total - soma das linhas.
+    // Só informativo; não bloqueia a finalização.
+    if ui.get_pdv_split_enabled() {
+        let paid = ui.get_pdv_split_v1() as f64
+            + ui.get_pdv_split_v2() as f64
+            + ui.get_pdv_split_v3() as f64;
+        ui.set_pdv_split_remaining_display(SharedString::from(fmt_brl((total - paid).max(0.0))));
+    }
 }
