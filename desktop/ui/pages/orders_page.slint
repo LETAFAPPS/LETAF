@@ -638,8 +638,13 @@ export component OrdersPage inherits VerticalLayout {
                     o.payment-method == "credit" ? "Crédito" :
                     o.payment-method == "debit"  ? "Débito" :
                     o.payment-method == "pix"    ? "Pix" :
-                    o.payment-method == "wallet" ? (o.paid ? "Carteira" : "Fiado") :
+                    o.payment-method == "wallet" ? "Carteira" :
                     "Não informado";
+                /// Selo de status do pagamento: pago / fiado (carteira
+                /// devendo, laranja) / não pago.
+                property <string> paid-label:
+                    o.paid ? "Pago"
+                    : (o.payment-method == "wallet" ? "Fiado" : "Não pago");
 
                 HorizontalLayout {
                     spacing: 12px;
@@ -961,7 +966,7 @@ export component OrdersPage inherits VerticalLayout {
                             Rectangle { height: 1px; background: Theme.border; }
                             Rectangle { height: 16px; }
 
-                            // ── Pagamento: forma + Pago/Não pago ────
+                            // ── Pagamento: Status + Forma ───────────
                             // Pedido do PDV (pago/fiado na finalização)
                             // e pedidos encerrados: só INFORMATIVO. Em
                             // aberto sem acerto: chips alteram a forma
@@ -969,9 +974,10 @@ export component OrdersPage inherits VerticalLayout {
                             VerticalLayout {
                                 spacing: 8px;
                                 HorizontalLayout {
-                                    Text { text: "Pagamento"; font-size: 11px; font-weight: 600; color: Theme.text-secondary; horizontal-stretch: 1; vertical-alignment: center; }
-                                    // Selo Pago/Não pago — retangular de
-                                    // pontas arredondadas (padrão do sistema).
+                                    Text { text: "Status:"; font-size: 11px; font-weight: 600; color: Theme.text-secondary; horizontal-stretch: 1; vertical-alignment: center; }
+                                    // Selo Pago (verde) / Fiado (laranja) /
+                                    // Não pago (vermelho) — retangular de
+                                    // pontas arredondadas.
                                     paid-ta := TouchArea {
                                         width: 96px; height: 28px;
                                         enabled: pay-editable;
@@ -979,15 +985,38 @@ export component OrdersPage inherits VerticalLayout {
                                         Rectangle {
                                             border-radius: 6px;
                                             border-width: 1px;
-                                            border-color: o.paid ? #2E7D32 : #EF5350;
-                                            background: o.paid ? #E8F5E9 : #FFEBEE;
+                                            border-color: paid-label == "Pago" ? #2E7D32
+                                                : (paid-label == "Fiado" ? #FF9800 : #EF5350);
+                                            background: paid-label == "Pago" ? #E8F5E9
+                                                : (paid-label == "Fiado" ? #FFF3E0 : #FFEBEE);
                                             Text {
                                                 width: parent.width; height: parent.height;
-                                                text: o.paid ? "Pago" : "Não pago";
+                                                text: paid-label;
                                                 font-size: 11px; font-weight: 700;
-                                                color: o.paid ? #2E7D32 : #C62828;
+                                                color: paid-label == "Pago" ? #2E7D32
+                                                    : (paid-label == "Fiado" ? #EF6C00 : #C62828);
                                                 horizontal-alignment: center; vertical-alignment: center;
                                             }
+                                        }
+                                    }
+                                }
+                                HorizontalLayout {
+                                    Text { text: "Forma de Pagamento:"; font-size: 11px; font-weight: 600; color: Theme.text-secondary; horizontal-stretch: 1; vertical-alignment: center; }
+                                    // Fixo: chip informativo com a forma
+                                    // registrada (incl. Carteira).
+                                    if !pay-editable: Rectangle {
+                                        height: 28px;
+                                        width: fixed-pm-label.preferred-width + 28px;
+                                        border-radius: 6px;
+                                        border-width: 1.5px;
+                                        border-color: Theme.btn-accent;
+                                        background: Theme.btn-accent.transparentize(0.88);
+                                        fixed-pm-label := Text {
+                                            width: parent.width; height: parent.height;
+                                            text: pay-label;
+                                            font-size: 11px; font-weight: 600;
+                                            color: Theme.btn-accent;
+                                            horizontal-alignment: center; vertical-alignment: center;
                                         }
                                     }
                                 }
@@ -1016,26 +1045,6 @@ export component OrdersPage inherits VerticalLayout {
                                                 color: o.payment-method == opt.value ? Theme.btn-accent : Theme.text-primary;
                                                 horizontal-alignment: center; vertical-alignment: center;
                                             }
-                                        }
-                                    }
-                                }
-                                // Fixo: um único chip informativo com a
-                                // forma registrada (incl. Carteira/Fiado).
-                                if !pay-editable: HorizontalLayout {
-                                    alignment: start;
-                                    Rectangle {
-                                        height: 32px;
-                                        width: fixed-pm-label.preferred-width + 28px;
-                                        border-radius: 6px;
-                                        border-width: 1.5px;
-                                        border-color: Theme.btn-accent;
-                                        background: Theme.btn-accent.transparentize(0.88);
-                                        fixed-pm-label := Text {
-                                            width: parent.width; height: parent.height;
-                                            text: pay-label;
-                                            font-size: 11px; font-weight: 600;
-                                            color: Theme.btn-accent;
-                                            horizontal-alignment: center; vertical-alignment: center;
                                         }
                                     }
                                 }

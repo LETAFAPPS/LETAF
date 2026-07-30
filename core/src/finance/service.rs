@@ -108,7 +108,7 @@ impl FinanceService {
             });
         match open {
             Some(mut entry) if debt > Decimal::ZERO => {
-                let description = format!("Fiado - {customer_name}");
+                let description = format!("Fiado * {customer_name}");
                 if entry.amount != debt || entry.description != description {
                     entry.amount = debt;
                     entry.party_name = customer_name.to_string();
@@ -127,7 +127,7 @@ impl FinanceService {
                 self.create(CreateFinanceParams {
                     company_id,
                     kind: FinanceKind::Receivable,
-                    description: format!("Fiado - {customer_name}"),
+                    description: format!("Fiado * {customer_name}"),
                     party_id: Some(customer_id),
                     party_name: customer_name.to_string(),
                     party_type: PartyType::Customer,

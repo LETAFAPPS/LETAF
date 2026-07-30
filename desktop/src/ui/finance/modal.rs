@@ -614,7 +614,7 @@ async fn settle_entry(
             .await?;
         super::super::wallet::sync_fiado_to_finance(state, &account).await;
         if account.balance >= rust_decimal::Decimal::ZERO {
-            Ok("Fiado quitado — saldo do cliente atualizado".to_string())
+            Ok("Fiado quitado, saldo do cliente atualizado".to_string())
         } else {
             Ok("Recebimento abatido do fiado".to_string())
         }
