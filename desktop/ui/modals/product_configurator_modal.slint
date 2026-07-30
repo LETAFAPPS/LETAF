@@ -81,7 +81,8 @@ export component ProductConfiguratorModal inherits Rectangle {
                                 Rectangle {
                                     width: 60px; height: 60px;
                                     border-radius: 14px;
-                                    background: Theme.bg;
+                                    // Sem fundo — a miniatura fica direto sobre o modal.
+                                    background: transparent;
                                     clip: true;
                                     Image {
                                         width: parent.width; height: parent.height;
@@ -111,7 +112,10 @@ export component ProductConfiguratorModal inherits Rectangle {
                     // borda) sumiam dentro do scroll sem barra de
                     // rolagem aparecer.
                     Rectangle {
-                        background: Theme.bg;
+                        // Sem fundo próprio — variações/adicionais ficam
+                        // direto sobre o branco do modal (só o card de cada
+                        // grupo tem borda/sombra).
+                        background: transparent;
                         // Altura = conteúdo, limitada ao espaço restante até
                         // 80% da tela (descontando header e footer). Cresce
                         // com as informações e só rola quando passa do teto —
