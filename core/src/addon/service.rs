@@ -125,7 +125,7 @@ impl AddonService {
         mut addon: Addon,
     ) -> Result<(), CoreError> {
         if addon.base.company_id != company_id {
-            return Err(CoreError::Validation("Company mismatch".into()));
+            return Err(CoreError::Validation("Operação não permitida para esta empresa".into()));
         }
         addon.base.synced = true;
         self.repo.sync_upsert(&addon).await
@@ -133,10 +133,10 @@ impl AddonService {
 
     fn validate(name: &str, price: Decimal) -> Result<(), CoreError> {
         if name.trim().is_empty() {
-            return Err(CoreError::Validation("Addon name is required".into()));
+            return Err(CoreError::Validation("Informe o nome do adicional".into()));
         }
         if price < Decimal::ZERO {
-            return Err(CoreError::Validation("Addon price cannot be negative".into()));
+            return Err(CoreError::Validation("O preço do adicional não pode ser negativo".into()));
         }
         Ok(())
     }
@@ -150,7 +150,7 @@ impl AddonService {
         self.group_repo
             .find_by_id(company_id, group_id)
             .await?
-            .ok_or_else(|| CoreError::Validation("Invalid group_id".into()))?;
+            .ok_or_else(|| CoreError::Validation("group_id inválido".into()))?;
         Ok(())
     }
 }

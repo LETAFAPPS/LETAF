@@ -15,7 +15,7 @@ fn sanitize_icon_name(raw: Option<String>) -> Result<Option<String>, CoreError> 
         None => Ok(None),
         Some(slug) if icons::is_valid(slug) => Ok(Some(slug.to_string())),
         Some(slug) => Err(CoreError::Validation(format!(
-            "Unknown category icon '{slug}'"
+            "Ícone de categoria desconhecido: '{slug}'"
         ))),
     }
 }
@@ -56,7 +56,7 @@ impl CategoryService {
         icon_name: Option<String>,
     ) -> Result<Category, CoreError> {
         if name.trim().is_empty() {
-            return Err(CoreError::Validation("Category name is required".into()));
+            return Err(CoreError::Validation("Informe o nome da categoria".into()));
         }
         let icon_name = sanitize_icon_name(icon_name)?;
         let mut category = Category::new(company_id, name, description);
@@ -75,7 +75,7 @@ impl CategoryService {
         icon_name: Option<String>,
     ) -> Result<Category, CoreError> {
         if name.trim().is_empty() {
-            return Err(CoreError::Validation("Category name is required".into()));
+            return Err(CoreError::Validation("Informe o nome da categoria".into()));
         }
         let icon_name = sanitize_icon_name(icon_name)?;
         let mut category = self.repo.find_by_id(company_id, id).await?
@@ -139,7 +139,7 @@ impl CategoryService {
         mut category: Category,
     ) -> Result<(), CoreError> {
         if category.base.company_id != company_id {
-            return Err(CoreError::Validation("Company mismatch".into()));
+            return Err(CoreError::Validation("Operação não permitida para esta empresa".into()));
         }
         category.base.synced = true;
         self.repo.sync_upsert(&category).await

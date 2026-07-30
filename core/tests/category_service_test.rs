@@ -107,14 +107,14 @@ async fn create_category_ok() {
 async fn create_category_empty_name_fails() {
     let (svc, cid) = make_service();
     let result = svc.create(cid, "".into(), None, None).await;
-    assert_eq!(result.unwrap_err(), CoreError::Validation("Category name is required".into()));
+    assert_eq!(result.unwrap_err(), CoreError::Validation("Informe o nome da categoria".into()));
 }
 
 #[tokio::test]
 async fn create_category_whitespace_name_fails() {
     let (svc, cid) = make_service();
     let result = svc.create(cid, "   ".into(), None, None).await;
-    assert_eq!(result.unwrap_err(), CoreError::Validation("Category name is required".into()));
+    assert_eq!(result.unwrap_err(), CoreError::Validation("Informe o nome da categoria".into()));
 }
 
 // ── Update ─────────────────────────────────────────────
@@ -143,7 +143,7 @@ async fn update_category_empty_name_fails() {
     let (svc, cid) = make_service();
     let created = svc.create(cid, "Test".into(), None, None).await.unwrap();
     let result = svc.update(cid, created.base.id, "".into(), None, None).await;
-    assert_eq!(result.unwrap_err(), CoreError::Validation("Category name is required".into()));
+    assert_eq!(result.unwrap_err(), CoreError::Validation("Informe o nome da categoria".into()));
 }
 
 // ── Soft delete ────────────────────────────────────────
@@ -193,7 +193,7 @@ async fn sync_upsert_validates_company() {
     let wrong_cid = Uuid::new_v4();
     let c = Category::new(cid, "X".into(), None);
     let result = svc.sync_upsert(wrong_cid, c).await;
-    assert_eq!(result.unwrap_err(), CoreError::Validation("Company mismatch".into()));
+    assert_eq!(result.unwrap_err(), CoreError::Validation("Operação não permitida para esta empresa".into()));
 }
 
 #[tokio::test]

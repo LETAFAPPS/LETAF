@@ -110,7 +110,7 @@ impl JobRoleService {
     /// Upsert de sincronização (§7.7 — last-write-wins).
     pub async fn sync_upsert(&self, company_id: Uuid, mut role: JobRole) -> Result<(), CoreError> {
         if role.base.company_id != company_id {
-            return Err(CoreError::Validation("Company mismatch".into()));
+            return Err(CoreError::Validation("Operação não permitida para esta empresa".into()));
         }
         role.base.synced = true;
         self.repo.sync_upsert(&role).await

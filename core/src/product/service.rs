@@ -199,19 +199,19 @@ impl ProductService {
         unlimited_stock: bool,
     ) -> Result<(), CoreError> {
         if name.trim().is_empty() {
-            return Err(CoreError::Validation("Product name is required".into()));
+            return Err(CoreError::Validation("Informe o nome do produto".into()));
         }
         if let Some(p) = price {
-            if p < Decimal::ZERO { return Err(CoreError::Validation("Price cannot be negative".into())); }
+            if p < Decimal::ZERO { return Err(CoreError::Validation("O preço não pode ser negativo".into())); }
         }
         if let Some(c) = cost_price {
-            if c < Decimal::ZERO { return Err(CoreError::Validation("Cost price cannot be negative".into())); }
+            if c < Decimal::ZERO { return Err(CoreError::Validation("O preço de custo não pode ser negativo".into())); }
         }
         if !unlimited_stock && stock_quantity < 0.0 {
-            return Err(CoreError::Validation("Stock quantity cannot be negative".into()));
+            return Err(CoreError::Validation("A quantidade em estoque não pode ser negativa".into()));
         }
         if min_stock < 0.0 {
-            return Err(CoreError::Validation("Minimum stock cannot be negative".into()));
+            return Err(CoreError::Validation("O estoque mínimo não pode ser negativo".into()));
         }
         Ok(())
     }
@@ -236,14 +236,14 @@ impl ProductService {
         let Some(k) = kind.as_deref() else {
             if value.is_some() || min_qty.is_some() || tiers.is_some() {
                 return Err(CoreError::Validation(
-                    "Discount fields informed but kind is missing".into(),
+                    "Campos de desconto informados, mas o tipo (kind) está ausente".into(),
                 ));
             }
             return Ok(());
         };
         if !matches!(k, "fixed" | "percent" | "bulk_fixed" | "bulk_percent") {
             return Err(CoreError::Validation(format!(
-                "Unknown discount_kind: '{k}' (expected fixed|percent|bulk_fixed|bulk_percent)"
+                "discount_kind desconhecido: '{k}' (esperado fixed|percent|bulk_fixed|bulk_percent)"
             )));
         }
         let is_bulk = k.starts_with("bulk_");
@@ -252,16 +252,16 @@ impl ProductService {
         if !is_bulk {
             if tiers.is_some() {
                 return Err(CoreError::Validation(
-                    "tiers is only valid for bulk_* discounts".into(),
+                    "tiers só é válido para descontos bulk_*".into(),
                 ));
             }
             if min_qty.is_some() {
                 return Err(CoreError::Validation(
-                    "min_qty is only valid for bulk_* discounts".into(),
+                    "min_qty só é válido para descontos bulk_*".into(),
                 ));
             }
             let v = value.ok_or_else(|| CoreError::Validation(
-                "Discount value is required when kind is set".into(),
+                "Informe o valor do desconto quando o tipo está definido".into(),
             ))?;
             Self::check_discount_value(v, is_percent)?;
             return Ok(());
@@ -273,27 +273,27 @@ impl ProductService {
             (None, Some(v), Some(q)) => {
                 if q <= 0.0 {
                     return Err(CoreError::Validation(
-                        "bulk_* discount requires min_qty > 0".into(),
+                        "Desconto bulk_* exige min_qty > 0".into(),
                     ));
                 }
                 Self::check_discount_value(v, is_percent)
             }
             (None, _, _) => Err(CoreError::Validation(
-                "bulk_* requires either tiers or (value + min_qty)".into(),
+                "bulk_* exige tiers ou (value + min_qty)".into(),
             )),
             (Some(_), _, _) => Err(CoreError::Validation(
-                "bulk_* must not mix tiers with legacy value/min_qty".into(),
+                "bulk_* não pode misturar tiers com value/min_qty legados".into(),
             )),
         }
     }
 
     fn check_discount_value(v: Decimal, is_percent: bool) -> Result<(), CoreError> {
         if v < Decimal::ZERO {
-            return Err(CoreError::Validation("Discount value cannot be negative".into()));
+            return Err(CoreError::Validation("O valor do desconto não pode ser negativo".into()));
         }
         if is_percent && (v <= Decimal::ZERO || v >= dec!(100)) {
             return Err(CoreError::Validation(
-                "Percent discount must be in (0, 100)".into(),
+                "Desconto percentual deve estar entre 0 e 100 (exclusivos)".into(),
             ));
         }
         Ok(())
@@ -306,32 +306,32 @@ impl ProductService {
     /// - cada `value` passa pelo mesmo crivo de `check_discount_value`.
     fn validate_bulk_tiers(json: &str, is_percent: bool) -> Result<(), CoreError> {
         let parsed: serde_json::Value = serde_json::from_str(json)
-            .map_err(|e| CoreError::Validation(format!("discount_tiers invalid JSON: {e}")))?;
+            .map_err(|e| CoreError::Validation(format!("discount_tiers: JSON inválido: {e}")))?;
         let arr = parsed.as_array().ok_or_else(|| CoreError::Validation(
-            "discount_tiers must be an array".into(),
+            "discount_tiers deve ser um array".into(),
         ))?;
         if arr.is_empty() {
-            return Err(CoreError::Validation("discount_tiers cannot be empty".into()));
+            return Err(CoreError::Validation("discount_tiers não pode ser vazio".into()));
         }
         let mut prev_qty = f64::NEG_INFINITY;
         for (idx, entry) in arr.iter().enumerate() {
             let obj = entry.as_object().ok_or_else(|| CoreError::Validation(format!(
-                "discount_tiers[{idx}] must be an object"
+                "discount_tiers[{idx}] deve ser um objeto"
             )))?;
             let q = obj.get("min_qty").and_then(|v| v.as_f64()).ok_or_else(|| {
-                CoreError::Validation(format!("discount_tiers[{idx}].min_qty missing"))
+                CoreError::Validation(format!("discount_tiers[{idx}]: min_qty ausente"))
             })?;
             let v = obj.get("value").and_then(crate::money::price_from_json).ok_or_else(|| {
-                CoreError::Validation(format!("discount_tiers[{idx}].value missing"))
+                CoreError::Validation(format!("discount_tiers[{idx}]: value ausente"))
             })?;
             if q <= 0.0 {
                 return Err(CoreError::Validation(format!(
-                    "discount_tiers[{idx}].min_qty must be > 0"
+                    "discount_tiers[{idx}]: min_qty deve ser > 0"
                 )));
             }
             if q <= prev_qty {
                 return Err(CoreError::Validation(
-                    "discount_tiers must be strictly increasing by min_qty".into(),
+                    "discount_tiers deve ser estritamente crescente por min_qty".into(),
                 ));
             }
             Self::check_discount_value(v, is_percent)?;
@@ -357,44 +357,44 @@ impl ProductService {
         let trimmed = raw.trim();
         if trimmed.is_empty() { return Ok(()); }
         let parsed: serde_json::Value = serde_json::from_str(trimmed)
-            .map_err(|e| CoreError::Validation(format!("variations invalid JSON: {e}")))?;
+            .map_err(|e| CoreError::Validation(format!("variations: JSON inválido: {e}")))?;
         let arr = parsed.as_array().ok_or_else(|| CoreError::Validation(
-            "variations must be an array".into(),
+            "variations deve ser um array".into(),
         ))?;
         let mut seen_titles: Vec<String> = Vec::with_capacity(arr.len());
         for (idx, entry) in arr.iter().enumerate() {
             let obj = entry.as_object().ok_or_else(|| CoreError::Validation(format!(
-                "variations[{idx}] must be an object"
+                "variations[{idx}] deve ser um objeto"
             )))?;
             let title = obj.get("title").and_then(|v| v.as_str())
                 .map(str::trim).unwrap_or("");
             if title.is_empty() {
                 return Err(CoreError::Validation(format!(
-                    "variations[{idx}].title is required"
+                    "variations[{idx}]: title é obrigatório"
                 )));
             }
             let lower = title.to_lowercase();
             if seen_titles.contains(&lower) {
                 return Err(CoreError::Validation(format!(
-                    "Duplicate variation title: '{title}'"
+                    "Título de variação duplicado: '{title}'"
                 )));
             }
             seen_titles.push(lower);
             let selection = obj.get("selection").and_then(|v| v.as_str()).unwrap_or("");
             if !matches!(selection, "single" | "multi" | "max_value") {
                 return Err(CoreError::Validation(format!(
-                    "variations[{idx}].selection must be single|multi|max_value"
+                    "variations[{idx}]: selection deve ser single|multi|max_value"
                 )));
             }
             // `required` é boolean; default false se ausente.
             let _required = obj.get("required").and_then(|v| v.as_bool()).unwrap_or(false);
             let options = obj.get("options").and_then(|v| v.as_array())
                 .ok_or_else(|| CoreError::Validation(format!(
-                    "variations[{idx}].options is required (non-empty array)"
+                    "variations[{idx}]: options é obrigatório (array não vazio)"
                 )))?;
             if options.is_empty() {
                 return Err(CoreError::Validation(format!(
-                    "variations[{idx}].options cannot be empty"
+                    "variations[{idx}]: options não pode ser vazio"
                 )));
             }
             // Mín./máx. de seleções (Fase 5B) — só para multi/max_value.
@@ -406,50 +406,50 @@ impl ProductService {
                 let max_sel = obj.get("max_select").and_then(|v| v.as_i64()).unwrap_or(0);
                 if min_sel < 0 {
                     return Err(CoreError::Validation(format!(
-                        "variations[{idx}].min_select cannot be negative"
+                        "variations[{idx}]: min_select não pode ser negativo"
                     )));
                 }
                 if min_sel > n {
                     return Err(CoreError::Validation(format!(
-                        "variations[{idx}].min_select exceeds number of options"
+                        "variations[{idx}]: min_select excede o número de opções"
                     )));
                 }
                 if max_sel < 0 {
                     return Err(CoreError::Validation(format!(
-                        "variations[{idx}].max_select cannot be negative"
+                        "variations[{idx}]: max_select não pode ser negativo"
                     )));
                 }
                 if max_sel > 0 {
                     if max_sel > n {
                         return Err(CoreError::Validation(format!(
-                            "variations[{idx}].max_select exceeds number of options"
+                            "variations[{idx}]: max_select excede o número de opções"
                         )));
                     }
                     if max_sel < min_sel {
                         return Err(CoreError::Validation(format!(
-                            "variations[{idx}].max_select must be >= min_select"
+                            "variations[{idx}]: max_select deve ser >= min_select"
                         )));
                     }
                 }
             }
             for (opt_idx, opt) in options.iter().enumerate() {
                 let opt_obj = opt.as_object().ok_or_else(|| CoreError::Validation(format!(
-                    "variations[{idx}].options[{opt_idx}] must be an object"
+                    "variations[{idx}].options[{opt_idx}] deve ser um objeto"
                 )))?;
                 let opt_name = opt_obj.get("name").and_then(|v| v.as_str())
                     .map(str::trim).unwrap_or("");
                 if opt_name.is_empty() {
                     return Err(CoreError::Validation(format!(
-                        "variations[{idx}].options[{opt_idx}].name is required"
+                        "variations[{idx}].options[{opt_idx}]: name é obrigatório"
                     )));
                 }
                 let opt_price = opt_obj.get("price").and_then(crate::money::price_from_json)
                     .ok_or_else(|| CoreError::Validation(format!(
-                        "variations[{idx}].options[{opt_idx}].price is required"
+                        "variations[{idx}].options[{opt_idx}]: price é obrigatório"
                     )))?;
                 if opt_price < Decimal::ZERO {
                     return Err(CoreError::Validation(format!(
-                        "variations[{idx}].options[{opt_idx}].price cannot be negative"
+                        "variations[{idx}].options[{opt_idx}]: price não pode ser negativo"
                     )));
                 }
             }
@@ -523,7 +523,7 @@ impl ProductService {
         movement: StockMovement,
     ) -> Result<(), CoreError> {
         if movement.base.company_id != company_id {
-            return Err(CoreError::Validation("Company mismatch".into()));
+            return Err(CoreError::Validation("Operação não permitida para esta empresa".into()));
         }
         self.repo.apply_stock_movement(&movement).await
     }
@@ -633,7 +633,7 @@ impl ProductService {
         mut product: Product,
     ) -> Result<(), CoreError> {
         if product.base.company_id != company_id {
-            return Err(CoreError::Validation("Company mismatch".into()));
+            return Err(CoreError::Validation("Operação não permitida para esta empresa".into()));
         }
         product.base.synced = true;
         let group_ids = product.addon_group_ids.clone();

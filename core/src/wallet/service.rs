@@ -282,7 +282,7 @@ impl WalletService {
         mut account: WalletAccount,
     ) -> Result<(), CoreError> {
         if account.base.company_id != company_id {
-            return Err(CoreError::Validation("Company mismatch".into()));
+            return Err(CoreError::Validation("Operação não permitida para esta empresa".into()));
         }
         account.base.synced = true;
         self.repo.sync_upsert_account(&account).await
@@ -333,7 +333,7 @@ impl WalletService {
         mut movement: WalletMovement,
     ) -> Result<(), CoreError> {
         if movement.base.company_id != company_id {
-            return Err(CoreError::Validation("Company mismatch".into()));
+            return Err(CoreError::Validation("Operação não permitida para esta empresa".into()));
         }
         movement.base.synced = true;
         self.repo.sync_upsert_movement(&movement).await

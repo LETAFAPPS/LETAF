@@ -170,7 +170,7 @@ impl OrderService {
         if let Some(method) = payment_method.as_deref() {
             if !crate::order::model::PAYMENT_METHODS.contains(&method) {
                 return Err(CoreError::Validation(format!(
-                    "Unknown payment method '{method}'"
+                    "Forma de pagamento desconhecida: '{method}'"
                 )));
             }
         }
@@ -508,7 +508,7 @@ impl OrderService {
         let trimmed = reason.trim();
         if trimmed.is_empty() {
             return Err(CoreError::Validation(
-                "Cancellation reason is required".into(),
+                "Informe o motivo do cancelamento".into(),
             ));
         }
         let order = self.repo.find_by_id(company_id, id).await?
@@ -516,11 +516,11 @@ impl OrderService {
         match order.status {
             OrderStatus::Delivered => {
                 return Err(CoreError::Validation(
-                    "Delivered orders cannot be cancelled".into(),
+                    "Pedidos entregues não podem ser cancelados".into(),
                 ));
             }
             OrderStatus::Cancelled => {
-                return Err(CoreError::Validation("Order already cancelled".into()));
+                return Err(CoreError::Validation("Este pedido já foi cancelado".into()));
             }
             _ => {}
         }
@@ -573,7 +573,7 @@ impl OrderService {
 
     pub async fn sync_upsert(&self, company_id: Uuid, mut order: Order) -> Result<(), CoreError> {
         if order.base.company_id != company_id {
-            return Err(CoreError::Validation("Company mismatch".into()));
+            return Err(CoreError::Validation("Operação não permitida para esta empresa".into()));
         }
         order.base.synced = true;
         for item in &mut order.items {
@@ -602,7 +602,7 @@ impl OrderService {
             products.iter().map(|p| (p.base.id, p)).collect();
         for item in items {
             let product = *by_id.get(&item.product_id).ok_or_else(|| CoreError::Validation(format!(
-                "Item references unknown product_id={}", item.product_id
+                "Item referencia produto inexistente (product_id={})", item.product_id
             )))?;
             // Produto sem preço cadastrado não pode ser vendido (§11):
             // `effective_unit_price` cairia em 0,0 e uma venda a preço zero
@@ -618,7 +618,7 @@ impl OrderService {
             let expected = base + addons_total;
             if (item.unit_price - expected).abs() > dec!(0.01) {
                 return Err(CoreError::Validation(format!(
-                    "Price mismatch for product '{}': expected {}, got {}",
+                    "Preço divergente para o produto '{}': esperado {}, recebido {}",
                     product.name, money::round2(expected), money::round2(item.unit_price)
                 )));
             }
@@ -794,11 +794,11 @@ fn validate_required_variations(
 /// Valida que a lista de itens não está vazia e cada item é válido.
 fn validate_items(items: &[OrderItemInput]) -> Result<(), CoreError> {
     if items.is_empty() {
-        return Err(CoreError::Validation("Order must have at least one item".into()));
+        return Err(CoreError::Validation("O pedido deve ter ao menos um item".into()));
     }
     for item in items {
         if !item.quantity.is_finite() || item.quantity <= 0.0 {
-            return Err(CoreError::Validation("Item quantity must be positive".into()));
+            return Err(CoreError::Validation("A quantidade do item deve ser positiva".into()));
         }
         // Teto de sanidade: acima disso o subtotal estouraria NUMERIC(14,2) no
         // Postgres (erro 500 cru). Recusa com validação limpa. §13.
@@ -806,10 +806,10 @@ fn validate_items(items: &[OrderItemInput]) -> Result<(), CoreError> {
             return Err(CoreError::Validation("Quantidade de item excede o máximo permitido".into()));
         }
         if item.unit_price < Decimal::ZERO {
-            return Err(CoreError::Validation("Item price cannot be negative".into()));
+            return Err(CoreError::Validation("O preço do item não pode ser negativo".into()));
         }
         if item.product_name.trim().is_empty() {
-            return Err(CoreError::Validation("Item product name is required".into()));
+            return Err(CoreError::Validation("Informe o nome do produto do item".into()));
         }
     }
     Ok(())

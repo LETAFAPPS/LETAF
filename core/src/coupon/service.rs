@@ -224,7 +224,7 @@ impl CouponService {
         mut coupon: Coupon,
     ) -> Result<(), CoreError> {
         if coupon.base.company_id != company_id {
-            return Err(CoreError::Validation("Company mismatch".into()));
+            return Err(CoreError::Validation("Operação não permitida para esta empresa".into()));
         }
         coupon.base.synced = true;
         self.repo.sync_upsert(&coupon).await

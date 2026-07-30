@@ -114,7 +114,7 @@ impl AddonGroupService {
         mut group: AddonGroup,
     ) -> Result<(), CoreError> {
         if group.base.company_id != company_id {
-            return Err(CoreError::Validation("Company mismatch".into()));
+            return Err(CoreError::Validation("Operação não permitida para esta empresa".into()));
         }
         group.base.synced = true;
         self.repo.sync_upsert(&group).await
@@ -146,30 +146,30 @@ impl AddonGroupService {
 
     fn validate(name: &str, selection: &str, min: i32, max: i32) -> Result<(), CoreError> {
         if name.trim().is_empty() {
-            return Err(CoreError::Validation("AddonGroup name is required".into()));
+            return Err(CoreError::Validation("Informe o nome do grupo de adicionais".into()));
         }
         if !matches!(selection, "single" | "multi") {
             return Err(CoreError::Validation(format!(
-                "Unknown selection: '{selection}' (expected single|multi)"
+                "selection desconhecido: '{selection}' (esperado single|multi)"
             )));
         }
         if min < 0 || max < 0 {
-            return Err(CoreError::Validation("min/max cannot be negative".into()));
+            return Err(CoreError::Validation("min/max não podem ser negativos".into()));
         }
         if max > 0 && max < min {
-            return Err(CoreError::Validation("max_select must be >= min_select".into()));
+            return Err(CoreError::Validation("max_select deve ser >= min_select".into()));
         }
         if selection == "single" {
             // Em "single" o teto é sempre 1; aceitar valores diferentes
             // tornaria a UI inconsistente (overlay já trata como rádio).
             if min > 1 {
                 return Err(CoreError::Validation(
-                    "single selection: min_select must be 0 or 1".into(),
+                    "Seleção single: min_select deve ser 0 ou 1".into(),
                 ));
             }
             if max != 1 {
                 return Err(CoreError::Validation(
-                    "single selection: max_select must be 1".into(),
+                    "Seleção single: max_select deve ser 1".into(),
                 ));
             }
         }

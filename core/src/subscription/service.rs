@@ -1077,7 +1077,7 @@ impl SubscriptionService {
         mut s: Subscription,
     ) -> Result<(), CoreError> {
         if s.base.company_id != company_id {
-            return Err(CoreError::Validation("Company mismatch".into()));
+            return Err(CoreError::Validation("Operação não permitida para esta empresa".into()));
         }
         s.base.synced = true;
         self.repo.sync_upsert_subscription(&s).await
@@ -1089,7 +1089,7 @@ impl SubscriptionService {
         mut inv: Invoice,
     ) -> Result<(), CoreError> {
         if inv.base.company_id != company_id {
-            return Err(CoreError::Validation("Company mismatch".into()));
+            return Err(CoreError::Validation("Operação não permitida para esta empresa".into()));
         }
         inv.base.synced = true;
         self.repo.sync_upsert_invoice(&inv).await

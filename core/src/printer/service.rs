@@ -129,19 +129,19 @@ fn dedup_ids(ids: Vec<Uuid>) -> Vec<Uuid> {
 /// Validação central — reutilizada por create e update.
 fn validate(name: &str, kind: &str, system_name: &str, paper_width: i32) -> Result<(), CoreError> {
     if name.trim().is_empty() {
-        return Err(CoreError::Validation("Printer name is required".into()));
+        return Err(CoreError::Validation("Informe o nome da impressora".into()));
     }
     if system_name.trim().is_empty() {
-        return Err(CoreError::Validation("Printer system name is required".into()));
+        return Err(CoreError::Validation("Informe o nome da impressora no sistema".into()));
     }
     if !PRINTER_KINDS.contains(&kind) {
         return Err(CoreError::Validation(format!(
-            "Unknown printer kind '{kind}' (expected: order | kitchen | fiscal)"
+            "Tipo de impressora desconhecido: '{kind}' (esperado: order | kitchen | fiscal)"
         )));
     }
     if !PAPER_WIDTHS.contains(&paper_width) {
         return Err(CoreError::Validation(format!(
-            "Unsupported paper width {paper_width} (expected 58 or 80)"
+            "Largura de papel não suportada: {paper_width} (esperado 58 ou 80)"
         )));
     }
     Ok(())

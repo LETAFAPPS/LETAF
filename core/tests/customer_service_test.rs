@@ -114,14 +114,14 @@ async fn create_customer_ok() {
 async fn create_customer_empty_name_fails() {
     let (svc, cid) = make_service();
     let result = svc.create(cid, "".into(), None, None, None, None).await;
-    assert_eq!(result.unwrap_err(), CoreError::Validation("Customer name is required".into()));
+    assert_eq!(result.unwrap_err(), CoreError::Validation("Informe o nome do cliente".into()));
 }
 
 #[tokio::test]
 async fn create_customer_whitespace_name_fails() {
     let (svc, cid) = make_service();
     let result = svc.create(cid, "   ".into(), None, None, None, None).await;
-    assert_eq!(result.unwrap_err(), CoreError::Validation("Customer name is required".into()));
+    assert_eq!(result.unwrap_err(), CoreError::Validation("Informe o nome do cliente".into()));
 }
 
 // ── Update ─────────────────────────────────────────────
@@ -152,7 +152,7 @@ async fn update_customer_empty_name_fails() {
     let (svc, cid) = make_service();
     let created = svc.create(cid, "Test".into(), None, None, None, None).await.unwrap();
     let result = svc.update(cid, created.base.id, "".into(), None, None, None, None).await;
-    assert_eq!(result.unwrap_err(), CoreError::Validation("Customer name is required".into()));
+    assert_eq!(result.unwrap_err(), CoreError::Validation("Informe o nome do cliente".into()));
 }
 
 // ── Soft delete ────────────────────────────────────────
@@ -202,7 +202,7 @@ async fn sync_upsert_validates_company() {
     let wrong_cid = Uuid::new_v4();
     let c = Customer::new(cid, "X".into(), None, None, None);
     let result = svc.sync_upsert(wrong_cid, c).await;
-    assert_eq!(result.unwrap_err(), CoreError::Validation("Company mismatch".into()));
+    assert_eq!(result.unwrap_err(), CoreError::Validation("Operação não permitida para esta empresa".into()));
 }
 
 // ── Find by email ──────────────────────────────────────

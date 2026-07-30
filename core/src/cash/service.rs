@@ -285,7 +285,7 @@ impl CashService {
         mut session: CashSession,
     ) -> Result<(), CoreError> {
         if session.base.company_id != company_id {
-            return Err(CoreError::Validation("Company mismatch".into()));
+            return Err(CoreError::Validation("Operação não permitida para esta empresa".into()));
         }
         session.base.synced = true;
         self.sessions.sync_upsert(&session).await
@@ -328,7 +328,7 @@ impl CashService {
         mut mv: CashMovement,
     ) -> Result<(), CoreError> {
         if mv.base.company_id != company_id {
-            return Err(CoreError::Validation("Company mismatch".into()));
+            return Err(CoreError::Validation("Operação não permitida para esta empresa".into()));
         }
         mv.base.synced = true;
         self.movements.sync_upsert(&mv).await

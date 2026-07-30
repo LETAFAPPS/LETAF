@@ -204,7 +204,7 @@ impl FinanceService {
         mut entry: FinanceEntry,
     ) -> Result<(), CoreError> {
         if entry.base.company_id != company_id {
-            return Err(CoreError::Validation("Company mismatch".into()));
+            return Err(CoreError::Validation("Operação não permitida para esta empresa".into()));
         }
         entry.base.synced = true;
         self.repo.sync_upsert(&entry).await

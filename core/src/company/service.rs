@@ -86,10 +86,10 @@ impl CompanyService {
         subdomain: String,
     ) -> Result<Company, CoreError> {
         if name.trim().is_empty() {
-            return Err(CoreError::Validation("Company name is required".into()));
+            return Err(CoreError::Validation("Informe o nome da empresa".into()));
         }
         if subdomain.trim().is_empty() {
-            return Err(CoreError::Validation("Company subdomain is required".into()));
+            return Err(CoreError::Validation("Informe o subdomínio da empresa".into()));
         }
         let company = Company::new(name, subdomain);
         self.repo.create(&company).await?;
@@ -106,10 +106,10 @@ impl CompanyService {
         subdomain: String,
     ) -> Result<Company, CoreError> {
         if name.trim().is_empty() {
-            return Err(CoreError::Validation("Company name is required".into()));
+            return Err(CoreError::Validation("Informe o nome da empresa".into()));
         }
         if subdomain.trim().is_empty() {
-            return Err(CoreError::Validation("Company subdomain is required".into()));
+            return Err(CoreError::Validation("Informe o subdomínio da empresa".into()));
         }
         let mut company = self.repo.find_by_id(id).await?
             .ok_or_else(|| CoreError::NotFound("Company not found".into()))?;
@@ -166,7 +166,7 @@ impl CompanyService {
     ///   a `Some("")` (vira `None`).
     pub async fn update_info(&self, id: Uuid, input: UpdateInfoInput) -> Result<Company, CoreError> {
         if input.name.trim().is_empty() {
-            return Err(CoreError::Validation("Company name is required".into()));
+            return Err(CoreError::Validation("Informe o nome da empresa".into()));
         }
         let products_per_page = input.products_per_page.clamp(1, 200);
         let orders_per_page = input.orders_per_page.clamp(1, 200);
@@ -285,7 +285,7 @@ impl CompanyService {
         mut company: Company,
     ) -> Result<(), CoreError> {
         if company.id != company_id {
-            return Err(CoreError::Validation("Company mismatch".into()));
+            return Err(CoreError::Validation("Operação não permitida para esta empresa".into()));
         }
         match company.store_override.as_str() {
             "none" | "open" | "closed" => {}

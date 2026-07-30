@@ -47,7 +47,7 @@ impl CustomerService {
         notes: Option<String>,
     ) -> Result<Customer, CoreError> {
         if name.trim().is_empty() {
-            return Err(CoreError::Validation("Customer name is required".into()));
+            return Err(CoreError::Validation("Informe o nome do cliente".into()));
         }
         let mut customer = Customer::new(company_id, name, email, phone, document);
         customer.notes = notes;
@@ -69,7 +69,7 @@ impl CustomerService {
         notes: Option<String>,
     ) -> Result<Customer, CoreError> {
         if name.trim().is_empty() {
-            return Err(CoreError::Validation("Customer name is required".into()));
+            return Err(CoreError::Validation("Informe o nome do cliente".into()));
         }
         let mut customer = self.repo.find_by_id(company_id, id).await?
             .ok_or_else(|| CoreError::NotFound("Customer not found".into()))?;
@@ -99,16 +99,16 @@ impl CustomerService {
         password: String,
     ) -> Result<Customer, CoreError> {
         if name.trim().is_empty() {
-            return Err(CoreError::Validation("Customer name is required".into()));
+            return Err(CoreError::Validation("Informe o nome do cliente".into()));
         }
         if email.trim().is_empty() {
-            return Err(CoreError::Validation("Customer email is required".into()));
+            return Err(CoreError::Validation("Informe o e-mail do cliente".into()));
         }
         if password.len() < 8 {
-            return Err(CoreError::Validation("Password must be at least 8 characters".into()));
+            return Err(CoreError::Validation("A senha deve ter ao menos 8 caracteres".into()));
         }
         if self.repo.find_by_email(company_id, &email).await?.is_some() {
-            return Err(CoreError::Validation("Email already registered".into()));
+            return Err(CoreError::Validation("E-mail já cadastrado".into()));
         }
         let hash = crate::hashing::hash_password(password).await?;
         let customer = Customer::new_with_password(company_id, name, email, phone, hash);
@@ -127,12 +127,12 @@ impl CustomerService {
         password: &str,
     ) -> Result<Customer, CoreError> {
         let customer = self.repo.find_by_email(company_id, email).await?
-            .ok_or_else(|| CoreError::Unauthorized("Invalid credentials".into()))?;
+            .ok_or_else(|| CoreError::Unauthorized("Credenciais inválidas".into()))?;
         let hash = customer.password_hash.as_deref()
-            .ok_or_else(|| CoreError::Unauthorized("Customer has no password".into()))?;
+            .ok_or_else(|| CoreError::Unauthorized("Cliente não possui senha cadastrada".into()))?;
         let valid = crate::hashing::verify_password(password.to_string(), hash.to_string()).await?;
         if !valid {
-            return Err(CoreError::Unauthorized("Invalid credentials".into()));
+            return Err(CoreError::Unauthorized("Credenciais inválidas".into()));
         }
         Ok(customer)
     }
@@ -154,24 +154,24 @@ impl CustomerService {
         profile_picture: Option<String>,
     ) -> Result<Customer, CoreError> {
         if name.trim().is_empty() {
-            return Err(CoreError::Validation("Name is required".into()));
+            return Err(CoreError::Validation("Informe o nome".into()));
         }
         let mut customer = self.repo.find_by_id(company_id, customer_id).await?
             .ok_or_else(|| CoreError::NotFound("Customer not found".into()))?;
 
         if let Some(new_pwd) = new_password {
             let cur_pwd = current_password
-                .ok_or_else(|| CoreError::Validation("Current password required".into()))?;
+                .ok_or_else(|| CoreError::Validation("Informe a senha atual".into()))?;
             let hash = customer.password_hash.as_deref()
-                .ok_or_else(|| CoreError::Unauthorized("No password set".into()))?;
+                .ok_or_else(|| CoreError::Unauthorized("Nenhuma senha cadastrada".into()))?;
             if !crate::hashing::verify_password(cur_pwd, hash.to_string()).await? {
-                return Err(CoreError::Unauthorized("Current password incorrect".into()));
+                return Err(CoreError::Unauthorized("Senha atual incorreta".into()));
             }
             // Mesmo critério do `register` (linha 98) para evitar
             // política dupla — senha curta agora é rejeitada também
             // em mudanças de perfil.
             if new_pwd.len() < 8 {
-                return Err(CoreError::Validation("Password must be at least 8 characters".into()));
+                return Err(CoreError::Validation("A senha deve ter ao menos 8 caracteres".into()));
             }
             // Mesmo custo do cadastro (BCRYPT_COST=13). Antes usava
             // DEFAULT_COST=12 — política de hash inconsistente para a
@@ -243,7 +243,7 @@ impl CustomerService {
         mut customer: Customer,
     ) -> Result<(), CoreError> {
         if customer.base.company_id != company_id {
-            return Err(CoreError::Validation("Company mismatch".into()));
+            return Err(CoreError::Validation("Operação não permitida para esta empresa".into()));
         }
         customer.base.synced = true;
         self.repo.sync_upsert(&customer).await

@@ -226,7 +226,7 @@ async fn create_product_empty_name_fails() {
     let (svc, cid) = make_service();
     let result = svc.create(cid, "".into(), None, None, None, Some(dec!(10.0)), None, 0.0, 0.0, false, None, "un".into(), letaf_core::product::model::BalanceMode::Weight, None, None, None, None, None, None, None, Vec::new(), None).await;
     assert!(result.is_err());
-    assert_eq!(result.unwrap_err(), CoreError::Validation("Product name is required".into()));
+    assert_eq!(result.unwrap_err(), CoreError::Validation("Informe o nome do produto".into()));
 }
 
 #[tokio::test]
@@ -234,7 +234,7 @@ async fn create_product_negative_price_fails() {
     let (svc, cid) = make_service();
     let result = svc.create(cid, "X".into(), None, None, None, Some(dec!(-1.0)), None, 0.0, 0.0, false, None, "un".into(), letaf_core::product::model::BalanceMode::Weight, None, None, None, None, None, None, None, Vec::new(), None).await;
     assert!(result.is_err());
-    assert_eq!(result.unwrap_err(), CoreError::Validation("Price cannot be negative".into()));
+    assert_eq!(result.unwrap_err(), CoreError::Validation("O preço não pode ser negativo".into()));
 }
 
 #[tokio::test]
@@ -242,7 +242,7 @@ async fn create_product_negative_stock_fails() {
     let (svc, cid) = make_service();
     let result = svc.create(cid, "X".into(), None, None, None, Some(dec!(10.0)), None, -5.0, 0.0, false, None, "un".into(), letaf_core::product::model::BalanceMode::Weight, None, None, None, None, None, None, None, Vec::new(), None).await;
     assert!(result.is_err());
-    assert_eq!(result.unwrap_err(), CoreError::Validation("Stock quantity cannot be negative".into()));
+    assert_eq!(result.unwrap_err(), CoreError::Validation("A quantidade em estoque não pode ser negativa".into()));
 }
 
 // ── Testes de update ───────────────────────────────────
@@ -277,7 +277,7 @@ async fn update_product_empty_name_fails() {
     let (svc, cid) = make_service();
     let created = svc.create(cid, "Test".into(), None, None, None, Some(dec!(10.0)), None, 1.0, 0.0, false, None, "un".into(), letaf_core::product::model::BalanceMode::Weight, None, None, None, None, None, None, None, Vec::new(), None).await.unwrap();
     let result = svc.update(cid, created.base.id, "".into(), None, None, None, Some(dec!(10.0)), None, 1.0, 0.0, false, None, "un".into(), letaf_core::product::model::BalanceMode::Weight, None, None, None, None, None, None, None, Vec::new(), None).await;
-    assert_eq!(result.unwrap_err(), CoreError::Validation("Product name is required".into()));
+    assert_eq!(result.unwrap_err(), CoreError::Validation("Informe o nome do produto".into()));
 }
 
 // ── Testes de soft delete ──────────────────────────────
@@ -343,5 +343,5 @@ async fn sync_upsert_validates_company() {
     let wrong_cid = Uuid::new_v4();
     let p = Product::new(cid, "X".into(), None, None, None, None, None, 0.0, 0.0, false, None, "un".into(), letaf_core::product::model::BalanceMode::Weight, None, None, None, None, None, None, None);
     let result = svc.sync_upsert(wrong_cid, p).await;
-    assert_eq!(result.unwrap_err(), CoreError::Validation("Company mismatch".into()));
+    assert_eq!(result.unwrap_err(), CoreError::Validation("Operação não permitida para esta empresa".into()));
 }

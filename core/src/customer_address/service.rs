@@ -146,7 +146,7 @@ impl CustomerAddressService {
         mut address: CustomerAddress,
     ) -> Result<(), CoreError> {
         if address.base.company_id != company_id {
-            return Err(CoreError::Validation("Company mismatch".into()));
+            return Err(CoreError::Validation("Operação não permitida para esta empresa".into()));
         }
         address.base.synced = true;
         self.repo.sync_upsert(&address).await

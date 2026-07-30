@@ -50,7 +50,7 @@ impl SubcategoryService {
         name: String,
     ) -> Result<Subcategory, CoreError> {
         if name.trim().is_empty() {
-            return Err(CoreError::Validation("Subcategory name is required".into()));
+            return Err(CoreError::Validation("Informe o nome da subcategoria".into()));
         }
         self.ensure_category_belongs_to_company(company_id, category_id).await?;
 
@@ -68,7 +68,7 @@ impl SubcategoryService {
         name: String,
     ) -> Result<Subcategory, CoreError> {
         if name.trim().is_empty() {
-            return Err(CoreError::Validation("Subcategory name is required".into()));
+            return Err(CoreError::Validation("Informe o nome da subcategoria".into()));
         }
         self.ensure_category_belongs_to_company(company_id, category_id).await?;
 
@@ -134,7 +134,7 @@ impl SubcategoryService {
         mut subcategory: Subcategory,
     ) -> Result<(), CoreError> {
         if subcategory.base.company_id != company_id {
-            return Err(CoreError::Validation("Company mismatch".into()));
+            return Err(CoreError::Validation("Operação não permitida para esta empresa".into()));
         }
         subcategory.base.synced = true;
         self.repo.sync_upsert(&subcategory).await
@@ -149,7 +149,7 @@ impl SubcategoryService {
         self.category_repo
             .find_by_id(company_id, category_id)
             .await?
-            .ok_or_else(|| CoreError::Validation("Invalid category_id".into()))?;
+            .ok_or_else(|| CoreError::Validation("category_id inválido".into()))?;
         Ok(())
     }
 }

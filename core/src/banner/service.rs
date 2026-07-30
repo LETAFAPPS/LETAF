@@ -117,7 +117,7 @@ impl BannerService {
         mut banner: Banner,
     ) -> Result<(), CoreError> {
         if banner.base.company_id != company_id {
-            return Err(CoreError::Validation("Company mismatch".into()));
+            return Err(CoreError::Validation("Operação não permitida para esta empresa".into()));
         }
         banner.base.synced = true;
         self.repo.sync_upsert(&banner).await
@@ -133,26 +133,26 @@ fn validate(
     item_url: Option<&str>,
 ) -> Result<(), CoreError> {
     if title.trim().is_empty() {
-        return Err(CoreError::Validation("Banner title is required".into()));
+        return Err(CoreError::Validation("Informe o título do banner".into()));
     }
     if image_data.trim().is_empty() {
-        return Err(CoreError::Validation("Banner image is required".into()));
+        return Err(CoreError::Validation("Informe a imagem do banner".into()));
     }
     if image_data.len() > IMAGE_MAX_BASE64_BYTES {
         return Err(CoreError::Validation(
-            "Banner image exceeds 20MB limit".into(),
+            "A imagem do banner excede o limite de 20MB".into(),
         ));
     }
     if !ITEM_TYPES.contains(&item_type) {
         return Err(CoreError::Validation(format!(
-            "Unknown banner item type '{item_type}'"
+            "Tipo de item de banner desconhecido: '{item_type}'"
         )));
     }
     match item_type {
         "product" => {
             if item_id.is_none() {
                 return Err(CoreError::Validation(
-                    "Banner with type 'product' requires item_id".into(),
+                    "Banner do tipo 'product' exige item_id".into(),
                 ));
             }
         }
@@ -160,12 +160,12 @@ fn validate(
             let url = item_url.map(str::trim).unwrap_or("");
             if url.is_empty() {
                 return Err(CoreError::Validation(
-                    "Banner with type 'url' requires item_url".into(),
+                    "Banner do tipo 'url' exige item_url".into(),
                 ));
             }
             if !(url.starts_with("http://") || url.starts_with("https://")) {
                 return Err(CoreError::Validation(
-                    "Banner URL must start with http:// or https://".into(),
+                    "A URL do banner deve começar com http:// ou https://".into(),
                 ));
             }
         }

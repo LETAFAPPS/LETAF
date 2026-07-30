@@ -109,16 +109,16 @@ impl AuthService {
         role: UserRole,
     ) -> Result<User, CoreError> {
         if email.trim().is_empty() {
-            return Err(CoreError::Validation("User email is required".into()));
+            return Err(CoreError::Validation("Informe o e-mail do usuário".into()));
         }
         if name.trim().is_empty() {
-            return Err(CoreError::Validation("User name is required".into()));
+            return Err(CoreError::Validation("Informe o nome do usuário".into()));
         }
         if password.trim().is_empty() {
-            return Err(CoreError::Validation("Password is required".into()));
+            return Err(CoreError::Validation("Informe a senha".into()));
         }
         if self.repo.find_by_email(company_id, &email).await?.is_some() {
-            return Err(CoreError::Validation("Email already registered".into()));
+            return Err(CoreError::Validation("E-mail já cadastrado".into()));
         }
         let password_hash = crate::hashing::hash_password(password).await?;
         let user = User::new(company_id, email, password_hash, name, role);
@@ -234,10 +234,10 @@ impl AuthService {
         name: String,
     ) -> Result<User, CoreError> {
         if email.trim().is_empty() {
-            return Err(CoreError::Validation("User email is required".into()));
+            return Err(CoreError::Validation("Informe o e-mail do usuário".into()));
         }
         if name.trim().is_empty() {
-            return Err(CoreError::Validation("User name is required".into()));
+            return Err(CoreError::Validation("Informe o nome do usuário".into()));
         }
         let mut user = self.repo.find_by_id(company_id, id).await?
             .ok_or_else(|| CoreError::NotFound("User not found".into()))?;
@@ -268,10 +268,10 @@ impl AuthService {
         avatar: Option<String>,
     ) -> Result<User, CoreError> {
         if email.trim().is_empty() {
-            return Err(CoreError::Validation("User email is required".into()));
+            return Err(CoreError::Validation("Informe o e-mail do usuário".into()));
         }
         if name.trim().is_empty() {
-            return Err(CoreError::Validation("User name is required".into()));
+            return Err(CoreError::Validation("Informe o nome do usuário".into()));
         }
         let mut user = self.repo.find_by_id(company_id, id).await?
             .ok_or_else(|| CoreError::NotFound("User not found".into()))?;
@@ -279,7 +279,7 @@ impl AuthService {
         // Unicidade do email dentro da empresa (exceto o próprio usuário).
         if let Some(other) = self.repo.find_by_email(company_id, &email).await? {
             if other.base.id != id {
-                return Err(CoreError::Validation("Email already registered".into()));
+                return Err(CoreError::Validation("E-mail já cadastrado".into()));
             }
         }
 
@@ -335,12 +335,12 @@ impl AuthService {
         password: &str,
     ) -> Result<User, CoreError> {
         let user = self.repo.find_by_email(company_id, email).await?
-            .ok_or_else(|| CoreError::Unauthorized("Invalid credentials".into()))?;
+            .ok_or_else(|| CoreError::Unauthorized("Credenciais inválidas".into()))?;
 
         let valid = crate::hashing::verify_password(password.to_string(), user.password_hash.clone()).await?;
 
         if !valid {
-            return Err(CoreError::Unauthorized("Invalid credentials".into()));
+            return Err(CoreError::Unauthorized("Credenciais inválidas".into()));
         }
 
         Ok(user)
@@ -360,16 +360,16 @@ impl AuthService {
         password: &str,
     ) -> Result<User, CoreError> {
         if email.trim().is_empty() || password.trim().is_empty() {
-            return Err(CoreError::Unauthorized("Invalid credentials".into()));
+            return Err(CoreError::Unauthorized("Credenciais inválidas".into()));
         }
 
         let user = self.repo.find_by_email_global(email).await?
-            .ok_or_else(|| CoreError::Unauthorized("Invalid credentials".into()))?;
+            .ok_or_else(|| CoreError::Unauthorized("Credenciais inválidas".into()))?;
 
         let valid = crate::hashing::verify_password(password.to_string(), user.password_hash.clone()).await?;
 
         if !valid {
-            return Err(CoreError::Unauthorized("Invalid credentials".into()));
+            return Err(CoreError::Unauthorized("Credenciais inválidas".into()));
         }
 
         Ok(user)
@@ -432,7 +432,7 @@ impl AuthService {
         payload: super::model::SyncUserPayload,
     ) -> Result<(), CoreError> {
         if payload.company_id != company_id {
-            return Err(CoreError::Validation("Company mismatch".into()));
+            return Err(CoreError::Validation("Operação não permitida para esta empresa".into()));
         }
         let mut user = payload.into_user();
         user.base.synced = true;
@@ -459,7 +459,7 @@ impl AuthService {
         payload: super::model::SyncUserPayload,
     ) -> Result<(), CoreError> {
         if payload.company_id != company_id {
-            return Err(CoreError::Validation("Company mismatch".into()));
+            return Err(CoreError::Validation("Operação não permitida para esta empresa".into()));
         }
         if payload.role == UserRole::SuperAdmin {
             return Err(CoreError::Validation(
