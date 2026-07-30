@@ -638,6 +638,9 @@ export component MainWindow inherits Window {
     callback collab-new-employee();
     callback collab-edit-employee(string);
     callback collab-save-employee(string, string, string, string, int);
+    /// Busca das listas mestres de Funções/Funcionários (filtro no Rust).
+    callback collab-role-search-changed(string);
+    callback collab-emp-search-changed(string);
 
     callback refresh-business-hours();
     callback save-business-hours();
@@ -2040,6 +2043,8 @@ export component MainWindow inherits Window {
                 new-employee => { root.collab-new-employee(); }
                 edit-employee(id) => { root.collab-edit-employee(id); }
                 save-employee(id, n, em, pw, idx) => { root.collab-save-employee(id, n, em, pw, idx); }
+                role-search-changed(q) => { root.collab-role-search-changed(q); }
+                emp-search-changed(q) => { root.collab-emp-search-changed(q); }
                 // Exclusão de função/funcionário passa pelo modal de
                 // confirmação global (type "job-role" / "employee").
                 request-delete(id, name, type) => {

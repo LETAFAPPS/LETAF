@@ -26,14 +26,24 @@ pub(crate) struct CollabCache {
     pub(crate) employees: Vec<User>,
     /// Opções do combo de Função na ordem exibida (sem o "Sem função").
     pub(crate) role_options: Vec<(Uuid, String)>,
+    /// Filtro de busca da lista de Funções (case-insensitive, por nome).
+    pub(crate) role_query: String,
+    /// Filtro de busca da lista de Funcionários (nome ou e-mail).
+    pub(crate) emp_query: String,
 }
 
 /// Aplica as listas (Funções + Funcionários) e o combo de Funções na UI,
 /// atualizando o cache com os dados carregados.
 pub(crate) fn apply_lists(ui: &MainWindow, cache: &CollabCache) {
+    // Filtros de busca das listas mestres (mesmo padrão de Clientes:
+    // o Rust filtra, a UI só renderiza). O combo de Funções do
+    // formulário NÃO é filtrado (usa role_options completo).
+    let role_q = cache.role_query.trim().to_lowercase();
+    let emp_q = cache.emp_query.trim().to_lowercase();
     let role_rows: Vec<CollabRoleRow> = cache
         .roles
         .iter()
+        .filter(|r| role_q.is_empty() || r.name.to_lowercase().contains(&role_q))
         .map(|r| {
             // Telas liberadas (com `.view`), na ordem do catálogo.
             let views: Vec<&'static str> = permission::FEATURES
@@ -65,6 +75,11 @@ pub(crate) fn apply_lists(ui: &MainWindow, cache: &CollabCache) {
     let emp_rows: Vec<CollabEmployeeRow> = cache
         .employees
         .iter()
+        .filter(|u| {
+            emp_q.is_empty()
+                || u.name.to_lowercase().contains(&emp_q)
+                || u.email.to_lowercase().contains(&emp_q)
+        })
         .map(|u| CollabEmployeeRow {
             id: u.base.id.to_string().into(),
             name: u.name.clone().into(),

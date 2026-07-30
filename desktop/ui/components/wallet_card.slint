@@ -289,7 +289,10 @@ export component WalletCard inherits Rectangle {
                         spacing: 0px;
                         for m in root.movements: MovementRow { data: m; }
                         if root.movements.length == 0: Rectangle {
-                            height: 128px;
+                            // Altura = arte (200px) + rótulo/paddings do
+                            // EmptyState (56px) — sem isso a ilustração
+                            // vazava para fora do card.
+                            height: 256px;
                             EmptyState {
                                 source: @image-url("../assets/illustrations/financial-data-presentation.svg");
                                 title: "Sem movimentações";

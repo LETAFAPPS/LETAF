@@ -32,6 +32,30 @@ pub(crate) fn setup_collaborators(
     setup_role_persist(ui, state, handle, &cache, &sync_notify);
     setup_employee_form(ui, &cache);
     setup_employee_persist(ui, state, handle, &cache, &sync_notify);
+    setup_list_search(ui, &cache);
+}
+
+/// Busca das listas mestres (Funções/Funcionários) — guarda a query no
+/// cache e reaplica os modelos filtrados (mesmo padrão de Clientes).
+fn setup_list_search(ui: &MainWindow, cache: &Arc<Mutex<CollabCache>>) {
+    let ui_weak = ui.as_weak();
+    let c = cache.clone();
+    ui.on_collab_role_search_changed(move |q| {
+        let Some(ui) = ui_weak.upgrade() else { return };
+        if let Ok(mut g) = c.lock() {
+            g.role_query = q.to_string();
+            apply_lists(&ui, &g);
+        }
+    });
+    let ui_weak = ui.as_weak();
+    let c = cache.clone();
+    ui.on_collab_emp_search_changed(move |q| {
+        let Some(ui) = ui_weak.upgrade() else { return };
+        if let Ok(mut g) = c.lock() {
+            g.emp_query = q.to_string();
+            apply_lists(&ui, &g);
+        }
+    });
 }
 
 /// Recarrega Funções + Funcionários do SQLite e reaplica os modelos.
