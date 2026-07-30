@@ -10,4 +10,5 @@
 //! Slint — fontes proporcionais, divisórias reais e alinhamento de
 //! pares (label/valor) — não com texto monospace.
 
+pub mod invoice_pdf;
 pub mod pdf;

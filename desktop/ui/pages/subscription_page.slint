@@ -15,17 +15,19 @@ component PaymentChip inherits Rectangle {
     width: 56px;
     height: 26px;
     border-radius: 5px;
-    background: root.kind == "pix" ? #1AA86F
-              : root.kind == "card" || root.kind == "visa" ? #1A237E
-              : #757575;
+    // Chip neutro no padrão do sistema (tint suave + borda), sem
+    // blocos de cor chapada.
+    border-width: 1px;
+    border-color: Theme.border;
+    background: Theme.row-alt;
     Text {
         width: parent.width; height: parent.height;
         text: root.kind == "pix" ? "PIX"
-            : root.kind == "card" || root.kind == "visa" ? "VISA"
+            : root.kind == "card" || root.kind == "visa" ? "CARTÃO"
             : "—";
-        font-size: 11px; font-weight: 800;
+        font-size: 10px; font-weight: 800;
         letter-spacing: 1px;
-        color: white;
+        color: Theme.text-secondary;
         horizontal-alignment: center; vertical-alignment: center;
     }
 }
@@ -35,12 +37,9 @@ component PlanCard inherits Rectangle {
     in property <PlanCardData> data;
     callback choose();
 
-    property <color> brand-color: data.tone == "primary" ? Theme.primary
-                                  : data.tone == "success" ? #2E7D32
-                                  : #1976D2;
-    property <color> brand-dark: data.tone == "primary" ? Theme.primary-dark
-                                 : data.tone == "success" ? #1B5E20
-                                 : #0D47A1;
+    // Ações do sistema são sempre no laranja da marca (§UX): o tom do
+    // plano diferencia só o marcador ao lado do nome.
+    property <color> brand-color: Theme.btn-accent;
 
     border-radius: 12px;
     border-width: data.is-current ? 2px : 1px;
@@ -90,12 +89,12 @@ component PlanCard inherits Rectangle {
                 width: off-text.preferred-width + 12px;
                 height: 20px;
                 border-radius: 4px;
-                background: #E8F5E9;
+                background: Theme.btn-accent.transparentize(0.88);
                 off-text := Text {
                     width: parent.width; height: parent.height;
                     text: data.highlight-label;
                     font-size: 10px; font-weight: 800;
-                    color: #2E7D32;
+                    color: Theme.btn-accent;
                     letter-spacing: 1px;
                     horizontal-alignment: center; vertical-alignment: center;
                 }
@@ -150,19 +149,19 @@ component PlanCard inherits Rectangle {
             clicked => { if !data.is-current { root.choose(); } }
             Rectangle {
                 border-radius: 8px;
+                // Estilo tênue de ação do sistema: borda + tint fraco.
+                border-width: data.is-current ? 1px : 1.5px;
+                border-color: data.is-current ? Theme.card-border : Theme.btn-accent;
                 background: data.is-current
                     ? Theme.row-hover
-                    : (ta.has-hover ? root.brand-dark : root.brand-color);
-                border-width: data.is-current ? 1px : 0;
-                border-color: Theme.card-border;
-                drop-shadow-blur: 12px;
-                drop-shadow-offset-y: 0px;
-                drop-shadow-color: Theme.card-shadow;
+                    : (ta.has-hover
+                        ? Theme.btn-accent.transparentize(0.80)
+                        : Theme.btn-accent.transparentize(0.90));
                 Text {
                     width: parent.width; height: parent.height;
                     text: data.is-current ? "Plano Atual" : "Mudar e Economizar";
                     font-size: 13px; font-weight: 700;
-                    color: data.is-current ? Theme.text-primary : white;
+                    color: data.is-current ? Theme.text-primary : Theme.btn-accent;
                     horizontal-alignment: center; vertical-alignment: center;
                     overflow: elide;
                 }
@@ -606,6 +605,11 @@ component LeftPanel inherits VerticalLayout {
 component RightPanel inherits VerticalLayout {
     in property <[PlanCardData]> plans;
     in property <[SubscriptionInvoiceRow]> invoices;
+    /// Fatura em aberto em destaque (vazio = nenhuma pendência).
+    in property <string> open-invoice-id;
+    in property <string> open-invoice-amount;
+    in property <string> open-invoice-label;
+    in property <bool> open-invoice-overdue;
     callback choose-plan(string);
     callback download-invoice(string);
     callback download-all();
@@ -613,6 +617,65 @@ component RightPanel inherits VerticalLayout {
 
     spacing: 18px;
     alignment: start;
+
+    // Destaque de fatura em aberto/vencida — atalho para pagar.
+    if root.open-invoice-id != "": Rectangle {
+        border-radius: 12px;
+        border-width: 1px;
+        border-color: root.open-invoice-overdue ? #EF5350 : #FFB74D;
+        background: root.open-invoice-overdue ? #FFEBEE : #FFF8F0;
+        height: 72px;
+        HorizontalLayout {
+            padding-left: 18px; padding-right: 18px;
+            spacing: 14px;
+            VerticalLayout {
+                horizontal-stretch: 1;
+                alignment: center;
+                spacing: 2px;
+                Text {
+                    text: root.open-invoice-overdue ? "Fatura vencida" : "Fatura em aberto";
+                    font-size: 14px; font-weight: 800;
+                    color: root.open-invoice-overdue ? #C62828 : #EF6C00;
+                }
+                Text {
+                    text: root.open-invoice-label;
+                    font-size: 11px;
+                    color: Theme.text-secondary;
+                    overflow: elide;
+                }
+            }
+            VerticalLayout {
+                alignment: center;
+                Text {
+                    text: root.open-invoice-amount;
+                    font-size: 18px; font-weight: 800;
+                    color: root.open-invoice-overdue ? #C62828 : Theme.text-primary;
+                }
+            }
+            VerticalLayout {
+                alignment: center;
+                pay-open-ta := TouchArea {
+                    width: 130px; height: 36px;
+                    clicked => { root.pay-invoice(root.open-invoice-id); }
+                    Rectangle {
+                        border-radius: 8px;
+                        border-width: 1.5px;
+                        border-color: Theme.btn-accent;
+                        background: pay-open-ta.has-hover
+                            ? Theme.btn-accent.transparentize(0.80)
+                            : Theme.btn-accent.transparentize(0.90);
+                        Text {
+                            width: parent.width; height: parent.height;
+                            text: "Pagar agora";
+                            font-size: 13px; font-weight: 700;
+                            color: Theme.btn-accent;
+                            horizontal-alignment: center; vertical-alignment: center;
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     VerticalLayout {
         spacing: 6px;
@@ -652,7 +715,7 @@ component RightPanel inherits VerticalLayout {
                         Text { text: "Cobranças recorrentes"; font-size: 11px; color: Theme.text-secondary; }
                     }
                     baixar-ta := TouchArea {
-                        width: 140px; height: 32px;
+                        width: 180px; height: 32px;
                         y: (parent.height - 32px) / 2;
                         clicked => { root.download-all(); }
                         Rectangle {
@@ -663,7 +726,7 @@ component RightPanel inherits VerticalLayout {
                             HorizontalLayout {
                                 alignment: center; spacing: 6px;
                                 VerticalLayout { alignment: center; AssetIcon { width: 14px; height: 14px; icon-size: 14px; icon-color: Theme.text-primary; source: @image-url("../assets/icons/download.svg"); } }
-                                Text { text: "Baixar Todos"; font-size: 12px; font-weight: 700; color: Theme.text-primary; vertical-alignment: center; }
+                                Text { text: "Baixar 12 meses"; font-size: 12px; font-weight: 700; color: Theme.text-primary; vertical-alignment: center; }
                             }
                         }
                     }
@@ -712,6 +775,11 @@ export component SubscriptionPage inherits Rectangle {
 
     in property <[PaymentMethodOption]> payment-methods;
     in property <bool> payment-picker-open;
+    /// Fatura em aberto em destaque (derivada no Rust).
+    in property <string> open-invoice-id;
+    in property <string> open-invoice-amount;
+    in property <string> open-invoice-label;
+    in property <bool> open-invoice-overdue;
 
     callback choose-plan(string);
     callback open-payment-change();
@@ -761,6 +829,10 @@ export component SubscriptionPage inherits Rectangle {
                     horizontal-stretch: 1;
                     plans: root.plans;
                     invoices: root.invoices;
+                    open-invoice-id: root.open-invoice-id;
+                    open-invoice-amount: root.open-invoice-amount;
+                    open-invoice-label: root.open-invoice-label;
+                    open-invoice-overdue: root.open-invoice-overdue;
                     choose-plan(k) => { root.choose-plan(k); }
                     download-invoice(id) => { root.download-invoice(id); }
                     download-all => { root.download-all(); }
@@ -787,6 +859,10 @@ export component SubscriptionPage inherits Rectangle {
                 RightPanel {
                     plans: root.plans;
                     invoices: root.invoices;
+                    open-invoice-id: root.open-invoice-id;
+                    open-invoice-amount: root.open-invoice-amount;
+                    open-invoice-label: root.open-invoice-label;
+                    open-invoice-overdue: root.open-invoice-overdue;
                     choose-plan(k) => { root.choose-plan(k); }
                     download-invoice(id) => { root.download-invoice(id); }
                     download-all => { root.download-all(); }

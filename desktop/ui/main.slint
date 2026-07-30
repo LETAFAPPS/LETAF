@@ -1177,6 +1177,11 @@ export component MainWindow inherits Window {
     callback subscription-open-payment-change();
     callback subscription-download-invoice(string);
     callback subscription-download-all();
+    /// Fatura em aberto (pendente/vencida) em destaque no topo da tela.
+    in-out property <string> subscription-open-invoice-id: "";
+    in-out property <string> subscription-open-invoice-amount: "";
+    in-out property <string> subscription-open-invoice-label: "";
+    in-out property <bool>   subscription-open-invoice-overdue: false;
     /// Toggle do painel inline "trocar forma de pagamento".
     callback subscription-toggle-payment-picker();
     /// Escolhe uma forma cadastrada como ativa (id da option).
@@ -2346,6 +2351,10 @@ export component MainWindow inherits Window {
                 pick-payment-method(id) => { root.subscription-pick-payment-method(id); }
                 download-invoice(id) => { root.subscription-download-invoice(id); }
                 download-all => { root.subscription-download-all(); }
+                open-invoice-id: root.subscription-open-invoice-id;
+                open-invoice-amount: root.subscription-open-invoice-amount;
+                open-invoice-label: root.subscription-open-invoice-label;
+                open-invoice-overdue: root.subscription-open-invoice-overdue;
                 pay-invoice(id) => { root.subscription-pay-invoice(id); }
                 open-card-modal => { root.card-modal-open = true; }
                 cancel-card => { root.subscription-cancel-card(); }

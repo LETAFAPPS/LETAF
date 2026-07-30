@@ -55,6 +55,7 @@ pub(crate) fn setup_subscription(
     setup_refresh(ui, state, handle, auth_token.clone(), server_url.clone(), catalog_cache.clone());
     setup_choose_plan(ui, state, handle, sync_notify.clone(), catalog_cache.clone());
     setup_placeholders(ui);
+    setup_downloads(ui, state, handle);
     setup_pix_modal(ui, state, handle, auth_token.clone(), server_url.clone());
     // Recarrega a assinatura sempre que um ciclo de sync termina —
     // novas faturas/cobrança chegam via pull e devem refletir na UI
@@ -228,6 +229,36 @@ async fn reapply(
             .collect()
     };
     let invoice_rows: Vec<SubscriptionInvoiceRow> = invoices.iter().map(invoice_row).collect();
+    // Fatura em aberto (pendente/falhou) mais ANTIGA — vira o destaque
+    // no topo da tela, com CTA de pagar (§14: derivado no Rust).
+    let today_ref = Local::now().date_naive();
+    let open_invoice = invoices
+        .iter()
+        .filter(|i| {
+            matches!(
+                i.status,
+                letaf_core::subscription::model::InvoiceStatus::Pending
+                    | letaf_core::subscription::model::InvoiceStatus::Failed
+            )
+        })
+        .min_by_key(|i| i.issued_at);
+    let (open_id, open_amount, open_label, open_overdue) = match open_invoice {
+        Some(inv) => {
+            let overdue = inv.issued_at < today_ref;
+            let label = if overdue {
+                format!("Fatura {} vencida em {}", inv.number, inv.issued_at.format("%d/%m/%Y"))
+            } else {
+                format!("Fatura {} em aberto · vence {}", inv.number, inv.issued_at.format("%d/%m/%Y"))
+            };
+            (
+                inv.base.id.to_string(),
+                money_br(inv.amount),
+                label,
+                overdue,
+            )
+        }
+        None => (String::new(), String::new(), String::new(), false),
+    };
 
     // Badge da sidebar + card no Dashboard — ambos derivam do summary.
     let today = Local::now().date_naive();
@@ -255,6 +286,10 @@ async fn reapply(
             ui.set_subscription_plans(ModelRc::new(VecModel::from(plan_cards)));
             ui.set_subscription_invoices(ModelRc::new(VecModel::from(invoice_rows)));
             ui.set_subscription_pending_count(pending_count);
+            ui.set_subscription_open_invoice_id(SharedString::from(open_id));
+            ui.set_subscription_open_invoice_amount(SharedString::from(open_amount));
+            ui.set_subscription_open_invoice_label(SharedString::from(open_label));
+            ui.set_subscription_open_invoice_overdue(open_overdue);
             ui.set_payment_methods(ModelRc::new(VecModel::from(payment_methods)));
         }
     });
@@ -788,17 +823,113 @@ fn setup_placeholders(ui: &MainWindow) {
     // pick_payment_method e open_add_payment_method são tratados em
     // `setup_payment_method_crud` para ter acesso ao service.
 
+}
+
+/// Downloads dos PDFs: recibo de uma fatura e extrato único dos
+/// últimos 12 meses ("Baixar Todos"). O diálogo de salvar roda em
+/// `spawn_blocking` (nunca bloqueia o executor, §concorrência).
+fn setup_downloads(ui: &MainWindow, state: &DesktopState, handle: &tokio::runtime::Handle) {
     let ui_weak = ui.as_weak();
-    ui.on_subscription_download_invoice(move |_id| {
-        if let Some(ui) = ui_weak.upgrade() {
-            show_toast(&ui, "Geração de PDF · em breve", "info");
-        }
+    let state_dl = state.clone();
+    let handle_dl = handle.clone();
+    ui.on_subscription_download_invoice(move |id| {
+        let Ok(invoice_id) = uuid::Uuid::parse_str(id.as_str()) else { return };
+        let ui_weak = ui_weak.clone();
+        let state = state_dl.clone();
+        handle_dl.spawn(async move {
+            let cid = state.company_id();
+            let invoice = state
+                .subscription_service
+                .find_invoices(cid)
+                .await
+                .ok()
+                .and_then(|list| list.into_iter().find(|i| i.base.id == invoice_id));
+            let Some(invoice) = invoice else {
+                toast(&ui_weak, "Fatura não encontrada", "error");
+                return;
+            };
+            let company = company_name(&state).await;
+            match crate::print::invoice_pdf::build_invoice_pdf(&invoice, &company) {
+                Ok(bytes) => {
+                    let name = crate::print::invoice_pdf::invoice_file_name(&invoice);
+                    save_pdf(&ui_weak, bytes, name).await;
+                }
+                Err(e) => {
+                    tracing::warn!("PDF da fatura falhou: {e}");
+                    toast(&ui_weak, "Não foi possível gerar o PDF da fatura", "error");
+                }
+            }
+        });
     });
 
     let ui_weak = ui.as_weak();
+    let state_all = state.clone();
+    let handle_all = handle.clone();
     ui.on_subscription_download_all(move || {
+        let ui_weak = ui_weak.clone();
+        let state = state_all.clone();
+        handle_all.spawn(async move {
+            let cid = state.company_id();
+            let invoices = state
+                .subscription_service
+                .find_invoices(cid)
+                .await
+                .unwrap_or_default();
+            let company = company_name(&state).await;
+            let today = Local::now().date_naive();
+            match crate::print::invoice_pdf::build_statement_pdf(&invoices, &company, today) {
+                Ok(bytes) => {
+                    let name = crate::print::invoice_pdf::statement_file_name(today);
+                    save_pdf(&ui_weak, bytes, name).await;
+                }
+                Err(e) => {
+                    tracing::warn!("PDF do extrato falhou: {e}");
+                    toast(&ui_weak, "Não foi possível gerar o extrato", "error");
+                }
+            }
+        });
+    });
+}
+
+/// Nome do estabelecimento para o cabeçalho do documento.
+async fn company_name(state: &DesktopState) -> String {
+    state
+        .company_service
+        .find_by_id(state.company_id())
+        .await
+        .ok()
+        .flatten()
+        .map(|c| c.name)
+        .unwrap_or_else(|| "Estabelecimento".to_string())
+}
+
+/// Abre o diálogo "salvar como" e grava os bytes do PDF.
+async fn save_pdf(ui_weak: &slint::Weak<MainWindow>, bytes: Vec<u8>, file_name: String) {
+    let chosen = tokio::task::spawn_blocking(move || {
+        rfd::FileDialog::new()
+            .set_file_name(&file_name)
+            .add_filter("PDF", &["pdf"])
+            .save_file()
+    })
+    .await
+    .ok()
+    .flatten();
+    let Some(path) = chosen else { return };
+    match std::fs::write(&path, bytes) {
+        Ok(()) => toast(ui_weak, "PDF salvo", "success"),
+        Err(e) => {
+            tracing::warn!("gravação do PDF falhou: {e}");
+            toast(ui_weak, "Não foi possível salvar o arquivo", "error");
+        }
+    }
+}
+
+fn toast(ui_weak: &slint::Weak<MainWindow>, msg: &str, kind: &str) {
+    let (msg, kind) = (msg.to_string(), kind.to_string());
+    let ui_weak = ui_weak.clone();
+    let _ = slint::invoke_from_event_loop(move || {
         if let Some(ui) = ui_weak.upgrade() {
-            show_toast(&ui, "Download das faturas (.zip) · em breve", "info");
+            show_toast(&ui, &msg, &kind);
         }
     });
 }
