@@ -241,12 +241,23 @@ fn render_item(ctx: &mut Ctx, it: &OrderItem, show_prices: bool) {
         let left = format!("{qty_label}  {}", it.product_name);
         let right = format!("R$ {:.2}", it.subtotal);
         write_pair(ctx, &left, &right, ctx.style.body_strong_pt, ctx.font_bold);
+        advance(ctx, ctx.style.line_height_mm);
+        // Item com desconto de produto (snapshot da venda): mostra o
+        // preço de tabela e o desconto para a conta ficar transparente.
+        if let Some(list) = it.list_unit_price.filter(|lp| *lp > it.unit_price) {
+            let qty_dec = letaf_core::money::qty(it.quantity);
+            let list_total = letaf_core::money::round2(list * qty_dec);
+            let discount = letaf_core::money::round2(list_total - it.subtotal);
+            let line = format!("de R$ {list_total:.2} · desconto − R$ {discount:.2}");
+            write_left_indented(ctx, &line, 6.0, ctx.style.addons_pt, ctx.font);
+            advance(ctx, ctx.style.line_height_mm * 0.85);
+        }
     } else {
         // Cozinha: sem preço.
         let left = format!("{qty_label}  {}", it.product_name);
         write_left(ctx, &left, ctx.style.body_strong_pt, ctx.font_bold);
+        advance(ctx, ctx.style.line_height_mm);
     }
-    advance(ctx, ctx.style.line_height_mm);
     let summary = format_addons_summary(it.addons_json.as_deref());
     if !summary.is_empty() {
         // Indenta com a largura aproximada de "x1  " (~6mm).

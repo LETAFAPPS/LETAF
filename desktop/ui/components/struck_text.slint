@@ -1,0 +1,29 @@
+import { Theme } from "../theme.slint";
+
+// ── Texto riscado (preço de tabela com desconto) ─────────────────
+//
+// O Slint desta versão não expõe `strikethrough` no `Text` — este
+// componente simula o traço com um Rectangle de 1px sobre o texto.
+// Uso típico: preço de tabela riscado ao lado do preço com desconto.
+export component StruckText inherits Rectangle {
+    in property <string> text;
+    in property <length> text-size: 11px;
+    in property <color> text-color: Theme.text-secondary;
+
+    width: t.preferred-width;
+    height: t.preferred-height;
+
+    t := Text {
+        text: root.text;
+        font-size: root.text-size;
+        font-weight: 600;
+        color: root.text-color;
+    }
+    Rectangle {
+        x: 0;
+        y: parent.height / 2;
+        width: parent.width;
+        height: 1px;
+        background: root.text-color;
+    }
+}

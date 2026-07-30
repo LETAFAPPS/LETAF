@@ -350,6 +350,7 @@ pub(crate) fn setup_save_edit_order(
                         subtotal: rust_decimal::Decimal::ZERO, // service recalcula
                         notes: None,
                         addons_json: aj,
+                        list_unit_price: None, // service recalcula do catálogo
                     });
                     continue;
                 }

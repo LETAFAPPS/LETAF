@@ -7,6 +7,7 @@ import { Theme } from "../theme.slint";
 import { PdvCartRow } from "../types.slint";
 import { AssetIcon } from "../components/icons.slint";
 import { EmptyState } from "../components/empty_state.slint";
+import { StruckText } from "../components/struck_text.slint";
 
 export component PdvCartModal inherits Rectangle {
     in property <[PdvCartRow]> cart;
@@ -153,6 +154,11 @@ export component PdvCartModal inherits Rectangle {
                                     }
                                 }
                                 Rectangle { horizontal-stretch: 1; }
+                                // Total de tabela riscado (desconto do produto).
+                                if it.list-line-display != "": VerticalLayout {
+                                    alignment: center;
+                                    StruckText { text: it.list-line-display; text-size: 11px; }
+                                }
                                 // Valor do item — fica ABAIXO do excluir (linha 2).
                                 Text { text: it.line-total-display; font-size: 13px; font-weight: 700; color: Theme.primary; vertical-alignment: center; }
                             }

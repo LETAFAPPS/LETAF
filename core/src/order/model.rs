@@ -210,6 +210,14 @@ pub struct OrderItem {
     /// embutidas (`availability_schedule`, `discount_tiers`).
     #[serde(default)]
     pub addons_json: Option<String>,
+    /// Snapshot do preço unitário DE TABELA (preço do produto + adicionais,
+    /// sem o desconto do produto) na hora da venda. `unit_price` é o valor
+    /// efetivamente cobrado; quando `list_unit_price > unit_price` a UI
+    /// mostra o desconto (lista/recibo/detalhe). `None` = pedido antigo
+    /// (antes do campo) ou sem desconto — UI trata os dois como "sem
+    /// desconto a exibir". Snapshot mesmo racional do `product_name`.
+    #[serde(default)]
+    pub list_unit_price: Option<Decimal>,
 }
 
 impl OrderItem {
@@ -233,6 +241,7 @@ impl OrderItem {
             subtotal: crate::money::round2(crate::money::qty(quantity) * unit_price),
             notes,
             addons_json,
+            list_unit_price: None,
         }
     }
 }

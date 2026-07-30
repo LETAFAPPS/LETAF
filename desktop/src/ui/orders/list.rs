@@ -220,11 +220,18 @@ pub(crate) fn setup_open_order(
                     let img = buf_map.get(&pid).cloned()
                         .map(slint::Image::from_rgba8)
                         .unwrap_or_default();
+                    // Preço de tabela riscado — só quando o snapshot da
+                    // venda registra desconto de produto no item.
+                    let list_price = item.list_unit_price
+                        .filter(|lp| *lp > item.unit_price)
+                        .map(|lp| format!("R$ {:.2}", lp))
+                        .unwrap_or_default();
                     OrderItemData {
                         product_id: SharedString::from(&pid),
                         product_name: SharedString::from(item.product_name.as_str()),
                         qty_label: SharedString::from(format!("x{}", format_qty(item.quantity))),
                         price: SharedString::from(format!("R$ {:.2}", item.unit_price)),
+                        list_price: SharedString::from(list_price),
                         product_image: img,
                         addons_summary: SharedString::from(
                             format_addons_summary(item.addons_json.as_deref())

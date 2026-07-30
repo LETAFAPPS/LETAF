@@ -46,6 +46,7 @@ fn with_item(mut o: Order, name: &str, qty: f64, subtotal: rust_decimal::Decimal
         subtotal,
         notes: None,
         addons_json: None,
+        list_unit_price: None,
     });
     o
 }

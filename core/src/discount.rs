@@ -34,6 +34,60 @@ pub fn effective_unit_price(p: &Product, quantity: f64) -> Decimal {
     }
 }
 
+/// `true` quando o produto tem desconto ATIVO para a quantidade
+/// informada (preço efetivo difere do preço de tabela). Usado pela UI
+/// para decidir se mostra o preço riscado.
+pub fn has_active_unit_discount(p: &Product, quantity: f64) -> bool {
+    let base = p.price.unwrap_or(Decimal::ZERO);
+    base > Decimal::ZERO && effective_unit_price(p, quantity) != base
+}
+
+/// Rótulo do selo de desconto para a UI ("10% Off", "R$ 2.00 Off",
+/// "Acima de 5 un.: 10% Off"). `None` = sem desconto configurado.
+/// Espelha `discount_badge_label` do web (paridade de vocabulário).
+pub fn badge_label(p: &Product) -> Option<String> {
+    let kind = p.discount_kind.as_deref()?;
+    match kind {
+        "fixed" => Some(format!("R$ {:.2} Off", p.discount_value.unwrap_or(Decimal::ZERO))),
+        "percent" => Some(format!("{:.0}% Off", p.discount_value.unwrap_or(Decimal::ZERO))),
+        "bulk_fixed" => {
+            let (min_qty, value) = lowest_bulk_tier(p)?;
+            Some(format!("Acima de {min_qty:.0} un.: R$ {value:.2} Off"))
+        }
+        "bulk_percent" => {
+            let (min_qty, value) = lowest_bulk_tier(p)?;
+            Some(format!("Acima de {min_qty:.0} un.: {value:.0}% Off"))
+        }
+        _ => None,
+    }
+}
+
+/// Menor gatilho configurado nos tiers `bulk_*` (o primeiro que o
+/// cliente pode atingir) — para o selo anunciar a promoção.
+fn lowest_bulk_tier(p: &Product) -> Option<(f64, Decimal)> {
+    if let Some(json) = p.discount_tiers.as_deref() {
+        if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(json) {
+            if let Some(arr) = parsed.as_array() {
+                let mut tiers: Vec<(f64, Decimal)> = arr.iter()
+                    .filter_map(|v| {
+                        let q = v.get("min_qty")?.as_f64()?;
+                        let val = crate::money::price_from_json(v.get("value")?)?;
+                        if q <= 0.0 { return None; }
+                        Some((q, val))
+                    })
+                    .collect();
+                tiers.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
+                if let Some(first) = tiers.into_iter().next() {
+                    return Some(first);
+                }
+            }
+        }
+    }
+    let min = p.discount_min_qty?;
+    let v = p.discount_value?;
+    if min > 0.0 { Some((min, v)) } else { None }
+}
+
 /// Tier vencedor (maior `min_qty` satisfeito) — devolve o `value`.
 fn winning_bulk_value(p: &Product, quantity: f64) -> Option<Decimal> {
     if let Some(json) = p.discount_tiers.as_deref() {

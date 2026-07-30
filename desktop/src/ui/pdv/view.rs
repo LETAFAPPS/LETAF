@@ -48,12 +48,27 @@ pub(crate) fn apply_state_to_ui(ui: &MainWindow, pdv: &Arc<Mutex<PdvState>>) {
                 Some(buf) => (Image::from_rgba8(buf.clone()), true),
                 None => (Image::default(), false),
             };
+            // Preço exibido = efetivo (com desconto, qty=1) — o mesmo
+            // que o carrinho cobra. Quando há desconto ativo, o preço
+            // de tabela vai riscado ao lado + selo com o rótulo.
+            use rust_decimal::prelude::ToPrimitive;
+            let effective = letaf_core::discount::effective_unit_price(p, 1.0);
+            let has_discount = letaf_core::discount::has_active_unit_discount(p, 1.0);
+            let price_display = p.price
+                .map(|_| format!("R$ {:.2}", effective.to_f64().unwrap_or(0.0)))
+                .unwrap_or_default();
+            let list_price_display = if has_discount {
+                p.price.map(|v| format!("R$ {:.2}", v)).unwrap_or_default()
+            } else {
+                String::new()
+            };
+            let discount_label = letaf_core::discount::badge_label(p).unwrap_or_default();
             PdvProductRow {
                 id: SharedString::from(p.base.id.to_string()),
                 name: SharedString::from(p.name.clone()),
-                price_display: SharedString::from(
-                    p.price.map(|v| format!("R$ {:.2}", v)).unwrap_or_else(|| "".into())
-                ),
+                price_display: SharedString::from(price_display),
+                list_price_display: SharedString::from(list_price_display),
+                discount_label: SharedString::from(discount_label),
                 has_config: has_variations || has_addons,
                 barcode: SharedString::from(p.barcode.clone().unwrap_or_default()),
                 product_image: image,
@@ -65,6 +80,14 @@ pub(crate) fn apply_state_to_ui(ui: &MainWindow, pdv: &Arc<Mutex<PdvState>>) {
 
     let cart_rows: Vec<PdvCartRow> = g.cart.iter().map(|line| {
         let subtotal = (line.qty * line.unit_price).max(0.0);
+        // Total de tabela da linha (sem o desconto do produto) — vai
+        // riscado na UI quando difere do total cobrado.
+        let list_unit = line.list_unit_price(&g.products_all);
+        let list_line_display = if list_unit > line.unit_price + 0.005 {
+            fmt_brl((line.qty * list_unit).max(0.0))
+        } else {
+            String::new()
+        };
         // Miniatura do produto reaproveitando o cache do refresh (clone
         // barato — Rc interno). Placeholder quando não há imagem.
         let (image, has_image) = match g.image_cache.get(&line.product_id) {
@@ -80,6 +103,7 @@ pub(crate) fn apply_state_to_ui(ui: &MainWindow, pdv: &Arc<Mutex<PdvState>>) {
             addons_summary: SharedString::from(line.addons_summary.clone()),
             addons_json: SharedString::from(line.addons_json.clone().unwrap_or_default()),
             line_total_display: SharedString::from(fmt_brl(subtotal)),
+            list_line_display: SharedString::from(list_line_display),
             product_image: image,
             has_image,
         }

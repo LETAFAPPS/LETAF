@@ -4,6 +4,7 @@ import { OrderData, OrderItemData } from "../types.slint";
 import { Card } from "../components/cards.slint";
 import { ActionBtn, OutlineBtn } from "../components/buttons.slint";
 import { AssetIcon } from "../components/icons.slint";
+import { StruckText } from "../components/struck_text.slint";
 
 // ── Modal: preview de Comanda ─────────────────────────────────────
 //
@@ -153,8 +154,14 @@ export component ReceiptModal inherits Rectangle {
                                     padding-top: 4px;
                                     spacing: 2px;
                                     HorizontalLayout {
+                                        spacing: 6px;
                                         Text { text: it.qty-label; font-size: 15px; font-weight: 700; color: black; width: 48px; }
                                         Text { text: it.product-name; font-size: 15px; font-weight: 600; color: black; horizontal-stretch: 1; wrap: word-wrap; }
+                                        // Preço de tabela riscado — item com desconto de produto.
+                                        if it.list-price != "": VerticalLayout {
+                                            alignment: center;
+                                            StruckText { text: it.list-price; text-size: 12px; text-color: black; }
+                                        }
                                         Text { text: it.price; font-size: 14px; font-weight: 600; color: black; }
                                     }
                                     // Variações + adicionais (snapshot já formatado:

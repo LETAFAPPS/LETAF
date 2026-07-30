@@ -96,10 +96,10 @@ impl OrderService {
         discount_amount: Decimal,
     ) -> Result<Order, CoreError> {
         validate_items(&items)?;
-        self.verify_item_prices(company_id, &items).await?;
+        let list_prices = self.verify_item_prices(company_id, &items).await?;
 
         let order_id = Uuid::new_v4();
-        let (final_items, items_total) = build_items(company_id, order_id, &items);
+        let (final_items, items_total) = build_items(company_id, order_id, &items, &list_prices);
         // Desconto vem JÁ calculado/validado pelo caller (server),
         // que recomputa via CouponService — nunca confiamos no valor
         // do frontend (§11). Aqui só garantimos que não fica negativo.
@@ -174,10 +174,10 @@ impl OrderService {
                 )));
             }
         }
-        self.verify_item_prices(company_id, &items).await?;
+        let list_prices = self.verify_item_prices(company_id, &items).await?;
 
         let order_id = Uuid::new_v4();
-        let (final_items, items_total) = build_items(company_id, order_id, &items);
+        let (final_items, items_total) = build_items(company_id, order_id, &items, &list_prices);
         // §11: backend recomputa. Desconto clampado a [0, itens];
         // adicional (acréscimo) não-negativo soma ao total.
         let additional = additional_amount.max(Decimal::ZERO);
@@ -429,11 +429,11 @@ impl OrderService {
                 addons_json: it.addons_json.clone(),
             })
             .collect();
-        self.verify_item_prices(company_id, &price_check).await?;
+        let list_prices = self.verify_item_prices(company_id, &price_check).await?;
 
         let now = chrono::Utc::now().naive_utc();
         let mut finalized: Vec<super::model::OrderItem> = Vec::with_capacity(new_items.len());
-        for mut it in new_items.into_iter() {
+        for (idx, mut it) in new_items.into_iter().enumerate() {
             if !it.quantity.is_finite() || it.quantity <= 0.0 {
                 return Err(CoreError::Validation(
                     "Quantidade de item deve ser positiva".into(),
@@ -453,6 +453,9 @@ impl OrderService {
             }
             it.order_id = id;
             it.subtotal = money::round2(money::qty(it.quantity) * it.unit_price);
+            // Snapshot do preço de tabela recalculado pelo catálogo atual
+            // (mesma ordem do price_check → índice bate com new_items).
+            it.list_unit_price = list_prices.get(idx).copied();
             finalized.push(it);
         }
         let subtotal: Decimal = finalized.iter().map(|i| i.subtotal).sum();
@@ -593,13 +596,19 @@ impl OrderService {
     /// - Adicionais: quando `addon_service` está injetado (servidor), o
     ///   preço de cada adicional é resolvido pelo `id` no catálogo do
     ///   tenant — o `price` do `addons_json` (cliente) é IGNORADO (§11).
-    async fn verify_item_prices(&self, company_id: Uuid, items: &[OrderItemInput]) -> Result<(), CoreError> {
+    ///
+    /// Devolve, na ordem dos `items`, o preço unitário DE TABELA de cada
+    /// um (preço do produto + adicionais, SEM o desconto do produto) —
+    /// snapshot gravado no `OrderItem.list_unit_price` para a UI exibir
+    /// o desconto depois (recibo/detalhe) sem reconsultar o catálogo.
+    async fn verify_item_prices(&self, company_id: Uuid, items: &[OrderItemInput]) -> Result<Vec<Decimal>, CoreError> {
         // Busca todos os produtos do carrinho numa query (batch — evita
         // N+1 no checkout, §13).
         let ids: Vec<Uuid> = items.iter().map(|i| i.product_id).collect();
         let products = self.product_service.find_by_ids(company_id, &ids).await?;
         let by_id: std::collections::HashMap<Uuid, &crate::product::model::Product> =
             products.iter().map(|p| (p.base.id, p)).collect();
+        let mut list_prices: Vec<Decimal> = Vec::with_capacity(items.len());
         for item in items {
             let product = *by_id.get(&item.product_id).ok_or_else(|| CoreError::Validation(format!(
                 "Item referencia produto inexistente (product_id={})", item.product_id
@@ -616,6 +625,7 @@ impl OrderService {
             let base = crate::discount::effective_unit_price(product, item.quantity);
             let addons_total = self.addons_total(company_id, product, item.addons_json.as_deref()).await?;
             let expected = base + addons_total;
+            list_prices.push(product.price.unwrap_or(Decimal::ZERO) + addons_total);
             if (item.unit_price - expected).abs() > dec!(0.01) {
                 return Err(CoreError::Validation(format!(
                     "Preço divergente para o produto '{}': esperado {}, recebido {}",
@@ -633,7 +643,7 @@ impl OrderService {
                 )?;
             }
         }
-        Ok(())
+        Ok(list_prices)
     }
 
     /// Soma o preço dos adicionais/opções de variação escolhidos.
@@ -836,10 +846,18 @@ pub fn order_total(
     (discount, total)
 }
 
-fn build_items(company_id: Uuid, order_id: Uuid, inputs: &[OrderItemInput]) -> (Vec<OrderItem>, Decimal) {
+/// `list_prices` vem de `verify_item_prices` (mesma ordem dos inputs):
+/// preço de tabela por unidade, gravado como snapshot no item para a UI
+/// exibir o desconto do produto depois da venda.
+fn build_items(
+    company_id: Uuid,
+    order_id: Uuid,
+    inputs: &[OrderItemInput],
+    list_prices: &[Decimal],
+) -> (Vec<OrderItem>, Decimal) {
     let mut total = Decimal::ZERO;
-    let items: Vec<OrderItem> = inputs.iter().map(|i| {
-        let item = OrderItem::new(
+    let items: Vec<OrderItem> = inputs.iter().enumerate().map(|(idx, i)| {
+        let mut item = OrderItem::new(
             company_id,
             order_id,
             i.product_id,
@@ -849,6 +867,7 @@ fn build_items(company_id: Uuid, order_id: Uuid, inputs: &[OrderItemInput]) -> (
             i.notes.clone(),
             i.addons_json.clone(),
         );
+        item.list_unit_price = list_prices.get(idx).copied();
         total += item.subtotal;
         item
     }).collect();

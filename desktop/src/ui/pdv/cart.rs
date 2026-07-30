@@ -24,8 +24,12 @@ pub(crate) fn setup_inc_line(ui: &MainWindow, pdv: Arc<Mutex<PdvState>>) {
     ui.on_pdv_inc_line(move |line_id| {
         let Ok(uuid) = Uuid::parse_str(line_id.as_str()) else { return };
         if let Ok(mut g) = pdv.lock() {
-            if let Some(line) = g.cart.iter_mut().find(|l| l.line_id == uuid) {
-                line.qty += 1.0;
+            if let Some(pos) = g.cart.iter().position(|l| l.line_id == uuid) {
+                g.cart[pos].qty += 1.0;
+                // Reprecifica — descontos `bulk_*` dependem da qty.
+                let mut line = g.cart[pos].clone();
+                line.reprice(&g.products_all);
+                g.cart[pos] = line;
             }
         }
         if let Some(ui) = ui_weak.upgrade() {
@@ -42,6 +46,10 @@ pub(crate) fn setup_dec_line(ui: &MainWindow, pdv: Arc<Mutex<PdvState>>) {
             if let Some(pos) = g.cart.iter().position(|l| l.line_id == uuid) {
                 if g.cart[pos].qty > 1.0 {
                     g.cart[pos].qty -= 1.0;
+                    // Reprecifica — o tier `bulk_*` pode deixar de valer.
+                    let mut line = g.cart[pos].clone();
+                    line.reprice(&g.products_all);
+                    g.cart[pos] = line;
                 } else {
                     g.cart.remove(pos);
                 }

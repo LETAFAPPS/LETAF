@@ -14,8 +14,42 @@ pub(crate) struct CartItem {
     pub(crate) name: String,
     pub(crate) qty: f64,
     pub(crate) unit_price: f64,
+    /// Soma dos adicionais/variações da linha (R$ por unidade). O
+    /// desconto do produto incide só no preço base — guardar os extras
+    /// separados permite recomputar `unit_price` quando a quantidade
+    /// muda (descontos `bulk_*` dependem da qty) e exibir o preço de
+    /// tabela (base cheio + extras) riscado na UI.
+    pub(crate) extras: f64,
     pub(crate) addons_summary: String,
     pub(crate) addons_json: Option<String>,
+}
+
+impl CartItem {
+    /// Recalcula `unit_price` para a quantidade atual da linha:
+    /// preço efetivo do produto (desconto conforme qty) + extras.
+    /// Chamado sempre que a qty muda (add/merge, +, −, modal).
+    pub(crate) fn reprice(&mut self, products: &[Product]) {
+        if let Some(p) = products.iter().find(|p| p.base.id == self.product_id) {
+            use rust_decimal::prelude::ToPrimitive;
+            let base = letaf_core::discount::effective_unit_price(p, self.qty)
+                .to_f64()
+                .unwrap_or(0.0);
+            self.unit_price = base + self.extras;
+        }
+    }
+
+    /// Preço unitário de tabela (produto sem desconto + extras), para a
+    /// UI exibir riscado quando difere do `unit_price` cobrado.
+    pub(crate) fn list_unit_price(&self, products: &[Product]) -> f64 {
+        use rust_decimal::prelude::ToPrimitive;
+        products
+            .iter()
+            .find(|p| p.base.id == self.product_id)
+            .and_then(|p| p.price)
+            .and_then(|v| v.to_f64())
+            .map(|base| base + self.extras)
+            .unwrap_or(self.unit_price)
+    }
 }
 
 pub(crate) struct PdvState {

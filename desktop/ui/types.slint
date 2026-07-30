@@ -492,7 +492,13 @@ export struct PrinterCategoryRow {
 export struct PdvProductRow {
     id: string,
     name: string,
+    /// Preço efetivo (com o desconto do produto, qty=1) — o que o
+    /// carrinho cobra.
     price-display: string,
+    /// Preço de tabela riscado — vazio quando não há desconto ativo.
+    list-price-display: string,
+    /// Selo do desconto ("10% Off", "Acima de 5 un.: ..."). Vazio = sem.
+    discount-label: string,
     /// `true` quando o produto tem variações ou adicionais — UI deve
     /// abrir o configurador em vez de adicionar direto ao carrinho.
     has-config: bool,
@@ -522,6 +528,9 @@ export struct PdvCartRow {
     addons-json: string,
     /// `unit-price * qty` formatado em pt-BR ("R$ 19.00").
     line-total-display: string,
+    /// Total de tabela da linha (sem o desconto do produto), riscado na
+    /// UI. Vazio quando não há desconto.
+    list-line-display: string,
     /// Miniatura do produto (decodificada no refresh). Vazia quando o
     /// produto não tem imagem — a UI cai num placeholder.
     product-image: image,
@@ -651,6 +660,9 @@ export struct OrderItemData {
     product-name: string,
     qty-label: string,
     price: string,
+    /// Preço unitário de tabela riscado (snapshot da venda). Vazio
+    /// quando o item não teve desconto de produto.
+    list-price: string,
     product-image: image,
     /// Lista de adicionais/variações já formatada ("Calabresa, Bacon")
     /// — pronta para exibir abaixo do nome no detalhe do pedido.

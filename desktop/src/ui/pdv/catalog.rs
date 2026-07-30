@@ -343,10 +343,17 @@ pub(crate) fn add_to_cart_simple(pdv: &Arc<Mutex<PdvState>>, product_id: Uuid) {
         None => return,
     };
     let price = letaf_core::discount::effective_unit_price(&product, 1.0);
-    if let Some(existing) = g.cart.iter_mut().find(|i| {
+    // `products_all` fica emprestado dentro do bloco — clona a lista de
+    // referência do reprice fora do iter_mut para satisfazer o borrow.
+    if let Some(idx) = g.cart.iter().position(|i| {
         i.product_id == product_id && i.addons_json.is_none()
     }) {
-        existing.qty += 1.0;
+        g.cart[idx].qty += 1.0;
+        // Reprecifica: descontos `bulk_*` mudam o unitário conforme a
+        // qty — o core recomputa igual em `verify_item_prices`.
+        let mut line = g.cart[idx].clone();
+        line.reprice(&g.products_all);
+        g.cart[idx] = line;
         return;
     }
     g.cart.push(CartItem {
@@ -355,6 +362,7 @@ pub(crate) fn add_to_cart_simple(pdv: &Arc<Mutex<PdvState>>, product_id: Uuid) {
         name: product.name,
         qty: 1.0,
         unit_price: price.to_f64().unwrap_or(0.0),
+        extras: 0.0,
         addons_summary: String::new(),
         addons_json: None,
     });
@@ -449,15 +457,20 @@ pub(crate) fn setup_pdv_config_confirm(ui: &MainWindow, pdv: Arc<Mutex<PdvState>
             Ok(u) => u, Err(_) => return,
         };
         if let Ok(mut g) = pdv.lock() {
-            g.cart.push(CartItem {
+            let mut line = CartItem {
                 line_id: Uuid::new_v4(),
                 product_id,
                 name: product_name,
                 qty,
                 unit_price: unit,
+                extras,
                 addons_summary,
                 addons_json,
-            });
+            };
+            // `config-base-price` foi calculado com qty=1; reprecifica
+            // para a qty escolhida (descontos `bulk_*`).
+            line.reprice(&g.products_all);
+            g.cart.push(line);
         }
         // Reseta o configurador (cancel limpa tudo + edit_idx=-1).
         ui_ref.invoke_config_cancel();

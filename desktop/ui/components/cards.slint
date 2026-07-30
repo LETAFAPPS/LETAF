@@ -2,6 +2,7 @@ import { Theme } from "../theme.slint";
 import { ProductData, CategoryData, SubcategoryData, CustomerData, OrderData, OrderItemData, BusinessHoursData } from "../types.slint";
 import { DeleteBtn, EditBtn, ToggleActiveBtn, ToggleWebVisibleBtn, AdvanceOrderBtn } from "buttons.slint";
 import { IconGlyph } from "../icon_glyph.slint";
+import { StruckText } from "struck_text.slint";
 
 // ── Componente: notificação toast ─────────────────────────────────────────
 
@@ -408,11 +409,22 @@ export component OrderItemCard inherits Rectangle {
                 horizontal-alignment: left;
                 wrap: word-wrap;
             }
-            Text {
-                text: item.price;
-                font-size: 12px;
-                color: Theme.text-secondary;
-                horizontal-alignment: left;
+            HorizontalLayout {
+                alignment: start;
+                spacing: 6px;
+                // Preço de tabela riscado — item vendido com desconto
+                // de produto (snapshot da venda).
+                if item.list-price != "": VerticalLayout {
+                    alignment: center;
+                    StruckText { text: item.list-price; text-size: 11px; }
+                }
+                Text {
+                    text: item.price;
+                    font-size: 12px;
+                    color: item.list-price != "" ? #2E7D32 : Theme.text-secondary;
+                    font-weight: item.list-price != "" ? 700 : 400;
+                    horizontal-alignment: left;
+                }
             }
         }
     }

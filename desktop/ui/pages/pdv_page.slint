@@ -4,6 +4,7 @@ import { Theme } from "../theme.slint";
 import { Card } from "../components/cards.slint";
 import { ActionBtn, OutlineBtn } from "../components/buttons.slint";
 import { EmptyState } from "../components/empty_state.slint";
+import { StruckText } from "../components/struck_text.slint";
 import { PdvProductRow, PdvCartRow, PdvCategoryChip, PdvAddressRow } from "../types.slint";
 
 // ── Tela: PDV (Ponto de Venda) ────────────────────────────────────
@@ -834,13 +835,37 @@ export component PdvPage inherits VerticalLayout {
                                             font-size: 10px;
                                             color: Theme.text-secondary;
                                         }
+                                        // Selo do desconto ("10% Off" etc.).
+                                        if p.discount-label != "": HorizontalLayout {
+                                            alignment: start;
+                                            Rectangle {
+                                                border-radius: 4px;
+                                                background: #E8F5E9;
+                                                HorizontalLayout {
+                                                    padding-left: 6px; padding-right: 6px;
+                                                    padding-top: 1px; padding-bottom: 1px;
+                                                    Text {
+                                                        text: p.discount-label;
+                                                        font-size: 10px; font-weight: 700;
+                                                        color: #2E7D32;
+                                                    }
+                                                }
+                                            }
+                                        }
                                     }
                                     VerticalLayout {
                                         alignment: center;
+                                        spacing: 1px;
+                                        // Preço de tabela riscado (só com desconto ativo).
+                                        if p.list-price-display != "": HorizontalLayout {
+                                            alignment: end;
+                                            StruckText { text: p.list-price-display; }
+                                        }
                                         Text {
                                             text: p.price-display;
                                             font-size: 16px; font-weight: 800;
                                             color: Theme.primary;
+                                            horizontal-alignment: right;
                                         }
                                     }
                                 }
@@ -1048,6 +1073,11 @@ export component PdvPage inherits VerticalLayout {
                                             }
                                         }
                                         Rectangle { horizontal-stretch: 1; }
+                                        // Total de tabela riscado (desconto do produto).
+                                        if it.list-line-display != "": VerticalLayout {
+                                            alignment: center;
+                                            StruckText { text: it.list-line-display; text-size: 10px; }
+                                        }
                                         // Valor do item — fica ABAIXO do excluir (linha 2).
                                         Text {
                                             text: it.line-total-display;

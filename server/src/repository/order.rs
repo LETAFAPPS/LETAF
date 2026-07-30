@@ -86,6 +86,7 @@ struct OrderItemRow {
     subtotal: Decimal,
     notes: Option<String>,
     addons_json: Option<String>,
+    list_unit_price: Option<Decimal>,
     created_at: NaiveDateTime,
     updated_at: NaiveDateTime,
     deleted_at: Option<NaiveDateTime>,
@@ -111,6 +112,7 @@ impl From<OrderItemRow> for OrderItem {
             subtotal: r.subtotal,
             notes: r.notes,
             addons_json: r.addons_json,
+            list_unit_price: r.list_unit_price,
         }
     }
 }
@@ -296,8 +298,8 @@ impl OrderRepository for PgOrderRepository {
 
         for item in &order.items {
             sqlx::query(
-                "INSERT INTO order_items (id, company_id, order_id, product_id, product_name, quantity, unit_price, subtotal, notes, addons_json, created_at, updated_at, deleted_at, synced)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)",
+                "INSERT INTO order_items (id, company_id, order_id, product_id, product_name, quantity, unit_price, subtotal, notes, addons_json, created_at, updated_at, deleted_at, synced, list_unit_price)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)",
             )
             .bind(item.base.id)
             .bind(item.base.company_id)
@@ -313,6 +315,7 @@ impl OrderRepository for PgOrderRepository {
             .bind(item.base.updated_at)
             .bind(item.base.deleted_at)
             .bind(item.base.synced)
+            .bind(item.list_unit_price)
             .execute(&mut *tx)
             .await
             .map_err(map_db)?;
@@ -576,8 +579,8 @@ impl OrderRepository for PgOrderRepository {
         .map_err(map_db)?;
         for item in &order.items {
             sqlx::query(
-                "INSERT INTO order_items (id, company_id, order_id, product_id, product_name, quantity, unit_price, subtotal, notes, addons_json, created_at, updated_at, deleted_at, synced)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)",
+                "INSERT INTO order_items (id, company_id, order_id, product_id, product_name, quantity, unit_price, subtotal, notes, addons_json, created_at, updated_at, deleted_at, synced, list_unit_price)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)",
             )
             .bind(item.base.id)
             .bind(item.base.company_id)
@@ -593,6 +596,7 @@ impl OrderRepository for PgOrderRepository {
             .bind(item.base.updated_at)
             .bind(item.base.deleted_at)
             .bind(item.base.synced)
+            .bind(item.list_unit_price)
             .execute(&mut *tx)
             .await
             .map_err(map_db)?;
@@ -891,14 +895,15 @@ async fn upsert_order_item_row(
     item: &letaf_core::order::model::OrderItem,
 ) -> Result<(), CoreError> {
     sqlx::query(
-        "INSERT INTO order_items (id, company_id, order_id, product_id, product_name, quantity, unit_price, subtotal, notes, addons_json, created_at, updated_at, deleted_at, synced)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+        "INSERT INTO order_items (id, company_id, order_id, product_id, product_name, quantity, unit_price, subtotal, notes, addons_json, created_at, updated_at, deleted_at, synced, list_unit_price)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
          ON CONFLICT (id) DO UPDATE SET
              quantity = EXCLUDED.quantity,
              unit_price = EXCLUDED.unit_price,
              subtotal = EXCLUDED.subtotal,
              notes = EXCLUDED.notes,
              addons_json = EXCLUDED.addons_json,
+             list_unit_price = EXCLUDED.list_unit_price,
              updated_at = EXCLUDED.updated_at,
              deleted_at = EXCLUDED.deleted_at,
              synced = EXCLUDED.synced
@@ -918,6 +923,7 @@ async fn upsert_order_item_row(
     .bind(item.base.updated_at)
     .bind(item.base.deleted_at)
     .bind(item.base.synced)
+    .bind(item.list_unit_price)
     .execute(&mut **tx)
     .await
     .map_err(map_db)?;

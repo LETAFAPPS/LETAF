@@ -621,8 +621,8 @@ async fn insert_order(tx: &mut Transaction<'_, Sqlite>, order: &Order) -> Result
 
 async fn insert_item(tx: &mut Transaction<'_, Sqlite>, item: &OrderItem) -> Result<(), CoreError> {
     sqlx::query(
-        "INSERT INTO order_items (id, company_id, order_id, product_id, product_name, quantity, unit_price, subtotal, notes, addons_json, created_at, updated_at, deleted_at, synced)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
+        "INSERT INTO order_items (id, company_id, order_id, product_id, product_name, quantity, unit_price, subtotal, notes, addons_json, created_at, updated_at, deleted_at, synced, list_unit_price)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)",
     )
     .bind(item.base.id.to_string())
     .bind(item.base.company_id.to_string())
@@ -638,6 +638,7 @@ async fn insert_item(tx: &mut Transaction<'_, Sqlite>, item: &OrderItem) -> Resu
     .bind(ts(item.base.updated_at))
     .bind(item.base.deleted_at.map(ts))
     .bind(item.base.synced)
+    .bind(item.list_unit_price.and_then(|v| v.to_f64()))
     .execute(&mut **tx)
     .await
     .map_err(map_db)?;
@@ -751,6 +752,7 @@ struct OrderItemRow {
     subtotal: f64,
     notes: Option<String>,
     addons_json: Option<String>,
+    list_unit_price: Option<f64>,
     created_at: String,
     updated_at: String,
     deleted_at: Option<String>,
@@ -771,6 +773,7 @@ impl TryFrom<OrderItemRow> for OrderItem {
             subtotal: letaf_core::money::from_db_f64(r.subtotal),
             notes: r.notes,
             addons_json: r.addons_json,
+            list_unit_price: r.list_unit_price.map(letaf_core::money::from_db_f64),
         })
     }
 }
