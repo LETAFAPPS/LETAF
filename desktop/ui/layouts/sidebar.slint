@@ -211,7 +211,7 @@ export component Sidebar inherits Rectangle {
                     clicked => { root.navigate("cash"); }
                 }
                 if root.store-access || root.nav.finance: SidebarItem {
-                    icon-source: @image-url("../assets/icons/financeiro.svg");
+                    icon-source: @image-url("../assets/icons/pay-moeda.svg");
                     label: "Financeiro";
                     compact: !root.expanded;
                     badge: root.finance-overdue-count > 0 ? root.finance-overdue-count : "";
@@ -221,7 +221,7 @@ export component Sidebar inherits Rectangle {
                 // Carteira do estabelecimento (tesouraria) — mesma
                 // permissão do Financeiro (finance.view).
                 if root.store-access || root.nav.finance: SidebarItem {
-                    icon-source: @image-url("../assets/icons/pay-carteira.svg");
+                    icon-source: @image-url("../assets/icons/financeiro.svg");
                     label: "Carteira";
                     compact: !root.expanded;
                     active: root.active-tab == "treasury";
