@@ -624,6 +624,22 @@ export component OrdersPage inherits VerticalLayout {
                     o.status == "preparing"  ? #FF9E40 :
                     o.status == "confirmed"  ? #42A5F5 :
                     o.status == "cancelled"  ? #EF5350 : #C9A227;
+                /// Pagamento editável só em pedido EM ABERTO ainda não
+                /// acertado (tipicamente vindo do cardápio web). Pedido
+                /// do PDV nasce pago (ou fiado via carteira) → fixo.
+                property <bool> pay-editable:
+                    !o.paid
+                    && o.payment-method != "wallet"
+                    && o.status != "delivered"
+                    && o.status != "cancelled";
+                /// Rótulo informativo da forma registrada (modo fixo).
+                property <string> pay-label:
+                    o.payment-method == "cash"   ? "Dinheiro" :
+                    o.payment-method == "credit" ? "Crédito" :
+                    o.payment-method == "debit"  ? "Débito" :
+                    o.payment-method == "pix"    ? "Pix" :
+                    o.payment-method == "wallet" ? (o.paid ? "Carteira" : "Fiado") :
+                    "Não informado";
 
                 HorizontalLayout {
                     spacing: 12px;
@@ -946,19 +962,22 @@ export component OrdersPage inherits VerticalLayout {
                             Rectangle { height: 16px; }
 
                             // ── Pagamento: forma + Pago/Não pago ────
-                            // Chips informam/alteram a forma; o selo à
-                            // direita alterna o status. Validação e
-                            // persistência no Rust (§3/§11).
+                            // Pedido do PDV (pago/fiado na finalização)
+                            // e pedidos encerrados: só INFORMATIVO. Em
+                            // aberto sem acerto: chips alteram a forma
+                            // e o selo alterna o status (Rust valida).
                             VerticalLayout {
                                 spacing: 8px;
                                 HorizontalLayout {
                                     Text { text: "Pagamento"; font-size: 11px; font-weight: 600; color: Theme.text-secondary; horizontal-stretch: 1; vertical-alignment: center; }
+                                    // Selo Pago/Não pago — retangular de
+                                    // pontas arredondadas (padrão do sistema).
                                     paid-ta := TouchArea {
-                                        width: 96px; height: 26px;
-                                        enabled: o.status != "cancelled";
+                                        width: 96px; height: 28px;
+                                        enabled: pay-editable;
                                         clicked => { root.set-payment(o.id, o.payment-method, !o.paid); }
                                         Rectangle {
-                                            border-radius: 13px;
+                                            border-radius: 6px;
                                             border-width: 1px;
                                             border-color: o.paid ? #2E7D32 : #EF5350;
                                             background: o.paid ? #E8F5E9 : #FFEBEE;
@@ -972,7 +991,8 @@ export component OrdersPage inherits VerticalLayout {
                                         }
                                     }
                                 }
-                                HorizontalLayout {
+                                // Em aberto: chips selecionáveis.
+                                if pay-editable: HorizontalLayout {
                                     spacing: 6px;
                                     for opt[pmi] in [
                                         { value: "cash",   label: "Dinheiro" },
@@ -981,7 +1001,6 @@ export component OrdersPage inherits VerticalLayout {
                                         { value: "pix",    label: "Pix" },
                                     ]: pm-ta := TouchArea {
                                         horizontal-stretch: 1; min-width: 0; height: 32px;
-                                        enabled: o.status != "cancelled";
                                         clicked => { root.set-payment(o.id, opt.value, o.paid); }
                                         Rectangle {
                                             border-radius: 6px;
@@ -1000,10 +1019,25 @@ export component OrdersPage inherits VerticalLayout {
                                         }
                                     }
                                 }
-                                // Carteira é registrada pelo PDV — aqui só informação.
-                                if o.payment-method == "wallet": Text {
-                                    text: "Pago com a Carteira do cliente";
-                                    font-size: 11px; color: Theme.text-secondary;
+                                // Fixo: um único chip informativo com a
+                                // forma registrada (incl. Carteira/Fiado).
+                                if !pay-editable: HorizontalLayout {
+                                    alignment: start;
+                                    Rectangle {
+                                        height: 32px;
+                                        width: fixed-pm-label.preferred-width + 28px;
+                                        border-radius: 6px;
+                                        border-width: 1.5px;
+                                        border-color: Theme.btn-accent;
+                                        background: Theme.btn-accent.transparentize(0.88);
+                                        fixed-pm-label := Text {
+                                            width: parent.width; height: parent.height;
+                                            text: pay-label;
+                                            font-size: 11px; font-weight: 600;
+                                            color: Theme.btn-accent;
+                                            horizontal-alignment: center; vertical-alignment: center;
+                                        }
+                                    }
                                 }
                             }
 

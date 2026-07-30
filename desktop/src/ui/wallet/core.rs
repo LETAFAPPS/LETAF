@@ -230,10 +230,10 @@ pub(crate) fn movement_title(m: &WalletMovement) -> String {
     match m.kind {
         WalletMovementKind::Deposit => "Depósito".into(),
         WalletMovementKind::Withdraw => "Saque".into(),
-        WalletMovementKind::OrderCharge => "Cobrança em pedido".into(),
-        WalletMovementKind::OrderRefund => "Estorno de pedido".into(),
+        WalletMovementKind::OrderCharge => "Pedido Efetuado".into(),
+        WalletMovementKind::OrderRefund => "Pedido Estornado".into(),
         WalletMovementKind::ManualAdjust => "Ajuste Manual".into(),
-        WalletMovementKind::LimitChange => "Limite de fiado".into(),
+        WalletMovementKind::LimitChange => "Limite Fiado".into(),
     }
 }
 

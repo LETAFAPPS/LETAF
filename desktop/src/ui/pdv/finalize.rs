@@ -250,6 +250,18 @@ pub(crate) fn setup_finalize(
                             // Espelha a dívida (fiado) como conta a receber
                             // no Financeiro — automática e sem vencimento.
                             super::super::wallet::sync_fiado_to_finance(&state, &account).await;
+                            // Saldo ficou negativo ⇒ a compra entrou como
+                            // FIADO: o pedido fica "Não pago" até o acerto
+                            // (o detalhe exibe o chip "Fiado").
+                            if account.balance < rust_decimal::Decimal::ZERO {
+                                if let Err(e) = state
+                                    .order_service
+                                    .set_payment(cid, order.base.id, Some("wallet".into()), false)
+                                    .await
+                                {
+                                    tracing::warn!("não marcou pedido fiado como não pago: {e}");
+                                }
+                            }
                             None
                         }
                         Err(e) => {
