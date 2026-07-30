@@ -224,7 +224,7 @@ component KanbanColumn inherits VerticalLayout {
                     image-fit: contain;
                     x: (parent.width - self.width) / 2;
                     y: (parent.height - self.height) / 2;
-                    opacity: 0.4;
+                    opacity: 0.18;
                 }
             }
         }
@@ -325,14 +325,12 @@ export component OrdersPage inherits VerticalLayout {
                         border-width: 1px;
                         border-color: parent.has-hover ? Theme.border : transparent;
                         background: parent.has-hover ? Theme.row-hover : transparent;
-                        // Seta "<" mais clara — presença discreta ao
-                        // lado do título do pedido.
-                        Text {
-                            text: "<";
-                            font-size: 22px; font-weight: 400;
-                            color: Theme.text-secondary;
-                            horizontal-alignment: center;
-                            vertical-alignment: center;
+                        // Seta discreta ao lado do título do pedido.
+                        AssetIcon {
+                            width: parent.width; height: parent.height;
+                            icon-size: 18px;
+                            icon-color: Theme.text-secondary;
+                            source: @image-url("../assets/icons/seta-esquerda.svg");
                         }
                     }
                 }
@@ -508,7 +506,7 @@ export component OrdersPage inherits VerticalLayout {
             image-fit: contain;
             x: (parent.width - self.width) / 2;
             y: (parent.height - self.height) / 2;
-            opacity: 0.4;
+            opacity: 0.18;
         }
     }
 

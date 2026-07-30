@@ -40,6 +40,7 @@ export component ReceiptModal inherits Rectangle {
                 // Recorta filhos pelos cantos arredondados do Card —
                 // sem isso, o cabeçalho e a área "papel" cobrem os
                 // cantos e o modal aparece quadrado.
+                clip: true;
                 // Absorve cliques dentro do modal (não fecha).
                 TouchArea { }
 
