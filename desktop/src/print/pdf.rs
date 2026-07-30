@@ -107,7 +107,7 @@ pub fn build_full_receipt_pdf(
     let style = Style::for_paper(paper_width);
     let page_height_mm = estimate_height_full(order, customer_phone, &style);
     let (doc, page1, layer1) = PdfDocument::new(
-        "Comanda",
+        "Cupom",
         Mm(style.page_width_mm),
         Mm(page_height_mm),
         "Layer 1",
@@ -145,7 +145,7 @@ pub fn build_kitchen_receipt_pdf(
     let style = Style::for_paper(paper_width);
     let page_height_mm = estimate_height_kitchen(order, customer_phone, &style);
     let (doc, page1, layer1) = PdfDocument::new(
-        "Cozinha",
+        "Comanda",
         Mm(style.page_width_mm),
         Mm(page_height_mm),
         "Layer 1",

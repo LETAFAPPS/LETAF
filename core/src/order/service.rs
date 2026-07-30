@@ -203,6 +203,8 @@ impl OrderService {
             order.base.id = order_id;
             order.status = initial_status.clone();
             order.payment_method = payment_method.clone();
+            // Venda de PDV com forma de pagamento = paga na finalização.
+            order.paid = payment_method.is_some();
             order.discount_amount = discount;
             order.additional_amount = additional;
             order.number = self.repo.next_number(company_id).await?;
@@ -366,6 +368,42 @@ impl OrderService {
         }
         self.repo.update_status(company_id, id, &status).await?;
         order.status = status;
+        Ok(order)
+    }
+
+    /// Registra a forma de pagamento e o status Pago/Não pago do pedido.
+    ///
+    /// Regras (AI_RULES.md §1, §7, §11):
+    /// - Backend valida a forma contra [`PAYMENT_METHODS`] — nunca
+    ///   confia no rótulo vindo da UI.
+    /// - Pedido cancelado não recebe pagamento.
+    /// - Update dedicado (marca `synced = false`) → sync propaga (§7).
+    pub async fn set_payment(
+        &self,
+        company_id: Uuid,
+        id: Uuid,
+        payment_method: Option<String>,
+        paid: bool,
+    ) -> Result<Order, CoreError> {
+        if let Some(method) = payment_method.as_deref() {
+            if !crate::order::model::PAYMENT_METHODS.contains(&method) {
+                return Err(CoreError::Validation(format!(
+                    "Forma de pagamento desconhecida: '{method}'"
+                )));
+            }
+        }
+        let mut order = self.repo.find_by_id(company_id, id).await?
+            .ok_or_else(|| CoreError::NotFound("Order not found".into()))?;
+        if order.status == OrderStatus::Cancelled {
+            return Err(CoreError::Validation(
+                "Pedido cancelado não recebe pagamento".into(),
+            ));
+        }
+        self.repo
+            .update_payment(company_id, id, payment_method.as_deref(), paid)
+            .await?;
+        order.payment_method = payment_method;
+        order.paid = paid;
         Ok(order)
     }
 

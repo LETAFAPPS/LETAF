@@ -150,6 +150,12 @@ pub struct Order {
     /// estruturado pra histórico e relatórios futuros.
     #[serde(default)]
     pub payment_method: Option<String>,
+    /// `true` quando o pedido já foi PAGO. Vendas do PDV nascem pagas
+    /// (pagamento acontece na finalização); pedidos do cardápio web
+    /// nascem não pagos e o operador marca ao receber. Alterado junto
+    /// com a forma de pagamento em [`OrderService::set_payment`].
+    #[serde(default)]
+    pub paid: bool,
     #[serde(default)]
     pub items: Vec<OrderItem>,
 }
@@ -175,6 +181,7 @@ impl Order {
             notes,
             cancellation_reason: None,
             payment_method: None,
+            paid: false,
             items: Vec::new(),
         }
     }

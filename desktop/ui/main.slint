@@ -683,6 +683,8 @@ export component MainWindow inherits Window {
     callback refresh-orders();
     callback open-order(string);
     callback advance-order-status(string);
+    /// Forma de pagamento + Pago/Não pago do pedido (id, método, pago).
+    callback order-set-payment(string, string, bool);
     callback cancel-order(string, string);
     /// Recalcula `detail-order.elapsed-display` a partir de
     /// `detail-order.created-at-iso`. Disparado a cada 60s pelo Timer
@@ -2395,6 +2397,7 @@ export component MainWindow inherits Window {
                 orders-per-page: root.orders-per-page;
                 open-order(id) => { root.open-order(id); }
                 advance-order-status(id) => { root.advance-order-status(id); }
+                set-payment(id, m, p) => { root.order-set-payment(id, m, p); }
                 refresh-orders => { root.refresh-orders(); }
                 refresh-order-elapsed => { root.refresh-order-elapsed(); }
                 edit-order(id) => { root.edit-order(id); }

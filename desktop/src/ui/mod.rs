@@ -178,6 +178,7 @@ pub fn setup_callbacks(
     orders::setup_calendar(ui);
     orders::setup_open_order(ui, state, handle);
     orders::setup_advance_order_status(ui, state, handle, sync_notify.clone());
+    orders::setup_set_order_payment(ui, state, handle, sync_notify.clone());
     orders::setup_cancel_order(ui, state, handle, sync_notify.clone());
     orders::setup_refresh_order_elapsed(ui);
     orders::setup_edit_order(ui, state, handle);

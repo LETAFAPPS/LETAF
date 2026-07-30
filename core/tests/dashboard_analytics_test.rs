@@ -31,6 +31,7 @@ fn order(company: Uuid, created: NaiveDateTime, total: rust_decimal::Decimal, me
         notes: None,
         cancellation_reason: None,
         payment_method: Some(method.to_string()),
+        paid: true,
         items: vec![],
     }
 }

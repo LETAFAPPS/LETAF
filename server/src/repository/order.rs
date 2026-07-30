@@ -38,6 +38,7 @@ struct OrderRow {
     notes: Option<String>,
     cancellation_reason: Option<String>,
     payment_method: Option<String>,
+    paid: bool,
     created_at: NaiveDateTime,
     updated_at: NaiveDateTime,
     deleted_at: Option<NaiveDateTime>,
@@ -69,6 +70,7 @@ impl From<OrderRow> for Order {
             notes: r.notes,
             cancellation_reason: r.cancellation_reason,
             payment_method: r.payment_method,
+            paid: r.paid,
             items: Vec::new(),
         }
     }
@@ -272,8 +274,8 @@ impl OrderRepository for PgOrderRepository {
 
         // 2) Insere o pedido + itens (mesma tx).
         sqlx::query(
-            "INSERT INTO orders (id, company_id, customer_id, number, status, total, delivery_type, notes, cancellation_reason, created_at, updated_at, deleted_at, synced, coupon_code, discount_amount, additional_amount, payment_method)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)",
+            "INSERT INTO orders (id, company_id, customer_id, number, status, total, delivery_type, notes, cancellation_reason, created_at, updated_at, deleted_at, synced, coupon_code, discount_amount, additional_amount, payment_method, paid)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)",
         )
         .bind(order.base.id)
         .bind(order.base.company_id)
@@ -292,6 +294,7 @@ impl OrderRepository for PgOrderRepository {
         .bind(order.discount_amount)
         .bind(order.additional_amount)
         .bind(&order.payment_method)
+        .bind(order.paid)
         .execute(&mut *tx)
         .await
         .map_err(map_db)?;
@@ -502,6 +505,30 @@ impl OrderRepository for PgOrderRepository {
              WHERE company_id = $3 AND id = $4 AND deleted_at IS NULL",
         )
         .bind(status.to_string())
+        .bind(now)
+        .bind(company_id)
+        .bind(id)
+        .execute(&self.pool)
+        .await
+        .map_err(map_db)?;
+
+        Ok(())
+    }
+
+    async fn update_payment(
+        &self,
+        company_id: Uuid,
+        id: Uuid,
+        payment_method: Option<&str>,
+        paid: bool,
+    ) -> Result<(), CoreError> {
+        let now = chrono::Utc::now().naive_utc();
+        sqlx::query(
+            "UPDATE orders SET payment_method = $1, paid = $2, updated_at = $3, synced = false
+             WHERE company_id = $4 AND id = $5 AND deleted_at IS NULL",
+        )
+        .bind(payment_method)
+        .bind(paid)
         .bind(now)
         .bind(company_id)
         .bind(id)
@@ -849,8 +876,8 @@ async fn upsert_order_row(
     order: &Order,
 ) -> Result<(), CoreError> {
     sqlx::query(
-        "INSERT INTO orders (id, company_id, customer_id, number, status, total, delivery_type, notes, cancellation_reason, created_at, updated_at, deleted_at, synced, coupon_code, discount_amount, additional_amount, payment_method)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+        "INSERT INTO orders (id, company_id, customer_id, number, status, total, delivery_type, notes, cancellation_reason, created_at, updated_at, deleted_at, synced, coupon_code, discount_amount, additional_amount, payment_method, paid)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
          ON CONFLICT (id) DO UPDATE SET
              status = EXCLUDED.status,
              total = EXCLUDED.total,
@@ -863,7 +890,8 @@ async fn upsert_order_row(
              coupon_code = EXCLUDED.coupon_code,
              discount_amount = EXCLUDED.discount_amount,
              additional_amount = EXCLUDED.additional_amount,
-             payment_method = EXCLUDED.payment_method
+             payment_method = EXCLUDED.payment_method,
+             paid = EXCLUDED.paid
          WHERE EXCLUDED.updated_at > orders.updated_at AND orders.company_id = EXCLUDED.company_id",
     )
     .bind(order.base.id)
@@ -883,6 +911,7 @@ async fn upsert_order_row(
     .bind(order.discount_amount)
     .bind(order.additional_amount)
     .bind(&order.payment_method)
+    .bind(order.paid)
     .execute(&mut **tx)
     .await
     .map_err(map_db)?;

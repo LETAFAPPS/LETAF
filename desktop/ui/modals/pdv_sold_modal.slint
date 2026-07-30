@@ -52,12 +52,12 @@ export component PdvSoldModal inherits Rectangle {
             HorizontalLayout {
                 spacing: 8px;
                 OutlineBtn {
-                    label: "Comanda Cliente";
+                    label: "Cupom";
                     horizontal-stretch: 1; height: 40px;
                     clicked => { root.print-receipt(); }
                 }
                 OutlineBtn {
-                    label: "Cozinha";
+                    label: "Comanda";
                     horizontal-stretch: 1; height: 40px;
                     clicked => { root.print-kitchen(); }
                 }

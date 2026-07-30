@@ -620,6 +620,8 @@ export struct OrderData {
     delivery-fee-display: string,
     additional-display: string,
     coupon-code-display: string,
+    /// `true` = pedido pago (PDV nasce pago; web marca ao receber).
+    paid: bool,
     /// Tempo decorrido desde `created_at`. Formato curto pt-BR:
     /// `"agora"`, `"há 5 min"`, `"há 2 h 13 min"`, `"há 3 dias"`.
     /// Recomputado em Rust via `refresh-order-elapsed` (Timer 60s).

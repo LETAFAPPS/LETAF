@@ -143,8 +143,8 @@ export component PrinterModal inherits Rectangle {
                                 HorizontalLayout {
                                     spacing: 8px;
                                     for opt[oi] in [
-                                        { value: "order",   label: "Comanda" },
-                                        { value: "kitchen", label: "Cozinha" },
+                                        { value: "order",   label: "Cupom" },
+                                        { value: "kitchen", label: "Comanda" },
                                         { value: "fiscal",  label: "Nota Fiscal" },
                                     ]: kind-ta := TouchArea {
                                         clicked => { root.printer-kind = opt.value; }

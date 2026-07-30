@@ -42,6 +42,7 @@ fn pdv_order(total: rust_decimal::Decimal, day: NaiveDate, method: Option<&str>)
         notes: None,
         cancellation_reason: None,
         payment_method: method.map(|s| s.to_string()),
+        paid: true,
         items: vec![],
     }
 }

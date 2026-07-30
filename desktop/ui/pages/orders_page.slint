@@ -260,6 +260,8 @@ export component OrdersPage inherits VerticalLayout {
 
     callback open-order(string);
     callback advance-order-status(string);
+    /// Forma de pagamento + Pago/Não pago (id, método, pago) — lógica no Rust.
+    callback set-payment(string, string, bool);
     callback request-cancel(string, string);
     callback refresh-orders();
     /// Recalcula `detail-order.elapsed-display` no Rust (Timer 60s).
@@ -910,12 +912,12 @@ export component OrdersPage inherits VerticalLayout {
                                 HorizontalLayout {
                                     spacing: 8px;
                                     OutlineBtn {
-                                        label: "Comanda";
+                                        label: "Cupom";
                                         horizontal-stretch: 1; height: 32px;
                                         clicked => { root.print-order-receipt(o.id); }
                                     }
                                     OutlineBtn {
-                                        label: "Cozinha";
+                                        label: "Comanda";
                                         horizontal-stretch: 1; height: 32px;
                                         clicked => { root.print-order-kitchen(o.id); }
                                     }
@@ -936,6 +938,72 @@ export component OrdersPage inherits VerticalLayout {
                                     clicked => {
                                         root.request-cancel(o.id, "Pedido " + o.number + " — " + o.customer-name + " — " + o.total);
                                     }
+                                }
+                            }
+
+                            Rectangle { height: 16px; }
+                            Rectangle { height: 1px; background: Theme.border; }
+                            Rectangle { height: 16px; }
+
+                            // ── Pagamento: forma + Pago/Não pago ────
+                            // Chips informam/alteram a forma; o selo à
+                            // direita alterna o status. Validação e
+                            // persistência no Rust (§3/§11).
+                            VerticalLayout {
+                                spacing: 8px;
+                                HorizontalLayout {
+                                    Text { text: "Pagamento"; font-size: 11px; font-weight: 600; color: Theme.text-secondary; horizontal-stretch: 1; vertical-alignment: center; }
+                                    paid-ta := TouchArea {
+                                        width: 96px; height: 26px;
+                                        enabled: o.status != "cancelled";
+                                        clicked => { root.set-payment(o.id, o.payment-method, !o.paid); }
+                                        Rectangle {
+                                            border-radius: 13px;
+                                            border-width: 1px;
+                                            border-color: o.paid ? #2E7D32 : #EF5350;
+                                            background: o.paid ? #E8F5E9 : #FFEBEE;
+                                            Text {
+                                                width: parent.width; height: parent.height;
+                                                text: o.paid ? "Pago" : "Não pago";
+                                                font-size: 11px; font-weight: 700;
+                                                color: o.paid ? #2E7D32 : #C62828;
+                                                horizontal-alignment: center; vertical-alignment: center;
+                                            }
+                                        }
+                                    }
+                                }
+                                HorizontalLayout {
+                                    spacing: 6px;
+                                    for opt[pmi] in [
+                                        { value: "cash",   label: "Dinheiro" },
+                                        { value: "credit", label: "Crédito" },
+                                        { value: "debit",  label: "Débito" },
+                                        { value: "pix",    label: "Pix" },
+                                    ]: pm-ta := TouchArea {
+                                        horizontal-stretch: 1; min-width: 0; height: 32px;
+                                        enabled: o.status != "cancelled";
+                                        clicked => { root.set-payment(o.id, opt.value, o.paid); }
+                                        Rectangle {
+                                            border-radius: 6px;
+                                            border-width: o.payment-method == opt.value ? 1.5px : 1px;
+                                            border-color: o.payment-method == opt.value ? Theme.btn-accent : Theme.border;
+                                            background: o.payment-method == opt.value
+                                                ? Theme.btn-accent.transparentize(0.88)
+                                                : (pm-ta.has-hover ? Theme.row-hover : Theme.surface);
+                                            Text {
+                                                width: parent.width; height: parent.height;
+                                                text: opt.label;
+                                                font-size: 11px; font-weight: 600;
+                                                color: o.payment-method == opt.value ? Theme.btn-accent : Theme.text-primary;
+                                                horizontal-alignment: center; vertical-alignment: center;
+                                            }
+                                        }
+                                    }
+                                }
+                                // Carteira é registrada pelo PDV — aqui só informação.
+                                if o.payment-method == "wallet": Text {
+                                    text: "Pago com a Carteira do cliente";
+                                    font-size: 11px; color: Theme.text-secondary;
                                 }
                             }
 

@@ -167,8 +167,8 @@ pub(crate) fn enumerate_windows() -> Vec<String> {
 /// Mapeia `core::Printer` → `PrinterData` da UI, com labels em pt-BR.
 pub(crate) fn to_printer_data(p: letaf_core::printer::model::Printer) -> PrinterData {
     let kind_label = match p.kind.as_str() {
-        "order" => "Comanda",
-        "kitchen" => "Cozinha",
+        "order" => "Cupom",
+        "kitchen" => "Comanda",
         "fiscal" => "Nota Fiscal",
         _ => "—",
     };

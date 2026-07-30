@@ -95,6 +95,15 @@ pub trait OrderRepository: Send + Sync {
     /// Atualiza status do pedido.
     async fn update_status(&self, company_id: Uuid, id: Uuid, status: &OrderStatus) -> Result<(), CoreError>;
 
+    /// Atualiza forma de pagamento + status Pago (marca `synced = false`).
+    async fn update_payment(
+        &self,
+        company_id: Uuid,
+        id: Uuid,
+        payment_method: Option<&str>,
+        paid: bool,
+    ) -> Result<(), CoreError>;
+
     /// Atualiza dados editáveis do pedido E ajusta o estoque na MESMA
     /// transação (AI_RULES.md §4, §7.6): substitui a lista de itens, reescreve
     /// `notes`/`delivery_type`/`total` e aplica os deltas de estoque juntos —

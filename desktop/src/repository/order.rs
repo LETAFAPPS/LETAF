@@ -313,6 +313,30 @@ impl OrderRepository for SqliteOrderRepository {
         Ok(())
     }
 
+    async fn update_payment(
+        &self,
+        company_id: Uuid,
+        id: Uuid,
+        payment_method: Option<&str>,
+        paid: bool,
+    ) -> Result<(), CoreError> {
+        let now = ts(chrono::Utc::now().naive_utc());
+        sqlx::query(
+            "UPDATE orders SET payment_method = ?1, paid = ?2, updated_at = ?3, synced = false
+             WHERE company_id = ?4 AND id = ?5 AND deleted_at IS NULL",
+        )
+        .bind(payment_method)
+        .bind(paid)
+        .bind(now)
+        .bind(company_id.to_string())
+        .bind(id.to_string())
+        .execute(&self.pool)
+        .await
+        .map_err(map_db)?;
+
+        Ok(())
+    }
+
     async fn update_atomic(
         &self,
         order: &Order,
@@ -593,8 +617,8 @@ impl OrderRepository for SqliteOrderRepository {
 
 async fn insert_order(tx: &mut Transaction<'_, Sqlite>, order: &Order) -> Result<(), CoreError> {
     sqlx::query(
-        "INSERT INTO orders (id, company_id, customer_id, number, status, total, delivery_type, notes, cancellation_reason, created_at, updated_at, deleted_at, synced, coupon_code, discount_amount, additional_amount, payment_method)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17)",
+        "INSERT INTO orders (id, company_id, customer_id, number, status, total, delivery_type, notes, cancellation_reason, created_at, updated_at, deleted_at, synced, coupon_code, discount_amount, additional_amount, payment_method, paid)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18)",
     )
     .bind(order.base.id.to_string())
     .bind(order.base.company_id.to_string())
@@ -613,6 +637,7 @@ async fn insert_order(tx: &mut Transaction<'_, Sqlite>, order: &Order) -> Result
     .bind(order.discount_amount.to_f64().unwrap_or(0.0))
     .bind(order.additional_amount.to_f64().unwrap_or(0.0))
     .bind(&order.payment_method)
+    .bind(order.paid)
     .execute(&mut **tx)
     .await
     .map_err(map_db)?;
@@ -647,8 +672,8 @@ async fn insert_item(tx: &mut Transaction<'_, Sqlite>, item: &OrderItem) -> Resu
 
 async fn upsert_order(tx: &mut Transaction<'_, Sqlite>, order: &Order) -> Result<(), CoreError> {
     sqlx::query(
-        "INSERT INTO orders (id, company_id, customer_id, number, status, total, delivery_type, notes, cancellation_reason, created_at, updated_at, deleted_at, synced, coupon_code, discount_amount, additional_amount, payment_method)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17)
+        "INSERT INTO orders (id, company_id, customer_id, number, status, total, delivery_type, notes, cancellation_reason, created_at, updated_at, deleted_at, synced, coupon_code, discount_amount, additional_amount, payment_method, paid)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18)
          ON CONFLICT (id) DO UPDATE SET
              -- `number` reconverge para o valor AUTORITATIVO do servidor: se o
              -- servidor renumerou este pedido (colisão offline×web), o pull traz
@@ -666,7 +691,8 @@ async fn upsert_order(tx: &mut Transaction<'_, Sqlite>, order: &Order) -> Result
              coupon_code = excluded.coupon_code,
              discount_amount = excluded.discount_amount,
              additional_amount = excluded.additional_amount,
-             payment_method = excluded.payment_method
+             payment_method = excluded.payment_method,
+             paid = excluded.paid
          WHERE excluded.updated_at > orders.updated_at",
     )
     .bind(order.base.id.to_string())
@@ -686,6 +712,7 @@ async fn upsert_order(tx: &mut Transaction<'_, Sqlite>, order: &Order) -> Result
     .bind(order.discount_amount.to_f64().unwrap_or(0.0))
     .bind(order.additional_amount.to_f64().unwrap_or(0.0))
     .bind(&order.payment_method)
+    .bind(order.paid)
     .execute(&mut **tx)
     .await
     .map_err(map_db)?;
@@ -709,6 +736,7 @@ struct OrderRow {
     notes: Option<String>,
     cancellation_reason: Option<String>,
     payment_method: Option<String>,
+    paid: bool,
     created_at: String,
     updated_at: String,
     deleted_at: Option<String>,
@@ -735,6 +763,7 @@ impl TryFrom<OrderRow> for Order {
             notes: r.notes,
             cancellation_reason: r.cancellation_reason,
             payment_method: r.payment_method,
+            paid: r.paid,
             items: Vec::new(),
         })
     }

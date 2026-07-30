@@ -260,6 +260,66 @@ async fn load_orders_with_customers(
 }
 
 /// Callback: avança o status do pedido para o próximo do fluxo.
+/// `order-set-payment` — registra forma de pagamento e/ou Pago/Não pago
+/// no detalhe do pedido. Offline-first: grava local (synced=false),
+/// atualiza o detalhe na hora e cutuca o sync (§7).
+pub(crate) fn setup_set_order_payment(
+    ui: &MainWindow,
+    state: &DesktopState,
+    handle: &tokio::runtime::Handle,
+    sync_notify: Arc<Notify>,
+) {
+    let ui_weak = ui.as_weak();
+    let state = state.clone();
+    let handle = handle.clone();
+
+    ui.on_order_set_payment(move |id, method, paid| {
+        let ui_weak = ui_weak.clone();
+        let state = state.clone();
+        let notify = sync_notify.clone();
+        let Ok(order_id) = Uuid::parse_str(id.as_str()) else { return };
+        let method_opt = {
+            let m = method.to_string();
+            if m.is_empty() { None } else { Some(m) }
+        };
+
+        handle.spawn(async move {
+            let cid = state.company_id();
+            let result = state
+                .order_service
+                .set_payment(cid, order_id, method_opt, paid)
+                .await;
+            let _ = slint::invoke_from_event_loop(move || {
+                let Some(ui) = ui_weak.upgrade() else { return };
+                match result {
+                    Ok(order) => {
+                        // Atualiza o detalhe aberto na hora (sem esperar
+                        // o refresh completo da lista).
+                        let mut detail = ui.get_detail_order();
+                        if detail.id.as_str() == order.base.id.to_string() {
+                            detail.payment_method = SharedString::from(
+                                order.payment_method.as_deref().unwrap_or_default(),
+                            );
+                            detail.paid = order.paid;
+                            ui.set_detail_order(detail);
+                        }
+                        ui.invoke_refresh_orders();
+                        notify.notify_one();
+                        show_toast(
+                            &ui,
+                            if order.paid { "Pedido marcado como Pago" } else { "Pedido marcado como Não pago" },
+                            "success",
+                        );
+                    }
+                    Err(e) => {
+                        show_toast(&ui, &friendly_error(&e), "error");
+                    }
+                }
+            });
+        });
+    });
+}
+
 pub(crate) fn setup_advance_order_status(
     ui: &MainWindow,
     state: &DesktopState,
@@ -497,6 +557,7 @@ fn to_order_data(order: &Order, customers: &HashMap<Uuid, (String, String)>) -> 
         delivery_fee_display: SharedString::from(delivery_fee_display),
         additional_display: SharedString::from(additional_display),
         coupon_code_display: SharedString::from(coupon_code_display),
+        paid: order.paid,
         elapsed_display: SharedString::from(elapsed_display),
         created_at_iso: SharedString::from(order.base.created_at.format("%Y-%m-%dT%H:%M:%S").to_string()),
     }

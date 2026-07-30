@@ -32,7 +32,7 @@ pub(crate) use edit::{
 };
 pub(crate) use list::{
     active_orders_count, setup_advance_order_status, setup_cancel_order, setup_open_order,
-    setup_refresh_orders,
+    setup_refresh_orders, setup_set_order_payment,
 };
 pub(crate) use receipt::{send_to_default_printer, setup_print_receipt_now};
 
