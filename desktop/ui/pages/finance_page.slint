@@ -157,7 +157,8 @@ component FinanceListRow inherits Rectangle {
             }
         }
 
-        // Vencimento
+        // Vencimento — a linha de dias só existe quando há texto; sem
+        // isso, "Sem vencimento" ficava deslocado do centro vertical.
         VerticalLayout {
             width: 110px;
             alignment: center;
@@ -168,7 +169,7 @@ component FinanceListRow inherits Rectangle {
                 color: Theme.text-primary;
                 horizontal-alignment: left;
             }
-            Text {
+            if root.data.days-display != "": Text {
                 text: root.data.days-display;
                 font-size: 10px;
                 color: Theme.text-secondary;

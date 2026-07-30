@@ -1,4 +1,5 @@
 import { Theme } from "../theme.slint";
+import { AssetIcon } from "../components/icons.slint";
 import { ActionBtn, OutlineBtn } from "../components/buttons.slint";
 import { EmptyState } from "../components/empty_state.slint";
 import { WalletSummary, WalletMovementRow } from "../types.slint";
@@ -51,14 +52,19 @@ component MovementRow inherits Rectangle {
             border-radius: 6px;
             background: root.data.amount-tone == "pos" ? #E8F5E9
                 : (root.data.amount-tone == "neutral" ? Theme.row-alt : #FFEBEE);
-            Text {
+            if root.data.amount-tone != "neutral": Text {
                 width: parent.width; height: parent.height;
-                text: root.data.amount-tone == "pos" ? "↓"
-                    : (root.data.amount-tone == "neutral" ? "→" : "↑");
+                text: root.data.amount-tone == "pos" ? "↓" : "↑";
                 font-size: 14px; font-weight: 800;
-                color: root.data.amount-tone == "pos" ? #2E7D32
-                    : (root.data.amount-tone == "neutral" ? Theme.text-secondary : #E53935);
+                color: root.data.amount-tone == "pos" ? #2E7D32 : #E53935;
                 horizontal-alignment: center; vertical-alignment: center;
+            }
+            // Limite de fiado: ícone .svg (seta), neutro.
+            if root.data.amount-tone == "neutral": AssetIcon {
+                width: parent.width; height: parent.height;
+                icon-size: 14px;
+                icon-color: Theme.text-secondary;
+                source: @image-url("../assets/icons/seta-direita.svg");
             }
         }
         VerticalLayout {

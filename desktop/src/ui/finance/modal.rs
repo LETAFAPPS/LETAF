@@ -267,6 +267,8 @@ pub(crate) fn reset_form(ui: &MainWindow) {
     ui.set_finance_form_installments(1);
     ui.set_finance_form_recurrence(SharedString::from("once"));
     ui.set_finance_form_notes(SharedString::from(""));
+    ui.set_finance_form_no_due(false);
+    ui.set_finance_form_is_fiado(false);
     ui.set_finance_due_cal_open(false);
     ui.set_finance_show_party_picker(false);
     clear_errors(ui);
@@ -288,6 +290,10 @@ pub(crate) fn populate_form(ui: &MainWindow, e: &FinanceEntry) {
     ui.set_finance_form_installments(e.installment_total);
     ui.set_finance_form_recurrence(SharedString::from(e.recurrence.to_string()));
     ui.set_finance_form_notes(SharedString::from(e.notes.clone().unwrap_or_default()));
+    ui.set_finance_form_no_due(e.due_date == letaf_core::finance::service::fiado_due_sentinel());
+    ui.set_finance_form_is_fiado(
+        e.notes.as_deref() == Some(letaf_core::finance::service::FIADO_AUTO_TAG),
+    );
     ui.set_finance_due_cal_open(false);
     ui.set_finance_show_party_picker(false);
     clear_errors(ui);
@@ -327,7 +333,12 @@ pub(crate) fn setup_save_modal(
         let due_date_s = ui.get_finance_form_due_date().to_string();
         let installments = ui.get_finance_form_installments();
         let recurrence_s = ui.get_finance_form_recurrence().to_string();
-        let notes = ui.get_finance_form_notes().to_string();
+        let notes = if ui.get_finance_form_is_fiado() {
+            // Conta automática do fiado: preserva o marcador interno.
+            letaf_core::finance::service::FIADO_AUTO_TAG.to_string()
+        } else {
+            ui.get_finance_form_notes().to_string()
+        };
         let editing_id = ui.get_finance_form_editing_id().to_string();
 
         // Validação UI antes de chamar service (mensagens por campo).
@@ -349,14 +360,20 @@ pub(crate) fn setup_save_modal(
                 0.0
             }
         };
-        let due_date = match parse_date_br(&due_date_s) {
-            Some(d) => d,
-            None => {
-                ui.set_finance_form_error_due_date(SharedString::from(
-                    "Use o formato dd/mm/aaaa",
-                ));
-                has_err = true;
-                Local::now().date_naive()
+        let no_due = ui.get_finance_form_no_due();
+        let due_date = if no_due {
+            // Sem vencimento: sentinela interna (UI exibe "Sem vencimento").
+            letaf_core::finance::service::fiado_due_sentinel()
+        } else {
+            match parse_date_br(&due_date_s) {
+                Some(d) => d,
+                None => {
+                    ui.set_finance_form_error_due_date(SharedString::from(
+                        "Use o formato dd/mm/aaaa",
+                    ));
+                    has_err = true;
+                    Local::now().date_naive()
+                }
             }
         };
         if has_err {
@@ -509,6 +526,12 @@ pub(crate) fn setup_mark_settled(
     let handle = handle.clone();
     ui.on_finance_mark_settled(move |id| {
         let id = id.to_string();
+        // Valor informado no modal de recebimento (obrigatório para
+        // contas a receber; ignorado nas contas a pagar).
+        let amount_s = ui_weak
+            .upgrade()
+            .map(|u| u.get_finance_settle_amount_input().to_string())
+            .unwrap_or_default();
         let ui_weak = ui_weak.clone();
         let state = state.clone();
         let sync_notify = sync_notify.clone();
@@ -516,19 +539,20 @@ pub(crate) fn setup_mark_settled(
         handle.spawn(async move {
             let Ok(uuid) = Uuid::parse_str(&id) else { return };
             let cid = state.company_id();
-            match state.finance_service.mark_settled(cid, uuid, None).await {
-                Ok(_) => {
+            let result = settle_entry(&state, cid, uuid, &amount_s).await;
+            match result {
+                Ok(msg) => {
                     sync_notify.notify_one();
                     let ui_weak2 = ui_weak.clone();
                     let _ = slint::invoke_from_event_loop(move || {
                         if let Some(ui) = ui_weak2.upgrade() {
-                            show_toast(&ui, "Lançamento Baixado", "success");
+                            show_toast(&ui, &msg, "success");
                         }
                     });
                     reapply(&ui_weak, &state, &cal).await;
                 }
                 Err(e) => {
-                    let msg = e.to_string();
+                    let msg = super::super::helpers::friendly_error(&e);
                     let _ = slint::invoke_from_event_loop(move || {
                         if let Some(ui) = ui_weak.upgrade() {
                             show_toast(&ui, &msg, "error");
@@ -538,6 +562,69 @@ pub(crate) fn setup_mark_settled(
             }
         });
     });
+}
+
+/// Liquida/abate um lançamento a partir do modal de recebimento.
+///
+/// Contas a PAGAR: baixa direta (sem campo de valor). Contas a
+/// RECEBER: o valor é obrigatório —
+/// - fiado automático → vira DEPÓSITO na carteira do cliente (quita ou
+///   abate a conta pelo espelho; o excesso permanece como saldo);
+/// - demais: valor >= conta → baixa; valor menor → abate parcial.
+async fn settle_entry(
+    state: &DesktopState,
+    cid: Uuid,
+    id: Uuid,
+    amount_s: &str,
+) -> Result<String, letaf_core::error::CoreError> {
+    use letaf_core::error::CoreError;
+    let entry = state
+        .finance_service
+        .find_by_id(cid, id)
+        .await?
+        .ok_or_else(|| CoreError::NotFound("Lançamento não encontrado".into()))?;
+    if entry.kind == FinanceKind::Payable {
+        state.finance_service.mark_settled(cid, id, None).await?;
+        return Ok("Pagamento confirmado".to_string());
+    }
+    let amount = parse_amount(amount_s).unwrap_or(0.0);
+    if amount <= 0.0 {
+        return Err(CoreError::Validation(
+            "Informe o valor recebido".into(),
+        ));
+    }
+    let amount_d = letaf_core::money::from_db_f64(amount);
+    let is_fiado = entry.notes.as_deref()
+        == Some(letaf_core::finance::service::FIADO_AUTO_TAG);
+    if is_fiado {
+        // Recebimento do fiado = depósito na carteira: o espelho
+        // (sync_fiado_to_finance) abate/quita a conta e o excesso
+        // permanece como saldo positivo do cliente.
+        let customer_id = entry.party_id.ok_or_else(|| {
+            CoreError::Validation("Conta de fiado sem cliente vinculado".into())
+        })?;
+        let account = state
+            .wallet_service
+            .find_account_by_customer(cid, customer_id)
+            .await?
+            .ok_or_else(|| CoreError::Validation("Cliente sem carteira aberta".into()))?;
+        let (account, _) = state
+            .wallet_service
+            .deposit(cid, account.base.id, amount_d, Some("Recebimento do fiado".into()))
+            .await?;
+        super::super::wallet::sync_fiado_to_finance(state, &account).await;
+        if account.balance >= rust_decimal::Decimal::ZERO {
+            Ok("Fiado quitado — saldo do cliente atualizado".to_string())
+        } else {
+            Ok("Recebimento abatido do fiado".to_string())
+        }
+    } else if amount_d + letaf_core::money::from_db_f64(0.005) >= entry.amount {
+        state.finance_service.mark_settled(cid, id, None).await?;
+        Ok("Recebimento confirmado".to_string())
+    } else {
+        state.finance_service.receive_partial(cid, id, amount_d).await?;
+        Ok("Recebimento parcial abatido da conta".to_string())
+    }
 }
 
 pub(crate) fn setup_cancel_entry(

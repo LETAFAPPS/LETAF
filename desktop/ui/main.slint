@@ -1306,6 +1306,10 @@ export component MainWindow inherits Window {
     in-out property <int>    finance-form-installments: 1;
     in-out property <string> finance-form-recurrence: "once"; // once|weekly|monthly|custom
     in-out property <string> finance-form-notes: "";
+    /// Lançamento sem data de vencimento (fiado sempre; opcional nos demais).
+    in-out property <bool> finance-form-no-due: false;
+    /// Conta automática do fiado — modal esconde a observação interna.
+    in-out property <bool> finance-form-is-fiado: false;
     /// Mensagens de erro de validação por campo (vazias = ok).
     in-out property <string> finance-form-error-description: "";
     in-out property <string> finance-form-error-amount: "";
@@ -1331,6 +1335,8 @@ export component MainWindow inherits Window {
     in-out property <string> finance-settle-target-desc: "";
     in-out property <string> finance-settle-target-party: "";
     in-out property <string> finance-settle-target-amount: "";
+    /// Valor informado no recebimento (pré-preenchido com o valor da conta).
+    in-out property <string> finance-settle-amount-input: "";
     callback finance-request-settle(string);
     callback finance-confirm-settle();
     callback finance-close-settle-confirm();
@@ -2941,6 +2947,8 @@ export component MainWindow inherits Window {
         installments: root.finance-form-installments;
         recurrence: root.finance-form-recurrence;
         notes <=> root.finance-form-notes;
+        no-due <=> root.finance-form-no-due;
+        is-fiado: root.finance-form-is-fiado;
         error-description: root.finance-form-error-description;
         error-amount: root.finance-form-error-amount;
         error-due-date: root.finance-form-error-due-date;
@@ -2987,7 +2995,8 @@ export component MainWindow inherits Window {
                 alignment: center;
                 Rectangle {
                     width: 420px;
-                    height: 240px;
+                    // Contas a receber ganham o campo VALOR (mais alto).
+                    height: root.finance-settle-target-kind == "receivable" ? 320px : 240px;
                     border-radius: 12px;
                     background: Theme.surface;
                     border-width: 1px;
@@ -3001,7 +3010,7 @@ export component MainWindow inherits Window {
                         padding: 22px;
                         spacing: 14px;
                         // Conteúdo centralizado verticalmente dentro do
-                        // card de altura fixa (240px).
+                        // card de altura fixa.
                         alignment: center;
                         VerticalLayout {
                             spacing: 4px;
@@ -3050,6 +3059,45 @@ export component MainWindow inherits Window {
                                     font-size: 11px;
                                     color: Theme.text-secondary;
                                     overflow: elide;
+                                }
+                            }
+                        }
+                        // Valor recebido — obrigatório; abre pré-
+                        // preenchido com o valor da conta e selecionado
+                        // (digite para substituir). Menor abate; maior
+                        // quita e o excesso vira saldo (fiado).
+                        if root.finance-settle-target-kind == "receivable": VerticalLayout {
+                            spacing: 6px;
+                            Text {
+                                text: "VALOR RECEBIDO";
+                                font-size: 11px; font-weight: 700;
+                                color: Theme.text-secondary;
+                                letter-spacing: 0.5px;
+                            }
+                            Rectangle {
+                                height: 40px;
+                                border-radius: 8px;
+                                border-width: 1px;
+                                border-color: settle-amount-in.has-focus ? Theme.primary : Theme.border;
+                                background: Theme.surface;
+                                settle-amount-in := TextInput {
+                                    x: 12px; y: 0;
+                                    width: parent.width - 24px;
+                                    height: parent.height;
+                                    text <=> root.finance-settle-amount-input;
+                                    font-size: 14px; font-weight: 700;
+                                    color: Theme.text-primary;
+                                    vertical-alignment: center;
+                                    single-line: true;
+                                }
+                                // Foca e seleciona tudo ao abrir.
+                                Timer {
+                                    interval: 1ms; running: true;
+                                    triggered => {
+                                        settle-amount-in.focus();
+                                        settle-amount-in.select-all();
+                                        self.running = false;
+                                    }
                                 }
                             }
                         }

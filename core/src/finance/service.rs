@@ -76,8 +76,6 @@ impl FinanceService {
         Ok(head)
     }
 
-    /// Marca o lançamento como liquidado.
-    /// `Paid` para Payable, `Received` para Receivable.
     /// Mantém a conta a receber AUTOMÁTICA do fiado do cliente em dia.
     ///
     /// Regras (AI_RULES.md §1, §7):
@@ -110,10 +108,11 @@ impl FinanceService {
             });
         match open {
             Some(mut entry) if debt > Decimal::ZERO => {
-                if entry.amount != debt {
+                let description = format!("Fiado - {customer_name}");
+                if entry.amount != debt || entry.description != description {
                     entry.amount = debt;
                     entry.party_name = customer_name.to_string();
-                    entry.description = format!("Fiado — {customer_name}");
+                    entry.description = description;
                     entry.base.updated_at = Utc::now().naive_utc();
                     entry.base.synced = false;
                     self.repo.update(&entry).await?;
@@ -128,7 +127,7 @@ impl FinanceService {
                 self.create(CreateFinanceParams {
                     company_id,
                     kind: FinanceKind::Receivable,
-                    description: format!("Fiado — {customer_name}"),
+                    description: format!("Fiado - {customer_name}"),
                     party_id: Some(customer_id),
                     party_name: customer_name.to_string(),
                     party_type: PartyType::Customer,
@@ -148,6 +147,47 @@ impl FinanceService {
         Ok(())
     }
 
+    /// Recebimento PARCIAL de uma conta a receber: abate `amount` do
+    /// valor em aberto, mantendo o lançamento Pendente com o restante.
+    ///
+    /// Regras (AI_RULES.md §11): valida 0 < amount < valor em aberto;
+    /// lançamento liquidado/cancelado não recebe abatimento.
+    pub async fn receive_partial(
+        &self,
+        company_id: Uuid,
+        id: Uuid,
+        amount: Decimal,
+    ) -> Result<FinanceEntry, CoreError> {
+        let mut entry = self
+            .repo
+            .find_by_id(company_id, id)
+            .await?
+            .ok_or_else(|| CoreError::NotFound("Lançamento não encontrado".into()))?;
+        if entry.kind != FinanceKind::Receivable {
+            return Err(CoreError::Validation(
+                "Abatimento parcial só vale para contas a receber".into(),
+            ));
+        }
+        if entry.status.is_settled() || entry.status == FinanceStatus::Cancelled {
+            return Err(CoreError::Validation(
+                "Lançamento encerrado não recebe abatimento".into(),
+            ));
+        }
+        let amount = round2(amount);
+        if amount <= Decimal::ZERO || amount >= entry.amount {
+            return Err(CoreError::Validation(
+                "O abatimento deve ser maior que zero e menor que o valor da conta".into(),
+            ));
+        }
+        entry.amount = round2(entry.amount - amount);
+        entry.base.updated_at = Utc::now().naive_utc();
+        entry.base.synced = false;
+        self.repo.update(&entry).await?;
+        Ok(entry)
+    }
+
+    /// Marca o lançamento como liquidado.
+    /// `Paid` para Payable, `Received` para Receivable.
     pub async fn mark_settled(
         &self,
         company_id: Uuid,

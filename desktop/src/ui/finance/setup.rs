@@ -144,6 +144,7 @@ pub(crate) fn setup_settle_confirm(
             let kind_s = entry.kind.to_string();
             let desc = entry.description.clone();
             let party = entry.party_name.clone();
+            let amount_plain = format!("{:.2}", entry.amount).replace('.', ",");
             let _ = slint::invoke_from_event_loop(move || {
                 if let Some(ui) = ui_weak.upgrade() {
                     ui.set_finance_settle_target_id(SharedString::from(id_s));
@@ -151,6 +152,9 @@ pub(crate) fn setup_settle_confirm(
                     ui.set_finance_settle_target_desc(SharedString::from(desc));
                     ui.set_finance_settle_target_party(SharedString::from(party));
                     ui.set_finance_settle_target_amount(SharedString::from(amount));
+                    // Campo de valor: pré-preenchido com o valor da
+                    // conta (o input seleciona tudo ao abrir).
+                    ui.set_finance_settle_amount_input(SharedString::from(amount_plain));
                     ui.set_finance_show_settle_confirm(true);
                 }
             });

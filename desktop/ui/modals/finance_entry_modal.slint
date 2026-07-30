@@ -102,6 +102,10 @@ export component FinanceEntryModal inherits Rectangle {
     in-out property <int>    installments;
     in-out property <string> recurrence;
     in-out property <string> notes;
+    /// true = lançamento sem data de vencimento (fiado usa sempre).
+    in-out property <bool> no-due;
+    /// true = conta automática do fiado — observação interna oculta.
+    in property <bool> is-fiado;
     in property <string> error-description;
     in property <string> error-amount;
     in property <string> error-due-date;
@@ -124,6 +128,11 @@ export component FinanceEntryModal inherits Rectangle {
             alignment: center;
             Card {
                 width: 560px;
+                // Altura explícita (header+body+footer) + clip: sem isso
+                // o rodapé estourava o card (botão Salvar solto) e as
+                // faixas internas cobriam as pontas arredondadas.
+                height: fe-hdr.preferred-height + fe-body.preferred-height + fe-ftr.preferred-height;
+                clip: true;
                 // Intercepta cliques dentro do card pra não fechar.
                 TouchArea { }
 
@@ -132,8 +141,9 @@ export component FinanceEntryModal inherits Rectangle {
 
                     // ── Header ───────────────────────────────
                     Rectangle {
+                        height: fe-hdr.preferred-height;
                         background: Theme.surface;
-                        VerticalLayout {
+                        fe-hdr := VerticalLayout {
                             padding-left: 22px; padding-right: 18px;
                             padding-top: 18px; padding-bottom: 14px;
                             spacing: 4px;
@@ -163,8 +173,9 @@ export component FinanceEntryModal inherits Rectangle {
 
                     // ── Body ─────────────────────────────────
                     Rectangle {
+                        height: fe-body.preferred-height;
                         background: Theme.bg;
-                        VerticalLayout {
+                        fe-body := VerticalLayout {
                             padding: 18px;
                             spacing: 14px;
 
@@ -254,22 +265,24 @@ export component FinanceEntryModal inherits Rectangle {
                                     }
                                     due-ta := TouchArea {
                                         height: 40px;
+                                        enabled: !root.no-due;
                                         clicked => { root.toggle-due-cal(); }
                                         Rectangle {
                                             border-radius: 8px;
                                             border-width: 1px;
                                             border-color: root.error-due-date != ""
                                                 ? #E53935
-                                                : (due-ta.has-hover ? Theme.primary : Theme.border);
-                                            background: due-ta.has-hover ? Theme.row-hover : Theme.surface;
+                                                : ((due-ta.has-hover && !root.no-due) ? Theme.primary : Theme.border);
+                                            background: (due-ta.has-hover && !root.no-due) ? Theme.row-hover : Theme.surface;
                                             HorizontalLayout {
                                                 padding-left: 12px; padding-right: 12px;
                                                 spacing: 8px;
                                                 Text {
                                                     horizontal-stretch: 1;
-                                                    text: root.due-date != "" ? root.due-date : "dd/mm/aaaa";
+                                                    text: root.no-due ? "Sem vencimento"
+                                                        : (root.due-date != "" ? root.due-date : "dd/mm/aaaa");
                                                     font-size: 13px;
-                                                    color: root.due-date != ""
+                                                    color: (root.due-date != "" && !root.no-due)
                                                         ? Theme.text-primary
                                                         : Theme.text-secondary;
                                                     vertical-alignment: center;
@@ -280,6 +293,27 @@ export component FinanceEntryModal inherits Rectangle {
                                                     color: Theme.text-secondary;
                                                     vertical-alignment: center;
                                                 }
+                                            }
+                                        }
+                                    }
+                                    // Toggle "Sem vencimento" — estilo dos
+                                    // chips tênues de ação do sistema.
+                                    no-due-ta := TouchArea {
+                                        height: 26px;
+                                        clicked => { root.no-due = !root.no-due; }
+                                        Rectangle {
+                                            border-radius: 6px;
+                                            border-width: root.no-due ? 1.5px : 1px;
+                                            border-color: root.no-due ? Theme.btn-accent : Theme.border;
+                                            background: root.no-due
+                                                ? Theme.btn-accent.transparentize(0.88)
+                                                : (no-due-ta.has-hover ? Theme.row-hover : Theme.surface);
+                                            Text {
+                                                width: parent.width; height: parent.height;
+                                                text: "Sem vencimento";
+                                                font-size: 10px; font-weight: 700;
+                                                color: root.no-due ? Theme.btn-accent : Theme.text-secondary;
+                                                horizontal-alignment: center; vertical-alignment: center;
                                             }
                                         }
                                     }
@@ -396,8 +430,9 @@ export component FinanceEntryModal inherits Rectangle {
                                 }
                             }
 
-                            // Observação
-                            VerticalLayout {
+                            // Observação — oculta na conta automática do
+                            // fiado (guarda o marcador interno [fiado-auto]).
+                            if !root.is-fiado: VerticalLayout {
                                 spacing: 6px;
                                 Text {
                                     text: "OBSERVAÇÃO";
@@ -449,8 +484,9 @@ export component FinanceEntryModal inherits Rectangle {
 
                     // ── Footer ───────────────────────────────
                     Rectangle {
+                        height: fe-ftr.preferred-height;
                         background: Theme.surface;
-                        VerticalLayout {
+                        fe-ftr := VerticalLayout {
                             padding-left: 18px; padding-right: 18px;
                             padding-top: 14px; padding-bottom: 14px;
                             HorizontalLayout {
@@ -458,6 +494,9 @@ export component FinanceEntryModal inherits Rectangle {
                                 alignment: end;
                                 ActionBtn {
                                     label: "Salvar";
+                                    bg-color: Theme.btn-accent;
+                                    icon: @image-url("../assets/icons/confirmar.svg");
+                                    width: 140px; height: 40px;
                                     clicked => { root.save(); }
                                 }
                             }
