@@ -72,7 +72,7 @@ pub fn build_invoice_pdf(inv: &Invoice, company_name: &str) -> Result<Vec<u8>, S
 
     pair(&mut ctx, "Emissão", &inv.issued_at.format("%d/%m/%Y").to_string());
     pair(&mut ctx, "Descrição", &inv.description);
-    pair(&mut ctx, "Forma de pagamento", &method_label(inv));
+    pair(&mut ctx, "Forma de pagamento", method_label(inv));
     pair(&mut ctx, "Situação", status_label(inv.status));
     if let Some(paid) = inv.paid_at {
         pair(&mut ctx, "Pago em", &paid.format("%d/%m/%Y às %H:%M").to_string());
@@ -219,17 +219,13 @@ fn footer_note(ctx: &mut Ctx) {
     );
 }
 
-fn method_label(inv: &Invoice) -> String {
-    let kind = match inv.method_kind.as_str() {
+/// Só a FORMA de pagamento (PIX/Cartão) — o documento não expõe os
+/// dígitos do cartão.
+fn method_label(inv: &Invoice) -> &'static str {
+    match inv.method_kind.as_str() {
         "pix" => "PIX",
         "card" | "visa" => "Cartão",
-        other if !other.is_empty() => other,
         _ => "—",
-    };
-    if inv.method_label.is_empty() {
-        kind.to_string()
-    } else {
-        format!("{kind} · {}", inv.method_label)
     }
 }
 
