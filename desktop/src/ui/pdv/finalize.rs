@@ -246,7 +246,12 @@ pub(crate) fn setup_finalize(
                         .charge_order(cid, acc_id, order.total, order.base.id)
                         .await
                     {
-                        Ok(_) => None,
+                        Ok((account, _)) => {
+                            // Espelha a dívida (fiado) como conta a receber
+                            // no Financeiro — automática e sem vencimento.
+                            super::super::wallet::sync_fiado_to_finance(&state, &account).await;
+                            None
+                        }
                         Err(e) => {
                             tracing::warn!(
                                 "PDV order {} criada mas charge_order falhou: {e}",
@@ -299,6 +304,11 @@ pub(crate) fn setup_finalize(
                         // Atualiza o dashboard de Caixa com a nova venda
                         // (movimento foi lançado pelo service).
                         ui.invoke_cash_refresh();
+                        // Fiado espelhado no Financeiro — recarrega a tela
+                        // para a conta a receber aparecer sem ação manual.
+                        if payment_method_clone == "wallet" {
+                            ui.invoke_finance_refresh();
+                        }
                         // Limpa o estado da carteira no PDV — próximo
                         // cliente recarrega.
                         apply_wallet_to_ui(&ui, None);

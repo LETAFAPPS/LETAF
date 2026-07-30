@@ -135,6 +135,9 @@ pub(crate) fn setup_confirm_limit(
             ui.set_wallet_form_error(SharedString::from("Abra a carteira primeiro"));
             return;
         };
+        // Observação do modal — registrada no movimento "Limite de fiado".
+        let notes_s = ui.get_wallet_form_notes().to_string();
+        let notes_opt = if notes_s.is_empty() { None } else { Some(notes_s) };
         let cid = state.company_id();
         let ui_weak = ui_weak.clone();
         let state = state.clone();
@@ -143,7 +146,7 @@ pub(crate) fn setup_confirm_limit(
         handle.spawn(async move {
             match state
                 .wallet_service
-                .set_credit_limit(cid, account_id, letaf_core::money::from_db_f64(limit))
+                .set_credit_limit(cid, account_id, letaf_core::money::from_db_f64(limit), notes_opt)
                 .await
             {
                 Ok(_) => {
@@ -217,20 +220,22 @@ pub(crate) fn confirm_op(
                 .wallet_service
                 .deposit(cid, account_id, letaf_core::money::from_db_f64(amount), notes_opt)
                 .await
-                .map(|_| ()),
+                .map(|(account, _)| account),
             OpKind::Withdraw => state
                 .wallet_service
                 .withdraw(cid, account_id, letaf_core::money::from_db_f64(amount), notes_opt)
                 .await
-                .map(|_| ()),
+                .map(|(account, _)| account),
             OpKind::Adjust => state
                 .wallet_service
                 .manual_adjust(cid, account_id, letaf_core::money::from_db_f64(amount), notes_s)
                 .await
-                .map(|_| ()),
+                .map(|(account, _)| account),
         };
         match result {
-            Ok(()) => {
+            Ok(account) => {
+                // Espelha a dívida no Financeiro (fiado automático).
+                super::core::sync_fiado_to_finance(&state, &account).await;
                 sync_notify.notify_one();
                 let ui_weak2 = ui_weak.clone();
                 let _ = slint::invoke_from_event_loop(move || {
@@ -239,6 +244,8 @@ pub(crate) fn confirm_op(
                         ui.set_wallet_show_withdraw(false);
                         ui.set_wallet_show_adjust(false);
                         show_toast(&ui, "Operação registrada", "success");
+                        // Reflete a conta a receber do fiado na hora.
+                        ui.invoke_finance_refresh();
                     }
                 });
                 refresh_for_selected(&ui_weak, &state, &handle_inner);

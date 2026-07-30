@@ -493,8 +493,19 @@ pub(crate) fn build_entry_row(
         .map(|c| (c.name.clone(), parse_hex_color(&c.color)))
         .unwrap_or_else(|| (String::new(), Color::from_rgb_u8(0xBD, 0xBD, 0xBD)));
 
-    let due_date_display = e.due_date.format("%d/%m/%Y").to_string();
-    let days_display = days_label(today, e.due_date, e.status.is_settled());
+    // Fiado automático usa a data-sentinela = SEM vencimento (nunca
+    // "vence"; a cobrança acontece pela carteira do cliente).
+    let no_due = e.due_date == letaf_core::finance::service::fiado_due_sentinel();
+    let due_date_display = if no_due {
+        "Sem vencimento".to_string()
+    } else {
+        e.due_date.format("%d/%m/%Y").to_string()
+    };
+    let days_display = if no_due {
+        String::new()
+    } else {
+        days_label(today, e.due_date, e.status.is_settled())
+    };
 
     let action_label = if e.status.is_settled() || e.status == FinanceStatus::Cancelled {
         String::new()

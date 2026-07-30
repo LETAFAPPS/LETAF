@@ -13,6 +13,17 @@ use crate::error::CoreError;
 use crate::util::add_months;
 use crate::money::round2;
 
+/// Marcador (em `notes`) da conta a receber AUTOMÁTICA do fiado —
+/// identifica a entrada gerida pela carteira do cliente (criada,
+/// atualizada e baixada por [`FinanceService::sync_fiado_receivable`]).
+pub const FIADO_AUTO_TAG: &str = "[fiado-auto]";
+
+/// Data-sentinela para lançamento SEM vencimento (fiado não tem data
+/// de cobrança). Nunca vira "vencido" e a UI exibe "Sem vencimento".
+pub fn fiado_due_sentinel() -> NaiveDate {
+    NaiveDate::from_ymd_opt(9999, 12, 31).expect("data fixa válida")
+}
+
 /// Parâmetros para criação de um lançamento.
 ///
 /// Encapsulamos no struct pra evitar funções com 12 argumentos
@@ -67,6 +78,76 @@ impl FinanceService {
 
     /// Marca o lançamento como liquidado.
     /// `Paid` para Payable, `Received` para Receivable.
+    /// Mantém a conta a receber AUTOMÁTICA do fiado do cliente em dia.
+    ///
+    /// Regras (AI_RULES.md §1, §7):
+    /// - Dívida > 0 e sem entrada aberta → cria "Fiado — {cliente}"
+    ///   (sem vencimento, marcada com [`FIADO_AUTO_TAG`]).
+    /// - Dívida > 0 e entrada aberta → atualiza o valor para a dívida
+    ///   ATUAL (novos pedidos fiados só aumentam o mesmo lançamento).
+    /// - Dívida zerada (cliente pagou via carteira) → baixa como
+    ///   Recebido.
+    ///
+    /// Chamado após cada mudança de saldo da carteira — idempotente.
+    pub async fn sync_fiado_receivable(
+        &self,
+        company_id: Uuid,
+        customer_id: Uuid,
+        customer_name: &str,
+        debt: Decimal,
+    ) -> Result<(), CoreError> {
+        let debt = round2(debt.max(Decimal::ZERO));
+        let open = self
+            .repo
+            .find_by_kind(company_id, FinanceKind::Receivable)
+            .await?
+            .into_iter()
+            .find(|e| {
+                e.party_id == Some(customer_id)
+                    && e.notes.as_deref() == Some(FIADO_AUTO_TAG)
+                    && !e.status.is_settled()
+                    && e.status != FinanceStatus::Cancelled
+            });
+        match open {
+            Some(mut entry) if debt > Decimal::ZERO => {
+                if entry.amount != debt {
+                    entry.amount = debt;
+                    entry.party_name = customer_name.to_string();
+                    entry.description = format!("Fiado — {customer_name}");
+                    entry.base.updated_at = Utc::now().naive_utc();
+                    entry.base.synced = false;
+                    self.repo.update(&entry).await?;
+                }
+            }
+            Some(entry) => {
+                // Dívida zerada pela carteira → recebido.
+                self.mark_settled(company_id, entry.base.id, Some("wallet".into()))
+                    .await?;
+            }
+            None if debt > Decimal::ZERO => {
+                self.create(CreateFinanceParams {
+                    company_id,
+                    kind: FinanceKind::Receivable,
+                    description: format!("Fiado — {customer_name}"),
+                    party_id: Some(customer_id),
+                    party_name: customer_name.to_string(),
+                    party_type: PartyType::Customer,
+                    category_id: None,
+                    amount: debt,
+                    due_date: fiado_due_sentinel(),
+                    payment_method: None,
+                    notes: Some(FIADO_AUTO_TAG.to_string()),
+                    recurrence: FinanceRecurrence::Once,
+                    installments: 1,
+                    order_id: None,
+                })
+                .await?;
+            }
+            None => {}
+        }
+        Ok(())
+    }
+
     pub async fn mark_settled(
         &self,
         company_id: Uuid,

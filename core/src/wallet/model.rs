@@ -23,6 +23,9 @@ pub enum WalletMovementKind {
     OrderCharge,
     OrderRefund,
     ManualAdjust,
+    /// Alteração do limite de fiado — não mexe no saldo; `amount`
+    /// registra o NOVO limite e `notes` a observação do operador.
+    LimitChange,
 }
 
 impl fmt::Display for WalletMovementKind {
@@ -33,6 +36,7 @@ impl fmt::Display for WalletMovementKind {
             Self::OrderCharge => write!(f, "order_charge"),
             Self::OrderRefund => write!(f, "order_refund"),
             Self::ManualAdjust => write!(f, "manual_adjust"),
+            Self::LimitChange => write!(f, "limit_change"),
         }
     }
 }
@@ -46,6 +50,7 @@ impl WalletMovementKind {
             "order_charge" => Self::OrderCharge,
             "order_refund" => Self::OrderRefund,
             "manual_adjust" => Self::ManualAdjust,
+            "limit_change" => Self::LimitChange,
             _ => Self::ManualAdjust,
         }
     }
@@ -60,6 +65,9 @@ impl WalletMovementKind {
             // codificado no `amount` (negativo permitido nesse caso).
             // Esta convenção é validada no service.
             Self::ManualAdjust => rust_decimal_macros::dec!(1),
+            // Não altera saldo (o movimento existe só para auditoria);
+            // nunca passa pelo `apply()`.
+            Self::LimitChange => rust_decimal_macros::dec!(0),
         }
     }
 }

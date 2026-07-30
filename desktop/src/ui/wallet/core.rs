@@ -13,6 +13,31 @@ use crate::MainWindow;
 use super::ops::{setup_confirm_adjust, setup_confirm_deposit, setup_confirm_limit, setup_confirm_open, setup_confirm_withdraw, setup_sync_listener};
 use super::view::{apply_movements, apply_summary, setup_close_modals, setup_open_modals, setup_select_listener};
 
+/// Espelha a dívida da carteira no Financeiro — conta a receber
+/// AUTOMÁTICA do fiado (regra em `FinanceService::sync_fiado_receivable`).
+/// Chamado após cada mudança de saldo (cobrança fiada no PDV, depósito,
+/// saque, ajuste). Falha só loga: a operação da carteira é a fonte de
+/// verdade e não pode ser desfeita por erro no espelho.
+pub(crate) async fn sync_fiado_to_finance(state: &DesktopState, account: &WalletAccount) {
+    let cid = account.base.company_id;
+    let debt = (-account.balance).max(rust_decimal::Decimal::ZERO);
+    let name = state
+        .customer_service
+        .find_by_id(cid, account.customer_id)
+        .await
+        .ok()
+        .flatten()
+        .map(|c| c.name)
+        .unwrap_or_else(|| "Cliente".to_string());
+    if let Err(e) = state
+        .finance_service
+        .sync_fiado_receivable(cid, account.customer_id, &name, debt)
+        .await
+    {
+        tracing::warn!("fiado→financeiro: sincronização falhou: {e}");
+    }
+}
+
 pub(crate) fn setup_wallet(
     ui: &MainWindow,
     state: &DesktopState,
@@ -208,15 +233,23 @@ pub(crate) fn movement_title(m: &WalletMovement) -> String {
         WalletMovementKind::OrderCharge => "Cobrança em pedido".into(),
         WalletMovementKind::OrderRefund => "Estorno de pedido".into(),
         WalletMovementKind::ManualAdjust => "Ajuste Manual".into(),
+        WalletMovementKind::LimitChange => "Limite de fiado".into(),
     }
 }
 
 pub(crate) fn format_amount(m: &WalletMovement) -> String {
+    // Mudança de limite não mexe no saldo — mostra o NOVO limite.
+    if m.kind == WalletMovementKind::LimitChange {
+        return money_br(m.amount);
+    }
     let signed = m.amount * m.kind.sign();
     money_signed(signed)
 }
 
 pub(crate) fn tone_of_movement(m: &WalletMovement) -> String {
+    if m.kind == WalletMovementKind::LimitChange {
+        return "neutral".into();
+    }
     let signed = m.amount * m.kind.sign();
     if signed >= rust_decimal::Decimal::ZERO { "pos".into() } else { "neg".into() }
 }

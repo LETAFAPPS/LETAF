@@ -58,6 +58,7 @@ impl WalletService {
         company_id: Uuid,
         account_id: Uuid,
         new_limit: Decimal,
+        notes: Option<String>,
     ) -> Result<WalletAccount, CoreError> {
         validate_credit_limit(new_limit)?;
         let mut account = self.must_load_account(company_id, account_id).await?;
@@ -65,6 +66,21 @@ impl WalletService {
         account.base.updated_at = Utc::now().naive_utc();
         account.base.synced = false;
         self.repo.update_account(&account).await?;
+        // Registra a mudança no histórico (auditoria): movimento
+        // `LimitChange` NÃO altera o saldo — `amount` guarda o novo
+        // limite e `notes` a observação do operador. Gravado via
+        // upsert (id novo ⇒ insert); falha aqui não desfaz o limite.
+        let mut movement = WalletMovement::new(
+            company_id,
+            account.base.id,
+            WalletMovementKind::LimitChange,
+            new_limit,
+            account.balance,
+        );
+        movement.notes = notes;
+        if let Err(e) = self.repo.sync_upsert_movement(&movement).await {
+            tracing::warn!("limite salvo, mas o registro no histórico falhou: {e}");
+        }
         Ok(account)
     }
 
