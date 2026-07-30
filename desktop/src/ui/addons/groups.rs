@@ -11,7 +11,7 @@ use letaf_core::addon_group::model::AddonGroup;
 use crate::context::DesktopState;
 use crate::{AddonData, AddonGroupData, MainWindow};
 
-use super::super::helpers::show_toast;
+use super::super::helpers::{friendly_error, show_toast};
 
 /// Refresh: carrega grupos + (em paralelo) todos os addons para já saber
 /// quantos itens cada grupo tem (`addons-count`). Mantemos a contagem
@@ -36,7 +36,7 @@ pub(crate) fn setup_refresh_addon_groups(
             );
             let groups = match groups_res {
                 Ok(g) => g,
-                Err(e) => return ui_status_err(&ui_weak, e),
+                Err(e) => return ui_status_err(&ui_weak, &e),
             };
             let addons = addons_res.unwrap_or_default();
             let group_data = build_groups_with_counts(&groups, &addons, None);
@@ -81,9 +81,9 @@ pub(crate) fn build_groups_with_counts(
         .collect()
 }
 
-/// Atalho: imprime erro do service na status bar do MainWindow.
-pub(crate) fn ui_status_err(ui_weak: &slint::Weak<MainWindow>, e: impl std::fmt::Display) {
-    let msg = format!("Erro: {e}");
+/// Atalho: imprime erro do service (amigável, pt-BR) na status bar.
+pub(crate) fn ui_status_err(ui_weak: &slint::Weak<MainWindow>, e: &letaf_core::error::CoreError) {
+    let msg = friendly_error(e);
     let ui_weak = ui_weak.clone();
     let _ = slint::invoke_from_event_loop(move || {
         if let Some(ui) = ui_weak.upgrade() {
@@ -193,7 +193,7 @@ pub(crate) fn setup_save_addon_group(
                     Ok(id) => state.addon_group_service
                         .update(cid, id, name.clone(), selection.clone(), min, max).await
                         .map(|_| ()),
-                    Err(_) => Err(letaf_core::error::CoreError::Validation("Invalid id".into())),
+                    Err(_) => Err(letaf_core::error::CoreError::Validation("ID inválido".into())),
                 }
             };
             if res.is_ok() { notify.notify_one(); }
@@ -206,7 +206,7 @@ pub(crate) fn setup_save_addon_group(
                         ui.invoke_refresh_addon_groups();
                     }
                     Err(e) => {
-                        let msg = format!("Erro: {e}");
+                        let msg = friendly_error(&e);
                         show_toast(&ui, &msg, "error");
                         ui.set_addon_group_form_error(SharedString::from(msg));
                     }
@@ -249,7 +249,7 @@ pub(crate) fn setup_delete_addon_group(
                         ui.invoke_refresh_addon_groups();
                     }
                     Err(e) => {
-                        let msg = format!("Erro: {e}");
+                        let msg = friendly_error(&e);
                         show_toast(&ui, &msg, "error");
                     }
                 }

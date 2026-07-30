@@ -116,7 +116,8 @@ pub(crate) fn setup_pix_modal(
             {
                 Ok(r) => r,
                 Err(e) => {
-                    set_error_view(&ui_weak, format!("Falha de rede: {e}"));
+                    tracing::warn!("PIX charge: falha de rede: {e}");
+                    set_error_view(&ui_weak, "Falha de conexão. Tente novamente.".to_string());
                     return;
                 }
             };
@@ -136,7 +137,8 @@ pub(crate) fn setup_pix_modal(
             let charge_resp: ChargeResponse = match resp.json().await {
                 Ok(v) => v,
                 Err(e) => {
-                    set_error_view(&ui_weak, format!("Resposta inválida: {e}"));
+                    tracing::warn!("PIX charge: resposta inválida: {e}");
+                    set_error_view(&ui_weak, "Resposta inválida do servidor. Tente novamente.".to_string());
                     return;
                 }
             };

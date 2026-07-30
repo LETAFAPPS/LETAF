@@ -7,7 +7,7 @@ use letaf_core::coupon::model::Coupon;
 
 use crate::MainWindow;
 
-use super::super::helpers::show_toast;
+use super::super::helpers::{friendly_error, show_toast};
 
 // ── Helpers ───────────────────────────────────────────────────────
 
@@ -26,7 +26,7 @@ pub(crate) struct CouponForm {
 }
 
 pub(crate) fn report_error(ui_weak: slint::Weak<MainWindow>, e: letaf_core::error::CoreError) {
-    let msg = format!("Erro: {e}");
+    let msg = friendly_error(&e);
     let _ = slint::invoke_from_event_loop(move || {
         let Some(ui) = ui_weak.upgrade() else { return };
         show_toast(&ui, &msg, "error");

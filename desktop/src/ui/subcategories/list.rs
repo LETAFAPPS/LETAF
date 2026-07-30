@@ -7,6 +7,7 @@ use uuid::Uuid;
 use crate::context::DesktopState;
 use crate::{MainWindow, SubcategoryData};
 
+use super::super::helpers::friendly_error;
 use super::crud::to_subcategory_data;
 
 /// Carrega subcategorias do SQLite e popula a tabela.
@@ -53,7 +54,7 @@ pub(crate) fn setup_refresh_subcategories(
                 (Err(e), _) | (_, Err(e)) => {
                     let _ = slint::invoke_from_event_loop(move || {
                         let Some(ui) = ui_weak.upgrade() else { return };
-                        ui.set_status_message(SharedString::from(format!("Erro: {e}")));
+                        ui.set_status_message(SharedString::from(friendly_error(&e)));
                     });
                 }
             }

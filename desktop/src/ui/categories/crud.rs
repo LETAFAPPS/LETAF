@@ -10,7 +10,7 @@ use letaf_core::category::model::Category;
 use crate::context::DesktopState;
 use crate::{CategoryData, CategoryIconOption, MainWindow};
 
-use super::super::helpers::show_toast;
+use super::super::helpers::{friendly_error, show_toast};
 
 /// Limpa erro de validação do formulário de categoria.
 pub(crate) fn clear_category_errors(ui: &MainWindow) {
@@ -93,7 +93,7 @@ pub(crate) fn setup_add_category(
                     });
                 }
                 Err(e) => {
-                    let msg = format!("Erro: {e}");
+                    let msg = friendly_error(&e);
                     let _ = slint::invoke_from_event_loop(move || {
                         let Some(ui) = ui_weak.upgrade() else { return };
                         show_toast(&ui, &msg, "error");
@@ -151,7 +151,7 @@ pub(crate) fn setup_update_category(
                     });
                 }
                 Err(e) => {
-                    let msg = format!("Erro: {e}");
+                    let msg = friendly_error(&e);
                     let _ = slint::invoke_from_event_loop(move || {
                         let Some(ui) = ui_weak.upgrade() else { return };
                         show_toast(&ui, &msg, "error");
@@ -194,7 +194,7 @@ pub(crate) fn setup_delete_category(
                     });
                 }
                 Err(e) => {
-                    let msg = format!("Erro: {e}");
+                    let msg = friendly_error(&e);
                     let _ = slint::invoke_from_event_loop(move || {
                         let Some(ui) = ui_weak.upgrade() else { return };
                         show_toast(&ui, &msg, "error");

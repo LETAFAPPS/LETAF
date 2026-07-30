@@ -10,7 +10,7 @@ use letaf_core::product::model::Product;
 use crate::context::DesktopState;
 use crate::{CategoryFilterEntry, MainWindow, ProductData, SubcategoryFilterEntry};
 
-use super::super::helpers::show_toast;
+use super::super::helpers::{friendly_error, show_toast};
 use super::super::image::decode_single_product_image;
 use super::state::{DecodedProduct, ProductFilterState, SharedFilter};
 use super::data::{addon_group_ids_to_csv, build_product_data_from_product, decoded_to_product_data_ref, make_product_display, parse_hex_color, push_product_to_model, to_decoded_product};
@@ -47,7 +47,7 @@ pub(crate) fn setup_refresh(
                 Err(e) => {
                     let _ = slint::invoke_from_event_loop(move || {
                         let Some(ui) = ui_weak.upgrade() else { return };
-                        ui.set_status_message(SharedString::from(format!("Erro: {e}")));
+                        ui.set_status_message(SharedString::from(friendly_error(&e)));
                     });
                     return;
                 }
@@ -498,7 +498,7 @@ pub(crate) fn setup_duplicate_product(
                     return;
                 }
                 Err(e) => {
-                    let msg = format!("Erro ao ler produto: {e}");
+                    let msg = format!("Erro ao ler produto: {}", friendly_error(&e));
                     let _ = slint::invoke_from_event_loop(move || {
                         let Some(ui) = ui_weak.upgrade() else { return };
                         show_toast(&ui, &msg, "error");
@@ -564,7 +564,7 @@ pub(crate) fn setup_duplicate_product(
                     });
                 }
                 Err(e) => {
-                    let msg = format!("Erro ao duplicar: {e}");
+                    let msg = format!("Erro ao duplicar: {}", friendly_error(&e));
                     let _ = slint::invoke_from_event_loop(move || {
                         let Some(ui) = ui_weak.upgrade() else { return };
                         show_toast(&ui, &msg, "error");

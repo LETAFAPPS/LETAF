@@ -8,6 +8,7 @@ use uuid::Uuid;
 use crate::context::DesktopState;
 use crate::MainWindow;
 
+use super::super::helpers::friendly_error;
 use super::render::{apply_cache, apply_detail, build_tree, CatCache, resolve_category};
 
 /// Registra os callbacks do master-detail de Categorias.
@@ -61,7 +62,7 @@ pub(crate) fn setup_categories(
                     (Err(e), _, _) | (_, Err(e), _) | (_, _, Err(e)) => {
                         let _ = slint::invoke_from_event_loop(move || {
                             let Some(ui) = ui_weak.upgrade() else { return };
-                            ui.set_status_message(SharedString::from(format!("Erro: {e}")));
+                            ui.set_status_message(SharedString::from(friendly_error(&e)));
                         });
                     }
                 }

@@ -8,7 +8,7 @@ use uuid::Uuid;
 use crate::context::DesktopState;
 use crate::MainWindow;
 
-use super::super::helpers::{show_toast, user_error};
+use super::super::helpers::{friendly_error, show_toast, user_error};
 use super::groups::{build_groups_with_counts, parse_decimal};
 
 /// Save addon: usa o `selected-addon-group-id` como contexto.
@@ -47,7 +47,7 @@ pub(crate) fn setup_save_addon(
                     Ok(id) => state.addon_service
                         .update(cid, id, group_id, name.clone(), letaf_core::money::from_db_f64(price)).await
                         .map(|_| ()),
-                    Err(_) => Err(letaf_core::error::CoreError::Validation("Invalid id".into())),
+                    Err(_) => Err(letaf_core::error::CoreError::Validation("ID inválido".into())),
                 }
             };
             if res.is_ok() { notify.notify_one(); }
@@ -64,7 +64,7 @@ pub(crate) fn setup_save_addon(
                         ui.invoke_select_addon_group(group_id_ss);
                     }
                     Err(e) => {
-                        let msg = format!("Erro: {e}");
+                        let msg = friendly_error(&e);
                         show_toast(&ui, &msg, "error");
                         ui.set_addon_form_error(SharedString::from(msg));
                     }
@@ -102,7 +102,7 @@ pub(crate) fn setup_delete_addon(
                         if !gid.is_empty() { ui.invoke_select_addon_group(gid); }
                     }
                     Err(e) => {
-                        let msg = format!("Erro: {e}");
+                        let msg = friendly_error(&e);
                         show_toast(&ui, &msg, "error");
                     }
                 }

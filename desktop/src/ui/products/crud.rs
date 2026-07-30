@@ -8,7 +8,7 @@ use uuid::Uuid;
 use crate::context::DesktopState;
 use crate::MainWindow;
 
-use super::super::helpers::show_toast;
+use super::super::helpers::{friendly_error, show_toast};
 use super::super::image::decode_single_product_image;
 use super::state::DecodedProduct;
 use super::list::{decoded_from_components, upsert_decoded_in_cache};
@@ -89,7 +89,7 @@ pub(crate) fn setup_add(
                 Err(e) => {
                     let _ = slint::invoke_from_event_loop(move || {
                         let Some(ui) = ui_weak.upgrade() else { return };
-                        let msg = SharedString::from(format!("Erro: {e}"));
+                        let msg = SharedString::from(friendly_error(&e));
                         show_toast(&ui, msg.as_str(), "error");
                         ui.set_status_message(msg.clone());
                         ui.set_product_save_error(msg);
@@ -174,7 +174,7 @@ pub(crate) fn setup_update_product(
                 Err(e) => {
                     let _ = slint::invoke_from_event_loop(move || {
                         let Some(ui) = ui_weak.upgrade() else { return };
-                        let msg = SharedString::from(format!("Erro: {e}"));
+                        let msg = SharedString::from(friendly_error(&e));
                         show_toast(&ui, msg.as_str(), "error");
                         ui.set_status_message(msg.clone());
                         ui.set_product_save_error(msg);
@@ -228,7 +228,7 @@ pub(crate) fn setup_delete(
                         ui.invoke_refresh_products();
                     }
                     Err(e) => {
-                        let msg = format!("Erro: {e}");
+                        let msg = friendly_error(&e);
                         show_toast(&ui, &msg, "error");
                         ui.set_status_message(SharedString::from(msg));
                     }

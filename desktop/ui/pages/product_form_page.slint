@@ -149,7 +149,6 @@ export component ProductFormPage inherits VerticalLayout {
     in-out property <string> product-barcode;
     in-out property <string> product-unit;
     in-out property <string> product-balance-mode: "price";
-    in-out property <string> product-image-data;
     in-out property <bool>   product-image-loading: false;
     in-out property <string> product-category-id;
     in-out property <string> product-category-name;
@@ -175,7 +174,6 @@ export component ProductFormPage inherits VerticalLayout {
     callback request-back();
     callback add-product();
     callback update-product();
-    callback pick-product-image();
     /// Insere uma faixa em branco no final da lista `product-discount-tiers`.
     /// Implementado em Rust porque o Slint não tem helper para push em
     /// `VecModel` a partir da UI.
@@ -204,13 +202,6 @@ export component ProductFormPage inherits VerticalLayout {
     /// caso de uso: master-detail embute o form no painel direito e
     /// fornece sua própria barra de ações no topo (Fase 9).
     in property <bool> embedded: false;
-
-    property <int> load-tick: 0;
-    Timer {
-        interval: 150ms;
-        running: root.product-image-loading;
-        triggered => { root.load-tick = root.load-tick + 1; }
-    }
 
     vertical-stretch: 1;
     spacing: 12px;
@@ -1729,90 +1720,8 @@ export component ProductFormPage inherits VerticalLayout {
                 }
             }
 
-            // ───── Card: Imagem ─────
-            Card {
-                vertical-stretch: 0;
-                border-radius: 10px;
-                VerticalLayout {
-                    padding: 16px;
-                    spacing: 10px;
-
-                    Text { text: "Imagem"; font-size: 14px; font-weight: 700; color: Theme.text-primary; }
-
-                    img-ta := TouchArea {
-                        height: 140px;
-                        property <bool> hov: self.has-hover && !root.product-image-loading;
-                        enabled: !root.product-image-loading;
-                        clicked => { root.pick-product-image(); }
-                        Rectangle {
-                            border-radius: 8px; border-width: 1px;
-                            border-color: root.product-image-loading
-                                ? #FF9800
-                                : (parent.hov
-                                    ? Theme.primary
-                                    : (root.product-image-data != "" ? #66BB6A : #BDBDBD));
-                            background: root.product-image-loading
-                                ? #FFF3E0
-                                : (root.product-image-data != "" ? #F1F8E9 : #FAFAFA);
-
-                            VerticalLayout {
-                                alignment: center;
-                                spacing: 4px;
-                                HorizontalLayout {
-                                    alignment: center;
-                                    if root.product-image-loading: Text {
-                                        text: Math.mod(root.load-tick, 4) == 0 ? "◐" : (Math.mod(root.load-tick, 4) == 1 ? "◓" : (Math.mod(root.load-tick, 4) == 2 ? "◑" : "◒"));
-                                        font-size: 28px;
-                                        color: #FF9800;
-                                    }
-                                    if !root.product-image-loading: Text {
-                                        text: "\u{1F5BC}";
-                                        font-size: 28px;
-                                        color: root.product-image-data != "" ? #2E7D32 : Theme.text-secondary;
-                                    }
-                                }
-                                Text {
-                                    text: root.product-image-loading
-                                        ? "Processando imagem..."
-                                        : (root.product-image-data != ""
-                                            ? "Imagem Selecionada"
-                                            : "Arraste uma imagem ou selecione");
-                                    font-size: 13px;
-                                    color: root.product-image-loading ? #FF9800
-                                        : (root.product-image-data != "" ? #2E7D32 : Theme.text-primary);
-                                    horizontal-alignment: center;
-                                }
-                                Text {
-                                    text: "JPG, PNG \u{00B7} até 2 MB";
-                                    font-size: 11px;
-                                    color: Theme.text-secondary;
-                                    horizontal-alignment: center;
-                                }
-                            }
-                        }
-                    }
-                    if root.product-image-data != "" && !root.product-image-loading: HorizontalLayout {
-                        alignment: end;
-                        clear-img := TouchArea {
-                            width: 100px; height: 26px;
-                            property <bool> hov: self.has-hover;
-                            clicked => { root.product-image-data = ""; }
-                            Rectangle {
-                                border-radius: 4px;
-                                background: parent.hov ? #FFEBEE : transparent;
-                                Text {
-                                    text: "\u{2715} Remover";
-                                    font-size: 12px;
-                                    color: Theme.danger;
-                                    horizontal-alignment: center;
-                                    vertical-alignment: center;
-                                    width: parent.width; height: parent.height;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+            // (Card "Imagem" removido — a imagem é gerenciada pelo
+            // quadrado do cabeçalho: clicar troca, botão abaixo remove.)
 
         if root.product-save-error != "": Text {
             text: root.product-save-error;

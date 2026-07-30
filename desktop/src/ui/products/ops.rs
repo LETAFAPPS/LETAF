@@ -9,7 +9,7 @@ use uuid::Uuid;
 use crate::context::DesktopState;
 use crate::{MainWindow, ProductData};
 
-use super::super::helpers::show_toast;
+use super::super::helpers::{friendly_error, show_toast};
 use super::super::image::{
     decode_pixel_buffer, pick_image_file, process_product_image,
 };
@@ -110,6 +110,38 @@ pub(crate) fn remove_product_from_model(ui: &MainWindow, id: &SharedString) {
             }
         }
     }
+}
+
+/// Callback: remove a imagem atual do produto no formulário.
+///
+/// Limpa o estado do form (`product-image-data`/`cover-color`) e o
+/// preview do cabeçalho (`detail-product.product-image`) + a miniatura
+/// da lista mestra. A remoção só persiste no "Salvar Alterações"
+/// (mesma semântica do card antigo do form).
+pub(crate) fn setup_remove_product_image(ui: &MainWindow) {
+    let ui_weak = ui.as_weak();
+    ui.on_remove_product_image(move || {
+        let Some(ui) = ui_weak.upgrade() else { return };
+        ui.set_product_image_data(SharedString::default());
+        ui.set_product_cover_color(SharedString::default());
+        let mut detail = ui.get_detail_product();
+        detail.image_data = SharedString::default();
+        detail.cover_color = SharedString::default();
+        detail.cover_color_value = slint::Color::default();
+        detail.has_cover_color = false;
+        detail.product_image = slint::Image::default();
+        ui.set_detail_product(detail);
+        let editing_id = ui.get_editing_id();
+        if !editing_id.is_empty() {
+            update_product_flag(&ui, &editing_id, |p| {
+                p.image_data = SharedString::default();
+                p.cover_color = SharedString::default();
+                p.cover_color_value = slint::Color::default();
+                p.has_cover_color = false;
+                p.product_image = slint::Image::default();
+            });
+        }
+    });
 }
 
 /// Callback: abre seletor, redimensiona e converte imagem para JPEG base64.
@@ -272,7 +304,7 @@ pub(crate) fn setup_toggle_product_active(
                     });
                 }
                 Err(e) => {
-                    let msg = format!("Erro: {e}");
+                    let msg = friendly_error(&e);
                     let _ = slint::invoke_from_event_loop(move || {
                         let Some(ui) = ui_weak.upgrade() else { return };
                         show_toast(&ui, &msg, "error");
@@ -357,7 +389,7 @@ pub(crate) fn setup_toggle_web_visible(
                     });
                 }
                 Err(e) => {
-                    let msg = format!("Erro: {e}");
+                    let msg = friendly_error(&e);
                     let _ = slint::invoke_from_event_loop(move || {
                         let Some(ui) = ui_weak.upgrade() else { return };
                         show_toast(&ui, &msg, "error");

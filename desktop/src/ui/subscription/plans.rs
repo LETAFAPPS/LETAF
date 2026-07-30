@@ -17,7 +17,7 @@ use crate::{
     SubscriptionInvoiceRow,
 };
 
-use super::super::helpers::show_toast;
+use super::super::helpers::{friendly_error, show_toast};
 use super::pix::setup_pix_modal;
 
 /// Plano do catálogo (vindo de GET /subscription/plans — cadastrado pelo
@@ -719,7 +719,7 @@ fn setup_plan_change_confirm(
             }
             // 2) Troca o plano (agora passa na guarda do core).
             if let Err(e) = state.subscription_service.change_plan(cid, target, today).await {
-                plan_confirm_error(&ui_weak, format!("Erro ao trocar plano: {e}"));
+                plan_confirm_error(&ui_weak, format!("Erro ao trocar plano: {}", friendly_error(&e)));
                 return;
             }
             notify.notify_one();
@@ -751,7 +751,10 @@ async fn cancel_recurrence_remote(
         .bearer_auth(token)
         .send()
         .await
-        .map_err(|e| format!("Falha de rede: {e}"))?;
+        .map_err(|e| {
+            tracing::warn!("cancel_recurrence_remote {kind}: {e}");
+            "Falha de conexão. Tente novamente.".to_string()
+        })?;
     if resp.status().is_success() {
         Ok(())
     } else {

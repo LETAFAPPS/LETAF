@@ -11,7 +11,7 @@ use crate::context::DesktopState;
 
 use crate::MainWindow;
 
-use super::super::helpers::show_toast;
+use super::super::helpers::{friendly_error, show_toast};
 use super::config::format_qty;
 
 /// Callback: "Editar pedido" — carrega itens/notes/delivery do
@@ -383,7 +383,7 @@ pub(crate) fn setup_save_edit_order(
                         ui.invoke_refresh_orders();
                     }
                     Err(e) => {
-                        ui.set_edit_order_error(SharedString::from(format!("{e}")));
+                        ui.set_edit_order_error(SharedString::from(friendly_error(&e)));
                     }
                 }
             });

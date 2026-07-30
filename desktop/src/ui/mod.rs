@@ -46,7 +46,7 @@ use uuid::Uuid;
 use crate::MainWindow;
 use crate::context::DesktopState;
 
-use self::helpers::show_toast;
+use self::helpers::{friendly_error, show_toast};
 use self::products::{DecodedProduct, remove_from_cache, remove_product_from_model};
 use self::customers::DecodedCustomer;
 
@@ -110,6 +110,7 @@ pub fn setup_callbacks(
     products::setup_add(ui, state, handle, sync_notify.clone(), products_cache.clone());
     products::setup_update_product(ui, state, handle, sync_notify.clone(), products_cache.clone());
     products::setup_pick_product_image(ui, handle, products_cache.clone());
+    products::setup_remove_product_image(ui);
     products::setup_toggle_product_active(ui, state, handle, sync_notify.clone(), products_cache.clone());
     products::setup_toggle_web_visible(ui, state, handle, sync_notify.clone(), products_cache.clone());
     products::setup_delete(ui, state, handle, sync_notify.clone());
@@ -375,7 +376,7 @@ fn setup_confirm_delete(
                         }
                     }
                     Err(e) => {
-                        let msg = format!("Erro: {e}");
+                        let msg = friendly_error(&e);
                         show_toast(&ui, &msg, "error");
                         ui.set_status_message(SharedString::from(msg));
                     }

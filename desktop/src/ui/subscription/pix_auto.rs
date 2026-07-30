@@ -119,7 +119,8 @@ pub(crate) fn setup_pix_auto(
             let resp = match resp {
                 Ok(r) => r,
                 Err(e) => {
-                    pix_auto_form_error(&ui_weak, format!("Falha de rede: {e}"));
+                    tracing::warn!("pix-auto activate: falha de rede: {e}");
+                    pix_auto_form_error(&ui_weak, "Falha de conexão. Tente novamente.".into());
                     return;
                 }
             };
@@ -139,7 +140,8 @@ pub(crate) fn setup_pix_auto(
             let parsed: PixAutoActivateResp = match resp.json().await {
                 Ok(v) => v,
                 Err(e) => {
-                    pix_auto_form_error(&ui_weak, format!("Resposta inválida: {e}"));
+                    tracing::warn!("pix-auto activate: resposta inválida: {e}");
+                    pix_auto_form_error(&ui_weak, "Resposta inválida do servidor. Tente novamente.".into());
                     return;
                 }
             };
@@ -190,7 +192,10 @@ pub(crate) fn setup_pix_auto(
                     let s = r.status();
                     toast(&ui_weak, format!("Erro ao cancelar ({s})"), "error");
                 }
-                Err(e) => toast(&ui_weak, format!("Falha de rede: {e}"), "error"),
+                Err(e) => {
+                    tracing::warn!("pix-auto cancel: falha de rede: {e}");
+                    toast(&ui_weak, "Falha de conexão. Tente novamente.".into(), "error");
+                }
             }
         });
     });

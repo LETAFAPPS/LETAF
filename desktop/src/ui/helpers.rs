@@ -16,6 +16,24 @@ pub(super) fn show_toast(ui: &MainWindow, message: &str, toast_type: &str) {
     ui.set_toast_visible(true);
 }
 
+/// Converte um `CoreError` em mensagem amigável pt-BR para o usuário.
+///
+/// Regras aplicadas (AI_RULES.md — Idioma, §11):
+/// - `Validation` carrega texto de negócio em pt-BR (escrito no core
+///   para o operador) → exibido como está, sem o prefixo técnico.
+/// - Demais variantes são internas (repositório, auth, not-found):
+///   loga o erro cru para diagnóstico e devolve mensagem genérica —
+///   nunca expor detalhe interno/inglês na UI.
+pub(super) fn friendly_error(e: &CoreError) -> String {
+    match e {
+        CoreError::Validation(m) => m.clone(),
+        other => {
+            tracing::warn!("erro interno exibido como genérico: {other}");
+            "Não foi possível concluir a operação. Tente novamente.".to_string()
+        }
+    }
+}
+
 /// Arco de uma fatia da MEIA-LUA (gauge semicircular superior) como
 /// comando SVG. Viewbox 0 0 100 56, centro (50,50), raio 40. `start`/
 /// `end` em fração (0..1) do semicírculo: 0 = ponta esquerda, 0.5 =

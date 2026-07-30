@@ -135,7 +135,10 @@ pub async fn apply_update(url: String, expected_sha256: String, ui: slint::Weak<
     set_status(&ui, "Baixando atualização…".into());
     let bytes = match download(&url).await {
         Ok(b) => b,
-        Err(e) => return set_error(&ui, format!("Falha no download: {e}")),
+        Err(e) => {
+            tracing::warn!("download da atualização falhou: {e}");
+            return set_error(&ui, "Falha no download. Verifique a conexão e tente novamente.".into());
+        }
     };
 
     if !expected_sha256.is_empty() {
@@ -168,8 +171,14 @@ pub async fn apply_update(url: String, expected_sha256: String, ui: slint::Weak<
             set_status(&ui, "Reiniciando…".into());
             restart();
         }
-        Ok(Err(e)) => set_error(&ui, format!("Falha ao instalar: {e}")),
-        Err(e) => set_error(&ui, format!("Falha ao instalar: {e}")),
+        Ok(Err(e)) => {
+            tracing::warn!("instalação da atualização falhou: {e}");
+            set_error(&ui, "Falha ao instalar a atualização. Tente novamente.".into());
+        }
+        Err(e) => {
+            tracing::warn!("instalação da atualização falhou (task): {e}");
+            set_error(&ui, "Falha ao instalar a atualização. Tente novamente.".into());
+        }
     }
 }
 

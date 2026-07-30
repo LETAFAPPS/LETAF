@@ -14,7 +14,7 @@ use chrono::NaiveDate;
 
 use crate::{KanbanCol, MainWindow, OrderData, OrderItemData};
 
-use super::super::helpers::show_toast;
+use super::super::helpers::{friendly_error, show_toast};
 use super::calendar::parse_ymd;
 use super::config::{format_addons_summary, format_qty};
 
@@ -40,7 +40,7 @@ pub(crate) fn setup_refresh_orders(
                 match result {
                     Ok(all) => apply_loaded_orders(&ui, all),
                     Err(e) => {
-                        ui.set_status_message(SharedString::from(format!("Erro: {e}")));
+                        ui.set_status_message(SharedString::from(friendly_error(&e)));
                     }
                 }
             });
@@ -323,7 +323,7 @@ async fn run_cancel_order(
 
     if let Err(e) = state.order_service.cancel(cid, order_id, reason).await {
         tracing::warn!("cancel order error: {e}");
-        let msg = format!("Falha ao cancelar: {e}");
+        let msg = format!("Falha ao cancelar: {}", friendly_error(&e));
         let _ = slint::invoke_from_event_loop(move || {
             if let Some(ui) = ui_weak.upgrade() {
                 ui.set_cancel_error(msg.into());

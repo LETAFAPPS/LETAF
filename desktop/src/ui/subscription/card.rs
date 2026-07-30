@@ -110,7 +110,8 @@ pub(crate) fn setup_card(
             let resp = match resp {
                 Ok(r) => r,
                 Err(e) => {
-                    toast(&ui_weak, format!("Falha de rede: {e}"), "error");
+                    tracing::warn!("card session: falha de rede: {e}");
+                    toast(&ui_weak, "Falha de conexão. Tente novamente.".into(), "error");
                     return;
                 }
             };
@@ -130,7 +131,8 @@ pub(crate) fn setup_card(
             let session = match resp.json::<CardSessionResp>().await {
                 Ok(v) => v.session_token,
                 Err(e) => {
-                    toast(&ui_weak, format!("Resposta inválida: {e}"), "error");
+                    tracing::warn!("card session: resposta inválida: {e}");
+                    toast(&ui_weak, "Resposta inválida do servidor. Tente novamente.".into(), "error");
                     return;
                 }
             };
@@ -248,7 +250,8 @@ pub(crate) fn setup_card(
             let resp = match resp {
                 Ok(r) => r,
                 Err(e) => {
-                    set_card_error(&ui_weak, format!("Falha de rede: {e}"));
+                    tracing::warn!("card register: falha de rede: {e}");
+                    set_card_error(&ui_weak, "Falha de conexão. Tente novamente.".into());
                     return;
                 }
             };
@@ -324,7 +327,10 @@ pub(crate) fn setup_card(
                     let status = r.status();
                     toast(&ui_weak, format!("Erro ao cancelar ({status})"), "error");
                 }
-                Err(e) => toast(&ui_weak, format!("Falha de rede: {e}"), "error"),
+                Err(e) => {
+                    tracing::warn!("card cancel: falha de rede: {e}");
+                    toast(&ui_weak, "Falha de conexão. Tente novamente.".into(), "error");
+                }
             }
         });
     });

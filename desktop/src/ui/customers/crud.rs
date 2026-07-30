@@ -9,7 +9,7 @@ use crate::context::DesktopState;
 use crate::format::{format_document, format_phone};
 use crate::{CustomerData, MainWindow};
 
-use super::super::helpers::{show_toast, user_error};
+use super::super::helpers::{friendly_error, show_toast};
 use super::data::DecodedCustomer;
 
 /// Valida formato de telefone: (XX) XXXX-XXXX ou (XX) XXXXX-XXXX.
@@ -128,8 +128,9 @@ pub(crate) fn setup_add_customer(
                 Err(e) => {
                     let _ = slint::invoke_from_event_loop(move || {
                         let Some(ui) = ui_weak.upgrade() else { return };
-                        ui.set_status_message(SharedString::from(format!("Erro: {e}")));
-                        show_toast(&ui, &user_error(&e), "error");
+                        let msg = friendly_error(&e);
+                        ui.set_status_message(SharedString::from(msg.as_str()));
+                        show_toast(&ui, &msg, "error");
                     });
                 }
             }
@@ -189,8 +190,9 @@ pub(crate) fn setup_update_customer(
                 Err(e) => {
                     let _ = slint::invoke_from_event_loop(move || {
                         let Some(ui) = ui_weak.upgrade() else { return };
-                        ui.set_status_message(SharedString::from(format!("Erro: {e}")));
-                        show_toast(&ui, &user_error(&e), "error");
+                        let msg = friendly_error(&e);
+                        ui.set_status_message(SharedString::from(msg.as_str()));
+                        show_toast(&ui, &msg, "error");
                     });
                 }
             }
@@ -229,7 +231,7 @@ pub(crate) fn setup_delete_customer(
                     });
                 }
                 Err(e) => {
-                    let msg = format!("Erro: {e}");
+                    let msg = friendly_error(&e);
                     let _ = slint::invoke_from_event_loop(move || {
                         let Some(ui) = ui_weak.upgrade() else { return };
                         show_toast(&ui, &msg, "error");
@@ -292,7 +294,7 @@ pub(crate) fn setup_customer_address_ops(
                         });
                     }
                     Err(e) => {
-                        let msg = format!("Erro: {e}");
+                        let msg = friendly_error(&e);
                         let _ = slint::invoke_from_event_loop(move || {
                             if let Some(ui) = ui_weak.upgrade() { show_toast(&ui, &msg, "error"); }
                         });
@@ -325,7 +327,7 @@ pub(crate) fn setup_customer_address_ops(
                         });
                     }
                     Err(e) => {
-                        let msg = format!("Erro: {e}");
+                        let msg = friendly_error(&e);
                         let _ = slint::invoke_from_event_loop(move || {
                             if let Some(ui) = ui_weak.upgrade() { show_toast(&ui, &msg, "error"); }
                         });

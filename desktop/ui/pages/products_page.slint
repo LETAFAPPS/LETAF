@@ -254,6 +254,9 @@ export component ProductsPage inherits Rectangle {
     callback add-product();
     callback update-product();
     callback pick-product-image();
+    /// Remove a imagem atual do produto (limpa o form e o preview —
+    /// lógica no Rust, §3).
+    callback remove-product-image();
     callback add-discount-tier();
     callback remove-discount-tier(int);
     callback toggle-addon-group(string);
@@ -448,11 +451,14 @@ export component ProductsPage inherits Rectangle {
                             HorizontalLayout {
                                 spacing: 18px;
                                 // Imagem do produto — clicar abre o
-                                // picker (mesmo callback do card
-                                // "Imagem" do form). Atualiza em
+                                // picker; o botão "Remover" abaixo
+                                // limpa a imagem atual. Atualiza em
                                 // tempo real (o Rust decodifica o
                                 // base64 já no callback e seta
                                 // `detail-product.product-image`).
+                                VerticalLayout {
+                                    alignment: center;
+                                    spacing: 4px;
                                 img-ta := TouchArea {
                                     width: root.narrow ? 72px : 96px;
                                     height: root.narrow ? 72px : 96px;
@@ -500,6 +506,25 @@ export component ProductsPage inherits Rectangle {
                                             source: @image-url("../assets/icons/atualizar.svg");
                                         }
                                     }
+                                }
+                                // Remover imagem — só quando há imagem.
+                                if root.product-image-data != "" && !root.product-image-loading: img-rem-ta := TouchArea {
+                                    width: root.narrow ? 72px : 96px;
+                                    height: 20px;
+                                    clicked => { root.remove-product-image(); }
+                                    Rectangle {
+                                        border-radius: 4px;
+                                        background: img-rem-ta.has-hover ? #FFEBEE : transparent;
+                                        Text {
+                                            text: "\u{2715} Remover";
+                                            font-size: 11px;
+                                            color: Theme.danger;
+                                            width: parent.width; height: parent.height;
+                                            horizontal-alignment: center;
+                                            vertical-alignment: center;
+                                        }
+                                    }
+                                }
                                 }
                                 VerticalLayout {
                                     horizontal-stretch: 1;
@@ -753,7 +778,6 @@ export component ProductsPage inherits Rectangle {
                         product-barcode <=> root.product-barcode;
                         product-unit <=> root.product-unit;
                         product-balance-mode <=> root.product-balance-mode;
-                        product-image-data <=> root.product-image-data;
                         product-image-loading <=> root.product-image-loading;
                         product-category-id <=> root.product-category-id;
                         product-category-name <=> root.product-category-name;
@@ -775,7 +799,6 @@ export component ProductsPage inherits Rectangle {
                         request-back => { /* no-op em master-detail */ }
                         add-product => { root.add-product(); }
                         update-product => { root.update-product(); }
-                        pick-product-image => { root.pick-product-image(); }
                         add-discount-tier => { root.add-discount-tier(); }
                         remove-discount-tier(idx) => { root.remove-discount-tier(idx); }
                         toggle-addon-group(id) => { root.toggle-addon-group(id); }

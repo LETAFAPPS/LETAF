@@ -10,7 +10,7 @@ use crate::context::DesktopState;
 use crate::format::format_stock;
 use crate::MainWindow;
 
-use super::super::helpers::show_toast;
+use super::super::helpers::{friendly_error, show_toast};
 use super::view::apply_to_ui_from_cache;
 
 pub(crate) type SharedCache = Arc<std::sync::Mutex<Vec<Product>>>;
@@ -314,7 +314,7 @@ pub(crate) fn setup_confirm_adjust(
                         notify.notify_one();
                     }
                     Err(e) => {
-                        ui.set_stock_adjust_error(SharedString::from(format!("{e}")));
+                        ui.set_stock_adjust_error(SharedString::from(friendly_error(&e)));
                     }
                 }
             });

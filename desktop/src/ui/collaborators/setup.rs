@@ -15,7 +15,7 @@ use uuid::Uuid;
 use crate::context::DesktopState;
 use crate::MainWindow;
 
-use super::super::helpers::show_toast;
+use super::super::helpers::{friendly_error, show_toast};
 use super::render::{apply_lists, apply_perm_rows, CollabCache};
 
 /// Registra todos os callbacks da tela de Colaboradores.
@@ -67,7 +67,10 @@ fn setup_refresh(
                         }
                     }
                     (Err(e), _) | (_, Err(e)) => {
-                        ui.set_status_message(SharedString::from(format!("Erro ao carregar colaboradores: {e}")));
+                        ui.set_status_message(SharedString::from(format!(
+                            "Erro ao carregar colaboradores: {}",
+                            friendly_error(&e)
+                        )));
                     }
                 }
             });
@@ -342,7 +345,7 @@ fn report_and_refresh(
                 ui.invoke_refresh_collaborators();
             }
             Err(e) => {
-                let msg = format!("Erro: {e}");
+                let msg = friendly_error(&e);
                 show_toast(&ui, &msg, "error");
                 ui.set_status_message(SharedString::from(msg));
             }

@@ -9,7 +9,7 @@ use crate::context::DesktopState;
 use crate::format::format_date_br;
 use crate::{CouponData, MainWindow};
 
-use super::super::helpers::show_toast;
+use super::super::helpers::{friendly_error, show_toast};
 use super::cal::to_coupon_data;
 use super::form::{clear_form, read_and_validate, report_error};
 
@@ -48,7 +48,7 @@ pub(crate) fn setup_refresh_coupons(
                 Err(e) => {
                     let _ = slint::invoke_from_event_loop(move || {
                         let Some(ui) = ui_weak.upgrade() else { return };
-                        ui.set_status_message(SharedString::from(format!("Erro: {e}")));
+                        ui.set_status_message(SharedString::from(friendly_error(&e)));
                     });
                 }
             }
@@ -175,7 +175,7 @@ pub(crate) fn setup_toggle_coupon_active(
                     });
                 }
                 Err(e) => {
-                    let msg = format!("Erro: {e}");
+                    let msg = friendly_error(&e);
                     let _ = slint::invoke_from_event_loop(move || {
                         let Some(ui) = ui_weak.upgrade() else { return };
                         show_toast(&ui, &msg, "error");

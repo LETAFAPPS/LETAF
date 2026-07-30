@@ -468,7 +468,8 @@ pub(crate) async fn update_existing(
     notes: String,
 ) -> Result<(), letaf_core::error::CoreError> {
     let uuid = Uuid::parse_str(editing_id).map_err(|e| {
-        letaf_core::error::CoreError::Validation(format!("ID inválido: {e}"))
+        tracing::warn!("finance update_existing: ID inválido: {e}");
+        letaf_core::error::CoreError::Validation("ID inválido".into())
     })?;
     let mut entry = state
         .finance_service

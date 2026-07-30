@@ -329,6 +329,7 @@ export component MainWindow inherits Window {
     /// Rust e são alterados via os toggle-/set-* callbacks abaixo.
     callback filter-products(string);
     callback pick-product-image();
+    callback remove-product-image();
     /// Pede ao Rust para deserializar o JSON da agenda e popular
     /// `product-availability` (7 entradas). String vazia → carrega
     /// o default (todos os dias ativos 08:00-22:00).
@@ -1924,6 +1925,7 @@ export component MainWindow inherits Window {
                     add-product => { root.add-product(); }
                     update-product => { root.update-product(); }
                     pick-product-image => { root.pick-product-image(); }
+                    remove-product-image => { root.remove-product-image(); }
                     add-discount-tier => { root.add-discount-tier(); }
                     remove-discount-tier(idx) => { root.remove-discount-tier(idx); }
                     toggle-addon-group(id) => { root.toggle-product-addon-group(id); }

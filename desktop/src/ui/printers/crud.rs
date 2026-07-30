@@ -5,7 +5,7 @@ use crate::MainWindow;
 use crate::{PrinterCategoryRow, PrinterData};
 use crate::context::DesktopState;
 
-use super::super::helpers::{show_toast, user_error};
+use super::super::helpers::{friendly_error, show_toast, user_error};
 use super::print::{setup_refresh_available_printers, setup_test_print, to_printer_data};
 
 /// Ponto de entrada chamado em `setup_callbacks`.
@@ -144,7 +144,7 @@ pub(crate) fn setup_save_printer(ui: &MainWindow, state: &DesktopState, handle: 
                         .update(cid, id, name, kind, system_name, is_default, paper_width, category_ids)
                         .await
                         .map(|_| ()),
-                    Err(_) => Err(letaf_core::error::CoreError::Validation("Invalid printer id".into())),
+                    Err(_) => Err(letaf_core::error::CoreError::Validation("ID da impressora inválido".into())),
                 }
             };
             let _ = slint::invoke_from_event_loop(move || {
@@ -156,7 +156,7 @@ pub(crate) fn setup_save_printer(ui: &MainWindow, state: &DesktopState, handle: 
                         show_toast(&ui, "Impressora Salva", "success");
                         ui.invoke_refresh_printers();
                     }
-                    Err(e) => ui.set_printer_form_error(SharedString::from(format!("{e}"))),
+                    Err(e) => ui.set_printer_form_error(SharedString::from(friendly_error(&e))),
                 }
             });
         });

@@ -7,7 +7,7 @@ use tokio::sync::Notify;
 use crate::context::DesktopState;
 use crate::MainWindow;
 
-use super::super::helpers::show_toast;
+use super::super::helpers::{friendly_error, show_toast};
 use super::super::image::{decode_pixel_buffer, pick_image_file, process_image_file, process_image_file_large};
 
 /// Faz o parse de um valor monetário digitado (ex.: "5", "5,00", "R$ 5,00",
@@ -108,7 +108,7 @@ pub(crate) fn setup_save_store_info(
                     });
                 }
                 Err(e) => {
-                    let msg = format!("Erro ao salvar informações: {e}");
+                    let msg = format!("Erro ao salvar informações: {}", friendly_error(&e));
                     let _ = slint::invoke_from_event_loop(move || {
                         let Some(ui) = ui_weak2.upgrade() else { return };
                         show_toast(&ui, &msg, "error");

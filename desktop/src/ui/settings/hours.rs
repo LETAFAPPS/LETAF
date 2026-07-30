@@ -9,7 +9,7 @@ use crate::context::DesktopState;
 use crate::format::format_phone;
 use crate::{BusinessHoursData, MainWindow};
 
-use super::super::helpers::show_toast;
+use super::super::helpers::{friendly_error, show_toast};
 use super::super::image::decode_pixel_buffer;
 
 const DAY_NAMES: [&str; 7] = [
@@ -130,7 +130,7 @@ pub(crate) fn setup_refresh_business_hours(
                     });
                 }
                 Err(e) => {
-                    let msg = format!("Erro ao carregar horários: {e}");
+                    let msg = format!("Erro ao carregar horários: {}", friendly_error(&e));
                     let _ = slint::invoke_from_event_loop(move || {
                         let Some(ui) = ui_weak.upgrade() else { return };
                         ui.set_status_message(SharedString::from(msg));
@@ -201,7 +201,7 @@ pub(crate) fn setup_set_store_override(
                     });
                 }
                 Err(e) => {
-                    let msg = format!("Erro ao salvar override: {e}");
+                    let msg = format!("Erro ao salvar override: {}", friendly_error(&e));
                     let _ = slint::invoke_from_event_loop(move || {
                         let Some(ui) = ui_weak.upgrade() else { return };
                         show_toast(&ui, &msg, "error");
@@ -253,7 +253,7 @@ pub(crate) fn setup_save_business_hours(
                     });
                 }
                 Err(e) => {
-                    let msg = format!("Erro ao salvar horário: {e}");
+                    let msg = format!("Erro ao salvar horário: {}", friendly_error(&e));
                     let _ = slint::invoke_from_event_loop(move || {
                         let Some(ui) = ui_weak.upgrade() else { return };
                         show_toast(&ui, &msg, "error");

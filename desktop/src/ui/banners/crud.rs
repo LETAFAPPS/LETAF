@@ -8,7 +8,7 @@ use uuid::Uuid;
 use crate::context::DesktopState;
 use crate::{BannerData, MainWindow};
 
-use super::super::helpers::show_toast;
+use super::super::helpers::{friendly_error, show_toast};
 use super::super::image::{decode_pixel_buffer, pick_image_file, process_image_file};
 use super::form::{clear_form, read_and_validate, to_banner_data};
 
@@ -72,7 +72,7 @@ pub(crate) fn setup_refresh_banners(
                 Err(e) => {
                     let _ = slint::invoke_from_event_loop(move || {
                         let Some(ui) = ui_weak.upgrade() else { return };
-                        ui.set_status_message(SharedString::from(format!("Erro: {e}")));
+                        ui.set_status_message(SharedString::from(friendly_error(&e)));
                     });
                 }
             }
@@ -156,7 +156,7 @@ pub(crate) fn setup_add_banner(
                     });
                 }
                 Err(e) => {
-                    let msg = format!("Erro: {e}");
+                    let msg = friendly_error(&e);
                     let _ = slint::invoke_from_event_loop(move || {
                         let Some(ui) = ui_weak.upgrade() else { return };
                         show_toast(&ui, &msg, "error");
@@ -205,7 +205,7 @@ pub(crate) fn setup_update_banner(
                     });
                 }
                 Err(e) => {
-                    let msg = format!("Erro: {e}");
+                    let msg = friendly_error(&e);
                     let _ = slint::invoke_from_event_loop(move || {
                         let Some(ui) = ui_weak.upgrade() else { return };
                         show_toast(&ui, &msg, "error");
@@ -274,7 +274,7 @@ pub(crate) fn setup_toggle_banner_active(
                     });
                 }
                 Err(e) => {
-                    let msg = format!("Erro: {e}");
+                    let msg = friendly_error(&e);
                     let _ = slint::invoke_from_event_loop(move || {
                         let Some(ui) = ui_weak.upgrade() else { return };
                         show_toast(&ui, &msg, "error");
