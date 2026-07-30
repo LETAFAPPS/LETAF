@@ -178,15 +178,14 @@ component InvoiceRow inherits Rectangle {
 
     property <bool> pending: root.data.status-key == "pending";
     height: 56px;
-    background: root.pending ? Theme.row-hover : (ta.has-hover ? Theme.row-hover : transparent);
+    // Card próprio por fatura (padrão das listas do sistema).
+    border-radius: 10px;
+    border-width: 1px;
+    border-color: root.pending ? #FFB74D : Theme.card-border;
+    background: root.pending ? #FFF8F0 : (ta.has-hover ? Theme.row-hover : Theme.surface);
     ta := TouchArea { }
-    Rectangle {
-        x: 0; y: parent.height - 1px;
-        width: parent.width; height: 1px;
-        background: Theme.border;
-    }
     HorizontalLayout {
-        padding-left: 18px; padding-right: 18px;
+        padding-left: 14px; padding-right: 14px;
         spacing: 14px;
 
         Text {
@@ -684,8 +683,12 @@ component RightPanel inherits VerticalLayout {
     }
     HorizontalLayout {
         spacing: 14px;
+        // `preferred-width: 0px` força a divisão IGUAL do espaço entre
+        // os cards: só com `horizontal-stretch` a base é a largura
+        // natural de cada um (o card com texto mais longo ficava maior).
         for p in root.plans: PlanCard {
             horizontal-stretch: 1;
+            preferred-width: 0px;
             data: p;
             choose => { root.choose-plan(p.kind); }
         }
@@ -736,7 +739,7 @@ component RightPanel inherits VerticalLayout {
                 height: 34px;
                 background: #00000005;
                 HorizontalLayout {
-                    padding-left: 18px; padding-right: 18px;
+                    padding-left: 28px; padding-right: 28px;
                     spacing: 14px;
                     Text { width: 120px; text: "DATA"; font-size: 10px; font-weight: 700; color: Theme.text-secondary; letter-spacing: 1px; vertical-alignment: center; }
                     Text { width: 120px; text: "FATURA"; font-size: 10px; font-weight: 700; color: Theme.text-secondary; letter-spacing: 1px; vertical-alignment: center; }
@@ -751,10 +754,15 @@ component RightPanel inherits VerticalLayout {
                     Rectangle { width: 56px; background: transparent; }
                 }
             }
-            for inv in root.invoices: InvoiceRow {
-                data: inv;
-                download => { root.download-invoice(inv.id); }
-                pay => { root.pay-invoice(inv.id); }
+            VerticalLayout {
+                padding-left: 14px; padding-right: 14px;
+                padding-top: 8px; padding-bottom: 8px;
+                spacing: 8px;
+                for inv in root.invoices: InvoiceRow {
+                    data: inv;
+                    download => { root.download-invoice(inv.id); }
+                    pay => { root.pay-invoice(inv.id); }
+                }
             }
             if root.invoices.length == 0: Rectangle {
                 height: 140px;
