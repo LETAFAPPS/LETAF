@@ -155,6 +155,7 @@ pub(crate) fn setup_settle_confirm(
                     // Campo de valor: pré-preenchido com o valor da
                     // conta (o input seleciona tudo ao abrir).
                     ui.set_finance_settle_amount_input(SharedString::from(amount_plain));
+                    ui.set_finance_settle_method(SharedString::from("cash"));
                     ui.set_finance_show_settle_confirm(true);
                 }
             });

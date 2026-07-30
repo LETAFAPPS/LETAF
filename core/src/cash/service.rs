@@ -205,6 +205,33 @@ impl CashService {
     /// parceladas (dinheiro + cartão) ficam como UM movimento agregado
     /// pra simplificar agregação por método; o detalhe do split fica
     /// em `Order.notes`.
+    /// Entrada de RECEBIMENTO de conta (Financeiro) na sessão ativa,
+    /// com a forma de pagamento escolhida. Kind `Suprimento` (entrada
+    /// avulsa — não é venda); a descrição identifica o lançamento.
+    pub async fn register_receipt_movement(
+        &self,
+        company_id: Uuid,
+        session_id: Uuid,
+        amount: Decimal,
+        method: String,
+        description: String,
+    ) -> Result<CashMovement, CoreError> {
+        self.assert_session_open(company_id, session_id).await?;
+        self.assert_positive_amount(amount)?;
+        let mv = CashMovement::new(
+            company_id,
+            session_id,
+            MovementKind::Suprimento,
+            amount,
+            Some(method),
+            format!("Recebimento — {description}"),
+            None,
+            None,
+        );
+        self.movements.create(&mv).await?;
+        Ok(mv)
+    }
+
     pub async fn register_sale_movement(
         &self,
         company_id: Uuid,

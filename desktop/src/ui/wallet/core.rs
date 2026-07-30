@@ -36,6 +36,17 @@ pub(crate) async fn sync_fiado_to_finance(state: &DesktopState, account: &Wallet
     {
         tracing::warn!("fiado→financeiro: sincronização falhou: {e}");
     }
+    // Dívida zerada → os pedidos fiados do cliente foram quitados:
+    // marca-os como pagos (o detalhe e o KPI FIADOS refletem).
+    if account.balance >= rust_decimal::Decimal::ZERO {
+        if let Err(e) = state
+            .order_service
+            .settle_wallet_orders(cid, account.customer_id)
+            .await
+        {
+            tracing::warn!("fiado quitado, mas não marcou pedidos como pagos: {e}");
+        }
+    }
 }
 
 pub(crate) fn setup_wallet(

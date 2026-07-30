@@ -80,7 +80,7 @@ pub(crate) fn fill_financial(
         kpi(
             "FIADOS",
             &money_br(fiado_total),
-            "Em aberto na carteira",
+            "Pedidos fiados em aberto",
             // Laranja da marca — dívida pendente, não receita.
             Color::from_rgb_u8(0xE8, 0x73, 0x1C),
             "neutral",

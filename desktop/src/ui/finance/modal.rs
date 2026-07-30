@@ -526,11 +526,18 @@ pub(crate) fn setup_mark_settled(
     let handle = handle.clone();
     ui.on_finance_mark_settled(move |id| {
         let id = id.to_string();
-        // Valor informado no modal de recebimento (obrigatório para
-        // contas a receber; ignorado nas contas a pagar).
-        let amount_s = ui_weak
+        // Valor + forma de pagamento do modal de recebimento
+        // (obrigatórios para contas a receber; ignorados no pagar).
+        // Sessão de caixa ativa para lançar a entrada.
+        let (amount_s, method_s, session_s) = ui_weak
             .upgrade()
-            .map(|u| u.get_finance_settle_amount_input().to_string())
+            .map(|u| {
+                (
+                    u.get_finance_settle_amount_input().to_string(),
+                    u.get_finance_settle_method().to_string(),
+                    u.get_cash_summary().session_id.to_string(),
+                )
+            })
             .unwrap_or_default();
         let ui_weak = ui_weak.clone();
         let state = state.clone();
@@ -539,7 +546,8 @@ pub(crate) fn setup_mark_settled(
         handle.spawn(async move {
             let Ok(uuid) = Uuid::parse_str(&id) else { return };
             let cid = state.company_id();
-            let result = settle_entry(&state, cid, uuid, &amount_s).await;
+            let session_id = Uuid::parse_str(&session_s).ok();
+            let result = settle_entry(&state, cid, uuid, &amount_s, &method_s, session_id).await;
             match result {
                 Ok(msg) => {
                     sync_notify.notify_one();
@@ -547,6 +555,8 @@ pub(crate) fn setup_mark_settled(
                     let _ = slint::invoke_from_event_loop(move || {
                         if let Some(ui) = ui_weak2.upgrade() {
                             show_toast(&ui, &msg, "success");
+                            // Entrada lançada no caixa → atualiza a tela.
+                            ui.invoke_cash_refresh();
                         }
                     });
                     reapply(&ui_weak, &state, &cal).await;
@@ -576,6 +586,8 @@ async fn settle_entry(
     cid: Uuid,
     id: Uuid,
     amount_s: &str,
+    method_s: &str,
+    session_id: Option<Uuid>,
 ) -> Result<String, letaf_core::error::CoreError> {
     use letaf_core::error::CoreError;
     let entry = state
@@ -593,10 +605,11 @@ async fn settle_entry(
             "Informe o valor recebido".into(),
         ));
     }
+    let method = if method_s.is_empty() { "cash".to_string() } else { method_s.to_string() };
     let amount_d = letaf_core::money::from_db_f64(amount);
     let is_fiado = entry.notes.as_deref()
         == Some(letaf_core::finance::service::FIADO_AUTO_TAG);
-    if is_fiado {
+    let mut msg = if is_fiado {
         // Recebimento do fiado = depósito na carteira: o espelho
         // (sync_fiado_to_finance) abate/quita a conta e o excesso
         // permanece como saldo positivo do cliente.
@@ -614,17 +627,33 @@ async fn settle_entry(
             .await?;
         super::super::wallet::sync_fiado_to_finance(state, &account).await;
         if account.balance >= rust_decimal::Decimal::ZERO {
-            Ok("Fiado quitado, saldo do cliente atualizado".to_string())
+            "Fiado quitado, saldo do cliente atualizado".to_string()
         } else {
-            Ok("Recebimento abatido do fiado".to_string())
+            "Recebimento abatido do fiado".to_string()
         }
     } else if amount_d + letaf_core::money::from_db_f64(0.005) >= entry.amount {
-        state.finance_service.mark_settled(cid, id, None).await?;
-        Ok("Recebimento confirmado".to_string())
+        state.finance_service.mark_settled(cid, id, Some(method.clone())).await?;
+        "Recebimento confirmado".to_string()
     } else {
         state.finance_service.receive_partial(cid, id, amount_d).await?;
-        Ok("Recebimento parcial abatido da conta".to_string())
+        "Recebimento parcial abatido da conta".to_string()
+    };
+    // Entrada no CAIXA com a forma escolhida (sessão ativa). Sem
+    // sessão aberta o recebimento vale, mas não entra no caixa.
+    match session_id {
+        Some(sid) => {
+            if let Err(e) = state
+                .cash_service
+                .register_receipt_movement(cid, sid, amount_d, method, entry.description.clone())
+                .await
+            {
+                tracing::warn!("recebimento sem lançamento no caixa: {e}");
+                msg.push_str(" (não lançado no caixa)");
+            }
+        }
+        None => msg.push_str(" (caixa fechado, não lançado no caixa)"),
     }
+    Ok(msg)
 }
 
 pub(crate) fn setup_cancel_entry(

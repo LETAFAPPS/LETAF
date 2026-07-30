@@ -1337,6 +1337,8 @@ export component MainWindow inherits Window {
     in-out property <string> finance-settle-target-amount: "";
     /// Valor informado no recebimento (pré-preenchido com o valor da conta).
     in-out property <string> finance-settle-amount-input: "";
+    /// Forma de pagamento do recebimento ("cash" | "credit" | "debit" | "pix").
+    in-out property <string> finance-settle-method: "cash";
     callback finance-request-settle(string);
     callback finance-confirm-settle();
     callback finance-close-settle-confirm();
@@ -2995,8 +2997,8 @@ export component MainWindow inherits Window {
                 alignment: center;
                 Rectangle {
                     width: 420px;
-                    // Contas a receber ganham o campo VALOR (mais alto).
-                    height: root.finance-settle-target-kind == "receivable" ? 320px : 240px;
+                    // Contas a receber ganham VALOR + forma de pagamento.
+                    height: root.finance-settle-target-kind == "receivable" ? 396px : 240px;
                     border-radius: 12px;
                     background: Theme.surface;
                     border-width: 1px;
@@ -3097,6 +3099,44 @@ export component MainWindow inherits Window {
                                         settle-amount-in.focus();
                                         settle-amount-in.select-all();
                                         self.running = false;
+                                    }
+                                }
+                            }
+                        }
+                        // Forma de pagamento do recebimento — entra no
+                        // caixa com a forma escolhida.
+                        if root.finance-settle-target-kind == "receivable": VerticalLayout {
+                            spacing: 6px;
+                            Text {
+                                text: "FORMA DE PAGAMENTO";
+                                font-size: 11px; font-weight: 700;
+                                color: Theme.text-secondary;
+                                letter-spacing: 0.5px;
+                            }
+                            HorizontalLayout {
+                                spacing: 6px;
+                                for opt[smi] in [
+                                    { value: "cash",   label: "Dinheiro" },
+                                    { value: "credit", label: "Crédito" },
+                                    { value: "debit",  label: "Débito" },
+                                    { value: "pix",    label: "Pix" },
+                                ]: settle-pm-ta := TouchArea {
+                                    horizontal-stretch: 1; min-width: 0; height: 32px;
+                                    clicked => { root.finance-settle-method = opt.value; }
+                                    Rectangle {
+                                        border-radius: 6px;
+                                        border-width: root.finance-settle-method == opt.value ? 1.5px : 1px;
+                                        border-color: root.finance-settle-method == opt.value ? Theme.btn-accent : Theme.border;
+                                        background: root.finance-settle-method == opt.value
+                                            ? Theme.btn-accent.transparentize(0.88)
+                                            : (settle-pm-ta.has-hover ? Theme.row-hover : Theme.surface);
+                                        Text {
+                                            width: parent.width; height: parent.height;
+                                            text: opt.label;
+                                            font-size: 11px; font-weight: 600;
+                                            color: root.finance-settle-method == opt.value ? Theme.btn-accent : Theme.text-primary;
+                                            horizontal-alignment: center; vertical-alignment: center;
+                                        }
                                     }
                                 }
                             }

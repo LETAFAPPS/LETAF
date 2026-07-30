@@ -371,6 +371,30 @@ impl OrderService {
         Ok(order)
     }
 
+    /// Marca como PAGOS todos os pedidos fiados (carteira, não pagos)
+    /// do cliente — chamado quando a dívida da carteira zera (o fiado
+    /// foi quitado). Cancelados ficam de fora.
+    pub async fn settle_wallet_orders(
+        &self,
+        company_id: Uuid,
+        customer_id: Uuid,
+    ) -> Result<u32, CoreError> {
+        let orders = self.repo.find_all(company_id).await?;
+        let mut settled = 0u32;
+        for o in orders.iter().filter(|o| {
+            o.customer_id == customer_id
+                && o.payment_method.as_deref() == Some("wallet")
+                && !o.paid
+                && o.status != OrderStatus::Cancelled
+        }) {
+            self.repo
+                .update_payment(company_id, o.base.id, Some("wallet"), true)
+                .await?;
+            settled += 1;
+        }
+        Ok(settled)
+    }
+
     /// Registra a forma de pagamento e o status Pago/Não pago do pedido.
     ///
     /// Regras (AI_RULES.md §1, §7, §11):

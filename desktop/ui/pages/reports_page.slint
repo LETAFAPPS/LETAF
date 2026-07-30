@@ -402,6 +402,7 @@ component KpiRow inherits Rectangle {
     if kpis.length >= 2: ReportKpiCard { x: parent.col-w + 8px; width: parent.col-w; data: root.kpis[1]; }
     if kpis.length >= 3: ReportKpiCard { x: 2 * parent.col-w + 16px; width: parent.col-w; data: root.kpis[2]; }
     if kpis.length >= 4: ReportKpiCard { x: 3 * parent.col-w + 24px; width: parent.col-w; data: root.kpis[3]; }
+    if kpis.length >= 5: ReportKpiCard { x: 4 * parent.col-w + 32px; width: parent.col-w; data: root.kpis[4]; }
 }
 
 export component ReportsPage inherits HorizontalLayout {
