@@ -611,12 +611,14 @@ export struct OrderData {
     /// Detalhamento de valores já formatado em pt-BR pelo Rust
     /// (AI_RULES §1/§14 — UI sem cálculo). `subtotal-display` é a
     /// soma dos `OrderItem.subtotal`; `discount-display` é o desconto
-    /// do cupom; `delivery-fee-display` é a taxa de entrega
-    /// (atualmente sempre "Grátis" — campo no modelo planejado p/ Fase
-    /// 10). `coupon-code-display` mostra "—" se sem cupom.
+    /// do cupom/PDV; `delivery-fee-display` é a taxa de entrega
+    /// (extraída da nota do PDV; "Grátis" quando entrega sem taxa);
+    /// `additional-display` é o acréscimo manual (sem a taxa). Linhas
+    /// sem valor mostram "*".
     subtotal-display: string,
     discount-display: string,
     delivery-fee-display: string,
+    additional-display: string,
     coupon-code-display: string,
     /// Tempo decorrido desde `created_at`. Formato curto pt-BR:
     /// `"agora"`, `"há 5 min"`, `"há 2 h 13 min"`, `"há 3 dias"`.

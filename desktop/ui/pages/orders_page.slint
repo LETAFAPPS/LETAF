@@ -5,7 +5,6 @@ import { OrderCard, OrderItemCard, Card } from "../components/cards.slint";
 import { ActionBtn, OutlineBtn } from "../components/buttons.slint";
 import { PaginationBar } from "../components/pagination.slint";
 import { SearchIcon, AssetIcon } from "../components/icons.slint";
-import { EmptyState } from "../components/empty_state.slint";
 
 // Cor de status (mesma paleta dos OrderCard/chips — não muda).
 global OrderPalette {
@@ -210,20 +209,21 @@ component KanbanColumn inherits VerticalLayout {
                     advance-order => { root.advance-order(o.id); }
                 }
             }
-            // Estado vazio da coluna: ilustração compacta (cores próprias da
-            // arte). O código de cor por status fica na BORDA da caixa, não na
-            // ilustração.
+            // Estado vazio da coluna: ícone laranja de caixa vazia, meio
+            // apagado — estado de repouso, não compete com os cards. O
+            // código de cor por status fica na BORDA da caixa.
             if root.data.orders.length == 0: Rectangle {
                 height: 140px;
                 border-radius: 10px;
                 border-width: 1px;
                 border-color: root.accent.transparentize(0.55);
                 background: transparent;
-                EmptyState {
-                    source: @image-url("../assets/empty/sticky-note.svg");
-                    art-size: 120px;
-                    // Apagada: a coluna vazia é estado de repouso — não deve
-                    // competir por atenção com os cards de pedido.
+                Image {
+                    source: @image-url("../assets/icons-orange/empty-inbox.svg");
+                    width: 120px; height: 120px;
+                    image-fit: contain;
+                    x: (parent.width - self.width) / 2;
+                    y: (parent.height - self.height) / 2;
                     opacity: 0.4;
                 }
             }
@@ -325,10 +325,12 @@ export component OrdersPage inherits VerticalLayout {
                         border-width: 1px;
                         border-color: parent.has-hover ? Theme.border : transparent;
                         background: parent.has-hover ? Theme.row-hover : transparent;
+                        // Seta "<" mais clara — presença discreta ao
+                        // lado do título do pedido.
                         Text {
-                            text: "\u{2190}";
+                            text: "<";
                             font-size: 22px; font-weight: 400;
-                            color: Theme.text-primary;
+                            color: Theme.text-secondary;
                             horizontal-alignment: center;
                             vertical-alignment: center;
                         }
@@ -496,13 +498,17 @@ export component OrdersPage inherits VerticalLayout {
         }
     }
 
-    // Estado vazio (grade — só no filtro por status específico)
+    // Estado vazio (grade — só no filtro por status específico): mesmo
+    // ícone laranja apagado das colunas do kanban.
     if root.order-detail-id == "" && root.order-filter-status != "all" && root.orders.length == 0: Rectangle {
         vertical-stretch: 1;
-        EmptyState {
-            source: @image-url("../assets/empty/sticky-note.svg");
-            title: "Nenhum pedido";
-            subtitle: "Os pedidos aparecerão aqui";
+        Image {
+            source: @image-url("../assets/icons-orange/empty-inbox.svg");
+            width: 120px; height: 120px;
+            image-fit: contain;
+            x: (parent.width - self.width) / 2;
+            y: (parent.height - self.height) / 2;
+            opacity: 0.4;
         }
     }
 
@@ -957,7 +963,16 @@ export component OrdersPage inherits VerticalLayout {
                                     Text {
                                         text: o.discount-display;
                                         font-size: 12px; font-weight: 600;
-                                        color: o.discount-display == "—" ? Theme.text-primary : #C62828;
+                                        color: o.discount-display == "*" ? Theme.text-primary : #C62828;
+                                        vertical-alignment: center;
+                                    }
+                                }
+                                HorizontalLayout {
+                                    Text { text: "Adicional"; font-size: 11px; color: Theme.text-secondary; horizontal-stretch: 1; vertical-alignment: center; }
+                                    Text {
+                                        text: o.additional-display;
+                                        font-size: 12px; font-weight: 600;
+                                        color: Theme.text-primary;
                                         vertical-alignment: center;
                                     }
                                 }
@@ -966,7 +981,7 @@ export component OrdersPage inherits VerticalLayout {
                                     Text {
                                         text: o.coupon-code-display;
                                         font-size: 12px; font-weight: 600;
-                                        color: o.coupon-code-display == "—" ? Theme.text-primary : Theme.primary;
+                                        color: o.coupon-code-display == "*" ? Theme.text-primary : Theme.primary;
                                         vertical-alignment: center;
                                     }
                                 }

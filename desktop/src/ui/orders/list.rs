@@ -426,31 +426,44 @@ fn to_order_data(order: &Order, customers: &HashMap<Uuid, (String, String)>) -> 
         extract_address_from_notes(order.delivery_type == DeliveryType::Delivery, &order.notes);
     let (delivery_street, delivery_number, delivery_neighborhood, delivery_apartment) =
         parse_address_parts(&addr_raw);
+    // Observações exibidas = só o que o CLIENTE digitou; tags de sistema
+    // ([Balcão], [Entrega] + endereço/taxa, [Rateio...], [Pago...]) saem.
+    let clean_notes = customer_notes(&clean_notes);
 
     // Detalhamento de valores (Fase 9, AI_RULES §1/§14):
     // - `subtotal` = soma dos `OrderItem.subtotal` (preço × qtd já com
     //   adicionais/variações somados). É o "antes do desconto".
     // - `discount_amount` é o desconto do cupom calculado no servidor.
-    // - `delivery_fee` ainda não está no modelo (Fase 10) — exibimos
-    //   "Grátis" para todas as entregas e "—" para retirada.
-    // - `total` final já vem do servidor (= subtotal − discount).
+    // - Taxa de entrega: embutida no `additional_amount` e detalhada na
+    //   nota pelo PDV — extraída de lá para exibição. "Adicional" mostra
+    //   só a parcela manual (additional − taxa), para a soma das linhas
+    //   fechar com o Total.
+    // - Sem valor → "*" (pedido do produto; antes era "—").
     let subtotal: f64 = order.items.iter().map(|i| i.subtotal.to_f64().unwrap_or(0.0)).sum();
+    let fee = delivery_fee_from_notes(order.notes.as_deref());
     let delivery_fee_display = if order.delivery_type == DeliveryType::Delivery {
-        "Grátis".to_string()
+        if fee > 0.0 { format!("R$ {fee:.2}") } else { "Grátis".to_string() }
     } else {
-        "—".to_string()
+        "*".to_string()
+    };
+    let additional_manual =
+        (order.additional_amount.to_f64().unwrap_or(0.0) - fee).max(0.0);
+    let additional_display = if additional_manual > 0.005 {
+        format!("+ R$ {additional_manual:.2}")
+    } else {
+        "*".to_string()
     };
     let discount_display = if order.discount_amount > rust_decimal::Decimal::ZERO {
         format!("− R$ {:.2}", order.discount_amount.to_f64().unwrap_or(0.0))
     } else {
-        "—".to_string()
+        "*".to_string()
     };
     let coupon_code_display = order
         .coupon_code
         .as_deref()
         .filter(|c| !c.is_empty())
         .map(str::to_string)
-        .unwrap_or_else(|| "—".to_string());
+        .unwrap_or_else(|| "*".to_string());
     let elapsed_display = format_elapsed_since(order.base.created_at, &order.status);
 
     OrderData {
@@ -482,6 +495,7 @@ fn to_order_data(order: &Order, customers: &HashMap<Uuid, (String, String)>) -> 
         subtotal_display: SharedString::from(format!("R$ {:.2}", subtotal)),
         discount_display: SharedString::from(discount_display),
         delivery_fee_display: SharedString::from(delivery_fee_display),
+        additional_display: SharedString::from(additional_display),
         coupon_code_display: SharedString::from(coupon_code_display),
         elapsed_display: SharedString::from(elapsed_display),
         created_at_iso: SharedString::from(order.base.created_at.format("%Y-%m-%dT%H:%M:%S").to_string()),
@@ -527,6 +541,53 @@ pub(crate) fn format_elapsed_since(
     } else {
         format!("Há {days} dias")
     }
+}
+
+/// Observações exibidas ao operador = só o que o CLIENTE digitou.
+/// O PDV embute tags de sistema no `notes` — `[Balcão]`, `[Entrega]`
+/// seguido de endereço/taxa, `[Rateio: ...]`, `[Pago ...]` — que não
+/// são observação e saem da exibição. Após `[Entrega]`/`[Balcão]` o
+/// texto que segue (endereço · taxa) também é do sistema: descarta até
+/// a próxima tag ou o fim.
+fn customer_notes(raw: &str) -> String {
+    let mut out = String::new();
+    let mut rest = raw;
+    while let Some(start) = rest.find('[') {
+        out.push_str(&rest[..start]);
+        let after = &rest[start..];
+        match after.find(']') {
+            Some(end) => {
+                let tag = &after[1..end];
+                rest = &after[end + 1..];
+                if tag == "Entrega" || tag == "Balcão" {
+                    match rest.find('[') {
+                        Some(next) => rest = &rest[next..],
+                        None => rest = "",
+                    }
+                }
+            }
+            None => {
+                out.push_str(after);
+                rest = "";
+            }
+        }
+    }
+    out.push_str(rest);
+    out.trim().to_string()
+}
+
+/// Extrai a taxa de entrega detalhada pelo PDV na nota
+/// ("· Taxa de entrega: R$ 5.00"). 0.0 = sem taxa registrada.
+fn delivery_fee_from_notes(notes: Option<&str>) -> f64 {
+    let Some(raw) = notes else { return 0.0 };
+    let marker = "Taxa de entrega: R$ ";
+    let Some(pos) = raw.find(marker) else { return 0.0 };
+    let tail = &raw[pos + marker.len()..];
+    let num: String = tail
+        .chars()
+        .take_while(|c| c.is_ascii_digit() || *c == '.' || *c == ',')
+        .collect();
+    num.replace(',', ".").parse::<f64>().unwrap_or(0.0)
 }
 
 /// Extrai o endereço embutido no campo `notes` para pedidos de entrega.
