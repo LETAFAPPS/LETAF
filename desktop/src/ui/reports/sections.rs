@@ -38,6 +38,7 @@ pub(crate) fn fill_financial(
     period_days: i64,
     today: NaiveDate,
     granularity: Granularity,
+    fiado_total: f64,
 ) {
     let revenue: f64 = valid.iter().map(|o| o.total.to_f64().unwrap_or(0.0)).sum();
     let cost: f64 = valid
@@ -74,6 +75,16 @@ pub(crate) fn fill_financial(
             Color::from_rgb_u8(0x2E, 0x7D, 0x32),
             "neutral",
             "atividade",
+            false,
+        ),
+        kpi(
+            "FIADOS",
+            &money_br(fiado_total),
+            "Em aberto na carteira",
+            // Laranja da marca — dívida pendente, não receita.
+            Color::from_rgb_u8(0xE8, 0x73, 0x1C),
+            "neutral",
+            "pay-carteira",
             false,
         ),
         kpi(

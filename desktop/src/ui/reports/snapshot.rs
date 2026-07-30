@@ -79,6 +79,7 @@ pub(crate) fn build_snapshot(
     products: &[Product],
     categories: &[Category],
     customers: &[Customer],
+    fiado_total: f64,
 ) -> Snapshot {
     let today = Local::now().date_naive();
     // weekly  = semana corrente (Seg → Dom), igual ao dashboard
@@ -201,7 +202,7 @@ pub(crate) fn build_snapshot(
     };
 
     match s.kind.as_str() {
-        "financial" => fill_financial(&mut snap, &in_window, &valid, &product_by_id, start, end, period_days, today, granularity),
+        "financial" => fill_financial(&mut snap, &in_window, &valid, &product_by_id, start, end, period_days, today, granularity, fiado_total),
         "orders" => fill_orders(&mut snap, &in_window, &valid, start, end, today, granularity),
         "products" => fill_products(&mut snap, &valid, &product_by_id, &category_by_id),
         "customers" => fill_customers(&mut snap, &valid, orders, &customer_by_id, start, end),

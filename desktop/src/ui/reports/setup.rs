@@ -22,6 +22,7 @@ pub(crate) fn setup_reports(
         products: Arc::new(std::sync::Mutex::new(Vec::new())),
         categories: Arc::new(std::sync::Mutex::new(Vec::new())),
         customers: Arc::new(std::sync::Mutex::new(Vec::new())),
+        fiado_total: Arc::new(std::sync::Mutex::new(0.0)),
     };
     setup_refresh(ui, state, handle, rs.clone(), caches.clone());
     setup_set_type(ui, rs.clone(), caches.clone());
@@ -53,10 +54,23 @@ pub(crate) fn setup_refresh(
             let products = state.product_service.find_all(cid).await.unwrap_or_default();
             let categories = state.category_service.find_all(cid).await.unwrap_or_default();
             let customers = state.customer_service.find_all(cid).await.unwrap_or_default();
+            // Fiado total = soma dos saldos negativos das carteiras.
+            let fiado: f64 = state
+                .wallet_service
+                .find_all_accounts(cid)
+                .await
+                .unwrap_or_default()
+                .iter()
+                .map(|a| {
+                    use rust_decimal::prelude::ToPrimitive;
+                    (-a.balance).max(rust_decimal::Decimal::ZERO).to_f64().unwrap_or(0.0)
+                })
+                .sum();
             if let Ok(mut g) = caches.orders.lock() { *g = orders; }
             if let Ok(mut g) = caches.products.lock() { *g = products; }
             if let Ok(mut g) = caches.categories.lock() { *g = categories; }
             if let Ok(mut g) = caches.customers.lock() { *g = customers; }
+            if let Ok(mut g) = caches.fiado_total.lock() { *g = fiado; }
             reapply(&ui_weak, &rs, &caches);
         });
     });
@@ -118,10 +132,23 @@ pub(crate) fn setup_sync_listener(
             let products = state.product_service.find_all(cid).await.unwrap_or_default();
             let categories = state.category_service.find_all(cid).await.unwrap_or_default();
             let customers = state.customer_service.find_all(cid).await.unwrap_or_default();
+            // Fiado total = soma dos saldos negativos das carteiras.
+            let fiado: f64 = state
+                .wallet_service
+                .find_all_accounts(cid)
+                .await
+                .unwrap_or_default()
+                .iter()
+                .map(|a| {
+                    use rust_decimal::prelude::ToPrimitive;
+                    (-a.balance).max(rust_decimal::Decimal::ZERO).to_f64().unwrap_or(0.0)
+                })
+                .sum();
             if let Ok(mut g) = caches.orders.lock() { *g = orders; }
             if let Ok(mut g) = caches.products.lock() { *g = products; }
             if let Ok(mut g) = caches.categories.lock() { *g = categories; }
             if let Ok(mut g) = caches.customers.lock() { *g = customers; }
+            if let Ok(mut g) = caches.fiado_total.lock() { *g = fiado; }
             reapply(&ui_weak, &rs, &caches);
         }
     });
@@ -135,7 +162,8 @@ pub(crate) fn reapply(ui_weak: &slint::Weak<MainWindow>, rs: &Shared<ReportState
     let products = caches.products.lock().ok().map(|g| g.clone()).unwrap_or_default();
     let categories = caches.categories.lock().ok().map(|g| g.clone()).unwrap_or_default();
     let customers = caches.customers.lock().ok().map(|g| g.clone()).unwrap_or_default();
-    let snap = build_snapshot(&state, &orders, &products, &categories, &customers);
+    let fiado_total = caches.fiado_total.lock().ok().map(|g| *g).unwrap_or(0.0);
+    let snap = build_snapshot(&state, &orders, &products, &categories, &customers, fiado_total);
     let ui_weak = ui_weak.clone();
     let _ = slint::invoke_from_event_loop(move || {
         if let Some(ui) = ui_weak.upgrade() {

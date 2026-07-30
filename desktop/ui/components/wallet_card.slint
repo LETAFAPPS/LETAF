@@ -35,13 +35,12 @@ component MovementRow inherits Rectangle {
     in property <WalletMovementRow> data;
     // Movimento com observação ganha uma linha extra.
     height: root.data.notes == "" ? 56px : 72px;
-    background: ta.has-hover ? Theme.row-hover : transparent;
+    // Card próprio por movimento (padrão das listas do sistema).
+    border-radius: 10px;
+    border-width: 1px;
+    border-color: Theme.card-border;
+    background: ta.has-hover ? Theme.row-hover : Theme.surface;
     ta := TouchArea { }
-    Rectangle {
-        x: 0; y: parent.height - 1px;
-        width: parent.width; height: 1px;
-        background: Theme.border;
-    }
     HorizontalLayout {
         padding-left: 12px; padding-right: 12px;
         spacing: 10px;
@@ -298,25 +297,25 @@ export component WalletCard inherits Rectangle {
                         color: Theme.text-secondary;
                     }
                 }
-                Rectangle {
+                // Cada movimento em card próprio; caixa envolvente só
+                // no estado vazio (moldura da ilustração).
+                if root.movements.length > 0: VerticalLayout {
+                    spacing: 8px;
+                    for m in root.movements: MovementRow { data: m; }
+                }
+                if root.movements.length == 0: Rectangle {
                     border-radius: 8px;
                     border-width: 1px;
                     border-color: Theme.card-border;
                     background: Theme.bg;
-                    VerticalLayout {
-                        spacing: 0px;
-                        for m in root.movements: MovementRow { data: m; }
-                        if root.movements.length == 0: Rectangle {
-                            // Altura = arte (200px) + rótulo/paddings do
-                            // EmptyState (56px) — sem isso a ilustração
-                            // vazava para fora do card.
-                            height: 256px;
-                            EmptyState {
-                                source: @image-url("../assets/illustrations/financial-data-presentation.svg");
-                                title: "Sem movimentações";
-                                art-size: 200px;
-                            }
-                        }
+                    // Altura = arte (200px) + rótulo/paddings do
+                    // EmptyState (56px) — sem isso a ilustração
+                    // vazava para fora do card.
+                    height: 256px;
+                    EmptyState {
+                        source: @image-url("../assets/illustrations/financial-data-presentation.svg");
+                        title: "Sem movimentações";
+                        art-size: 200px;
                     }
                 }
             }

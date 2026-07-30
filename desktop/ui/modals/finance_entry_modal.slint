@@ -18,6 +18,10 @@ component LabeledTextField inherits VerticalLayout {
     in-out property <string> value;
     in property <string> error;
     callback edited(string);
+    // Empacota label+campo no topo: em linhas com colunas de alturas
+    // diferentes (ex.: Vencimento com o toggle extra), os campos
+    // permanecem alinhados entre si.
+    alignment: start;
     spacing: 6px;
     Text {
         text: root.label;
@@ -256,6 +260,7 @@ export component FinanceEntryModal inherits Rectangle {
                                 }
                                 VerticalLayout {
                                     horizontal-stretch: 1;
+                                    alignment: start;
                                     spacing: 6px;
                                     Text {
                                         text: "VENCIMENTO";
@@ -325,6 +330,7 @@ export component FinanceEntryModal inherits Rectangle {
                                 }
                                 VerticalLayout {
                                     horizontal-stretch: 1;
+                                    alignment: start;
                                     spacing: 6px;
                                     Text {
                                         text: "PARCELAS";

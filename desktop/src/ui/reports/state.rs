@@ -45,6 +45,9 @@ pub(crate) struct Caches {
     pub(crate) products: Shared<Vec<Product>>,
     pub(crate) categories: Shared<Vec<Category>>,
     pub(crate) customers: Shared<Vec<Customer>>,
+    /// Total em fiado (soma dos saldos negativos das carteiras) — KPI
+    /// "FIADOS" da aba Financeiro.
+    pub(crate) fiado_total: Shared<f64>,
 }
 
 impl Clone for Caches {
@@ -54,6 +57,7 @@ impl Clone for Caches {
             products: self.products.clone(),
             categories: self.categories.clone(),
             customers: self.customers.clone(),
+            fiado_total: self.fiado_total.clone(),
         }
     }
 }

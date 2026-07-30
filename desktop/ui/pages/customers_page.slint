@@ -84,11 +84,16 @@ component OrdersCard inherits Rectangle {
             title: "Nenhum pedido";
             art-size: 210px;
         }
+        // Cada pedido em card próprio (padrão das listas do sistema).
         for o[i] in root.orders: Rectangle {
-            height: (i >= root.win-start && i < root.win-start + 5) ? 46px : 0px;
+            height: (i >= root.win-start && i < root.win-start + 5) ? 48px : 0px;
             visible: i >= root.win-start && i < root.win-start + 5;
-            Rectangle { x: 0; y: parent.height - 1px; width: parent.width; height: 1px; background: Theme.border; }
+            border-radius: 10px;
+            border-width: 1px;
+            border-color: Theme.card-border;
+            background: Theme.surface;
             HorizontalLayout {
+                padding-left: 12px; padding-right: 12px;
                 spacing: 12px;
                 Text { text: o.number; font-size: 13px; font-weight: 600; color: Theme.text-secondary; vertical-alignment: center; width: 56px; }
                 Text { text: o.date; font-size: 12px; color: Theme.text-secondary; vertical-alignment: center; horizontal-stretch: 1; overflow: elide; }
