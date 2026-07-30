@@ -36,6 +36,12 @@ component WalletFormModal inherits Rectangle {
             alignment: center;
             Card {
                 width: 440px;
+                // Sem altura explícita as seções internas estouravam o
+                // card (o botão do rodapé caía FORA do modal); com o
+                // clip, as faixas full-bleed respeitam as pontas
+                // arredondadas do Card.
+                height: hdr.preferred-height + body.preferred-height + ftr.preferred-height;
+                clip: true;
                 TouchArea { }
 
                 VerticalLayout {
@@ -43,8 +49,9 @@ component WalletFormModal inherits Rectangle {
 
                     // Header
                     Rectangle {
+                        height: hdr.preferred-height;
                         background: Theme.surface;
-                        VerticalLayout {
+                        hdr := VerticalLayout {
                             padding-left: 22px; padding-right: 18px;
                             padding-top: 18px; padding-bottom: 14px;
                             spacing: 4px;
@@ -65,8 +72,9 @@ component WalletFormModal inherits Rectangle {
 
                     // Body
                     Rectangle {
+                        height: body.preferred-height;
                         background: Theme.bg;
-                        VerticalLayout {
+                        body := VerticalLayout {
                             padding: 18px; spacing: 14px;
 
                             // Amount
@@ -159,8 +167,9 @@ component WalletFormModal inherits Rectangle {
 
                     // Footer
                     Rectangle {
+                        height: ftr.preferred-height;
                         background: Theme.surface;
-                        VerticalLayout {
+                        ftr := VerticalLayout {
                             padding-left: 18px; padding-right: 18px;
                             padding-top: 14px; padding-bottom: 14px;
                             HorizontalLayout {
@@ -168,6 +177,9 @@ component WalletFormModal inherits Rectangle {
                                 alignment: end;
                                 ActionBtn {
                                     label: root.confirm-label;
+                                    bg-color: Theme.btn-accent;
+                                    icon: @image-url("../assets/icons/confirmar.svg");
+                                    width: 150px; height: 40px;
                                     clicked => { root.confirm(); }
                                 }
                             }
