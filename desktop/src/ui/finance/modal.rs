@@ -543,6 +543,7 @@ pub(crate) fn setup_mark_settled(
         let state = state.clone();
         let sync_notify = sync_notify.clone();
         let cal = cal.clone();
+        let handle_inner = handle.clone();
         handle.spawn(async move {
             let Ok(uuid) = Uuid::parse_str(&id) else { return };
             let cid = state.company_id();
@@ -557,8 +558,13 @@ pub(crate) fn setup_mark_settled(
                             show_toast(&ui, &msg, "success");
                             // Entrada lançada no caixa → atualiza a tela.
                             ui.invoke_cash_refresh();
+                            // Pedidos fiados podem ter sido quitados.
+                            ui.invoke_refresh_orders();
                         }
                     });
+                    // Carteira do cliente selecionado reflete a baixa na
+                    // hora (sem esperar o próximo ciclo de sync).
+                    super::super::wallet::refresh_for_selected(&ui_weak, &state, &handle_inner);
                     reapply(&ui_weak, &state, &cal).await;
                 }
                 Err(e) => {

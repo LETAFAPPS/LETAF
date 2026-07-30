@@ -12,4 +12,4 @@ mod core;
 mod ops;
 mod view;
 
-pub(crate) use core::{setup_wallet, sync_fiado_to_finance};
+pub(crate) use core::{refresh_for_selected, setup_wallet, sync_fiado_to_finance};
