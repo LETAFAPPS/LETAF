@@ -35,6 +35,7 @@ mod settings;
 mod subcategories;
 mod subscription;
 mod sync;
+mod treasury;
 mod wallet;
 
 use std::sync::Arc;
@@ -221,6 +222,7 @@ pub fn setup_callbacks(
 
     // Financeiro (Fase 11)
     finance::setup_finance(ui, state, handle, sync_notify.clone(), sync_cycle_done.clone());
+    treasury::setup_treasury(ui, state, handle, sync_notify.clone());
 
     // Carteira do cliente (Fase 12)
     wallet::setup_wallet(ui, state, handle, sync_notify.clone(), sync_cycle_done.clone());

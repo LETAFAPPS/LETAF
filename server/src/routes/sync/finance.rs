@@ -5,6 +5,7 @@ use serde_json::{json, Value};
 use letaf_core::cash::model::{CashMovement, CashSession};
 use letaf_core::finance::model::FinanceEntry;
 use letaf_core::finance_category::model::FinanceCategory;
+use letaf_core::treasury::model::Treasury;
 use letaf_core::wallet::model::{WalletAccount, WalletMovement};
 
 use crate::context::AppState;
@@ -147,6 +148,39 @@ pub(crate) async fn pull_finance_entries(
             params.after_id(),
             params.page_limit(),
         )
+        .await?;
+    Ok(Json(items))
+}
+
+/// POST /sync/treasury-accounts — upsert da carteira do estabelecimento
+/// (tesouraria, singleton por empresa). O `company_id` vem SEMPRE do JWT
+/// (§11) — o service rejeita payload de outro tenant.
+pub(crate) async fn sync_treasury_account(
+    State(state): State<AppState>,
+    auth: AuthClaims,
+    Json(treasury): Json<Treasury>,
+) -> Result<Json<Value>, ServerError> {
+    auth.verify_any_role(ROLES_OPERATORS)?;
+    auth.require_permission("finance.edit")?;
+    state
+        .treasury_service
+        .sync_upsert(auth.0.company_id, treasury)
+        .await?;
+    Ok(Json(json!({ "synced": true })))
+}
+
+/// GET /sync/pull/treasury-accounts?since=<timestamp> — singleton por
+/// empresa: pull simples (sem paginação keyset).
+pub(crate) async fn pull_treasury_accounts(
+    State(state): State<AppState>,
+    auth: AuthClaims,
+    Query(params): Query<PullQuery>,
+) -> Result<Json<Vec<Treasury>>, ServerError> {
+    auth.verify_any_role(ROLES_OPERATORS)?;
+    auth.require_permission("finance.view")?;
+    let items = state
+        .treasury_service
+        .find_updated_since(auth.0.company_id, params.since)
         .await?;
     Ok(Json(items))
 }

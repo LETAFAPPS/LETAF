@@ -21,6 +21,7 @@ use letaf_core::customer_address::service::CustomerAddressService;
 use letaf_core::finance::service::FinanceService;
 use letaf_core::finance_category::service::FinanceCategoryService;
 use letaf_core::order::service::OrderService;
+use letaf_core::treasury::service::TreasuryService;
 use letaf_core::wallet::service::WalletService;
 use letaf_core::printer::service::PrinterService;
 use letaf_core::product::service::ProductService;
@@ -65,6 +66,9 @@ pub struct DesktopState {
     /// Carteira do cliente (Fase 12) — saldo + livro-razão.
     /// Sincroniza com servidor (multi-device).
     pub wallet_service: Arc<WalletService>,
+    /// Carteira do estabelecimento (tesouraria) — singleton por
+    /// empresa. Sincroniza com servidor.
+    pub treasury_service: Arc<TreasuryService>,
     /// Assinatura/plano da empresa + histórico de faturas.
     /// O catálogo de planos vive no service (constantes) até o
     /// painel super-admin existir.
@@ -124,6 +128,9 @@ impl DesktopState {
         alarm_watcher: Arc<AlarmWatcher>,
         alarm_player: Arc<AlarmPlayer>,
         alarm_signal: Arc<Notify>,
+        // Ao FINAL da lista posicional de propósito: minimiza o risco de
+        // troca silenciosa de argumentos do mesmo tipo nos chamadores.
+        treasury_service: Arc<TreasuryService>,
     ) -> Self {
         Self {
             company_id: Arc::new(RwLock::new(company_id)),
@@ -146,6 +153,7 @@ impl DesktopState {
             finance_category_service,
             finance_service,
             wallet_service,
+            treasury_service,
             subscription_service,
             payment_method_service,
             reconcile,

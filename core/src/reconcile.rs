@@ -64,6 +64,7 @@ pub const RECONCILE_TABLES: &[&str] = &[
     "finance_entries",
     "wallet_accounts",
     "wallet_movements",
+    "treasury_accounts",
     "subscriptions",
     "subscription_invoices",
     "payment_methods",

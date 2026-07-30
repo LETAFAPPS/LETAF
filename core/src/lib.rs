@@ -45,5 +45,6 @@ pub mod product;
 pub mod reconcile;
 pub mod subcategory;
 pub mod subscription;
+pub mod treasury;
 pub mod util;
 pub mod wallet;

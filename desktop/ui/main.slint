@@ -75,8 +75,10 @@ import {
 import { ReportsPage } from "pages/reports_page.slint";
 import { FinanceKpi, FinanceTab, FinanceEntryRow, FinanceCategoryOption, FinanceCashFlowPoint, FinanceCalendarCell, FinanceDayRow } from "types.slint";
 import { WalletSummary, WalletMovementRow } from "types.slint";
+import { TreasurySummary, TreasuryMovementRow } from "types.slint";
 import { WalletDepositModal, WalletWithdrawModal, WalletAdjustModal, WalletLimitModal } from "modals/wallet_modals.slint";
 import { FinancePage } from "pages/finance_page.slint";
+import { TreasuryPage } from "pages/treasury_page.slint";
 import { FinanceEntryModal } from "modals/finance_entry_modal.slint";
 import { PlanCardData, SubscriptionData, SubscriptionInvoiceRow, PixChargeView, PaymentMethodOption } from "types.slint";
 import { SubscriptionPage } from "pages/subscription_page.slint";
@@ -1292,6 +1294,15 @@ export component MainWindow inherits Window {
     callback finance-cal-today();               // volta para o mês de hoje
 
     /// Modal "Nova conta a pagar/receber" — campos do formulário.
+    // ── Carteira do estabelecimento (tesouraria) ─────────────
+    in-out property <TreasurySummary> treasury-summary;
+    in-out property <[TreasuryMovementRow]> treasury-movements: [];
+    in-out property <string> treasury-initial-input: "";
+    in-out property <string> treasury-notes-input: "";
+    in-out property <string> treasury-setup-error: "";
+    callback treasury-refresh();
+    callback treasury-open();
+
     in-out property <bool>   finance-show-modal: false;
     in-out property <string> finance-form-kind: "payable"; // "payable" | "receivable"
     in-out property <string> finance-form-editing-id: ""; // "" = criação
@@ -1559,6 +1570,8 @@ export component MainWindow inherits Window {
                     root.refresh-coupons();
                 } else if tab == "cash" {
                     root.cash-refresh();
+                } else if tab == "treasury" {
+                    root.treasury-refresh();
                 } else if tab == "inventory" {
                     root.inventory-refresh();
                 } else if tab == "dashboard" {
@@ -2341,6 +2354,15 @@ export component MainWindow inherits Window {
             }
 
             // Financeiro — contas a pagar/receber.
+            if root.active-tab == "treasury": TreasuryPage {
+                summary: root.treasury-summary;
+                movements: root.treasury-movements;
+                initial-input <=> root.treasury-initial-input;
+                notes-input <=> root.treasury-notes-input;
+                setup-error: root.treasury-setup-error;
+                refresh => { root.treasury-refresh(); }
+                open-treasury => { root.treasury-open(); }
+            }
             if root.active-tab == "finance": FinancePage {
                 kpis: root.finance-kpis;
                 tabs: root.finance-tabs;

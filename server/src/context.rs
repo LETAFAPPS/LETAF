@@ -27,6 +27,7 @@ use letaf_core::customer_address::service::CustomerAddressService;
 use letaf_core::finance::service::FinanceService;
 use letaf_core::finance_category::service::FinanceCategoryService;
 use letaf_core::order::service::OrderService;
+use letaf_core::treasury::service::TreasuryService;
 use letaf_core::wallet::service::WalletService;
 
 use crate::config::AppConfig;
@@ -62,6 +63,8 @@ pub struct AppState {
     pub finance_category_service: Arc<FinanceCategoryService>,
     pub finance_service: Arc<FinanceService>,
     pub wallet_service: Arc<WalletService>,
+    /// Carteira do estabelecimento (tesouraria) — singleton por empresa.
+    pub treasury_service: Arc<TreasuryService>,
     pub subscription_service: Arc<SubscriptionService>,
     pub payment_method_service: Arc<PaymentMethodService>,
     /// `None` quando o gateway Efi não estiver configurado (EFI_* vazias).
@@ -116,6 +119,7 @@ impl AppState {
         finance_category_service: Arc<FinanceCategoryService>,
         finance_service: Arc<FinanceService>,
         wallet_service: Arc<WalletService>,
+        treasury_service: Arc<TreasuryService>,
         subscription_service: Arc<SubscriptionService>,
         payment_method_service: Arc<PaymentMethodService>,
         payment_service: Option<Arc<PaymentService>>,
@@ -160,6 +164,7 @@ impl AppState {
             finance_category_service,
             finance_service,
             wallet_service,
+            treasury_service,
             subscription_service,
             payment_method_service,
             payment_service,

@@ -33,6 +33,7 @@ use letaf_core::product::service::ProductService;
 use letaf_core::subcategory::service::SubcategoryService;
 use letaf_core::subscription::pix_auto_billing::PixAutoBillingService;
 use letaf_core::subscription::service::SubscriptionService;
+use letaf_core::treasury::service::TreasuryService;
 use letaf_core::wallet::service::WalletService;
 use crate::config::EfiCardConfig;
 use letaf_core::payment_gateway::card::CardGateway;
@@ -63,6 +64,7 @@ use crate::repository::plan::PgPlanRepository;
 use crate::repository::product::PgProductRepository;
 use crate::repository::subcategory::PgSubcategoryRepository;
 use crate::repository::subscription::PgSubscriptionRepository;
+use crate::repository::treasury::PgTreasuryRepository;
 use crate::repository::wallet::PgWalletRepository;
 use sqlx::PgPool;
 use std::sync::Arc;
@@ -135,6 +137,10 @@ pub fn build_state(pool: PgPool, config: AppConfig) -> AppState {
     let wallet_service = Arc::new(WalletService::new(
         Arc::new(PgWalletRepository::new(pool.clone())),
     ));
+    // Carteira do estabelecimento (tesouraria) — singleton por empresa.
+    let treasury_service = Arc::new(TreasuryService::new(
+        Arc::new(PgTreasuryRepository::new(pool.clone())),
+    ));
     let subscription_service = Arc::new(SubscriptionService::new(
         Arc::new(PgSubscriptionRepository::new(pool.clone())),
     ));
@@ -198,6 +204,7 @@ pub fn build_state(pool: PgPool, config: AppConfig) -> AppState {
         finance_category_service,
         finance_service,
         wallet_service,
+        treasury_service,
         subscription_service,
         payment_method_service,
         payment_service,

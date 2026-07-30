@@ -218,6 +218,15 @@ export component Sidebar inherits Rectangle {
                     active: root.active-tab == "finance";
                     clicked => { root.navigate("finance"); }
                 }
+                // Carteira do estabelecimento (tesouraria) — mesma
+                // permissão do Financeiro (finance.view).
+                if root.store-access || root.nav.finance: SidebarItem {
+                    icon-source: @image-url("../assets/icons/pay-carteira.svg");
+                    label: "Carteira";
+                    compact: !root.expanded;
+                    active: root.active-tab == "treasury";
+                    clicked => { root.navigate("treasury"); }
+                }
 
                 // ── CADASTROS ─────────────────────────────
                 if root.store-access || root.nav.products || root.nav.inventory || root.nav.addons || root.nav.categories:

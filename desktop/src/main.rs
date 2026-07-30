@@ -460,6 +460,11 @@ async fn init_state() -> DesktopState {
     let wallet_service = Arc::new(letaf_core::wallet::service::WalletService::new(
         Arc::new(repository::wallet::SqliteWalletRepository::new(pool.clone())),
     ));
+    // Carteira do estabelecimento (tesouraria) — singleton por empresa,
+    // sync completo (multi-device).
+    let treasury_service = Arc::new(letaf_core::treasury::service::TreasuryService::new(
+        Arc::new(repository::treasury::SqliteTreasuryRepository::new(pool.clone())),
+    ));
     // Assinatura: plano + faturas. Catálogo de planos é constante no
     // service; quando o super-admin existir, vira tabela `plans` sync.
     let subscription_service = Arc::new(SubscriptionService::new(
@@ -525,6 +530,7 @@ async fn init_state() -> DesktopState {
         alarm_watcher,
         alarm_player,
         alarm_signal,
+        treasury_service,
     )
 }
 

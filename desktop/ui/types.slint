@@ -1498,3 +1498,37 @@ export struct SubscriptionInvoiceRow {
     amount-display: string,
 }
 
+
+/// Resumo da CARTEIRA DO ESTABELECIMENTO (tesouraria) — todos os
+/// valores derivados no Rust (§1/§14): saldo = inicial + entradas −
+/// saídas, consolidando Pedidos, Carteira de clientes e Financeiro.
+export struct TreasurySummary {
+    /// `false` = carteira ainda não cadastrada (mostra o setup).
+    has-account: bool,
+    /// Saldo atual (inicial + entradas − saídas), formatado.
+    balance-display: string,
+    /// `true` quando o saldo atual é negativo (pinta em vermelho).
+    balance-negative: bool,
+    initial-display: string,
+    inflow-display: string,
+    outflow-display: string,
+    // Detalhamento por origem (formatados; entradas com +, saídas com −).
+    orders-display: string,
+    deposits-display: string,
+    finance-in-display: string,
+    finance-out-display: string,
+    withdrawals-display: string,
+    movements-count: int,
+}
+
+/// Linha consolidada de movimentação da tesouraria (todas as fontes
+/// mescladas por data, mais recentes primeiro).
+export struct TreasuryMovementRow {
+    title: string,
+    /// Origem: "Pedido" | "Carteira" | "Financeiro".
+    source: string,
+    time-display: string,
+    amount-display: string,
+    /// "pos" | "neg".
+    tone: string,
+}

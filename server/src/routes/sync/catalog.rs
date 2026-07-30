@@ -46,6 +46,7 @@ pub(crate) async fn reconcile_manifest(
     if let Some(perm) = match q.entity.as_str() {
         "cash_sessions" | "cash_movements" => Some("cash.view"),
         "finance_entries" | "finance_categories" => Some("finance.view"),
+        "treasury_accounts" => Some("finance.view"),
         "wallet_accounts" | "wallet_movements" => Some("customers.view"),
         "subscriptions" | "subscription_invoices" => Some("subscription.view"),
         _ => None,

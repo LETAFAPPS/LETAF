@@ -103,6 +103,8 @@ pub fn routes() -> Router<AppState> {
         .route("/sync/pull/wallet-accounts", get(pull_wallet_accounts))
         .route("/sync/wallet-movements", post(sync_wallet_movement))
         .route("/sync/pull/wallet-movements", get(pull_wallet_movements))
+        .route("/sync/treasury-accounts", post(sync_treasury_account))
+        .route("/sync/pull/treasury-accounts", get(pull_treasury_accounts))
         .route("/sync/subscriptions", post(sync_subscription))
         .route("/sync/pull/subscriptions", get(pull_subscriptions))
         .route("/sync/subscription-invoices", post(sync_subscription_invoice))

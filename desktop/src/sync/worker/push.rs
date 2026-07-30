@@ -372,6 +372,22 @@ impl SyncWorker {
         Ok(())
     }
 
+    /// Push da carteira do estabelecimento (tesouraria) pendente.
+    pub(super) async fn sync_treasury(&self, token: &str) -> Result<(), CoreError> {
+        let cid = self.state.company_id();
+        let items = self.state.treasury_service.find_unsynced(cid).await?;
+        for item in &items {
+            if self.send_one(token, "/sync/treasury-accounts", item.base.id, item).await {
+                if let Err(e) = self.state.treasury_service
+                    .mark_synced(cid, item.base.id, item.base.updated_at).await
+                {
+                    tracing::warn!("mark_synced treasury {}: {e}", item.base.id);
+                }
+            }
+        }
+        Ok(())
+    }
+
     pub(super) async fn sync_subscriptions(&self, token: &str) -> Result<(), CoreError> {
         let items = self
             .state
