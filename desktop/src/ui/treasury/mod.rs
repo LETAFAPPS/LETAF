@@ -18,7 +18,7 @@
 //!
 //! O SALDO considera todo o histórico; entradas/saídas mostram o DIA
 //! corrente (no fuso da loja), o mini-gráfico mostra as ÚLTIMAS 12
-//! HORAS e a lista traz as 10 últimas movimentações.
+//! HORAS e a lista traz as 15 últimas movimentações.
 
 use std::sync::Arc;
 
@@ -39,8 +39,9 @@ use crate::{
 
 use super::helpers::{friendly_error, show_toast};
 
-/// Quantas movimentações a lista mostra.
-const MOVEMENTS_LIMIT: usize = 10;
+/// Quantas movimentações a lista mostra (o rótulo "Últimas N" do card
+/// em `treasury_page.slint` acompanha este número).
+const MOVEMENTS_LIMIT: usize = 15;
 
 pub(crate) fn setup_treasury(
     ui: &MainWindow,

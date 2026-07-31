@@ -518,7 +518,8 @@ export component TreasuryPage inherits VerticalLayout {
                         vertical-alignment: center;
                     }
                     Text {
-                        text: "Últimas 10";
+                        // Acompanha `MOVEMENTS_LIMIT` (treasury/mod.rs).
+                        text: "Últimas 15";
                         font-size: 11px; color: Theme.text-secondary;
                         vertical-alignment: center;
                     }
