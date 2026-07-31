@@ -257,8 +257,10 @@ component ComparePairSlot inherits Rectangle {
     // atrás) + atual (escura, fina, na frente). Ambas centradas no slot e o
     // RÓTULO fica na MESMA célula (embaixo) → alinhamento garantido, sem
     // depender de uma HBox de rótulos separada, em qualquer quantidade.
-    property <length> prev-w: min(20px, root.width * 0.62);
-    property <length> cur-w: min(11px, root.width * 0.34);
+    // Largura ADAPTATIVA (mesma regra dos Relatórios): proporção do
+    // slot, com piso e teto — nunca uma medida fixa.
+    property <length> prev-w: max(8px, min(root.width * 0.80, 78px));
+    property <length> cur-w: max(5px, min(root.width * 0.52, 48px));
     property <length> tooltip-h: 24px;
     property <length> label-h: 16px;
     property <length> bar-area-h: max(0px, root.height - root.tooltip-h - root.label-h);

@@ -144,8 +144,11 @@ component VertBar inherits Rectangle {
     // Barras SOBREPOSTAS e centradas: anterior larga e clara atrás,
     // atual mais fina na frente — mesma técnica do comparativo do
     // Dashboard, que não depende da largura do slot para alinhar.
-    property <length> prev-w: min(20px, root.width * 0.72);
-    property <length> cur-w: min(12px, root.width * 0.42);
+    // Largura ADAPTATIVA: proporção do slot (não medida fixa), com piso
+    // para não sumir em gráficos densos (mês/hora) e teto para não virar
+    // um bloco em gráficos de poucas barras.
+    property <length> prev-w: max(8px, min(root.width * 0.80, 78px));
+    property <length> cur-w: max(5px, min(root.width * 0.52, 48px));
 
     ta := TouchArea { }
     // Base do candle — linha fininha no rodapé do slot, sempre visível
