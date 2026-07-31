@@ -232,10 +232,6 @@ export component MainWindow inherits Window {
     callback confirm-delete();
 
     // ── Produtos ────────────────────────────────────
-    property <int> products-cols:
-        root.width > 1800px ? 7
-        : (root.width > 1500px ? 6
-            : (root.width > 1250px ? 5 : 4));
     in-out property <[ProductData]> products: [];
     in-out property <int> products-active-count: 0;
     in-out property <int> products-inactive-count: 0;
@@ -1175,7 +1171,6 @@ export component MainWindow inherits Window {
 
     callback subscription-refresh();
     callback subscription-choose-plan(string);
-    callback subscription-open-payment-change();
     callback subscription-download-invoice(string);
     callback subscription-download-all();
     /// Fatura em aberto (pendente/vencida) em destaque no topo da tela.

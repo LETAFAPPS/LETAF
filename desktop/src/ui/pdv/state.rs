@@ -144,11 +144,7 @@ impl PdvState {
 /// ou inválido — sem propagar erro pra UI; cálculo cai num valor
 /// neutro até o operador corrigir.
 pub(crate) fn parse_amount(raw: &str) -> f64 {
-    raw.trim()
-        .replace(',', ".")
-        .parse::<f64>()
-        .unwrap_or(0.0)
-        .max(0.0)
+    crate::format::parse_money_br_f64(raw).unwrap_or(0.0).max(0.0)
 }
 
 /// Formata um valor em reais sem sinal negativo "fantasma".

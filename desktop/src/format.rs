@@ -7,6 +7,42 @@
 
 use chrono::NaiveDateTime;
 
+/// Interpreta um valor monetário digitado em pt-BR.
+///
+/// FONTE ÚNICA do parse de dinheiro do aplicativo. Havia onze cópias
+/// disso espalhadas pela UI e oito estavam erradas: as que só trocavam
+/// `,` por `.` engasgavam com o separador de milhar (`"1.234,56"` virava
+/// `"1.234.56"` → `None`/`0.0` silencioso), e as que removiam `.` sempre
+/// transformavam `"1.5"` em `15`.
+///
+/// Regra: se houver vírgula, ela é o separador DECIMAL e os pontos são
+/// milhar; sem vírgula, o ponto é tratado como decimal (o operador que
+/// digita `1.5` quer um e meio). Aceita `R$`, espaços e sinal.
+/// Vazio → `None`.
+pub fn parse_money_br(s: &str) -> Option<rust_decimal::Decimal> {
+    use std::str::FromStr;
+    let cleaned: String = s
+        .chars()
+        .filter(|c| c.is_ascii_digit() || *c == ',' || *c == '.' || *c == '-')
+        .collect();
+    if cleaned.is_empty() || cleaned == "-" {
+        return None;
+    }
+    let normalized = if cleaned.contains(',') {
+        cleaned.replace('.', "").replace(',', ".")
+    } else {
+        cleaned
+    };
+    rust_decimal::Decimal::from_str(&normalized).ok()
+}
+
+/// Igual ao [`parse_money_br`], em `f64`, para os pontos da UI que ainda
+/// trabalham com ponto flutuante. Vazio/inválido → `None`.
+pub fn parse_money_br_f64(s: &str) -> Option<f64> {
+    use rust_decimal::prelude::ToPrimitive;
+    parse_money_br(s)?.to_f64()
+}
+
 /// Converte um `NaiveDateTime` (gravado em UTC no banco) para o horário
 /// da loja (America/São_Paulo). Usado apenas na camada de apresentação —
 /// o banco continua armazenando UTC (§6).
@@ -293,6 +329,36 @@ pub fn field_error(rule: &str, value: &str) -> String {
 
 #[cfg(test)]
 mod tests {
+    use super::parse_money_br;
+    use rust_decimal::Decimal;
+    use std::str::FromStr;
+
+    fn dec(s: &str) -> Decimal {
+        Decimal::from_str(s).expect("literal válido")
+    }
+
+    #[test]
+    fn parse_money_br_aceita_milhar_e_virgula() {
+        assert_eq!(parse_money_br("1.234,56"), Some(dec("1234.56")));
+        assert_eq!(parse_money_br("R$ 1.234,56"), Some(dec("1234.56")));
+        assert_eq!(parse_money_br("16,90"), Some(dec("16.90")));
+    }
+
+    #[test]
+    fn parse_money_br_sem_virgula_trata_ponto_como_decimal() {
+        // O operador que digita "1.5" quer um e meio, não quinze.
+        assert_eq!(parse_money_br("1.5"), Some(dec("1.5")));
+        assert_eq!(parse_money_br("5"), Some(dec("5")));
+    }
+
+    #[test]
+    fn parse_money_br_vazio_e_lixo() {
+        assert_eq!(parse_money_br(""), None);
+        assert_eq!(parse_money_br("abc"), None);
+        assert_eq!(parse_money_br("-"), None);
+        assert_eq!(parse_money_br("-12,50"), Some(dec("-12.50")));
+    }
+
     use super::*;
 
     #[test]

@@ -276,12 +276,7 @@ pub(crate) fn toast_err(ui_weak: &slint::Weak<MainWindow>, msg: &str) {
 }
 
 pub(crate) fn parse_amount(s: &str, allow_neg: bool) -> Option<f64> {
-    let cleaned = s
-        .trim()
-        .replace("R$", "")
-        .replace([' ', '.'], "")
-        .replace(',', ".");
-    let v = cleaned.parse::<f64>().ok()?;
+    let v = crate::format::parse_money_br_f64(s)?;
     if !allow_neg && v < 0.0 {
         return None;
     }

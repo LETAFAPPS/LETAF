@@ -14,17 +14,7 @@ use super::super::image::{decode_pixel_buffer, pick_image_file, process_image_fi
 /// "1.234,56") para `Decimal`, sempre >= 0. Vírgula é o separador decimal
 /// (pt-BR); pontos são tratados como separador de milhar quando há vírgula.
 fn parse_money(s: &str) -> rust_decimal::Decimal {
-    use std::str::FromStr;
-    let cleaned: String = s
-        .chars()
-        .filter(|c| c.is_ascii_digit() || *c == ',' || *c == '.')
-        .collect();
-    let normalized = if cleaned.contains(',') {
-        cleaned.replace('.', "").replace(',', ".")
-    } else {
-        cleaned
-    };
-    rust_decimal::Decimal::from_str(&normalized)
+    crate::format::parse_money_br(s)
         .unwrap_or(rust_decimal::Decimal::ZERO)
         .max(rust_decimal::Decimal::ZERO)
 }

@@ -35,7 +35,7 @@ pub(crate) fn setup_cash(
 
 
 pub(crate) fn parse_amount(s: &str) -> f64 {
-    s.trim().replace(',', ".").parse::<f64>().unwrap_or(0.0).max(0.0)
+    crate::format::parse_money_br_f64(s).unwrap_or(0.0).max(0.0)
 }
 
 pub(crate) fn fmt_duration(opened: chrono::NaiveDateTime, until: chrono::NaiveDateTime) -> String {

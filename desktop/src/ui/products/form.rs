@@ -257,7 +257,7 @@ pub(crate) fn parse_decimal(raw: &slint::SharedString) -> Option<f64> {
     if trimmed.is_empty() {
         return None;
     }
-    trimmed.replace(',', ".").parse::<f64>().ok()
+    crate::format::parse_money_br_f64(trimmed)
 }
 
 /// Limpa mensagens de erro de validação do formulário de produto.

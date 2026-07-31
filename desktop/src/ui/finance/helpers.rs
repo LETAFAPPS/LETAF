@@ -72,12 +72,7 @@ pub(crate) fn days_label(today: NaiveDate, due: NaiveDate, settled: bool) -> Str
 }
 
 pub(crate) fn parse_amount(s: &str) -> Option<f64> {
-    let cleaned = s
-        .trim()
-        .replace("R$", "")
-        .replace([' ', '.'], "")
-        .replace(',', ".");
-    cleaned.parse::<f64>().ok()
+    crate::format::parse_money_br_f64(s)
 }
 
 pub(crate) fn parse_date_br(s: &str) -> Option<NaiveDate> {

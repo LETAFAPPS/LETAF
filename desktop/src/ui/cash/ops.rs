@@ -329,11 +329,5 @@ pub(crate) fn setup_close_confirm(
 
 /// Parsea "R$ 1.234,56" → 1234.56. Robusto a sinais e moeda.
 pub(crate) fn parse_brl(s: &str) -> f64 {
-    let cleaned: String = s
-        .chars()
-        .filter(|c| c.is_ascii_digit() || *c == ',' || *c == '.' || *c == '-')
-        .collect();
-    // pt-BR: remove '.' (milhar), troca ',' por '.'
-    let normalized = cleaned.replace('.', "").replace(',', ".");
-    normalized.parse::<f64>().unwrap_or(0.0)
+    crate::format::parse_money_br_f64(s).unwrap_or(0.0)
 }

@@ -13,11 +13,6 @@ pub const SCREENS: &[(&str, &str)] = &[
     ("roles", "Funções"),
 ];
 
-/// Todas as chaves de tela existentes (acesso total do master).
-pub fn all_screens() -> Vec<String> {
-    SCREENS.iter().map(|(k, _)| k.to_string()).collect()
-}
-
 /// `true` se `key` é uma tela válida do catálogo (§11 — valida entrada).
 pub fn screen_is_valid(key: &str) -> bool {
     SCREENS.iter().any(|(k, _)| *k == key)

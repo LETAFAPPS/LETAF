@@ -528,22 +528,9 @@ fn breakdown_model(rows: &[BreakdownRaw], negative: bool) -> ModelRc<TreasuryBre
 
 // ── Cadastro inicial ────────────────────────────────────────────
 
-/// Parse de valor monetário pt-BR ("1.234,56", "5", "R$ 5,00").
+/// Parse de valor monetário pt-BR — fonte única em `crate::format`.
 fn parse_money_br(s: &str) -> Option<Decimal> {
-    use std::str::FromStr;
-    let cleaned: String = s
-        .chars()
-        .filter(|c| c.is_ascii_digit() || *c == ',' || *c == '.' || *c == '-')
-        .collect();
-    if cleaned.is_empty() {
-        return None;
-    }
-    let normalized = if cleaned.contains(',') {
-        cleaned.replace('.', "").replace(',', ".")
-    } else {
-        cleaned
-    };
-    Decimal::from_str(&normalized).ok()
+    crate::format::parse_money_br(s)
 }
 
 fn setup_open(

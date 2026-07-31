@@ -145,7 +145,7 @@ pub(crate) fn format_price(p: f64) -> String {
 pub(crate) fn parse_decimal(raw: &SharedString) -> Option<f64> {
     let trimmed = raw.trim();
     if trimmed.is_empty() { return None; }
-    trimmed.replace(',', ".").parse::<f64>().ok()
+    crate::format::parse_money_br_f64(trimmed)
 }
 
 pub(crate) fn parse_int(raw: &SharedString) -> Option<i32> {

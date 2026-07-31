@@ -155,7 +155,7 @@ pub(crate) fn clear_form(ui: &MainWindow) {
 pub(crate) fn parse_money(s: &str) -> Result<f64, ()> {
     let t = s.trim();
     if t.is_empty() { return Ok(0.0); }
-    t.replace(['R', '$', ' '], "").replace(',', ".").parse::<f64>().map_err(|_| ())
+    crate::format::parse_money_br_f64(t).ok_or(())
 }
 
 pub(crate) fn parse_int(s: &str) -> Result<i32, ()> {
