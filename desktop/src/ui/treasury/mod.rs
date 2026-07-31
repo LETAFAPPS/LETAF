@@ -22,7 +22,7 @@
 
 use std::sync::Arc;
 
-use chrono::{NaiveDate, NaiveDateTime, Timelike};
+use chrono::{Duration, NaiveDate, NaiveDateTime, Timelike};
 use rust_decimal::Decimal;
 use slint::{ComponentHandle, ModelRc, SharedString, VecModel};
 
@@ -351,13 +351,16 @@ fn empty_summary() -> SummaryRaw {
 /// hora cheia, terminando na hora ATUAL (a última barra, destacada).
 /// Cada barra é o líquido da hora (entradas − saídas): positivo sobe,
 /// negativo desce. A altura é relativa à maior movimentação da janela.
+/// Entradas, saídas e líquido já vão formatados para o card que a UI
+/// mostra ao passar o mouse (§1/§14).
 fn build_chart(movements: &[MovementRaw]) -> Vec<TreasuryChartBar> {
     const SLOTS: i64 = 12;
     use rust_decimal::prelude::ToPrimitive;
 
     // Hora cheia atual no fuso da loja — âncora da última barra.
     let current = letaf_core::tz::current_hour();
-    let mut totals = vec![0.0_f64; SLOTS as usize];
+    let mut inflow = vec![Decimal::ZERO; SLOTS as usize];
+    let mut outflow = vec![Decimal::ZERO; SLOTS as usize];
     for m in movements {
         // `m.at` é UTC; a janela é contada no relógio da loja.
         let local = letaf_core::tz::to_local(m.at);
@@ -370,18 +373,46 @@ fn build_chart(movements: &[MovementRaw]) -> Vec<TreasuryChartBar> {
             continue;
         }
         let idx = (SLOTS - 1 - hours_back) as usize;
-        let v = m.amount.to_f64().unwrap_or(0.0);
-        totals[idx] += if m.positive { v } else { -v };
+        if m.positive {
+            inflow[idx] += m.amount;
+        } else {
+            outflow[idx] += m.amount;
+        }
     }
 
-    let max = totals.iter().copied().fold(0.0_f64, |a, b| a.max(b.abs()));
-    totals
-        .into_iter()
-        .enumerate()
-        .map(|(i, v)| TreasuryChartBar {
-            progress: if max > 0.0 { (v.abs() / max) as f32 } else { 0.0 },
-            positive: v >= 0.0,
-            current: i + 1 == SLOTS as usize,
+    let net: Vec<Decimal> = (0..SLOTS as usize)
+        .map(|i| inflow[i] - outflow[i])
+        .collect();
+    let max = net
+        .iter()
+        .map(|v| v.abs().to_f64().unwrap_or(0.0))
+        .fold(0.0_f64, f64::max);
+
+    (0..SLOTS as usize)
+        .map(|i| {
+            let start = current - Duration::hours(SLOTS - 1 - i as i64);
+            let v = net[i];
+            TreasuryChartBar {
+                progress: if max > 0.0 {
+                    (v.abs().to_f64().unwrap_or(0.0) / max) as f32
+                } else {
+                    0.0
+                },
+                positive: v >= Decimal::ZERO,
+                current: i + 1 == SLOTS as usize,
+                hour_label: SharedString::from(format!(
+                    "{} – {}",
+                    start.format("%H:00"),
+                    (start + Duration::hours(1)).format("%H:00")
+                )),
+                inflow_display: SharedString::from(format!("+ {}", money_br(inflow[i]))),
+                outflow_display: SharedString::from(format!("− {}", money_br(outflow[i]))),
+                net_display: SharedString::from(if v < Decimal::ZERO {
+                    format!("− {}", money_br(-v))
+                } else {
+                    format!("+ {}", money_br(v))
+                }),
+            }
         })
         .collect()
 }

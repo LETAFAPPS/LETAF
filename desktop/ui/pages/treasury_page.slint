@@ -38,6 +38,8 @@ component MoneyIcon inherits Rectangle {
 // central. Horas sem movimento viram um traço fino sobre a linha.
 component ChartBar inherits Rectangle {
     in property <TreasuryChartBar> data;
+    in property <bool> hovered;
+    callback hover(bool);
     horizontal-stretch: 1;
     preferred-width: 0px;
     // Metade útil: a linha central fica no meio da área do gráfico.
@@ -52,7 +54,71 @@ component ChartBar inherits Rectangle {
             : (root.data.positive ? root.half - root.bar-h : root.half);
         height: root.bar-h;
         border-radius: 5px;
-        background: root.data.current ? Theme.btn-accent : #FFFFFF1F;
+        background: root.data.current
+            ? Theme.btn-accent
+            : (root.hovered ? #FFFFFF47 : #FFFFFF1F);
+    }
+    // Área de hover da COLUNA inteira — não só da barra.
+    bar-ta := TouchArea {
+        changed has-hover => { root.hover(bar-ta.has-hover); }
+    }
+}
+
+// Linha rótulo → valor do card flutuante.
+component TipLine inherits HorizontalLayout {
+    in property <string> label;
+    in property <string> value;
+    in property <color> value-color;
+    in property <bool> strong: false;
+    spacing: 10px;
+    Text {
+        text: root.label;
+        font-size: 11px;
+        font-weight: root.strong ? 700 : 400;
+        color: root.strong ? #E6E3DC : #A8A29A;
+        horizontal-stretch: 1;
+        vertical-alignment: center;
+    }
+    Text {
+        text: root.value;
+        font-size: root.strong ? 12px : 11px;
+        font-weight: 800;
+        color: root.value-color;
+        vertical-alignment: center;
+    }
+}
+
+// Card flutuante do gráfico: hora, entradas, saídas e o líquido.
+component ChartTip inherits Rectangle {
+    in property <TreasuryChartBar> data;
+    width: 196px;
+    height: tip-l.preferred-height;
+    border-radius: 10px;
+    background: #2B2B28;
+    border-width: 1px;
+    border-color: #FFFFFF1F;
+    drop-shadow-blur: 16px;
+    drop-shadow-offset-y: 4px;
+    drop-shadow-color: #00000066;
+    tip-l := VerticalLayout {
+        padding: 12px;
+        spacing: 7px;
+        Text {
+            text: root.data.hour-label;
+            font-size: 11px; font-weight: 800;
+            letter-spacing: 0.6px;
+            color: white;
+        }
+        Rectangle { height: 1px; background: #FFFFFF1F; }
+        TipLine { label: "Entradas"; value: root.data.inflow-display; value-color: #7BD389; }
+        TipLine { label: "Saídas"; value: root.data.outflow-display; value-color: #FF8A80; }
+        Rectangle { height: 1px; background: #FFFFFF1F; }
+        TipLine {
+            label: "Total";
+            value: root.data.net-display;
+            value-color: root.data.positive ? #7BD389 : #FF8A80;
+            strong: true;
+        }
     }
 }
 
@@ -164,6 +230,16 @@ export component TreasuryPage inherits VerticalLayout {
     in property <string> setup-error;
     callback refresh();
     callback open-treasury();
+
+    // Índice da barra sob o cursor (-1 = nenhuma) — estado puramente
+    // visual, vive na UI (§14).
+    private property <int> chart-hovered: -1;
+    // Geometria do mini-gráfico, reaproveitada para posicionar o card
+    // flutuante sobre a barra correta.
+    property <length> chart-x: root.width * 0.40;
+    property <length> chart-w: root.width * 0.60 - 26px;
+    property <length> chart-gap: 8px;
+    property <length> chart-slot: (root.chart-w - root.chart-gap * 11) / 12;
     callback open-deposit();
     callback open-withdraw();
     callback open-goal();
@@ -282,12 +358,35 @@ export component TreasuryPage inherits VerticalLayout {
         // Cada barra cresce a partir da linha central: para CIMA quando a
         // hora fechou positiva, para BAIXO quando fechou negativa.
         HorizontalLayout {
-            x: parent.width * 0.40;
+            x: root.chart-x;
             y: 22px;
-            width: parent.width * 0.60 - 26px;
+            width: root.chart-w;
             height: 148px;
-            spacing: 8px;
-            for b in root.chart: ChartBar { data: b; }
+            spacing: root.chart-gap;
+            for b[i] in root.chart: ChartBar {
+                data: b;
+                hovered: root.chart-hovered == i;
+                hover(on) => {
+                    if (on) {
+                        root.chart-hovered = i;
+                    } else if (root.chart-hovered == i) {
+                        root.chart-hovered = -1;
+                    }
+                }
+            }
+        }
+
+        // Card flutuante da barra sob o cursor. Fica DEPOIS das barras
+        // para desenhar por cima; o x acompanha a coluna, preso às
+        // bordas do card para não sair pela lateral.
+        if root.chart-hovered >= 0: ChartTip {
+            data: root.chart[root.chart-hovered];
+            y: 30px;
+            x: clamp(
+                root.chart-x + root.chart-hovered * (root.chart-slot + root.chart-gap)
+                    + root.chart-slot / 2 - self.width / 2,
+                12px,
+                root.width - self.width - 12px);
         }
 
         VerticalLayout {

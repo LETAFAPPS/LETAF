@@ -1556,6 +1556,7 @@ export struct TreasuryBreakdownRow {
 }
 
 /// Barra do mini-gráfico do card de saldo — uma HORA das últimas 12.
+/// Os campos de texto alimentam o card que aparece ao passar o mouse.
 export struct TreasuryChartBar {
     /// 0.0–1.0 na escala da maior movimentação das 12 horas (módulo).
     progress: float,
@@ -1564,4 +1565,10 @@ export struct TreasuryChartBar {
     positive: bool,
     /// `true` só na hora ATUAL — sempre a última barra, em destaque.
     current: bool,
+    /// Faixa da hora ("14:00 – 15:00").
+    hour-label: string,
+    /// Entradas, saídas e líquido da hora, já formatados.
+    inflow-display: string,
+    outflow-display: string,
+    net-display: string,
 }
