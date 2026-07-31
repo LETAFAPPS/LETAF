@@ -50,7 +50,7 @@ pub(crate) fn setup_test_print(ui: &MainWindow, state: &DesktopState, handle: &t
 /// Texto monospace da página de teste — confirma comunicação com a
 /// impressora, mostra largura escolhida e data/hora.
 pub(crate) fn render_test_page(paper_width: i32) -> String {
-    let cols = if paper_width == 58 { 32 } else { 42 };
+    let cols = columns_for(paper_width);
     let bar = "=".repeat(cols);
     let now = chrono::Utc::now()
         .with_timezone(&chrono::Local)
@@ -61,13 +61,34 @@ pub(crate) fn render_test_page(paper_width: i32) -> String {
     out.push_str(&center_line("LETAF · TESTE DE IMPRESSORA", cols)); out.push('\n');
     out.push_str(&bar); out.push('\n');
     out.push_str(&format!("Data e Hora : {now}\n"));
-    out.push_str(&format!("Largura     : {paper_width} mm ({cols} colunas)\n"));
+    out.push_str(&format!(
+        "Papel       : {} ({cols} colunas)\n",
+        paper_label(paper_width)
+    ));
     out.push_str(&bar); out.push('\n');
     out.push_str("Se voce esta lendo isso, a impressora\n");
     out.push_str("esta configurada corretamente.\n");
     out.push_str(&bar); out.push('\n');
     out.push('\n'); out.push('\n'); out.push('\n');
     out
+}
+
+/// Colunas do texto monospace conforme o papel.
+fn columns_for(paper_width: i32) -> usize {
+    match paper_width {
+        58 => 32,
+        letaf_core::printer::model::A4_PAPER_WIDTH => 80,
+        _ => 42,
+    }
+}
+
+/// Rótulo pt-BR do papel ("58 mm", "80 mm", "Normal (A4)").
+pub(crate) fn paper_label(paper_width: i32) -> String {
+    if paper_width == letaf_core::printer::model::A4_PAPER_WIDTH {
+        "Normal (A4)".to_string()
+    } else {
+        format!("{paper_width} mm")
+    }
 }
 
 pub(crate) fn center_line(s: &str, width: usize) -> String {
@@ -172,7 +193,7 @@ pub(crate) fn to_printer_data(p: letaf_core::printer::model::Printer) -> Printer
         "fiscal" => "Nota Fiscal",
         _ => "—",
     };
-    let paper_label = format!("{} mm", p.paper_width);
+    let paper_label = paper_label(p.paper_width);
     // Resumo das categorias para exibir na listagem. Vazio = recebe
     // tudo (catch-all); senão "N categoria(s)" — exibimos a contagem
     // para não estourar o card com nomes longos. Os nomes ficam só

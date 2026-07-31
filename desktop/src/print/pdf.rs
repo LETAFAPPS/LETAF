@@ -42,9 +42,23 @@ struct Style {
 
 impl Style {
     fn for_paper(paper_width: i32) -> Self {
-        // Térmica 58mm: papel estreito, fontes menores; 80mm: padrão.
+        // Térmica 58mm: papel estreito, fontes menores; 80mm: padrão;
+        // 210mm: folha normal (A4), com margens e corpo de folha.
         // Outros valores caem no preset 80mm (sem-fronteiras).
         match paper_width {
+            letaf_core::printer::model::A4_PAPER_WIDTH => Self {
+                page_width_mm: 210.0,
+                margin_mm: 18.0,
+                line_height_mm: 6.0,
+                title_pt: 18.0,
+                modality_pt: 14.0,
+                customer_pt: 14.0,
+                body_strong_pt: 12.0,
+                body_pt: 11.0,
+                addons_pt: 9.5,
+                section_pt: 9.5,
+                total_pt: 16.0,
+            },
             58 => Self {
                 page_width_mm: 58.0,
                 margin_mm: 3.0,
@@ -75,6 +89,18 @@ impl Style {
     }
 
     fn content_width_mm(&self) -> f32 { self.page_width_mm - self.margin_mm * 2.0 }
+
+    /// Altura final da página. Bobina térmica é contínua — a página tem
+    /// exatamente a altura do conteúdo. Folha normal (A4) tem altura
+    /// fixa de 297 mm; se o conteúdo passar disso, a página cresce para
+    /// não cortar nada.
+    fn page_height_mm(&self, content_mm: f32) -> f32 {
+        if self.page_width_mm >= 210.0 {
+            content_mm.max(297.0)
+        } else {
+            content_mm
+        }
+    }
 }
 
 /// Bundle de recursos do PDF passado às helpers de baixo nível.
@@ -105,7 +131,7 @@ pub fn build_full_receipt_pdf(
     paper_width: i32,
 ) -> Result<Vec<u8>, String> {
     let style = Style::for_paper(paper_width);
-    let page_height_mm = estimate_height_full(order, customer_phone, &style);
+    let page_height_mm = style.page_height_mm(estimate_height_full(order, customer_phone, &style));
     let (doc, page1, layer1) = PdfDocument::new(
         "Cupom",
         Mm(style.page_width_mm),
@@ -143,7 +169,8 @@ pub fn build_kitchen_receipt_pdf(
     paper_width: i32,
 ) -> Result<Vec<u8>, String> {
     let style = Style::for_paper(paper_width);
-    let page_height_mm = estimate_height_kitchen(order, customer_phone, &style);
+    let page_height_mm =
+        style.page_height_mm(estimate_height_kitchen(order, customer_phone, &style));
     let (doc, page1, layer1) = PdfDocument::new(
         "Comanda",
         Mm(style.page_width_mm),

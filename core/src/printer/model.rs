@@ -32,8 +32,9 @@ pub struct Printer {
     /// Impressora padrão para o `kind`. Apenas 1 por tipo (forçado
     /// pelo service via UPDATE em transação).
     pub is_default: bool,
-    /// Largura do papel em mm — 58 ou 80 (térmicas mais comuns).
-    /// Afeta a quantidade de colunas do texto monospace gerado.
+    /// Largura do papel em mm — 58 ou 80 (térmicas) ou 210 (folha
+    /// normal A4). Afeta a página do PDF e a quantidade de colunas do
+    /// texto monospace gerado.
     pub paper_width: i32,
     /// IDs de categorias que esta impressora atende. Quando vazio, a
     /// impressora age como "catch-all" — recebe todos os itens da
@@ -76,7 +77,9 @@ impl Printer {
 /// Tipos válidos para `Printer.kind`. Mudanças aqui exigem migração.
 pub const PRINTER_KINDS: &[&str] = &["order", "kitchen", "fiscal"];
 
-/// Larguras de papel suportadas (mm). Térmicas residenciais raramente
-/// fogem dessa lista; impressoras de mesa A4 podem ser cadastradas
-/// com `80` (não usamos width pra A4 — o driver lida).
-pub const PAPER_WIDTHS: &[i32] = &[58, 80];
+/// Larguras de papel suportadas (mm): 58 e 80 são as bobinas térmicas
+/// mais comuns; 210 é a folha normal (A4) das impressoras de mesa.
+pub const PAPER_WIDTHS: &[i32] = &[58, 80, A4_PAPER_WIDTH];
+
+/// Largura da folha A4 em mm — o "papel normal" do cadastro.
+pub const A4_PAPER_WIDTH: i32 = 210;

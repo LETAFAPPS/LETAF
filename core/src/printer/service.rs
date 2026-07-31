@@ -141,7 +141,7 @@ fn validate(name: &str, kind: &str, system_name: &str, paper_width: i32) -> Resu
     }
     if !PAPER_WIDTHS.contains(&paper_width) {
         return Err(CoreError::Validation(format!(
-            "Largura de papel não suportada: {paper_width} (esperado 58 ou 80)"
+            "Largura de papel não suportada: {paper_width} (esperado 58, 80 ou 210)"
         )));
     }
     Ok(())
