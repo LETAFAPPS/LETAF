@@ -85,7 +85,7 @@ fn columns_for(paper_width: i32) -> usize {
 /// Rótulo pt-BR do papel ("58 mm", "80 mm", "Normal (A4)").
 pub(crate) fn paper_label(paper_width: i32) -> String {
     if paper_width == letaf_core::printer::model::A4_PAPER_WIDTH {
-        "Normal (A4)".to_string()
+        "A4".to_string()
     } else {
         format!("{paper_width} mm")
     }

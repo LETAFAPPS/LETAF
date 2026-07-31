@@ -306,7 +306,8 @@ export component CategoriesPage inherits Rectangle {
     property <bool> narrow: self.width < 1000px;
 
     VerticalLayout {
-        padding: 24px;
+        // Sem padding: a distância das paredes vem do wrapper (main.slint).
+        padding: 0px;
         spacing: 18px;
         // Sem `alignment: start`: senão o `vertical-stretch` do bloco de
         // detalhe é ignorado e, no modo estreito (Flickable, altura

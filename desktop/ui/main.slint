@@ -1728,17 +1728,15 @@ export component MainWindow inherits Window {
             horizontal-stretch: 1;
             VerticalLayout {
                 min-width: 0;
-                // Reports = 0px aqui: a página gerencia o próprio padding
-                // internamente (header/abas com 24px; o ScrollView ocupa a
-                // largura toda e insere os 24px por dentro, dando folga p/ a
-                // sombra dos cards roláveis). Master-detail = 16px (mostra a
-                // borda lateral do painel secundário). Demais = 24px.
+                // TODAS as telas ficam a 24px das paredes (referência:
+                // Caixa e Clientes). Duas exceções, ambas para chegar nos
+                // mesmos 24px finais:
+                // - Relatórios = 0px: a página aplica os 24px por dentro do
+                //   ScrollView, dando folga p/ a sombra dos cards roláveis;
+                // - Assinatura = 12px: a página já reserva 12px de folga
+                //   para a sombra dentro do Flickable.
                 padding: root.active-tab == "reports" ? 0px
-                    : ((root.active-tab == "categories"
-                        || root.active-tab == "collaborators") ? 16px
-                    // Produtos e Clientes usam 24px — mesma distância das
-                    // paredes que a tela Caixa (e as demais telas padrão).
-                    : 24px);
+                    : (root.active-tab == "subscription" ? 12px : 24px);
                 spacing: 16px;
 
                 // ── Painel do administrador (super admin) ──

@@ -280,7 +280,7 @@ export component PrinterModal inherits Rectangle {
                             for opt[oi] in [
                                 { value: 58, label: "58 mm" },
                                 { value: 80, label: "80 mm" },
-                                { value: 210, label: "Normal (A4)" },
+                                { value: 210, label: "A4" },
                             ]: paper-ta := TouchArea {
                                 clicked => { root.printer-paper-width = opt.value; }
                                 Rectangle {

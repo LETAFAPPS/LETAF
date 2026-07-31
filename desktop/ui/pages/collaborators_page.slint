@@ -351,7 +351,8 @@ export component CollaboratorsPage inherits Rectangle {
     property <string> tab: "roles";
 
     VerticalLayout {
-        padding: 24px;
+        // Sem padding: a distância das paredes vem do wrapper (main.slint).
+        padding: 0px;
         spacing: 18px;
 
         // ── Cabeçalho + segmentado de abas ──

@@ -150,7 +150,8 @@ export component TreasuryPage inherits VerticalLayout {
     callback open-withdraw();
     callback open-goal();
 
-    padding: 24px;
+    // Sem padding: a distância das paredes vem do wrapper (main.slint).
+    padding: 0px;
     spacing: 16px;
 
     // ── Cabeçalho: título + filtro de período ──

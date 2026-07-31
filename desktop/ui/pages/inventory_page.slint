@@ -274,7 +274,8 @@ export component InventoryPage inherits VerticalLayout {
     callback request-add-stock(string);
     callback request-edit-stock(string);
 
-    padding: 16px;
+    // Sem padding: a distância das paredes vem do wrapper (main.slint).
+    padding: 0px;
     spacing: 14px;
 
     // ── Cabeçalho: título + resumo · busca · Sincronizar ───────────
