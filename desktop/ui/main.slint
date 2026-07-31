@@ -75,7 +75,7 @@ import {
 import { ReportsPage } from "pages/reports_page.slint";
 import { FinanceKpi, FinanceTab, FinanceEntryRow, FinanceCategoryOption, FinanceCashFlowPoint, FinanceCalendarCell, FinanceDayRow } from "types.slint";
 import { WalletSummary, WalletMovementRow } from "types.slint";
-import { TreasurySummary, TreasuryMovementRow, TreasuryChartBar } from "types.slint";
+import { TreasurySummary, TreasuryMovementRow, TreasuryChartBar, TreasuryBreakdownRow } from "types.slint";
 import { WalletDepositModal, WalletWithdrawModal, WalletAdjustModal, WalletLimitModal } from "modals/wallet_modals.slint";
 import { FinancePage } from "pages/finance_page.slint";
 import { TreasuryPage } from "pages/treasury_page.slint";
@@ -1307,6 +1307,9 @@ export component MainWindow inherits Window {
     in-out property <string> treasury-notes-input: "";
     in-out property <string> treasury-setup-error: "";
     in-out property <[TreasuryChartBar]> treasury-chart: [];
+    // Detalhamento do dia (entradas e saídas por origem).
+    in-out property <[TreasuryBreakdownRow]> treasury-breakdown-in: [];
+    in-out property <[TreasuryBreakdownRow]> treasury-breakdown-out: [];
     // Modal de aporte/retirada/meta.
     in-out property <bool> treasury-show-modal: false;
     in-out property <string> treasury-modal-kind: "deposit";
@@ -2378,6 +2381,8 @@ export component MainWindow inherits Window {
                 summary: root.treasury-summary;
                 movements: root.treasury-movements;
                 chart: root.treasury-chart;
+                breakdown-in: root.treasury-breakdown-in;
+                breakdown-out: root.treasury-breakdown-out;
                 initial-input <=> root.treasury-initial-input;
                 notes-input <=> root.treasury-notes-input;
                 setup-error: root.treasury-setup-error;

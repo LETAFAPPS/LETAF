@@ -1525,15 +1525,6 @@ export struct TreasurySummary {
     net-positive: bool,
     /// Rótulo do período do resultado ("SALDO LÍQUIDO DO DIA").
     net-label: string,
-    // Detalhamento por origem (formatados; entradas com +, saídas com −).
-    orders-display: string,
-    deposits-display: string,
-    finance-in-display: string,
-    finance-out-display: string,
-    withdrawals-display: string,
-    /// Aportes/retiradas manuais do caixa da empresa.
-    manual-in-display: string,
-    manual-out-display: string,
     movements-count: int,
     // Meta de reserva do mês.
     goal-progress: float,
@@ -1549,6 +1540,22 @@ export struct TreasuryMovementRow {
     amount-display: string,
     /// "pos" | "neg".
     tone: string,
+}
+
+/// Linha do card "Detalhamento" — uma origem de entrada ou de saída.
+/// Tudo já formatado no Rust (§1/§14): a UI só desenha rótulo, valor e
+/// a barra proporcional.
+export struct TreasuryBreakdownRow {
+    /// "Pedidos pagos", "Saques da carteira de clientes"…
+    label: string,
+    /// Valor formatado com sinal ("+ R$ 12,50").
+    value: string,
+    /// 0.0–1.0 na escala da maior origem do grupo (largura da barra).
+    share: float,
+    /// `true` = saída (pinta em vermelho).
+    negative: bool,
+    /// `true` quando a origem não teve movimento no dia (linha apagada).
+    muted: bool,
 }
 
 /// Barra do mini-gráfico do card de saldo (evolução do período).

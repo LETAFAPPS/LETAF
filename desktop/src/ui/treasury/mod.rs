@@ -32,7 +32,9 @@ use letaf_core::wallet::model::WalletMovementKind;
 
 use crate::context::DesktopState;
 use crate::format::{format_order_date, format_order_time, money_br};
-use crate::{MainWindow, TreasuryChartBar, TreasuryMovementRow, TreasurySummary};
+use crate::{
+    MainWindow, TreasuryBreakdownRow, TreasuryChartBar, TreasuryMovementRow, TreasurySummary,
+};
 
 use super::helpers::{friendly_error, show_toast};
 
@@ -58,16 +60,18 @@ struct SummaryRaw {
     initial: Decimal,
     inflow: Decimal,
     outflow: Decimal,
-    orders_in: Decimal,
-    deposits_in: Decimal,
-    finance_in: Decimal,
-    finance_out: Decimal,
-    withdrawals_out: Decimal,
-    manual_in: Decimal,
-    manual_out: Decimal,
+    /// Detalhamento do dia por origem (entradas e saídas).
+    breakdown: Vec<BreakdownRaw>,
     movements_count: i32,
     goal: Decimal,
     reserved: Decimal,
+}
+
+/// Uma origem do detalhamento (já somada no dia).
+struct BreakdownRaw {
+    label: &'static str,
+    amount: Decimal,
+    negative: bool,
 }
 
 struct MovementRaw {
@@ -273,13 +277,43 @@ async fn build_snapshot(
         initial: treasury.initial_balance,
         inflow,
         outflow,
-        orders_in: by_source("Pedido", true),
-        deposits_in: by_source("Carteira", true),
-        finance_in: by_source("Financeiro", true),
-        finance_out: by_source("Financeiro", false),
-        withdrawals_out: by_source("Carteira", false),
-        manual_in: by_source("Caixa", true),
-        manual_out: by_source("Caixa", false),
+        breakdown: vec![
+            BreakdownRaw {
+                label: "Pedidos pagos",
+                amount: by_source("Pedido", true),
+                negative: false,
+            },
+            BreakdownRaw {
+                label: "Depósitos na carteira de clientes",
+                amount: by_source("Carteira", true),
+                negative: false,
+            },
+            BreakdownRaw {
+                label: "Financeiro · recebimentos",
+                amount: by_source("Financeiro", true),
+                negative: false,
+            },
+            BreakdownRaw {
+                label: "Aportes no caixa",
+                amount: by_source("Caixa", true),
+                negative: false,
+            },
+            BreakdownRaw {
+                label: "Financeiro · pagamentos",
+                amount: by_source("Financeiro", false),
+                negative: true,
+            },
+            BreakdownRaw {
+                label: "Saques da carteira de clientes",
+                amount: by_source("Carteira", false),
+                negative: true,
+            },
+            BreakdownRaw {
+                label: "Retiradas do caixa",
+                amount: by_source("Caixa", false),
+                negative: true,
+            },
+        ],
         movements_count: movements.len() as i32,
         goal: treasury.reserve_goal,
         reserved: month_in - month_out,
@@ -298,13 +332,7 @@ fn empty_summary() -> SummaryRaw {
         initial: Decimal::ZERO,
         inflow: Decimal::ZERO,
         outflow: Decimal::ZERO,
-        orders_in: Decimal::ZERO,
-        deposits_in: Decimal::ZERO,
-        finance_in: Decimal::ZERO,
-        finance_out: Decimal::ZERO,
-        withdrawals_out: Decimal::ZERO,
-        manual_in: Decimal::ZERO,
-        manual_out: Decimal::ZERO,
+        breakdown: Vec::new(),
         movements_count: 0,
         goal: Decimal::ZERO,
         reserved: Decimal::ZERO,
@@ -391,13 +419,6 @@ fn apply_to_ui(
         }),
         net_positive: net >= Decimal::ZERO,
         net_label: SharedString::from("SALDO LÍQUIDO DO DIA"),
-        orders_display: SharedString::from(format!("+ {}", money_br(s.orders_in))),
-        deposits_display: SharedString::from(format!("+ {}", money_br(s.deposits_in))),
-        finance_in_display: SharedString::from(format!("+ {}", money_br(s.finance_in))),
-        finance_out_display: SharedString::from(format!("− {}", money_br(s.finance_out))),
-        withdrawals_display: SharedString::from(format!("− {}", money_br(s.withdrawals_out))),
-        manual_in_display: SharedString::from(format!("+ {}", money_br(s.manual_in))),
-        manual_out_display: SharedString::from(format!("− {}", money_br(s.manual_out))),
         movements_count: s.movements_count,
         goal_progress,
         goal_display: SharedString::from(goal_display),
@@ -427,7 +448,39 @@ fn apply_to_ui(
         })
         .collect();
     ui.set_treasury_movements(ModelRc::new(VecModel::from(rows)));
+
+    ui.set_treasury_breakdown_in(breakdown_model(&s.breakdown, false));
+    ui.set_treasury_breakdown_out(breakdown_model(&s.breakdown, true));
     ui.set_treasury_chart(ModelRc::new(VecModel::from(chart.to_vec())));
+}
+
+/// Monta o modelo de um dos grupos do detalhamento. A barra de cada
+/// linha é proporcional à MAIOR origem do grupo; origens zeradas ficam
+/// apagadas e sem barra.
+fn breakdown_model(rows: &[BreakdownRaw], negative: bool) -> ModelRc<TreasuryBreakdownRow> {
+    use rust_decimal::prelude::ToPrimitive;
+    let group: Vec<&BreakdownRaw> = rows.iter().filter(|r| r.negative == negative).collect();
+    let max = group
+        .iter()
+        .map(|r| r.amount)
+        .max()
+        .unwrap_or(Decimal::ZERO);
+    let sign = if negative { "−" } else { "+" };
+    let out: Vec<TreasuryBreakdownRow> = group
+        .iter()
+        .map(|r| TreasuryBreakdownRow {
+            label: SharedString::from(r.label),
+            value: SharedString::from(format!("{sign} {}", money_br(r.amount))),
+            share: if max > Decimal::ZERO {
+                (r.amount / max).to_f64().unwrap_or(0.0) as f32
+            } else {
+                0.0
+            },
+            negative,
+            muted: r.amount <= Decimal::ZERO,
+        })
+        .collect();
+    ModelRc::new(VecModel::from(out))
 }
 
 // ── Cadastro inicial ────────────────────────────────────────────
