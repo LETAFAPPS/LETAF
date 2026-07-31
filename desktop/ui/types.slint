@@ -165,9 +165,18 @@ export struct AdminPlanRow {
     name: string,
     amount-display: string,        // "R$ 200,00"
     monthly-display: string,       // "R$ 200,00/mês"
+    /// Só o valor mensal, sem sufixo ("R$ 199,00") — preço grande do card.
+    monthly-value: string,
     period-days: int,
     trial-days: int,
     description: string,
+    /// Itens do plano derivados da descrição (uma linha por benefício),
+    /// prontos para a lista com "✓" no card.
+    features: [string],
+    /// Rodapé do card: "59" / "assinantes".
+    subscribers-display: string,
+    /// Ciclo por extenso ("a cada 30 dias · 7 dias grátis").
+    cycle-display: string,
     highlight-label: string,
     active: bool,
     companies: int,                // empresas usando o plano

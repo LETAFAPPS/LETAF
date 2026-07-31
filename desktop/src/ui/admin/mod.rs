@@ -642,6 +642,22 @@ fn apply_sub_filter(ui: &MainWindow, cache: &SubsCache) {
     ui.global::<AdminState>().set_sub_plan_filter_label(plan_label.into());
 }
 
+/// Benefícios do plano a partir da descrição livre: uma linha por item.
+/// Aceita quebra de linha, "·", ";" ou "•" como separador — o admin
+/// escreve como preferir e o card lista com "✓".
+fn plan_features(description: &str) -> Vec<slint::SharedString> {
+    let normalized = description
+        .replace(['·', ';', '•'], "\n")
+        .replace(" - ", "\n");
+    normalized
+        .lines()
+        .map(str::trim)
+        .filter(|l| !l.is_empty())
+        .take(6)
+        .map(slint::SharedString::from)
+        .collect()
+}
+
 /// Aplica busca (nome) aos planos — reaplica sobre o cache, sem ir à rede.
 fn apply_plan_filter(ui: &MainWindow, cache: &PlansCache) {
     let search = ui.global::<AdminState>().get_plan_search().to_string();
@@ -657,6 +673,20 @@ fn apply_plan_filter(ui: &MainWindow, cache: &PlansCache) {
             period_days: p.period_days,
             trial_days: p.trial_days,
             description: p.description.clone().into(),
+            monthly_value: brl(p.monthly_price).into(),
+            features: ModelRc::new(VecModel::from(plan_features(&p.description))),
+            subscribers_display: p.companies.to_string().into(),
+            cycle_display: format!(
+                "a cada {} {}{}",
+                p.period_days,
+                if p.period_days == 1 { "dia" } else { "dias" },
+                if p.trial_days > 0 {
+                    format!(" · {} dias grátis", p.trial_days)
+                } else {
+                    String::new()
+                }
+            )
+            .into(),
             highlight_label: p.highlight_label.clone().into(),
             active: p.active,
             companies: p.companies as i32,
