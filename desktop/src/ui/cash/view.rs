@@ -9,9 +9,7 @@ use crate::{
     CashMethodTotalRow, CashMovementRow, CashSessionRow, CashSummaryData, MainWindow,
 };
 
-use rust_decimal::prelude::ToPrimitive;
 use crate::format::{money_br as fmt_brl, money_br_signed as fmt_brl_signed};
-use super::super::helpers::half_donut_arc;
 use super::core::{fmt_duration, now_local, to_local};
 
 pub(crate) fn apply_to_ui(
@@ -57,11 +55,6 @@ pub(crate) fn apply_to_ui(
     } else {
         rust_decimal::Decimal::ZERO
     };
-    let cash_count = summary
-        .by_method
-        .get("cash")
-        .map(|m| m.count)
-        .unwrap_or(0);
     let total_expected = summary.by_method.values().map(|m| m.amount).sum::<rust_decimal::Decimal>();
 
     let s_data = CashSummaryData {
@@ -70,23 +63,11 @@ pub(crate) fn apply_to_ui(
         status_subtitle: SharedString::from(status_subtitle),
         opened_summary: SharedString::from(opened_summary),
         total_day_display: SharedString::from(fmt_brl(total_day)),
-        total_day_meta: SharedString::from(format!(
-            "{} vendas · ticket médio {}",
-            summary.sales_count,
-            fmt_brl(ticket_avg)
-        )),
         cash_now_display: SharedString::from(fmt_brl(cash_now)),
-        cash_now_meta: SharedString::from(format!("{} vendas · saldo no caixa", cash_count)),
+        sales_count_display: SharedString::from(summary.sales_count.to_string()),
+        ticket_display: SharedString::from(fmt_brl(ticket_avg)),
         sangrias_display: SharedString::from(fmt_brl(summary.sangria_total)),
-        sangrias_meta: SharedString::from(format!(
-            "{} saídas",
-            summary.sangria_count
-        )),
         suprimentos_display: SharedString::from(fmt_brl(summary.suprimento_total)),
-        suprimentos_meta: SharedString::from(format!(
-            "{} entradas",
-            summary.suprimento_count
-        )),
         total_expected_display: SharedString::from(fmt_brl(total_expected)),
         session_id: SharedString::from(active.map(|s| s.base.id.to_string()).unwrap_or_default()),
         suggested_change_display: SharedString::from(fmt_brl(letaf_core::money::from_db_f64(suggested))),
@@ -210,38 +191,27 @@ pub(crate) fn apply_to_ui(
         .collect();
     ui.set_cash_movements(ModelRc::new(VecModel::from(mv_rows)));
 
-    // Totais por método — fatias encadeadas da meia-lua (gauge): cada
-    // arco ocupa sua fração do total recebido.
-    let method_total = summary.by_method.values().map(|m| m.amount).sum::<rust_decimal::Decimal>();
+    // Totais por forma de pagamento — uma linha por forma no card
+    // "Pagamentos" (rótulo, nº de transações e valor recebido).
     let methods = [
         ("cash", "Dinheiro", "money"),
         ("pix", "PIX", "pix"),
         ("credit", "Cartão Crédito", "credit"),
         ("debit", "Cartão Débito", "debit"),
     ];
-    let mut acc = 0.0_f64;
     let mt_rows: Vec<CashMethodTotalRow> = methods
         .iter()
         .map(|(key, label, ui_key)| {
             let totals = summary.by_method.get(*key).copied().unwrap_or_default();
-            let frac = if method_total > rust_decimal::Decimal::ZERO { (totals.amount / method_total).to_f64().unwrap_or(0.0) } else { 0.0 };
-            let arc = half_donut_arc(acc, acc + frac);
-            // Ponto médio do arco (viewbox 0..100 × 0..56, centro (50,50),
-            // raio 40) → relativo 0..1 pra área de hover ligar gráfico↔ícone.
-            let mid = acc + frac / 2.0;
-            let angle = std::f64::consts::PI * (1.0 - mid); // 0=fim(dir) .. PI=início(esq)
-            let hit_x = (50.0 + 40.0 * angle.cos()) / 100.0;
-            let hit_y = (50.0 - 40.0 * angle.sin()) / 56.0;
-            acc += frac;
             CashMethodTotalRow {
                 label: SharedString::from(*label),
                 key: SharedString::from(*ui_key),
-                count_display: SharedString::from(format!("×{}", totals.count)),
+                count_display: SharedString::from(format!(
+                    "{} {}",
+                    totals.count,
+                    if totals.count == 1 { "transação" } else { "transações" }
+                )),
                 amount_display: SharedString::from(fmt_brl(totals.amount)),
-                arc_commands: SharedString::from(arc),
-                has_value: frac > 0.0,
-                hit_x: hit_x as f32,
-                hit_y: hit_y as f32,
             }
         })
         .collect();

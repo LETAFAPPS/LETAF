@@ -2,17 +2,101 @@ import { ScrollView } from "std-widgets.slint";
 import { Theme } from "../theme.slint";
 import { Card } from "../components/cards.slint";
 import { ActionBtn, OutlineBtn } from "../components/buttons.slint";
-import { CashIcon, CardIcon } from "../components/cash_icons.slint";
 import { AssetIcon } from "../components/icons.slint";
 import { EmptyState } from "../components/empty_state.slint";
 import { CashSessionRow, CashMovementRow, CashMethodTotalRow, CashSummaryData } from "../types.slint";
 
 // ── Tela: Gestão de Caixa ─────────────────────────────────────────
 // Dois estados controlados por `summary.open`:
-//   - fechado: card header neutro + tabela histórico + abrir caixa
-//   - aberto:  4 cards de totais + métodos + timeline + 3 botões
+//   - fechado: cabeçalho + histórico de sessões + abrir caixa
+//   - aberto:  card escuro "Total Esperado", cards de totais,
+//              "Pagamentos" (esq.) e "Movimentações" (dir.)
 //
 // AI_RULES §1/§14: tudo já vem formatado de Rust; UI só pinta.
+
+// Botão do filtro segmentado de movimentações.
+component SegBtn inherits TouchArea {
+    in property <string> label;
+    in property <bool> selected;
+    in property <length> pad: 12px;
+    height: 28px;
+    width: seg-t.preferred-width + root.pad * 2;
+    Rectangle {
+        border-radius: 7px;
+        background: root.selected ? Theme.btn-accent
+            : (root.has-hover ? Theme.row-hover : transparent);
+        seg-t := Text {
+            width: parent.width; height: parent.height;
+            text: root.label;
+            font-size: 11.5px; font-weight: root.selected ? 700 : 600;
+            color: root.selected ? white : Theme.text-secondary;
+            horizontal-alignment: center; vertical-alignment: center;
+        }
+    }
+}
+
+// Card de total com barra de acento à esquerda (Total / Sangrias / Suprimentos).
+component StatCard inherits Rectangle {
+    in property <string> label;
+    in property <string> value;
+    in property <color> accent;
+    horizontal-stretch: 1;
+    preferred-width: 0px;
+    height: 76px;
+    border-radius: 12px;
+    border-width: 1px;
+    border-color: Theme.card-border;
+    drop-shadow-blur: 12px;
+    drop-shadow-offset-y: 0px;
+    drop-shadow-color: Theme.card-shadow;
+    background: Theme.surface;
+    clip: true;
+    // Faixa de acento (a cor identifica o tipo do total).
+    Rectangle {
+        x: 0; y: 0;
+        width: 4px; height: parent.height;
+        background: root.accent;
+    }
+    VerticalLayout {
+        padding-left: 18px; padding-right: 14px;
+        padding-top: 14px; padding-bottom: 14px;
+        spacing: 5px;
+        alignment: center;
+        Text {
+            text: root.label;
+            font-size: 10px; font-weight: 800;
+            letter-spacing: 1px;
+            color: Theme.text-secondary;
+        }
+        Text {
+            text: root.value;
+            font-size: 20px; font-weight: 800;
+            color: Theme.text-primary;
+        }
+    }
+}
+
+// Bloco de métrica do rodapé do card escuro.
+component HeroStat inherits VerticalLayout {
+    in property <string> label;
+    in property <string> value;
+    in property <color> value-color: white;
+    horizontal-stretch: 1;
+    preferred-width: 0px;
+    spacing: 3px;
+    Text {
+        text: root.label;
+        font-size: 9px; font-weight: 800;
+        letter-spacing: 1px;
+        color: #A8A29A;
+    }
+    Text {
+        text: root.value;
+        font-size: 14px; font-weight: 800;
+        color: root.value-color;
+        overflow: elide;
+    }
+}
 
 export component CashPage inherits VerticalLayout {
     in property <CashSummaryData> summary;
@@ -23,11 +107,6 @@ export component CashPage inherits VerticalLayout {
     // Filtro local da lista de movimentações: "all" | "sale" | "sangria" | "suprimento"
     // Vive na UI porque é responsabilidade puramente visual (§14).
     in-out property <string> mv-filter: "all";
-
-    // Índice da forma de pagamento destacada no card "Pagamentos" — liga
-    // a legenda (ícones) ao gráfico meia-lua nos dois sentidos. -1 = nenhum.
-    // Puramente visual (hover), sem lógica de negócio (§14).
-    property <int> pay-hovered: -1;
 
     callback request-open();
     callback request-sangria();
@@ -44,52 +123,45 @@ export component CashPage inherits VerticalLayout {
             : #F9A825));  // debit
     }
 
-    // Sem padding interno — o wrapper do main.slint já aplica
-    // 24px ao redor (mesmo espaçamento da tela de Pedidos).
+    // Cor do ícone de cada tipo de movimentação.
+    pure function kind-color(kind: string) -> color {
+        return kind == "sale" ? #2E7D32
+            : (kind == "sangria" ? Theme.danger
+            : (kind == "suprimento" ? #1E88E5
+            : Theme.btn-accent));  // abertura
+    }
+
+    // Sem padding interno — o wrapper do main.slint já aplica 24px ao redor.
     padding: 0px;
     spacing: 16px;
 
-    // Header — mesmo padrão dos demais cards (superfície clara + borda);
-    // ícone e textos adaptados ao tema. Ícone em caixa, título + badge de
-    // tempo, data/admin e ações.
-    Rectangle {
-        height: 100px;
-        border-radius: 10px;
-        border-width: 1px;
-        border-color: Theme.card-border;
-        drop-shadow-blur: 12px;
-        drop-shadow-offset-y: 0px;
-        drop-shadow-color: Theme.card-shadow;
-        background: Theme.surface;
-        HorizontalLayout {
-            padding: 18px;
-            spacing: 16px;
-            // Ícone do cadeado, sem fundo, na cor do tema.
-            VerticalLayout {
-                alignment: center;
-                AssetIcon {
-                    width: 56px; height: 56px;
-                    icon-size: 44px;
-                    icon-color: Theme.text-primary;
-                    source: root.summary.open
-                        ? @image-url("../assets/icons/cadeado-aberto.svg")
-                        : @image-url("../assets/icons/seguranca.svg");
-                }
-            }
-            // Título + badge de tempo + sub-linha (data/admin).
-            VerticalLayout {
-                horizontal-stretch: 1;
-                alignment: center;
-                spacing: 5px;
-                HorizontalLayout {
-                    spacing: 10px;
-                    Text {
-                        text: root.summary.status-headline;
-                        font-size: 19px; font-weight: 800;
-                        color: Theme.text-primary;
-                        vertical-alignment: center;
+    // ── Cabeçalho ─────────────────────────────────────────────────
+    // Sem card: status (bolinha + título + selo de tempo), sub-linha e ações.
+    HorizontalLayout {
+        spacing: 12px;
+        VerticalLayout {
+            horizontal-stretch: 1;
+            alignment: center;
+            spacing: 4px;
+            HorizontalLayout {
+                spacing: 10px;
+                VerticalLayout {
+                    alignment: center;
+                    Rectangle {
+                        width: 9px; height: 9px;
+                        border-radius: 5px;
+                        background: root.summary.open ? #4CAF50 : Theme.text-secondary;
                     }
-                    if root.summary.open && root.summary.status-subtitle != "": Rectangle {
+                }
+                Text {
+                    text: root.summary.status-headline;
+                    font-size: 22px; font-weight: 800;
+                    color: Theme.text-primary;
+                    vertical-alignment: center;
+                }
+                if root.summary.open && root.summary.status-subtitle != "": VerticalLayout {
+                    alignment: center;
+                    Rectangle {
                         height: 22px;
                         width: badge-txt.preferred-width + 20px;
                         border-radius: 11px;
@@ -102,79 +174,70 @@ export component CashPage inherits VerticalLayout {
                             horizontal-alignment: center; vertical-alignment: center;
                         }
                     }
-                    Rectangle { horizontal-stretch: 1; }
                 }
-                Text {
-                    text: root.summary.open ? root.summary.opened-summary : root.summary.status-subtitle;
-                    font-size: 12px; color: Theme.text-secondary;
-                }
+                Rectangle { horizontal-stretch: 1; background: transparent; }
             }
-            // Ações.
-            if !root.summary.open: VerticalLayout {
-                alignment: center;
+            Text {
+                text: root.summary.open ? root.summary.opened-summary : root.summary.status-subtitle;
+                font-size: 12px; color: Theme.text-secondary;
+            }
+        }
+        // Ações.
+        if !root.summary.open: VerticalLayout {
+            alignment: center;
+            ActionBtn {
+                label: "Abrir Caixa";
+                bg-color: Theme.btn-accent;
+                icon: @image-url("../assets/icons/cadeado-aberto.svg");
+                width: 150px; height: 38px;
+                clicked => { root.request-open(); }
+            }
+        }
+        if root.summary.open: VerticalLayout {
+            alignment: center;
+            HorizontalLayout {
+                spacing: 8px;
+                OutlineBtn {
+                    label: "Sangria";
+                    btn-color: Theme.danger;
+                    icon: @image-url("../assets/icons/saida-estoque.svg");
+                    width: 128px; height: 38px;
+                    clicked => { root.request-sangria(); }
+                }
+                OutlineBtn {
+                    label: "Suprimento";
+                    btn-color: #1E88E5;
+                    icon: @image-url("../assets/icons/entrada-estoque.svg");
+                    width: 140px; height: 38px;
+                    clicked => { root.request-suprimento(); }
+                }
                 ActionBtn {
-                    label: "Abrir Caixa";
+                    label: "Fechar Caixa";
                     bg-color: Theme.btn-accent;
-                    width: 130px; height: 32px;
-                    clicked => { root.request-open(); }
-                }
-            }
-            if root.summary.open: VerticalLayout {
-                alignment: center;
-                HorizontalLayout {
-                    spacing: 8px;
-                    OutlineBtn {
-                        label: "Sangria";
-                        btn-color: Theme.danger;
-                        hover-color: Theme.danger;
-                        width: 120px; height: 32px;
-                        clicked => { root.request-sangria(); }
-                    }
-                    OutlineBtn {
-                        label: "Suprimento";
-                        btn-color: Theme.btn-accent;
-                        hover-color: #2E7D32;
-                        width: 120px; height: 32px;
-                        clicked => { root.request-suprimento(); }
-                    }
-                    ActionBtn {
-                        label: "Fechar Caixa";
-                        bg-color: Theme.btn-accent;
-                        width: 140px; height: 32px;
-                        clicked => { root.request-close(); }
-                    }
+                    icon: @image-url("../assets/icons/seguranca.svg");
+                    width: 150px; height: 38px;
+                    clicked => { root.request-close(); }
                 }
             }
         }
     }
 
-    // ── Estado FECHADO ─────────────────────────────────────────────
-    // (Removido: linha "Sugestão de troco / Operador / Sessões 7d" —
-    //  pediu o usuário pra ir direto pro histórico abaixo do header.)
-
-    if !root.summary.open: Rectangle {
+    // ── Estado FECHADO: histórico de sessões ──────────────────────
+    if !root.summary.open: Card {
         vertical-stretch: 1;
-        border-radius: 10px;
-        border-width: 1px;
-        border-color: Theme.card-border;
-        drop-shadow-blur: 12px;
-        drop-shadow-offset-y: 0px;
-        drop-shadow-color: Theme.card-shadow;
-        background: Theme.surface;
+        border-radius: 14px;
         VerticalLayout {
             padding: 0px;
             spacing: 0px;
 
-            // Header — MESMO estilo do card de cima: SEM fundo próprio (o card
-            // já é `Theme.surface`) e com o mesmo padding de 18px. Um fundo
-            // aqui teria cantos RETOS e pintaria por cima dos cantos
-            // arredondados do card, "quadrando" o topo.
+            // Cabeçalho do card — sem fundo próprio (o card já é surface):
+            // um fundo aqui teria cantos retos sobre as pontas arredondadas.
             VerticalLayout {
                 padding: 18px;
                 spacing: 2px;
                 Text {
-                    text: "Sessões Anteriores";
-                    font-size: 14px; font-weight: 700;
+                    text: "SESSÕES ANTERIORES";
+                    font-size: 11px; font-weight: 800; letter-spacing: 1px;
                     color: Theme.text-primary;
                 }
                 Text {
@@ -182,45 +245,46 @@ export component CashPage inherits VerticalLayout {
                     font-size: 11px; color: Theme.text-secondary;
                 }
             }
-            // Tabela header — idem, sem fundo próprio; a separação em relação
-            // às linhas é um divisor sutil (não mais a faixa bege).
+            Rectangle { height: 1px; background: Theme.border; }
+            // Cabeçalho da tabela.
             Rectangle {
-                height: 36px;
-                Rectangle {
-                    x: 0; y: parent.height - 1px;
-                    width: parent.width; height: 1px;
-                    background: Theme.border;
-                }
+                height: 34px;
+                background: transparent;
                 HorizontalLayout {
-                    padding-left: 16px; padding-right: 16px;
+                    padding-left: 18px; padding-right: 18px;
                     spacing: 8px;
-                    Text { text: "DATA"; font-size: 10px; font-weight: 700; color: Theme.text-secondary; letter-spacing: 1px; width: 100px; vertical-alignment: center; }
-                    Text { text: "ABERTURA"; font-size: 10px; font-weight: 700; color: Theme.text-secondary; letter-spacing: 1px; width: 90px; vertical-alignment: center; }
-                    Text { text: "FECHAMENTO"; font-size: 10px; font-weight: 700; color: Theme.text-secondary; letter-spacing: 1px; width: 100px; vertical-alignment: center; }
-                    Text { text: "OPERADOR"; font-size: 10px; font-weight: 700; color: Theme.text-secondary; letter-spacing: 1px; horizontal-stretch: 1; vertical-alignment: center; }
-                    Text { text: "TOTAL"; font-size: 10px; font-weight: 700; color: Theme.text-secondary; letter-spacing: 1px; width: 120px; horizontal-alignment: right; vertical-alignment: center; }
-                    Text { text: "DIFERENÇA"; font-size: 10px; font-weight: 700; color: Theme.text-secondary; letter-spacing: 1px; width: 130px; horizontal-alignment: right; vertical-alignment: center; }
-                    Text { text: "STATUS"; font-size: 10px; font-weight: 700; color: Theme.text-secondary; letter-spacing: 1px; width: 80px; horizontal-alignment: right; vertical-alignment: center; }
+                    Text { text: "DATA"; font-size: 10px; font-weight: 800; color: Theme.text-secondary; letter-spacing: 1px; width: 100px; vertical-alignment: center; }
+                    Text { text: "ABERTURA"; font-size: 10px; font-weight: 800; color: Theme.text-secondary; letter-spacing: 1px; width: 90px; vertical-alignment: center; }
+                    Text { text: "FECHAMENTO"; font-size: 10px; font-weight: 800; color: Theme.text-secondary; letter-spacing: 1px; width: 100px; vertical-alignment: center; }
+                    Text { text: "OPERADOR"; font-size: 10px; font-weight: 800; color: Theme.text-secondary; letter-spacing: 1px; horizontal-stretch: 1; vertical-alignment: center; }
+                    Text { text: "TOTAL"; font-size: 10px; font-weight: 800; color: Theme.text-secondary; letter-spacing: 1px; width: 120px; horizontal-alignment: right; vertical-alignment: center; }
+                    Text { text: "DIFERENÇA"; font-size: 10px; font-weight: 800; color: Theme.text-secondary; letter-spacing: 1px; width: 130px; horizontal-alignment: right; vertical-alignment: center; }
+                    Text { text: "STATUS"; font-size: 10px; font-weight: 800; color: Theme.text-secondary; letter-spacing: 1px; width: 80px; horizontal-alignment: right; vertical-alignment: center; }
                 }
             }
-            // Linhas
-            if root.sessions.length > 0: ScrollView { vertical-scrollbar-policy: ScrollBarPolicy.always-off; horizontal-scrollbar-policy: ScrollBarPolicy.always-off;
+            Rectangle { height: 1px; background: Theme.border; }
+            if root.sessions.length > 0: ScrollView {
+                vertical-scrollbar-policy: ScrollBarPolicy.as-needed;
+                horizontal-scrollbar-policy: ScrollBarPolicy.always-off;
                 vertical-stretch: 1;
                 VerticalLayout {
+                    alignment: start;
                     for s in root.sessions: Rectangle {
-                        height: 48px;
+                        height: 46px;
+                        background: sess-ta.has-hover ? Theme.row-hover : transparent;
+                        sess-ta := TouchArea { }
                         Rectangle { x: 0; y: parent.height - 1px; width: parent.width; height: 1px; background: Theme.border; }
                         HorizontalLayout {
-                            padding-left: 16px; padding-right: 16px;
+                            padding-left: 18px; padding-right: 18px;
                             spacing: 8px;
                             Text { text: s.opened-date; font-size: 12px; color: Theme.text-primary; width: 100px; vertical-alignment: center; }
                             Text { text: s.opened-time; font-size: 12px; color: Theme.text-primary; width: 90px; vertical-alignment: center; }
                             Text { text: s.closed-time; font-size: 12px; color: Theme.text-primary; width: 100px; vertical-alignment: center; }
                             Text { text: s.operator-name; font-size: 12px; color: Theme.text-primary; horizontal-stretch: 1; vertical-alignment: center; overflow: elide; }
-                            Text { text: s.total-display; font-size: 12px; font-weight: 600; color: Theme.text-primary; width: 120px; horizontal-alignment: right; vertical-alignment: center; }
+                            Text { text: s.total-display; font-size: 12px; font-weight: 700; color: Theme.text-primary; width: 120px; horizontal-alignment: right; vertical-alignment: center; }
                             Text {
                                 text: s.difference-display;
-                                font-size: 12px; font-weight: 600;
+                                font-size: 12px; font-weight: 700;
                                 color: s.difference-display == "R$ 0,00" ? #2E7D32 : (s.difference-display == "" ? Theme.text-secondary : Theme.danger);
                                 width: 130px; horizontal-alignment: right; vertical-alignment: center;
                             }
@@ -229,8 +293,7 @@ export component CashPage inherits VerticalLayout {
                     }
                 }
             }
-            // Estado vazio CENTRALIZADO no card — irmão do ScrollView (que
-            // ancora no topo), ocupando a área abaixo do cabeçalho da tabela.
+            // Estado vazio centralizado na área abaixo do cabeçalho.
             if root.sessions.length == 0: VerticalLayout {
                 vertical-stretch: 1;
                 alignment: center;
@@ -246,354 +309,291 @@ export component CashPage inherits VerticalLayout {
 
     // ── Estado ABERTO ─────────────────────────────────────────────
     if root.summary.open: HorizontalLayout {
-        spacing: 12px;
-        // Card 1 — Total do dia (sem barra lateral, igual aos demais)
-        Rectangle {
-            horizontal-stretch: 1; height: 96px;
-            border-radius: 10px;
-            border-width: 1px;
-            border-color: Theme.card-border;
-            drop-shadow-blur: 12px;
-            drop-shadow-offset-y: 0px;
-            drop-shadow-color: Theme.card-shadow;
-            background: Theme.surface;
-            VerticalLayout {
-                padding: 14px;
-                spacing: 6px;
-                Text { text: "TOTAL"; font-size: 10px; font-weight: 700; color: Theme.text-secondary; letter-spacing: 1px; }
-                Text { text: root.summary.total-day-display; font-size: 22px; font-weight: 800; color: Theme.text-primary; }
-                Text { text: root.summary.total-day-meta; font-size: 11px; color: Theme.text-secondary; }
-            }
-        }
-        // Card 2 — Em dinheiro
-        Rectangle {
-            horizontal-stretch: 1; height: 96px;
-            border-radius: 10px;
-            border-width: 1px;
-            border-color: Theme.card-border;
-            drop-shadow-blur: 12px;
-            drop-shadow-offset-y: 0px;
-            drop-shadow-color: Theme.card-shadow;
-            background: Theme.surface;
-            VerticalLayout {
-                padding: 14px;
-                spacing: 6px;
-                Text { text: "EM DINHEIRO"; font-size: 10px; font-weight: 700; color: Theme.text-secondary; letter-spacing: 1px; }
-                Text { text: root.summary.cash-now-display; font-size: 22px; font-weight: 800; color: #2E7D32; }
-                Text { text: root.summary.cash-now-meta; font-size: 11px; color: Theme.text-secondary; }
-            }
-        }
-        // Card 3 — Sangrias
-        Rectangle {
-            horizontal-stretch: 1; height: 96px;
-            border-radius: 10px;
-            border-width: 1px;
-            border-color: Theme.card-border;
-            drop-shadow-blur: 12px;
-            drop-shadow-offset-y: 0px;
-            drop-shadow-color: Theme.card-shadow;
-            background: Theme.surface;
-            VerticalLayout {
-                padding: 14px;
-                spacing: 6px;
-                Text { text: "SANGRIAS"; font-size: 10px; font-weight: 700; color: Theme.text-secondary; letter-spacing: 1px; }
-                Text { text: root.summary.sangrias-display; font-size: 22px; font-weight: 800; color: #FF9800; }
-                Text { text: root.summary.sangrias-meta; font-size: 11px; color: Theme.text-secondary; }
-            }
-        }
-        // Card 4 — Suprimentos
-        Rectangle {
-            horizontal-stretch: 1; height: 96px;
-            border-radius: 10px;
-            border-width: 1px;
-            border-color: Theme.card-border;
-            drop-shadow-blur: 12px;
-            drop-shadow-offset-y: 0px;
-            drop-shadow-color: Theme.card-shadow;
-            background: Theme.surface;
-            VerticalLayout {
-                padding: 14px;
-                spacing: 6px;
-                Text { text: "SUPRIMENTOS"; font-size: 10px; font-weight: 700; color: Theme.text-secondary; letter-spacing: 1px; }
-                Text { text: root.summary.suprimentos-display; font-size: 22px; font-weight: 800; color: #1565C0; }
-                Text { text: root.summary.suprimentos-meta; font-size: 11px; color: Theme.text-secondary; }
-            }
-        }
-    }
-
-    if root.summary.open: HorizontalLayout {
-        spacing: 12px;
+        spacing: 16px;
         vertical-stretch: 1;
-        // Filtro local de movimentações (Slint property — não vai pro Rust).
-        // "all" | "sale" | "sangria" | "suprimento"
 
-        // Coluna esquerda — Por método de pagamento
-        // Envolvida em VerticalLayout alignment:start pra NÃO esticar com
-        // a altura do HorizontalLayout pai (que cresce pra coluna direita).
+        // ── Coluna esquerda: total esperado + pagamentos ──
         VerticalLayout {
-            width: 38%;
-            alignment: start;
+            width: 272px;
+            spacing: 16px;
+
+            // Card escuro — total esperado no fechamento.
             Rectangle {
-                border-radius: 10px;
-                border-width: 1px;
-                border-color: Theme.card-border;
-                drop-shadow-blur: 12px;
-                drop-shadow-offset-y: 0px;
-                drop-shadow-color: Theme.card-shadow;
-                background: Theme.surface;
+                height: 150px;
+                border-radius: 16px;
+                background: Theme.sidebar-bg;
+                clip: true;
+                // Brilho decorativo no canto superior direito.
+                Rectangle {
+                    x: parent.width - 68px; y: -46px;
+                    width: 150px; height: 150px;
+                    border-radius: 75px;
+                    background: Theme.btn-accent.transparentize(0.88);
+                }
                 VerticalLayout {
-                    padding: 16px;
-                    spacing: 14px;
-                    VerticalLayout {
-                        spacing: 2px;
-                        Text { text: "Pagamentos"; font-size: 14px; font-weight: 700; color: Theme.text-primary; }
-                        Text { text: "Resumo da sessão atual"; font-size: 11px; color: Theme.text-secondary; }
+                    padding: 18px;
+                    spacing: 0px;
+                    Text {
+                        text: "TOTAL ESPERADO";
+                        font-size: 10px; font-weight: 800;
+                        letter-spacing: 1.4px;
+                        color: #A8A29A;
                     }
-                    Rectangle { height: 1px; background: Theme.border; }
-                    // Gráfico MEIA-LUA único: trilho cinza + uma fatia por
-                    // forma (arcos calculados no Rust). Total esperado no miolo.
+                    Rectangle { height: 6px; }
+                    Text {
+                        text: root.summary.total-expected-display;
+                        font-size: 30px; font-weight: 800;
+                        color: white;
+                    }
+                    Rectangle { vertical-stretch: 1; background: transparent; }
+                    Rectangle { height: 1px; background: #FFFFFF14; }
+                    Rectangle { height: 12px; }
                     HorizontalLayout {
-                        alignment: center;
-                        Rectangle {
-                            width: 230px; height: 124px;
-                            // Trilho (semicírculo superior).
-                            Path {
-                                width: 100%; height: 100%;
-                                viewbox-x: 0; viewbox-y: 0;
-                                viewbox-width: 100; viewbox-height: 56;
-                                commands: "M 10 50 A 40 40 0 0 1 90 50";
-                                stroke: Theme.row-hover; stroke-width: 14px; fill: transparent;
-                            }
-                            // Fatias por forma de pagamento (destaca a fatia sob hover).
-                            for m[idx] in root.method-totals: Path {
-                                width: 100%; height: 100%;
-                                viewbox-x: 0; viewbox-y: 0;
-                                viewbox-width: 100; viewbox-height: 56;
-                                commands: m.arc-commands;
-                                stroke: idx == root.pay-hovered
-                                    ? root.method-color(m.key).brighter(0.35)
-                                    : root.method-color(m.key);
-                                stroke-width: idx == root.pay-hovered ? 17px : 14px;
-                                fill: transparent;
-                            }
-                            // Total esperado no miolo (área vazia abaixo do arco).
-                            Rectangle {
-                                x: 0; width: parent.width;
-                                y: parent.height * 0.42; height: parent.height * 0.5;
-                                VerticalLayout {
-                                    alignment: center;
-                                    Text {
-                                        text: root.summary.total-expected-display;
-                                        font-size: 20px; font-weight: 800;
-                                        color: Theme.text-primary;
-                                        horizontal-alignment: center;
-                                    }
-                                    Text {
-                                        text: "Total Esperado";
-                                        font-size: 10px; color: Theme.text-secondary;
-                                        horizontal-alignment: center;
-                                    }
-                                }
-                            }
-                            // Áreas de hover sobre cada fatia (no meio do arco):
-                            // passar o mouse no gráfico destaca o ícone da legenda.
-                            for m[idx] in root.method-totals: TouchArea {
-                                visible: m.has-value;
-                                width: 34px; height: 34px;
-                                x: m.hit-x * parent.width - self.width / 2;
-                                y: m.hit-y * parent.height - self.height / 2;
-                                mouse-cursor: pointer;
-                                changed has-hover => { root.pay-hovered = self.has-hover ? idx : -1; }
-                            }
+                        spacing: 8px;
+                        HeroStat {
+                            label: "EM DINHEIRO";
+                            value: root.summary.cash-now-display;
+                            value-color: #7BD389;
                         }
-                    }
-                    // Legenda: ícone (na cor da forma) + nome + nº + valor.
-                    // Passar o mouse na linha destaca a fatia no gráfico.
-                    for m[idx] in root.method-totals: TouchArea {
-                        height: 40px;
-                        mouse-cursor: pointer;
-                        changed has-hover => { root.pay-hovered = self.has-hover ? idx : -1; }
-                        Rectangle {
-                            border-radius: 8px;
-                            background: idx == root.pay-hovered ? Theme.row-hover : transparent;
-                            HorizontalLayout {
-                                padding-left: 6px; padding-right: 6px;
-                                spacing: 10px;
-                                // Caixinha do ícone centralizada na altura da linha.
-                                VerticalLayout {
-                                    alignment: center;
-                                    Rectangle {
-                                        width: 32px; height: 32px;
-                                        border-radius: 8px;
-                                        // Fundo tingido na cor da forma quando destacado.
-                                        background: idx == root.pay-hovered
-                                            ? root.method-color(m.key).transparentize(0.82)
-                                            : transparent;
-                                        if m.key == "money": AssetIcon { width: 100%; height: 100%; icon-size: 22px; icon-color: root.method-color(m.key); source: @image-url("../assets/icons/pay-dinheiro.svg"); }
-                                        if m.key == "pix": AssetIcon { width: 100%; height: 100%; icon-size: 22px; icon-color: root.method-color(m.key); source: @image-url("../assets/icons/pay-pix.svg"); }
-                                        if m.key == "credit": AssetIcon { width: 100%; height: 100%; icon-size: 22px; icon-color: root.method-color(m.key); source: @image-url("../assets/icons/pay-cartao-credito.svg"); }
-                                        if m.key == "debit": AssetIcon { width: 100%; height: 100%; icon-size: 22px; icon-color: root.method-color(m.key); source: @image-url("../assets/icons/pay-cartao-debito.svg"); }
-                                    }
-                                }
-                                VerticalLayout {
-                                    horizontal-stretch: 1;
-                                    alignment: center;
-                                    Text { text: m.label; font-size: 13px; font-weight: 600; color: Theme.text-primary; }
-                                }
-                                Text { text: m.count-display; font-size: 11px; color: Theme.text-secondary; vertical-alignment: center; }
-                                Text { text: m.amount-display; font-size: 13px; font-weight: 700; color: Theme.text-primary; vertical-alignment: center; }
-                            }
+                        HeroStat {
+                            label: "VENDAS";
+                            value: root.summary.sales-count-display;
+                        }
+                        HeroStat {
+                            label: "TICKET";
+                            value: root.summary.ticket-display;
                         }
                     }
                 }
             }
+
+            // Pagamentos da sessão.
+            Card {
+                vertical-stretch: 1;
+                border-radius: 14px;
+                VerticalLayout {
+                    padding: 18px;
+                    spacing: 10px;
+                    alignment: start;
+                    Text {
+                        text: "PAGAMENTOS";
+                        font-size: 11px; font-weight: 800; letter-spacing: 1px;
+                        color: Theme.text-primary;
+                    }
+                    for m in root.method-totals: Rectangle {
+                        height: 46px;
+                        background: transparent;
+                        HorizontalLayout {
+                            spacing: 10px;
+                            VerticalLayout {
+                                alignment: center;
+                                Rectangle {
+                                    width: 34px; height: 34px;
+                                    border-radius: 9px;
+                                    background: root.method-color(m.key).transparentize(0.88);
+                                    if m.key == "money": AssetIcon { width: 100%; height: 100%; icon-size: 18px; icon-color: root.method-color(m.key); source: @image-url("../assets/icons/pay-dinheiro.svg"); }
+                                    if m.key == "pix": AssetIcon { width: 100%; height: 100%; icon-size: 18px; icon-color: root.method-color(m.key); source: @image-url("../assets/icons/pay-pix.svg"); }
+                                    if m.key == "credit": AssetIcon { width: 100%; height: 100%; icon-size: 18px; icon-color: root.method-color(m.key); source: @image-url("../assets/icons/pay-cartao-credito.svg"); }
+                                    if m.key == "debit": AssetIcon { width: 100%; height: 100%; icon-size: 18px; icon-color: root.method-color(m.key); source: @image-url("../assets/icons/pay-cartao-debito.svg"); }
+                                }
+                            }
+                            VerticalLayout {
+                                horizontal-stretch: 1;
+                                min-width: 0;
+                                alignment: center;
+                                spacing: 2px;
+                                Text {
+                                    text: m.label;
+                                    font-size: 12.5px; font-weight: 700;
+                                    color: Theme.text-primary;
+                                    overflow: elide;
+                                }
+                                Text {
+                                    text: m.count-display;
+                                    font-size: 10.5px;
+                                    color: Theme.text-secondary;
+                                    overflow: elide;
+                                }
+                            }
+                            VerticalLayout {
+                                alignment: center;
+                                Text {
+                                    text: m.amount-display;
+                                    font-size: 13px; font-weight: 800;
+                                    color: Theme.text-primary;
+                                    horizontal-alignment: right;
+                                }
+                            }
+                        }
+                    }
+                    Rectangle { height: 1px; background: Theme.border; }
+                }
+            }
         }
 
-        // Coluna direita — Movimentações da sessão (com filtros).
-        // Envolvida em VerticalLayout alignment:start pra o card ser
-        // ADAPTATIVO (altura do conteúdo), não esticar com a altura do pai.
+        // ── Coluna direita: totais + movimentações ──
         VerticalLayout {
             horizontal-stretch: 1;
-            alignment: start;
-            // Sem card externo: só o cabeçalho, o filtro e os cards da lista.
-            Rectangle {
-            background: transparent;
-            VerticalLayout {
-                padding: 0px;
-                spacing: 0px;
-                Rectangle {
-                    background: transparent;
+            spacing: 16px;
+
+            HorizontalLayout {
+                spacing: 16px;
+                StatCard {
+                    label: "TOTAL";
+                    value: root.summary.total-day-display;
+                    accent: #2E7D32;
+                }
+                StatCard {
+                    label: "SANGRIAS";
+                    value: root.summary.sangrias-display;
+                    accent: Theme.btn-accent;
+                }
+                StatCard {
+                    label: "SUPRIMENTOS";
+                    value: root.summary.suprimentos-display;
+                    accent: #1E88E5;
+                }
+            }
+
+            Card {
+                vertical-stretch: 1;
+                border-radius: 14px;
+                clip: true;
+                VerticalLayout {
+                    padding: 0px;
+                    spacing: 0px;
+
+                    // Título + filtro segmentado.
                     HorizontalLayout {
-                        padding: 16px;
+                        padding-left: 18px; padding-right: 14px;
+                        padding-top: 16px; padding-bottom: 12px;
                         spacing: 12px;
-                        // Título + subtítulo à esquerda
                         VerticalLayout {
                             horizontal-stretch: 1;
                             alignment: center;
-                            spacing: 2px;
-                            Text { text: "Movimentações"; font-size: 14px; font-weight: 700; color: Theme.text-primary; }
-                            Text { text: "Vendas, Sangrias e Suprimentos"; font-size: 11px; color: Theme.text-secondary; }
+                            Text {
+                                text: "MOVIMENTAÇÕES";
+                                font-size: 11px; font-weight: 800; letter-spacing: 1px;
+                                color: Theme.text-primary;
+                            }
                         }
-                        // Filtros à direita (estilo "tab" compacto — o ativo
-                        // ganha caixinha cinza clara, igual ao mockup).
-                        // Filtro dentro de um card (borda+sombra) e cada
-                        // botão selecionado em CONTORNO — igual aos filtros
-                        // de Relatórios.
-                        Rectangle {
-                            border-radius: 8px;
-                            border-width: 1px;
-                            border-color: Theme.card-border;
-                            drop-shadow-blur: 6px;
-                            drop-shadow-offset-y: 0px;
-                            drop-shadow-color: Theme.card-shadow;
-                            background: Theme.surface;
                         HorizontalLayout {
-                            padding: 4px;
-                            spacing: 4px;
-                            alignment: center;
-                            ta-all := TouchArea {
-                                height: 28px; width: 50px;
+                            spacing: 2px;
+                            SegBtn {
+                                label: "Tudo";
+                                selected: root.mv-filter == "all";
                                 clicked => { root.mv-filter = "all"; }
-                                Rectangle {
-                                    border-radius: 6px;
-                                    border-width: root.mv-filter == "all" ? 1.5px : 0px;
-                                    border-color: Theme.sidebar-sel-bg;
-                                    background: root.mv-filter == "all" ? transparent : (ta-all.has-hover ? #00000008 : transparent);
-                                    Text { text: "Tudo"; font-size: 11px; font-weight: 600; color: root.mv-filter == "all" ? Theme.sidebar-sel-bg : Theme.text-secondary; width: parent.width; height: parent.height; horizontal-alignment: center; vertical-alignment: center; }
-                                }
                             }
-                            ta-sale := TouchArea {
-                                height: 28px; width: 60px;
+                            SegBtn {
+                                label: "Vendas";
+                                selected: root.mv-filter == "sale";
                                 clicked => { root.mv-filter = "sale"; }
-                                Rectangle {
-                                    border-radius: 6px;
-                                    border-width: root.mv-filter == "sale" ? 1.5px : 0px;
-                                    border-color: Theme.sidebar-sel-bg;
-                                    background: root.mv-filter == "sale" ? transparent : (ta-sale.has-hover ? #00000008 : transparent);
-                                    Text { text: "Vendas"; font-size: 11px; font-weight: 600; color: root.mv-filter == "sale" ? Theme.sidebar-sel-bg : Theme.text-secondary; width: parent.width; height: parent.height; horizontal-alignment: center; vertical-alignment: center; }
-                                }
                             }
-                            ta-sangria := TouchArea {
-                                height: 28px; width: 68px;
+                            SegBtn {
+                                label: "Sangrias";
+                                selected: root.mv-filter == "sangria";
                                 clicked => { root.mv-filter = "sangria"; }
-                                Rectangle {
-                                    border-radius: 6px;
-                                    border-width: root.mv-filter == "sangria" ? 1.5px : 0px;
-                                    border-color: Theme.sidebar-sel-bg;
-                                    background: root.mv-filter == "sangria" ? transparent : (ta-sangria.has-hover ? #00000008 : transparent);
-                                    Text { text: "Sangrias"; font-size: 11px; font-weight: 600; color: root.mv-filter == "sangria" ? Theme.sidebar-sel-bg : Theme.text-secondary; width: parent.width; height: parent.height; horizontal-alignment: center; vertical-alignment: center; }
-                                }
                             }
-                            ta-sup := TouchArea {
-                                height: 28px; width: 64px;
+                            SegBtn {
+                                label: "Suprim.";
+                                selected: root.mv-filter == "suprimento";
                                 clicked => { root.mv-filter = "suprimento"; }
-                                Rectangle {
-                                    border-radius: 6px;
-                                    border-width: root.mv-filter == "suprimento" ? 1.5px : 0px;
-                                    border-color: Theme.sidebar-sel-bg;
-                                    background: root.mv-filter == "suprimento" ? transparent : (ta-sup.has-hover ? #00000008 : transparent);
-                                    Text { text: "Suprim."; font-size: 11px; font-weight: 600; color: root.mv-filter == "suprimento" ? Theme.sidebar-sel-bg : Theme.text-secondary; width: parent.width; height: parent.height; horizontal-alignment: center; vertical-alignment: center; }
+                            }
+                        }
+                    }
+
+                    // Cabeçalho da tabela.
+                    Rectangle {
+                        height: 30px;
+                        background: transparent;
+                        HorizontalLayout {
+                            padding-left: 18px; padding-right: 18px;
+                            spacing: 12px;
+                            Text { text: "HORA"; font-size: 10px; font-weight: 800; letter-spacing: 1px; color: Theme.text-secondary; width: 54px; vertical-alignment: center; }
+                            Text { text: "TIPO"; font-size: 10px; font-weight: 800; letter-spacing: 1px; color: Theme.text-secondary; horizontal-stretch: 1; vertical-alignment: center; }
+                            Text { text: "MÉTODO"; font-size: 10px; font-weight: 800; letter-spacing: 1px; color: Theme.text-secondary; width: 140px; horizontal-alignment: right; vertical-alignment: center; }
+                            Text { text: "VALOR"; font-size: 10px; font-weight: 800; letter-spacing: 1px; color: Theme.text-secondary; width: 110px; horizontal-alignment: right; vertical-alignment: center; }
+                        }
+                    }
+                    Rectangle { height: 1px; background: Theme.border; }
+
+                    if root.movements.length > 0: ScrollView {
+                        vertical-scrollbar-policy: ScrollBarPolicy.as-needed;
+                        horizontal-scrollbar-policy: ScrollBarPolicy.always-off;
+                        vertical-stretch: 1;
+                        VerticalLayout {
+                            alignment: start;
+                            for mv in root.movements: Rectangle {
+                                // Colapsa quando o filtro exclui a linha.
+                                height: (root.mv-filter == "all" || root.mv-filter == mv.kind) ? 46px : 0px;
+                                visible: root.mv-filter == "all" || root.mv-filter == mv.kind;
+                                background: mv-ta.has-hover ? Theme.row-hover : transparent;
+                                mv-ta := TouchArea { }
+                                Rectangle { x: 0; y: parent.height - 1px; width: parent.width; height: 1px; background: Theme.border; }
+                                HorizontalLayout {
+                                    padding-left: 18px; padding-right: 18px;
+                                    spacing: 12px;
+                                    Text {
+                                        text: mv.time-display;
+                                        font-size: 12px; color: Theme.text-secondary;
+                                        width: 54px; vertical-alignment: center;
+                                    }
+                                    // Ícone do tipo + rótulo.
+                                    HorizontalLayout {
+                                        horizontal-stretch: 1;
+                                        spacing: 10px;
+                                        VerticalLayout {
+                                            alignment: center;
+                                            Rectangle {
+                                                width: 28px; height: 28px;
+                                                border-radius: 8px;
+                                                background: root.kind-color(mv.kind).transparentize(0.88);
+                                                if mv.kind == "sale": AssetIcon { width: 100%; height: 100%; icon-size: 15px; icon-color: root.kind-color(mv.kind); source: @image-url("../assets/icons/vendas-pedidos.svg"); }
+                                                if mv.kind == "sangria": AssetIcon { width: 100%; height: 100%; icon-size: 15px; icon-color: root.kind-color(mv.kind); source: @image-url("../assets/icons/saida-estoque.svg"); }
+                                                if mv.kind == "suprimento": AssetIcon { width: 100%; height: 100%; icon-size: 15px; icon-color: root.kind-color(mv.kind); source: @image-url("../assets/icons/entrada-estoque.svg"); }
+                                                if mv.kind != "sale" && mv.kind != "sangria" && mv.kind != "suprimento": AssetIcon { width: 100%; height: 100%; icon-size: 15px; icon-color: root.kind-color(mv.kind); source: @image-url("../assets/icons/cadeado-aberto.svg"); }
+                                            }
+                                        }
+                                        VerticalLayout {
+                                            horizontal-stretch: 1;
+                                            min-width: 0;
+                                            alignment: center;
+                                            Text {
+                                                text: mv.title;
+                                                font-size: 12.5px; font-weight: 700;
+                                                color: Theme.text-primary;
+                                                overflow: elide;
+                                            }
+                                        }
+                                    }
+                                    Text {
+                                        text: mv.method-label;
+                                        font-size: 11px; color: Theme.text-secondary;
+                                        width: 140px; horizontal-alignment: right; vertical-alignment: center;
+                                    }
+                                    Text {
+                                        text: mv.amount-display;
+                                        font-size: 12.5px; font-weight: 800;
+                                        color: mv.sign == "pos" ? #2E7D32 : (mv.sign == "neg" ? Theme.danger : Theme.text-primary);
+                                        width: 110px; horizontal-alignment: right; vertical-alignment: center;
+                                    }
                                 }
                             }
                         }
+                    }
+
+                    if root.movements.length == 0: VerticalLayout {
+                        vertical-stretch: 1;
+                        alignment: center;
+                        EmptyState {
+                            source: @image-url("../assets/illustrations/financial-data-presentation.svg");
+                            title: "Sem movimentações";
+                            subtitle: "As vendas e ajustes da sessão aparecem aqui";
+                            art-size: 260px;
                         }
                     }
                 }
-                // Lista → cada movimentação é um CARD individual (igual à
-                // lista de produtos do PDV). Folga lateral p/ a sombra não
-                // cortar; o respiro de 8px vai embutido na altura do item.
-                VerticalLayout {
-                        padding-left: 6px; padding-right: 6px; padding-top: 2px; padding-bottom: 2px;
-                        for mv in root.movements: Rectangle {
-                            // Wrapper (transparente): reserva 8px de gap abaixo
-                            // do card; colapsa quando filtrado.
-                            height: (root.mv-filter == "all" || root.mv-filter == mv.kind) ? 60px : 0px;
-                            visible: root.mv-filter == "all" || root.mv-filter == mv.kind;
-                            background: transparent;
-                            Rectangle {
-                            x: 0; y: 0;
-                            width: parent.width; height: 52px;
-                            border-radius: 10px;
-                            border-width: 1px;
-                            border-color: Theme.card-border;
-                            drop-shadow-blur: 8px;
-                            drop-shadow-offset-y: 0px;
-                            drop-shadow-color: Theme.card-shadow;
-                            background: Theme.surface;
-                            HorizontalLayout {
-                                padding-left: 16px; padding-right: 16px;
-                                spacing: 12px;
-                                Text { text: mv.time-display; font-size: 12px; color: Theme.text-secondary; width: 50px; vertical-alignment: center; }
-                                // Ícone da movimentação (assets do projeto).
-                                Rectangle {
-                                    width: 32px; height: parent.height;
-                                    if mv.kind == "sale": AssetIcon { width: 100%; height: 100%; icon-size: 18px; icon-color: #43A047; source: @image-url("../assets/icons/vendas-pedidos.svg"); }
-                                    if mv.kind == "sangria": AssetIcon { width: 100%; height: 100%; icon-size: 18px; icon-color: Theme.danger; source: @image-url("../assets/icons/saida-estoque.svg"); }
-                                    if mv.kind == "suprimento": AssetIcon { width: 100%; height: 100%; icon-size: 18px; icon-color: #1E88E5; source: @image-url("../assets/icons/entrada-estoque.svg"); }
-                                    if mv.kind != "sale" && mv.kind != "sangria" && mv.kind != "suprimento": AssetIcon { width: 100%; height: 100%; icon-size: 18px; icon-color: Theme.text-secondary; source: @image-url("../assets/icons/cadeado-aberto.svg"); }
-                                }
-                                Text { text: mv.title; font-size: 12px; font-weight: 600; color: Theme.text-primary; horizontal-stretch: 1; vertical-alignment: center; overflow: elide; }
-                                Text { text: mv.method-label; font-size: 11px; color: Theme.text-secondary; width: 120px; horizontal-alignment: right; vertical-alignment: center; }
-                                Text {
-                                    text: mv.amount-display;
-                                    font-size: 12px; font-weight: 700;
-                                    color: mv.sign == "pos" ? #2E7D32 : (mv.sign == "neg" ? Theme.danger : Theme.text-primary);
-                                    width: 110px; horizontal-alignment: right; vertical-alignment: center;
-                                }
-                            }
-                            }
-                        }
-                        if root.movements.length == 0: Rectangle {
-                            height: 130px;
-                            EmptyState {
-                                source: @image-url("../assets/illustrations/financial-data-presentation.svg");
-                                title: "Sem movimentações";
-                                art-size: 240px;
-                            }
-                        }
-                    }
             }
-        }
         }
     }
 }

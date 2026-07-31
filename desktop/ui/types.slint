@@ -882,24 +882,14 @@ export struct CashMovementRow {
     sign: string,
 }
 
-/// Total por método de pagamento — fatia da meia-lua (gauge) na coluna
+/// Total por método de pagamento — linha do card "Pagamentos" na coluna
 /// esquerda da Gestão de Caixa.
 export struct CashMethodTotalRow {
     label: string,              // "Dinheiro" / "PIX" / "Cartão Crédito" / "Cartão Débito"
     /// "money" / "pix" / "credit" / "debit" — UI escolhe ícone/cor.
     key: string,
-    count-display: string,      // "×18"
+    count-display: string,      // "2 transações"
     amount-display: string,     // "R$ 247,30"
-    /// Comando SVG do arco da fatia na meia-lua (viewbox 0 0 100 56),
-    /// calculado no Rust. Vazio quando a forma não teve recebimento.
-    arc-commands: string,
-    /// true quando a forma teve recebimento (frac > 0) — habilita a área
-    /// de hover sobre a fatia no gráfico.
-    has-value: bool,
-    /// Centro do arco da fatia, relativo (0..1) à área do gauge, para
-    /// posicionar a área de hover que liga gráfico ↔ ícone da legenda.
-    hit-x: float,
-    hit-y: float,
 }
 
 /// Resumo agregado mostrado nos 4 cards e na coluna esquerda.
@@ -913,20 +903,18 @@ export struct CashSummaryData {
     status-subtitle: string,
     /// "08:00 · 12/05/2026 por admin · Leonardo" — sub-linha do header.
     opened-summary: string,
-    /// Card 1: total bruto do dia (vendas).
+    /// Card "Total": total bruto do dia (vendas).
     total-day-display: string,
-    /// Sub-texto "30 vendas · ticket médio R$ 17,38"
-    total-day-meta: string,
-    /// Card 2: saldo em dinheiro AGORA.
+    /// Rodapé do card escuro: saldo em dinheiro AGORA.
     cash-now-display: string,
-    /// Sub-texto "18 vendas · saldo na gaveta"
-    cash-now-meta: string,
-    /// Card 3: total das sangrias.
+    /// Rodapé do card escuro: nº de vendas da sessão ("5").
+    sales-count-display: string,
+    /// Rodapé do card escuro: ticket médio ("R$ 7,78").
+    ticket-display: string,
+    /// Card "Sangrias": total das saídas.
     sangrias-display: string,
-    sangrias-meta: string,
-    /// Card 4: total dos suprimentos.
+    /// Card "Suprimentos": total das entradas.
     suprimentos-display: string,
-    suprimentos-meta: string,
     /// Total esperado no fechamento (saldo dinheiro + cartões + pix).
     total-expected-display: string,
     /// Id da sessão ativa (string vazia se fechado).

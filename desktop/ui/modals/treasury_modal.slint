@@ -23,7 +23,7 @@ export component TreasuryModal inherits Rectangle {
     property <string> subtitle: root.kind == "deposit"
         ? "Aporte manual — entra no saldo da carteira"
         : (root.kind == "withdraw"
-            ? "Retirada manual — sai do saldo da carteira"
+            ? "Retirada sai do saldo da carteira"
             : "Quanto o caixa deve reservar por mês");
     property <string> amount-label: root.kind == "goal" ? "META" : "VALOR";
     property <string> confirm-label: root.kind == "deposit" ? "Depositar"
