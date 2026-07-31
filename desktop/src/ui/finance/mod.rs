@@ -11,6 +11,7 @@
 //! - `modal`: abas, busca/filtro, modal de lançamento e ações da entrada
 //! - `calendar`: picker de cliente, calendário de vencimento e navegação
 //! - `helpers`: funções puras de formatação/parse
+//! - `wallet_link`: reflexo das contas a receber na carteira do cliente
 
 mod calendar;
 mod helpers;
@@ -18,5 +19,6 @@ mod modal;
 mod setup;
 mod snapshot;
 mod state;
+mod wallet_link;
 
 pub(crate) use setup::{overdue_count, setup_finance};

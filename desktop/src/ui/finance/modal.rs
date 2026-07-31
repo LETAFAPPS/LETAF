@@ -10,6 +10,8 @@ use letaf_core::finance::model::{
 };
 use letaf_core::finance::service::CreateFinanceParams;
 
+use super::wallet_link;
+
 use crate::context::DesktopState;
 use crate::{
     MainWindow, PdvCustomerRow,
@@ -423,9 +425,9 @@ pub(crate) fn setup_save_modal(
                 )
                 .await
             } else {
-                state
-                    .finance_service
-                    .create(CreateFinanceParams {
+                create_new(
+                    &state,
+                    CreateFinanceParams {
                         company_id: cid,
                         kind,
                         description,
@@ -440,9 +442,9 @@ pub(crate) fn setup_save_modal(
                         recurrence,
                         installments,
                         order_id: None,
-                    })
-                    .await
-                    .map(|_| ())
+                    },
+                )
+                .await
             };
 
             match result {
@@ -468,6 +470,17 @@ pub(crate) fn setup_save_modal(
             }
         });
     });
+}
+
+/// Cria o lançamento e, quando é conta a receber de um cliente,
+/// registra a dívida na carteira dele (§ ponte `wallet_link`).
+async fn create_new(
+    state: &DesktopState,
+    params: CreateFinanceParams,
+) -> Result<(), letaf_core::error::CoreError> {
+    let head = state.finance_service.create(params).await?;
+    wallet_link::charge(state, &head).await;
+    Ok(())
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -499,6 +512,7 @@ pub(crate) async fn update_existing(
             "Lançamento já finalizado não pode ser editado".into(),
         ));
     }
+    let before = entry.clone();
     entry.description = description.trim().to_string();
     entry.party_id = party_id;
     entry.party_name = party.trim().to_string();
@@ -509,7 +523,9 @@ pub(crate) async fn update_existing(
     entry.notes = if notes.is_empty() { None } else { Some(notes) };
     entry.base.updated_at = chrono::Utc::now().naive_utc();
     entry.base.synced = false;
-    state.finance_service.sync_upsert(cid, entry).await
+    state.finance_service.sync_upsert(cid, entry.clone()).await?;
+    wallet_link::update(state, &before, &entry).await;
+    Ok(())
 }
 
 // ── Ações de linha ──────────────────────────────────────────────
@@ -639,9 +655,12 @@ async fn settle_entry(
         }
     } else if amount_d + letaf_core::money::from_db_f64(0.005) >= entry.amount {
         state.finance_service.mark_settled(cid, id, Some(method.clone())).await?;
+        // Conta de cliente: a baixa devolve o valor à carteira dele.
+        wallet_link::settle(state, &entry, entry.amount).await;
         "Recebimento confirmado".to_string()
     } else {
         state.finance_service.receive_partial(cid, id, amount_d).await?;
+        wallet_link::settle(state, &entry, amount_d).await;
         "Recebimento parcial abatido da conta".to_string()
     };
     // Entrada no CAIXA com a forma escolhida (sessão ativa). Sem
@@ -681,7 +700,11 @@ pub(crate) fn setup_cancel_entry(
         handle.spawn(async move {
             let Ok(uuid) = Uuid::parse_str(&id) else { return };
             let cid = state.company_id();
+            let entry = state.finance_service.find_by_id(cid, uuid).await.ok().flatten();
             if state.finance_service.cancel(cid, uuid).await.is_ok() {
+                if let Some(entry) = &entry {
+                    wallet_link::revert(&state, entry).await;
+                }
                 sync_notify.notify_one();
                 reapply(&ui_weak, &state, &cal).await;
             }
@@ -708,7 +731,11 @@ pub(crate) fn setup_delete_entry(
         handle.spawn(async move {
             let Ok(uuid) = Uuid::parse_str(&id) else { return };
             let cid = state.company_id();
+            let entry = state.finance_service.find_by_id(cid, uuid).await.ok().flatten();
             if state.finance_service.delete(cid, uuid).await.is_ok() {
+                if let Some(entry) = &entry {
+                    wallet_link::revert(&state, entry).await;
+                }
                 sync_notify.notify_one();
                 reapply(&ui_weak, &state, &cal).await;
             }

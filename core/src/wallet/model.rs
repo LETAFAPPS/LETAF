@@ -26,6 +26,12 @@ pub enum WalletMovementKind {
     /// Alteração do limite de fiado — não mexe no saldo; `amount`
     /// registra o NOVO limite e `notes` a observação do operador.
     LimitChange,
+    /// Débito de uma CONTA A RECEBER lançada no Financeiro com o
+    /// cliente vinculado (o cliente passa a dever esse valor).
+    ReceivableCharge,
+    /// Crédito da baixa dessa conta a receber (total ou parcial) —
+    /// desfaz o `ReceivableCharge` na mesma medida.
+    ReceivableSettle,
 }
 
 impl fmt::Display for WalletMovementKind {
@@ -37,6 +43,8 @@ impl fmt::Display for WalletMovementKind {
             Self::OrderRefund => write!(f, "order_refund"),
             Self::ManualAdjust => write!(f, "manual_adjust"),
             Self::LimitChange => write!(f, "limit_change"),
+            Self::ReceivableCharge => write!(f, "receivable_charge"),
+            Self::ReceivableSettle => write!(f, "receivable_settle"),
         }
     }
 }
@@ -51,6 +59,8 @@ impl WalletMovementKind {
             "order_refund" => Self::OrderRefund,
             "manual_adjust" => Self::ManualAdjust,
             "limit_change" => Self::LimitChange,
+            "receivable_charge" => Self::ReceivableCharge,
+            "receivable_settle" => Self::ReceivableSettle,
             _ => Self::ManualAdjust,
         }
     }
@@ -59,8 +69,12 @@ impl WalletMovementKind {
     /// `+1` para entrada de saldo, `-1` para saída.
     pub fn sign(self) -> Decimal {
         match self {
-            Self::Deposit | Self::OrderRefund => rust_decimal_macros::dec!(1),
-            Self::Withdraw | Self::OrderCharge => rust_decimal_macros::dec!(-1),
+            Self::Deposit | Self::OrderRefund | Self::ReceivableSettle => {
+                rust_decimal_macros::dec!(1)
+            }
+            Self::Withdraw | Self::OrderCharge | Self::ReceivableCharge => {
+                rust_decimal_macros::dec!(-1)
+            }
             // Ajustes manuais: assumimos +1 e o sinal real fica
             // codificado no `amount` (negativo permitido nesse caso).
             // Esta convenção é validada no service.

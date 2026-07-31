@@ -179,9 +179,14 @@ async fn build_snapshot(
                     amount: m.amount.abs(),
                     positive: m.amount >= Decimal::ZERO,
                 }),
+                // Espelhos contábeis, não dinheiro entrando/saindo: a
+                // baixa da conta a receber entra por "Financeiro ·
+                // recebimentos" — contar os dois duplicaria.
                 WalletMovementKind::OrderCharge
                 | WalletMovementKind::OrderRefund
-                | WalletMovementKind::LimitChange => {}
+                | WalletMovementKind::LimitChange
+                | WalletMovementKind::ReceivableCharge
+                | WalletMovementKind::ReceivableSettle => {}
             }
         }
     }

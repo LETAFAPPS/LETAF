@@ -76,6 +76,33 @@ impl FinanceService {
         Ok(head)
     }
 
+    /// Soma das contas a receber ABERTAS de um cliente, EXCLUINDO a
+    /// automática do fiado.
+    ///
+    /// É a parcela da dívida da carteira que já tem lançamento próprio
+    /// no Financeiro — o espelho do fiado a desconta para não cobrar
+    /// duas vezes o mesmo dinheiro (ver `sync_fiado_receivable`).
+    pub async fn open_customer_receivables_total(
+        &self,
+        company_id: Uuid,
+        customer_id: Uuid,
+    ) -> Result<Decimal, CoreError> {
+        let total = self
+            .repo
+            .find_by_kind(company_id, FinanceKind::Receivable)
+            .await?
+            .into_iter()
+            .filter(|e| {
+                e.party_id == Some(customer_id)
+                    && e.notes.as_deref() != Some(FIADO_AUTO_TAG)
+                    && !e.status.is_settled()
+                    && e.status != FinanceStatus::Cancelled
+            })
+            .map(|e| e.amount)
+            .sum();
+        Ok(round2(total))
+    }
+
     /// Mantém a conta a receber AUTOMÁTICA do fiado do cliente em dia.
     ///
     /// Regras (AI_RULES.md §1, §7):

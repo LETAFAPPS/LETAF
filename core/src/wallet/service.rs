@@ -165,6 +165,53 @@ impl WalletService {
         .await
     }
 
+    /// Débito de uma conta a receber lançada no Financeiro com o
+    /// cliente vinculado: o cliente passa a dever esse valor.
+    ///
+    /// NÃO respeita o piso do limite de fiado — o limite governa
+    /// VENDAS novas; aqui o gestor apenas registra uma dívida já
+    /// assumida, e recusar deixaria Financeiro e carteira divergentes.
+    pub async fn charge_receivable(
+        &self,
+        company_id: Uuid,
+        account_id: Uuid,
+        amount: Decimal,
+        notes: Option<String>,
+    ) -> Result<(WalletAccount, WalletMovement), CoreError> {
+        validate_positive_amount(amount)?;
+        self.apply_inner(
+            company_id,
+            account_id,
+            WalletMovementKind::ReceivableCharge,
+            amount,
+            None,
+            notes,
+            false,
+        )
+        .await
+    }
+
+    /// Crédito da baixa de uma conta a receber (total ou parcial) —
+    /// desfaz o `charge_receivable` na mesma medida.
+    pub async fn settle_receivable(
+        &self,
+        company_id: Uuid,
+        account_id: Uuid,
+        amount: Decimal,
+        notes: Option<String>,
+    ) -> Result<(WalletAccount, WalletMovement), CoreError> {
+        validate_positive_amount(amount)?;
+        self.apply(
+            company_id,
+            account_id,
+            WalletMovementKind::ReceivableSettle,
+            amount,
+            None,
+            notes,
+        )
+        .await
+    }
+
     /// Ajuste manual — aceita `amount` negativo para corrigir
     /// inconsistências históricas. Sempre exige `notes` (auditoria).
     pub async fn manual_adjust(
@@ -369,6 +416,23 @@ impl WalletService {
         order_id: Option<Uuid>,
         notes: Option<String>,
     ) -> Result<(WalletAccount, WalletMovement), CoreError> {
+        self.apply_inner(company_id, account_id, kind, amount, order_id, notes, true)
+            .await
+    }
+
+    /// Mesmo núcleo do `apply`, com o piso do limite de fiado
+    /// opcional (`enforce_floor`) — ver `charge_receivable`.
+    #[allow(clippy::too_many_arguments)]
+    async fn apply_inner(
+        &self,
+        company_id: Uuid,
+        account_id: Uuid,
+        kind: WalletMovementKind,
+        amount: Decimal,
+        order_id: Option<Uuid>,
+        notes: Option<String>,
+        enforce_floor: bool,
+    ) -> Result<(WalletAccount, WalletMovement), CoreError> {
         // Concorrência otimista com retentativa (§13): recarrega o saldo,
         // recalcula e só grava se o saldo não mudou desde a leitura. Sob
         // corrida (duplo-clique), a operação perdedora recarrega e retenta.
@@ -377,7 +441,9 @@ impl WalletService {
             let old_balance = account.balance;
             let delta = amount * kind.sign();
             let new_balance = round2(account.balance + delta);
-            ensure_within_floor(&account, new_balance)?;
+            if enforce_floor {
+                ensure_within_floor(&account, new_balance)?;
+            }
             account.balance = new_balance;
             let now = Utc::now().naive_utc();
             account.base.updated_at = now;

@@ -20,7 +20,15 @@ use super::view::{apply_movements, apply_summary, setup_close_modals, setup_open
 /// verdade e não pode ser desfeita por erro no espelho.
 pub(crate) async fn sync_fiado_to_finance(state: &DesktopState, account: &WalletAccount) {
     let cid = account.base.company_id;
-    let debt = (-account.balance).max(rust_decimal::Decimal::ZERO);
+    // Parte da dívida que JÁ tem conta a receber própria (lançada à mão
+    // no Financeiro): não entra no espelho, senão o mesmo dinheiro
+    // seria cobrado duas vezes.
+    let with_own_entry = state
+        .finance_service
+        .open_customer_receivables_total(cid, account.customer_id)
+        .await
+        .unwrap_or(rust_decimal::Decimal::ZERO);
+    let debt = (-account.balance - with_own_entry).max(rust_decimal::Decimal::ZERO);
     let name = state
         .customer_service
         .find_by_id(cid, account.customer_id)
@@ -36,9 +44,11 @@ pub(crate) async fn sync_fiado_to_finance(state: &DesktopState, account: &Wallet
     {
         tracing::warn!("fiado→financeiro: sincronização falhou: {e}");
     }
-    // Dívida zerada → os pedidos fiados do cliente foram quitados:
-    // marca-os como pagos (o detalhe e o KPI FIADOS refletem).
-    if account.balance >= rust_decimal::Decimal::ZERO {
+    // Dívida de FIADO zerada → os pedidos fiados do cliente foram
+    // quitados: marca-os como pagos (o detalhe e o KPI FIADOS refletem).
+    // Usa a dívida do espelho, não o saldo: uma conta a receber manual
+    // aberta deixa o saldo negativo sem que haja fiado em aberto.
+    if debt <= rust_decimal::Decimal::ZERO {
         if let Err(e) = state
             .order_service
             .settle_wallet_orders(cid, account.customer_id)
@@ -245,6 +255,8 @@ pub(crate) fn movement_title(m: &WalletMovement) -> String {
         WalletMovementKind::OrderRefund => "Pedido Estornado".into(),
         WalletMovementKind::ManualAdjust => "Ajuste Manual".into(),
         WalletMovementKind::LimitChange => "Limite Fiado".into(),
+        WalletMovementKind::ReceivableCharge => "Conta a Receber".into(),
+        WalletMovementKind::ReceivableSettle => "Baixa de Conta a Receber".into(),
     }
 }
 
