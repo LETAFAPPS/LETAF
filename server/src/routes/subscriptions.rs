@@ -3,7 +3,6 @@ use rust_decimal::prelude::ToPrimitive;
 use axum::http::StatusCode;
 use axum::response::Html;
 use axum::{routing::get, routing::post, Json, Router};
-use chrono::Local;
 use serde::{Deserialize, Serialize};
 
 use letaf_core::error::CoreError;
@@ -109,7 +108,7 @@ async fn change_plan(
 ) -> Result<Json<Subscription>, ServerError> {
     auth.verify_any(tenant.company_id, ROLES_OPERATORS)?;
     auth.require_permission("subscription.edit")?;
-    let today = Local::now().date_naive();
+    let today = letaf_core::tz::today();
     // Plano do catálogo (super admin) → assina com snapshot + trial.
     let updated = if let Some(plan_id) = body.plan_id {
         let plan = state
@@ -412,7 +411,7 @@ async fn efi_webhook(
         // 200 para a Efi não reenviar um payload que nunca vamos processar.
         return StatusCode::OK;
     };
-    let today = Local::now().date_naive();
+    let today = letaf_core::tz::today();
     match svc.apply_notification(&token, today).await {
         Ok(n) => {
             tracing::info!("Webhook Efi: {n} evento(s) de cobrança aplicados");
@@ -483,7 +482,7 @@ async fn pix_auto_status(
         .pix_auto
         .as_ref()
         .ok_or(ServerError::ServiceUnavailable("Pix Automático não configurado"))?;
-    let today = Local::now().date_naive();
+    let today = letaf_core::tz::today();
     let sub = svc.refresh(auth.0.company_id, today).await?;
     Ok(Json(sub))
 }
@@ -538,7 +537,7 @@ async fn efi_pix_webhook(
     let Some(svc) = state.pix_auto.as_ref() else {
         return StatusCode::SERVICE_UNAVAILABLE;
     };
-    let today = Local::now().date_naive();
+    let today = letaf_core::tz::today();
     match svc.apply_webhook(&body, today).await {
         Ok(n) => {
             tracing::info!("Webhook PIX Automático: {n} débito(s) aplicados");

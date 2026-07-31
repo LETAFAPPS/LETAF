@@ -3,7 +3,7 @@ use slint::{ComponentHandle, ModelRc, SharedString, VecModel};
 
 use letaf_core::order::model::OrderStatus;
 
-use chrono::{Datelike, Local, NaiveDate};
+use chrono::{Datelike, NaiveDate};
 
 use crate::{CalDay, MainWindow};
 
@@ -54,7 +54,7 @@ fn range_label(start: Option<NaiveDate>, end: Option<NaiveDate>) -> String {
 /// como 1ª coluna) + título + rótulo do botão, a partir do mês
 /// visível (`cal-year`/`cal-month`) e do intervalo selecionado.
 fn cal_rebuild(ui: &MainWindow) {
-    let today = Local::now().date_naive();
+    let today = letaf_core::tz::today();
     let mut y = ui.get_cal_year();
     let mut m = ui.get_cal_month();
 

@@ -1,5 +1,5 @@
 
-use chrono::{Datelike, Duration, Local, NaiveDate};
+use chrono::{Datelike, Duration, NaiveDate};
 use slint::{ComponentHandle, ModelRc, SharedString, VecModel};
 use uuid::Uuid;
 
@@ -137,7 +137,7 @@ pub(crate) fn setup_due_cal(ui: &MainWindow, cal: DueCalStateHandle) {
 
 pub(crate) fn apply_due_cal_to_ui(ui: &MainWindow, cal: &DueCalStateHandle) {
     let snap = cal.lock().ok().map(|g| *g).unwrap_or_else(DueCalState::today);
-    let today = Local::now().date_naive();
+    let today = letaf_core::tz::today();
     let title = format!("{} · {}", month_pt(snap.month), snap.year);
     let days = build_due_cal_days(snap.year, snap.month, snap.selected, today);
     ui.set_finance_due_cal_title(SharedString::from(title));
@@ -154,7 +154,7 @@ pub(crate) fn build_due_cal_days(
     today: NaiveDate,
 ) -> Vec<CalDay> {
     let first = NaiveDate::from_ymd_opt(year, month, 1)
-        .unwrap_or_else(|| Local::now().date_naive());
+        .unwrap_or_else(letaf_core::tz::today);
     // Domingo da semana que contém o dia 1.
     let offset = first.weekday().num_days_from_sunday() as i64;
     let grid_start = first - Duration::days(offset);
@@ -298,7 +298,7 @@ pub(crate) fn setup_cal_today(
     let handle = handle.clone();
     ui.on_finance_cal_today(move || {
         if let Ok(mut g) = cal.lock() {
-            let t = Local::now().date_naive();
+            let t = letaf_core::tz::today();
             g.year = t.year();
             g.month = t.month();
             g.selected_day = Some(t.day());

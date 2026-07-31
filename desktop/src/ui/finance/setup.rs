@@ -273,7 +273,7 @@ pub(crate) async fn reapply(
 /// Conta os lançamentos vencidos (não liquidados nem cancelados).
 /// Fonte única do badge da sidebar (reapply + recompute de badges).
 pub(crate) fn overdue_count(entries: &[letaf_core::finance::model::FinanceEntry]) -> i32 {
-    let today = chrono::Local::now().date_naive();
+    let today = letaf_core::tz::today();
     entries.iter().filter(|e| e.is_overdue(today)).count() as i32
 }
 

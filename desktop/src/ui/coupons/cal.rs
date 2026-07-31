@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use rust_decimal::prelude::ToPrimitive;
 
-use chrono::{Datelike, Duration, Local, NaiveDate, NaiveDateTime};
+use chrono::{Datelike, Duration, NaiveDate, NaiveDateTime};
 use slint::{ComponentHandle, ModelRc, SharedString, VecModel};
 
 use letaf_core::coupon::model::Coupon;
@@ -26,7 +26,7 @@ pub(crate) struct MonthCursor {
 
 impl MonthCursor {
     fn today() -> Self {
-        let t = Local::now().date_naive();
+        let t = letaf_core::tz::today();
         Self { year: t.year(), month: t.month(), selected: None }
     }
 }
@@ -162,7 +162,7 @@ pub(crate) fn apply_coupon_cal(ui: &MainWindow, cal: &CouponCalHandle) {
     if target != "from" && target != "until" { return; }
     let snap = cal.lock().ok().map(|g| if target == "from" { g.from } else { g.until })
         .unwrap_or_else(MonthCursor::today);
-    let today = Local::now().date_naive();
+    let today = letaf_core::tz::today();
     ui.set_coupon_cal_title(SharedString::from(format!("{} · {}", month_pt(snap.month), snap.year)));
     ui.set_coupon_cal_days(ModelRc::new(VecModel::from(
         build_cal_days(snap.year, snap.month, snap.selected, today),
@@ -176,7 +176,7 @@ pub(crate) fn build_cal_days(
     today: NaiveDate,
 ) -> Vec<CalDay> {
     let first = NaiveDate::from_ymd_opt(year, month, 1)
-        .unwrap_or_else(|| Local::now().date_naive());
+        .unwrap_or_else(letaf_core::tz::today);
     let offset = first.weekday().num_days_from_sunday() as i64;
     let grid_start = first - Duration::days(offset);
     (0..42)

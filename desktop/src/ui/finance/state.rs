@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use chrono::{Datelike, Local, NaiveDate};
+use chrono::{Datelike, NaiveDate};
 
 use letaf_core::customer::model::Customer;
 
@@ -18,7 +18,7 @@ pub(crate) struct CalState {
 
 impl CalState {
     pub(crate) fn today() -> Self {
-        let t = Local::now().date_naive();
+        let t = letaf_core::tz::today();
         Self {
             year: t.year(),
             month: t.month(),
@@ -41,7 +41,7 @@ pub(crate) struct DueCalState {
 
 impl DueCalState {
     pub(crate) fn today() -> Self {
-        let t = Local::now().date_naive();
+        let t = letaf_core::tz::today();
         Self {
             year: t.year(),
             month: t.month(),

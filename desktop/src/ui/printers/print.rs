@@ -52,8 +52,7 @@ pub(crate) fn setup_test_print(ui: &MainWindow, state: &DesktopState, handle: &t
 pub(crate) fn render_test_page(paper_width: i32) -> String {
     let cols = columns_for(paper_width);
     let bar = "=".repeat(cols);
-    let now = chrono::Utc::now()
-        .with_timezone(&chrono::Local)
+    let now = letaf_core::tz::now()
         .format("%d/%m/%Y %H:%M:%S")
         .to_string();
     let mut out = String::new();

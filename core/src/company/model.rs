@@ -22,8 +22,9 @@ fn default_store_override() -> String {
 fn default_products_per_page() -> i32 { 20 }
 
 fn default_orders_per_page() -> i32 { 20 }
-/// Offset padrão: -180 min = horário de Brasília (BRT, UTC-3).
-fn default_utc_offset() -> i32 { -180 }
+/// Offset padrão: horário de Brasília (America/São_Paulo, UTC−03:00) —
+/// mesma constante usada pelo resto do sistema (`crate::tz`).
+fn default_utc_offset() -> i32 { crate::tz::OFFSET_MINUTES }
 /// Empresas são ATIVAS por padrão (compatível com payloads sem o campo).
 fn default_true() -> bool { true }
 

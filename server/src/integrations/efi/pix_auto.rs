@@ -79,7 +79,7 @@ impl PixAutoGateway for EfiClient {
         // `dataInicial` NÃO pode ser hoje (data de criação). Como a 1ª
         // cobrança é o cob imediato, a recorrência começa no próximo
         // ciclo: hoje + interval_months.
-        let today = chrono::Local::now().date_naive();
+        let today = letaf_core::tz::today();
         let data_inicial = today
             .checked_add_months(chrono::Months::new(input.interval_months))
             .unwrap_or(today)

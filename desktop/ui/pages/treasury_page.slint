@@ -34,6 +34,28 @@ component MoneyIcon inherits Rectangle {
     }
 }
 
+// Barra de UMA hora do mini-gráfico: sobe ou desce a partir da linha
+// central. Horas sem movimento viram um traço fino sobre a linha.
+component ChartBar inherits Rectangle {
+    in property <TreasuryChartBar> data;
+    horizontal-stretch: 1;
+    preferred-width: 0px;
+    // Metade útil: a linha central fica no meio da área do gráfico.
+    property <length> half: root.height / 2;
+    property <bool> empty: root.data.progress < 0.005;
+    property <length> bar-h: root.empty ? 4px : max(6px, root.half * root.data.progress);
+    Rectangle {
+        x: 0;
+        width: root.width;
+        y: root.empty
+            ? root.half - 2px
+            : (root.data.positive ? root.half - root.bar-h : root.half);
+        height: root.bar-h;
+        border-radius: 5px;
+        background: root.data.current ? Theme.btn-accent : #FFFFFF1F;
+    }
+}
+
 // Card branco padrão da tela.
 component Panel inherits Rectangle {
     border-radius: 14px;
@@ -256,25 +278,16 @@ export component TreasuryPage inherits VerticalLayout {
         background: Theme.sidebar-bg;
         clip: true;
 
-        // Mini-gráfico de evolução, ocupando a metade direita do card.
+        // Mini-gráfico das últimas 12 horas, na metade direita do card.
+        // Cada barra cresce a partir da linha central: para CIMA quando a
+        // hora fechou positiva, para BAIXO quando fechou negativa.
         HorizontalLayout {
             x: parent.width * 0.40;
             y: 22px;
             width: parent.width * 0.60 - 26px;
             height: 148px;
             spacing: 8px;
-            for b in root.chart: Rectangle {
-                horizontal-stretch: 1;
-                preferred-width: 0px;
-                Rectangle {
-                    x: 0;
-                    y: parent.height * (1.0 - max(0.06, b.progress));
-                    width: parent.width;
-                    height: parent.height * max(0.06, b.progress);
-                    border-radius: 5px;
-                    background: b.highlight ? Theme.btn-accent : #FFFFFF1F;
-                }
-            }
+            for b in root.chart: ChartBar { data: b; }
         }
 
         VerticalLayout {

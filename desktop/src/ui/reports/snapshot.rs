@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use chrono::{Datelike, Duration, Local, NaiveDate};
+use chrono::{Datelike, Duration, NaiveDate};
 use slint::{Color, Image, ModelRc, SharedString, VecModel};
 use uuid::Uuid;
 
@@ -81,7 +81,7 @@ pub(crate) fn build_snapshot<'a>(
     categories: &[Category],
     customers: &[Customer],
 ) -> Snapshot {
-    let today = Local::now().date_naive();
+    let today = letaf_core::tz::today();
     // weekly  = semana corrente (Seg → Dom), igual ao dashboard
     // monthly = mês corrente (dia 1 até último dia do mês)
     // yearly  = ano corrente (Jan a Dez do ano em curso, agregado por mês)

@@ -479,7 +479,7 @@ async fn init_state() -> DesktopState {
 
     // Seed de assinatura padrão (plano Mensal + 5 faturas históricas)
     // na primeira execução offline. Idempotente em boots subsequentes.
-    let today_seed = chrono::Local::now().date_naive();
+    let today_seed = letaf_core::tz::today();
     if let Err(e) = subscription_service.ensure_seed(company_id, today_seed).await {
         tracing::warn!("Subscription seed falhou: {e}");
     }

@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use chrono::{Datelike, Local, NaiveDate};
+use chrono::{Datelike, NaiveDate};
 use slint::{ComponentHandle, ModelRc, SharedString, VecModel};
 use uuid::Uuid;
 
@@ -259,7 +259,7 @@ pub(crate) fn setup_close_modal(ui: &MainWindow) {
 }
 
 pub(crate) fn reset_form(ui: &MainWindow) {
-    let today = Local::now().date_naive().format("%d/%m/%Y").to_string();
+    let today = letaf_core::tz::today().format("%d/%m/%Y").to_string();
     ui.set_finance_form_description(SharedString::from(""));
     ui.set_finance_form_party(SharedString::from(""));
     ui.set_finance_form_party_id(SharedString::from(""));
@@ -374,7 +374,7 @@ pub(crate) fn setup_save_modal(
                         "Use o formato dd/mm/aaaa",
                     ));
                     has_err = true;
-                    Local::now().date_naive()
+                    letaf_core::tz::today()
                 }
             }
         };

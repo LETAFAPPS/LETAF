@@ -16,12 +16,13 @@
 //! Pedidos pagos com carteira NÃO contam: consomem crédito que já
 //! entrou no depósito do cliente.
 //!
-//! O SALDO considera todo o histórico; entradas/saídas e o mini-gráfico
-//! mostram o DIA corrente, e a lista traz as 10 últimas movimentações.
+//! O SALDO considera todo o histórico; entradas/saídas mostram o DIA
+//! corrente (no fuso da loja), o mini-gráfico mostra as ÚLTIMAS 12
+//! HORAS e a lista traz as 10 últimas movimentações.
 
 use std::sync::Arc;
 
-use chrono::{Local, NaiveDate, NaiveDateTime};
+use chrono::{NaiveDate, NaiveDateTime, Timelike};
 use rust_decimal::Decimal;
 use slint::{ComponentHandle, ModelRc, SharedString, VecModel};
 
@@ -241,9 +242,10 @@ async fn build_snapshot(
 
     // ── Totais ──
     // O SALDO usa todo o histórico; entradas/saídas e o detalhamento
-    // mostram o DIA corrente.
-    let today = Local::now().date_naive();
-    let in_period = |m: &MovementRaw| m.at.date() == today;
+    // mostram o DIA corrente. `m.at` está em UTC → converte para o fuso
+    // da loja antes de comparar a data (senão o dia vira 21h-21h).
+    let today = letaf_core::tz::today();
+    let in_period = |m: &MovementRaw| letaf_core::tz::to_local(m.at).date() == today;
 
     let sum = |f: &dyn Fn(&MovementRaw) -> bool| -> Decimal {
         movements.iter().filter(|m| f(m)).map(|m| m.amount).sum()
@@ -265,14 +267,15 @@ async fn build_snapshot(
 
     // Reserva do mês (progresso da meta): resultado líquido do mês.
     let month_start = first_of_month(today);
+    let in_month = |m: &MovementRaw| letaf_core::tz::to_local(m.at).date() >= month_start;
     let month_in: Decimal = movements
         .iter()
-        .filter(|m| m.positive && m.at.date() >= month_start)
+        .filter(|m| m.positive && in_month(m))
         .map(|m| m.amount)
         .sum();
     let month_out: Decimal = movements
         .iter()
-        .filter(|m| !m.positive && m.at.date() >= month_start)
+        .filter(|m| !m.positive && in_month(m))
         .map(|m| m.amount)
         .sum();
 
@@ -324,7 +327,7 @@ async fn build_snapshot(
         reserved: month_in - month_out,
     };
 
-    let chart = build_chart(&movements, today);
+    let chart = build_chart(&movements);
 
     movements.truncate(MOVEMENTS_LIMIT);
     (summary, movements, chart)
@@ -344,36 +347,41 @@ fn empty_summary() -> SummaryRaw {
     }
 }
 
-/// Mini-gráfico do card de saldo: o dia dividido em 14 faixas, cada uma
-/// com o movimento líquido (entradas − saídas) do intervalo. Só a MAIOR
-/// barra recebe destaque.
-fn build_chart(movements: &[MovementRaw], today: NaiveDate) -> Vec<TreasuryChartBar> {
-    const SLOTS: usize = 14;
-    use chrono::Timelike;
+/// Mini-gráfico do card de saldo: as ÚLTIMAS 12 HORAS, uma barra por
+/// hora cheia, terminando na hora ATUAL (a última barra, destacada).
+/// Cada barra é o líquido da hora (entradas − saídas): positivo sobe,
+/// negativo desce. A altura é relativa à maior movimentação da janela.
+fn build_chart(movements: &[MovementRaw]) -> Vec<TreasuryChartBar> {
+    const SLOTS: i64 = 12;
     use rust_decimal::prelude::ToPrimitive;
 
-    let mut totals = vec![0.0_f64; SLOTS];
-    for m in movements.iter().filter(|m| m.at.date() == today) {
-        let idx = (m.at.hour() as usize * SLOTS / 24).min(SLOTS - 1);
+    // Hora cheia atual no fuso da loja — âncora da última barra.
+    let current = letaf_core::tz::current_hour();
+    let mut totals = vec![0.0_f64; SLOTS as usize];
+    for m in movements {
+        // `m.at` é UTC; a janela é contada no relógio da loja.
+        let local = letaf_core::tz::to_local(m.at);
+        let hour = match local.date().and_hms_opt(local.hour(), 0, 0) {
+            Some(h) => h,
+            None => continue,
+        };
+        let hours_back = (current - hour).num_hours();
+        if !(0..SLOTS).contains(&hours_back) {
+            continue;
+        }
+        let idx = (SLOTS - 1 - hours_back) as usize;
         let v = m.amount.to_f64().unwrap_or(0.0);
         totals[idx] += if m.positive { v } else { -v };
     }
 
     let max = totals.iter().copied().fold(0.0_f64, |a, b| a.max(b.abs()));
-    // Índice da maior barra — a única destacada; nenhuma quando tudo é zero.
-    let peak = totals
-        .iter()
-        .enumerate()
-        .max_by(|(_, a), (_, b)| a.abs().total_cmp(&b.abs()))
-        .map(|(i, _)| i)
-        .filter(|_| max > 0.0);
-
     totals
         .into_iter()
         .enumerate()
         .map(|(i, v)| TreasuryChartBar {
             progress: if max > 0.0 { (v.abs() / max) as f32 } else { 0.0 },
-            highlight: peak == Some(i),
+            positive: v >= 0.0,
+            current: i + 1 == SLOTS as usize,
         })
         .collect()
 }

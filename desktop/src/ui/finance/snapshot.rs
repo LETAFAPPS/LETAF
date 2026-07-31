@@ -1,5 +1,5 @@
 
-use chrono::{Datelike, Duration, Local, NaiveDate};
+use chrono::{Datelike, Duration, NaiveDate};
 use rust_decimal::prelude::ToPrimitive;
 use slint::{Color, ModelRc, SharedString, VecModel};
 use uuid::Uuid;
@@ -131,7 +131,7 @@ pub(crate) fn build_snapshot(
     orders: &[Order],
     cal: &CalState,
 ) -> Snapshot {
-    let today = Local::now().date_naive();
+    let today = letaf_core::tz::today();
 
     // KPIs: toda a agregação (dinheiro exato em Decimal) vem do core (§3).
     let s = analytics::summary(entries, today);
@@ -238,7 +238,7 @@ pub(crate) fn build_calendar(entries: &[FinanceEntry], today: NaiveDate, cal: &C
     let year = cal.year;
     let month = cal.month;
     let first_of_month = NaiveDate::from_ymd_opt(year, month, 1)
-        .unwrap_or_else(|| Local::now().date_naive());
+        .unwrap_or_else(letaf_core::tz::today);
     // Início do grid = domingo da semana que contém o dia 1.
     let weekday_of_first = first_of_month.weekday();
     let offset = weekday_of_first.num_days_from_sunday() as i64;

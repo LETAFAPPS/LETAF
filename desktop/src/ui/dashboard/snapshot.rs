@@ -63,8 +63,8 @@ pub(crate) fn build_snapshot(
     utc_offset_minutes: i32,
 ) -> Snapshot {
     // "Hoje" no fuso da LOJA — não no da máquina. `created_at` é UTC, então o
-    // core converte os pedidos com o mesmo offset; usar `Local::now()` aqui
-    // misturaria dois relógios.
+    // core converte os pedidos com o mesmo offset; usar o relógio da
+    // máquina aqui misturaria dois fusos.
     let today = (chrono::Utc::now().naive_utc()
         + chrono::Duration::minutes(utc_offset_minutes as i64))
     .date();

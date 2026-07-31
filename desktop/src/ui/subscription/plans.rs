@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use rust_decimal::prelude::ToPrimitive;
 
-use chrono::{Datelike, Local, NaiveDate};
+use chrono::{Datelike, NaiveDate};
 use serde::Deserialize;
 use slint::{ComponentHandle, ModelRc, SharedString, VecModel};
 use tokio::sync::{watch, Notify, RwLock};
@@ -88,7 +88,7 @@ fn schedule_initial_notice(
         // Pequeno delay para a UI montar antes do toast aparecer.
         tokio::time::sleep(std::time::Duration::from_secs(2)).await;
         let cid = state.company_id();
-        let today = Local::now().date_naive();
+        let today = letaf_core::tz::today();
         let Ok(summary) = state.subscription_service.pending_summary(cid, today).await
         else {
             return;
@@ -231,7 +231,7 @@ async fn reapply(
     let invoice_rows: Vec<SubscriptionInvoiceRow> = invoices.iter().map(invoice_row).collect();
     // Fatura em aberto (pendente/falhou) mais ANTIGA — vira o destaque
     // no topo da tela, com CTA de pagar (§14: derivado no Rust).
-    let today_ref = Local::now().date_naive();
+    let today_ref = letaf_core::tz::today();
     let open_invoice = invoices
         .iter()
         .filter(|i| {
@@ -261,7 +261,7 @@ async fn reapply(
     };
 
     // Badge da sidebar + card no Dashboard — ambos derivam do summary.
-    let today = Local::now().date_naive();
+    let today = letaf_core::tz::today();
     let summary = state
         .subscription_service
         .pending_summary(cid, today)
@@ -596,7 +596,7 @@ fn setup_choose_plan(
             let notify = sync_notify.clone();
             handle.spawn(async move {
                 let cid = state.company_id();
-                let today = Local::now().date_naive();
+                let today = letaf_core::tz::today();
                 match state
                     .subscription_service
                     .subscribe_to_plan(cid, &catalog_plan, today)
@@ -635,7 +635,7 @@ fn setup_choose_plan(
         let notify = sync_notify.clone();
         handle.spawn(async move {
             let cid = state.company_id();
-            let today = Local::now().date_naive();
+            let today = letaf_core::tz::today();
             // Recorrência ativa + plano diferente → confirma a troca
             // (cancela a recorrência e troca num passo só). Sem
             // recorrência (ou mesmo plano) → troca direta.
@@ -729,7 +729,7 @@ fn setup_plan_change_confirm(
         let notify = sync_notify.clone();
         handle_y.spawn(async move {
             let cid = state.company_id();
-            let today = Local::now().date_naive();
+            let today = letaf_core::tz::today();
             let Some(token) = auth.read().await.clone() else {
                 plan_confirm_error(&ui_weak, "Faça login para continuar".into());
                 return;
@@ -876,7 +876,7 @@ fn setup_downloads(ui: &MainWindow, state: &DesktopState, handle: &tokio::runtim
                 .await
                 .unwrap_or_default();
             let company = company_name(&state).await;
-            let today = Local::now().date_naive();
+            let today = letaf_core::tz::today();
             match crate::print::invoice_pdf::build_statement_pdf(&invoices, &company, today) {
                 Ok(bytes) => {
                     let name = crate::print::invoice_pdf::statement_file_name(today);
@@ -1007,7 +1007,7 @@ fn build_status_view(sub: &Subscription) -> (&'static str, String) {
         SubscriptionStatus::Inactive => ("inactive", "Assinatura ainda não ativada".to_string()),
         SubscriptionStatus::Cancelled => ("cancelled", "Assinatura cancelada".to_string()),
         SubscriptionStatus::Overdue => {
-            let today = Local::now().date_naive();
+            let today = letaf_core::tz::today();
             let detail = sub
                 .next_charge_date
                 .map(|d| {

@@ -22,7 +22,7 @@ use crate::MainWindow;
 /// exibe o número. Isolado por `company_id`.
 pub(crate) async fn refresh_all_badges(ui_weak: &slint::Weak<MainWindow>, state: &DesktopState) {
     let cid = state.company_id();
-    let today = chrono::Local::now().date_naive();
+    let today = letaf_core::tz::today();
 
     let orders = state.order_service.find_all(cid).await.unwrap_or_default();
     let entries = state.finance_service.find_all(cid).await.unwrap_or_default();

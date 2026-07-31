@@ -1,7 +1,6 @@
 use std::sync::Arc;
 use rust_decimal::prelude::ToPrimitive;
 
-use chrono::Local;
 use uuid::Uuid;
 
 use letaf_core::wallet::model::{WalletAccount, WalletMovement, WalletMovementKind};
@@ -278,12 +277,10 @@ pub(crate) fn tone_of_movement(m: &WalletMovement) -> String {
 }
 
 pub(crate) fn format_time(m: &WalletMovement) -> String {
-    // UTC → Local pra exibição.
-    let utc = chrono::DateTime::<chrono::Utc>::from_naive_utc_and_offset(
-        m.base.created_at,
-        chrono::Utc,
-    );
-    utc.with_timezone(&Local).format("%d/%m/%Y · %H:%M").to_string()
+    // UTC → horário da loja pra exibição.
+    letaf_core::tz::to_local(m.base.created_at)
+        .format("%d/%m/%Y · %H:%M")
+        .to_string()
 }
 
 pub(crate) fn money_signed(v: rust_decimal::Decimal) -> String {

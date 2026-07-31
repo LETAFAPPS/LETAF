@@ -1555,10 +1555,13 @@ export struct TreasuryBreakdownRow {
     muted: bool,
 }
 
-/// Barra do mini-gráfico do card de saldo (evolução do período).
+/// Barra do mini-gráfico do card de saldo — uma HORA das últimas 12.
 export struct TreasuryChartBar {
-    /// 0.0–1.0 na escala do maior valor do período.
+    /// 0.0–1.0 na escala da maior movimentação das 12 horas (módulo).
     progress: float,
-    /// `true` destaca a barra (dias/horas mais recentes).
-    highlight: bool,
+    /// `true` = líquido positivo na hora (barra sobe a partir da linha
+    /// central); `false` = negativo (desce).
+    positive: bool,
+    /// `true` só na hora ATUAL — sempre a última barra, em destaque.
+    current: bool,
 }

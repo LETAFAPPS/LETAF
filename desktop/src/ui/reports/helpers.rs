@@ -102,7 +102,7 @@ where
     F: Fn(&Order) -> f64,
     G: Fn(f64) -> String,
 {
-    let now_hour = chrono::Local::now().hour();
+    let now_hour = letaf_core::tz::now().hour();
     let cur = hour_totals(orders, win.today, &per_order);
     let prev = hour_totals(prev_orders, win.prev_start, &per_order);
     let max = series_max(&cur, &prev);

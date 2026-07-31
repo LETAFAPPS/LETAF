@@ -10,7 +10,6 @@
 
 use std::time::Duration;
 
-use chrono::Local;
 
 use letaf_core::subscription::service::BILLING_TICK_INTERVAL_SECS;
 
@@ -39,7 +38,7 @@ pub fn start_billing_loop(state: AppState) {
 }
 
 async fn tick_once(state: &AppState) -> Result<(), String> {
-    let today = Local::now().date_naive();
+    let today = letaf_core::tz::today();
 
     // 1) Assinaturas a cobrar hoje.
     let due = state

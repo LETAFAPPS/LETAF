@@ -5,13 +5,13 @@
 //! - Funções puras sem efeitos colaterais
 //! - Sem acesso a banco ou dependências externas
 
-use chrono::{Local, NaiveDateTime, TimeZone};
+use chrono::NaiveDateTime;
 
-/// Converte um `NaiveDateTime` (gravado em UTC no banco) para o fuso horário
-/// local do dispositivo. Usado apenas na camada de apresentação — o banco
-/// continua armazenando UTC (boa prática multi-tenant).
-fn to_local(utc: NaiveDateTime) -> chrono::DateTime<Local> {
-    Local.from_utc_datetime(&utc)
+/// Converte um `NaiveDateTime` (gravado em UTC no banco) para o horário
+/// da loja (America/São_Paulo). Usado apenas na camada de apresentação —
+/// o banco continua armazenando UTC (§6).
+fn to_local(utc: NaiveDateTime) -> NaiveDateTime {
+    letaf_core::tz::to_local(utc)
 }
 
 /// Formata a data de um pedido em `DD/MM/AAAA` no fuso local.

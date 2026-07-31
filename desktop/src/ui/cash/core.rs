@@ -51,13 +51,12 @@ pub(crate) fn fmt_duration(opened: chrono::NaiveDateTime, until: chrono::NaiveDa
 }
 
 pub(crate) fn now_local() -> chrono::NaiveDateTime {
-    chrono::Local::now().naive_local()
+    letaf_core::tz::now()
 }
 
-/// Converte UTC naive → local naive (para exibição).
+/// Converte UTC naive → horário da loja (para exibição).
 pub(crate) fn to_local(naive_utc: chrono::NaiveDateTime) -> chrono::NaiveDateTime {
-    let utc = chrono::DateTime::<chrono::Utc>::from_naive_utc_and_offset(naive_utc, chrono::Utc);
-    utc.with_timezone(&chrono::Local).naive_local()
+    letaf_core::tz::to_local(naive_utc)
 }
 
 // ── Refresh ──────────────────────────────────────────────────────
