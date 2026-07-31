@@ -12,27 +12,6 @@ import { AssetIcon } from "../components/icons.slint";
 // retiradas manuais). O cadastro inicial coleta o saldo inicial e
 // delega ao service.
 
-// Segmentado (Hoje / Semana / Mês · Todos / Entradas / Saídas).
-component SegBtn inherits TouchArea {
-    in property <string> label;
-    in property <bool> selected;
-    in property <length> pad: 16px;
-    height: 30px;
-    width: seg-t.preferred-width + root.pad * 2;
-    Rectangle {
-        border-radius: 7px;
-        background: root.selected ? Theme.text-primary
-            : (root.has-hover ? Theme.row-hover : transparent);
-        seg-t := Text {
-            width: parent.width; height: parent.height;
-            text: root.label;
-            font-size: 12px; font-weight: root.selected ? 700 : 600;
-            color: root.selected ? white : Theme.text-secondary;
-            horizontal-alignment: center; vertical-alignment: center;
-        }
-    }
-}
-
 // Caixa de ícone quadrada (entrada verde / saída vermelha / neutra).
 component MoneyIcon inherits Rectangle {
     in property <string> tone;  // "pos" | "neg" | "neutral"
@@ -51,7 +30,7 @@ component MoneyIcon inherits Rectangle {
             : (root.on-dark ? #D6D3CA : Theme.text-secondary));
         source: root.tone == "neg"
             ? @image-url("../assets/icons/saida-estoque.svg")
-            : @image-url("../assets/icons/recebimento.svg");
+            : @image-url("../assets/icons/entrada-estoque.svg");
     }
 }
 
@@ -95,14 +74,8 @@ export component TreasuryPage inherits VerticalLayout {
     in-out property <string> initial-input;
     in-out property <string> notes-input;
     in property <string> setup-error;
-    /// "today" | "week" | "month" e "all" | "in" | "out".
-    in property <string> period: "today";
-    in property <string> kind-filter: "all";
-
     callback refresh();
     callback open-treasury();
-    callback set-period(string);
-    callback set-kind-filter(string);
     callback open-deposit();
     callback open-withdraw();
     callback open-goal();
@@ -118,35 +91,6 @@ export component TreasuryPage inherits VerticalLayout {
             spacing: 2px;
             Text { text: "Carteira"; font-size: 22px; font-weight: 800; color: Theme.text-primary; }
             Text { text: "Gestão do dinheiro do estabelecimento"; font-size: 12px; color: Theme.text-secondary; }
-        }
-        if root.summary.has-account: VerticalLayout {
-            alignment: center;
-            Rectangle {
-                height: 38px;
-                width: 244px;
-                border-radius: 9px;
-                border-width: 1px;
-                border-color: Theme.card-border;
-                background: Theme.surface;
-                HorizontalLayout {
-                    padding: 4px; spacing: 2px;
-                    SegBtn {
-                        label: "Hoje"; pad: 14px;
-                        selected: root.period == "today";
-                        clicked => { root.set-period("today"); }
-                    }
-                    SegBtn {
-                        label: "Semana"; pad: 14px;
-                        selected: root.period == "week";
-                        clicked => { root.set-period("week"); }
-                    }
-                    SegBtn {
-                        label: "Mês"; pad: 14px;
-                        selected: root.period == "month";
-                        clicked => { root.set-period("month"); }
-                    }
-                }
-            }
         }
     }
 
@@ -240,18 +184,18 @@ export component TreasuryPage inherits VerticalLayout {
 
     // ── HERO: saldo + mini-gráfico + resumo do período ──
     if root.summary.has-account: Rectangle {
-        height: 196px;
+        height: 260px;
         border-radius: 16px;
         background: Theme.sidebar-bg;
         clip: true;
 
         // Mini-gráfico de evolução, ocupando a metade direita do card.
         HorizontalLayout {
-            x: parent.width * 0.42;
-            y: 18px;
-            width: parent.width * 0.58 - 24px;
-            height: 96px;
-            spacing: 6px;
+            x: parent.width * 0.40;
+            y: 22px;
+            width: parent.width * 0.60 - 26px;
+            height: 148px;
+            spacing: 8px;
             for b in root.chart: Rectangle {
                 horizontal-stretch: 1;
                 preferred-width: 0px;
@@ -391,23 +335,10 @@ export component TreasuryPage inherits VerticalLayout {
                         horizontal-stretch: 1;
                         vertical-alignment: center;
                     }
-                    HorizontalLayout {
-                        spacing: 2px;
-                        SegBtn {
-                            label: "Todos"; pad: 12px;
-                            selected: root.kind-filter == "all";
-                            clicked => { root.set-kind-filter("all"); }
-                        }
-                        SegBtn {
-                            label: "Entradas"; pad: 12px;
-                            selected: root.kind-filter == "in";
-                            clicked => { root.set-kind-filter("in"); }
-                        }
-                        SegBtn {
-                            label: "Saídas"; pad: 12px;
-                            selected: root.kind-filter == "out";
-                            clicked => { root.set-kind-filter("out"); }
-                        }
+                    Text {
+                        text: "Últimas 10";
+                        font-size: 11px; color: Theme.text-secondary;
+                        vertical-alignment: center;
                     }
                 }
 
@@ -416,7 +347,7 @@ export component TreasuryPage inherits VerticalLayout {
                     VerticalLayout {
                         alignment: center;
                         Text {
-                            text: "Sem movimentações no período";
+                            text: "Nenhuma movimentação registrada";
                             font-size: 13px; color: Theme.text-secondary;
                             horizontal-alignment: center;
                         }
@@ -504,7 +435,7 @@ export component TreasuryPage inherits VerticalLayout {
                                     AssetIcon {
                                         width: 18px; height: 18px; icon-size: 18px;
                                         icon-color: #2E7D32;
-                                        source: @image-url("../assets/icons/recebimento.svg");
+                                        source: @image-url("../assets/icons/entrada-estoque.svg");
                                     }
                                 }
                                 Text {

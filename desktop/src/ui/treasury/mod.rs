@@ -16,12 +16,12 @@
 //! Pedidos pagos com carteira NÃO contam: consomem crédito que já
 //! entrou no depósito do cliente.
 //!
-//! O SALDO considera todo o histórico; os cards de período (Hoje /
-//! Semana / Mês) e a lista de movimentações respeitam o filtro.
+//! O SALDO considera todo o histórico; entradas/saídas e o mini-gráfico
+//! mostram o DIA corrente, e a lista traz as 10 últimas movimentações.
 
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
-use chrono::{Datelike, Duration, Local, NaiveDate, NaiveDateTime};
+use chrono::{Local, NaiveDate, NaiveDateTime};
 use rust_decimal::Decimal;
 use slint::{ComponentHandle, ModelRc, SharedString, VecModel};
 
@@ -36,20 +36,8 @@ use crate::{MainWindow, TreasuryChartBar, TreasuryMovementRow, TreasurySummary};
 
 use super::helpers::{friendly_error, show_toast};
 
-/// Filtros da tela (período + tipo de movimento), guardados no Rust.
-#[derive(Clone)]
-struct Filters {
-    period: String,
-    kind: String,
-}
-
-impl Default for Filters {
-    fn default() -> Self {
-        Self { period: "today".into(), kind: "all".into() }
-    }
-}
-
-type FiltersHandle = Arc<Mutex<Filters>>;
+/// Quantas movimentações a lista mostra.
+const MOVEMENTS_LIMIT: usize = 10;
 
 pub(crate) fn setup_treasury(
     ui: &MainWindow,
@@ -57,11 +45,9 @@ pub(crate) fn setup_treasury(
     handle: &tokio::runtime::Handle,
     sync_notify: Arc<tokio::sync::Notify>,
 ) {
-    let filters: FiltersHandle = Arc::new(Mutex::new(Filters::default()));
-    setup_refresh(ui, state, handle, filters.clone());
-    setup_open(ui, state, handle, sync_notify.clone(), filters.clone());
-    setup_filters(ui, state, handle, filters.clone());
-    setup_modal(ui, state, handle, sync_notify, filters);
+    setup_refresh(ui, state, handle);
+    setup_open(ui, state, handle, sync_notify.clone());
+    setup_modal(ui, state, handle, sync_notify);
 }
 
 // ── Snapshot (Send-safe) ────────────────────────────────────────
@@ -82,7 +68,6 @@ struct SummaryRaw {
     movements_count: i32,
     goal: Decimal,
     reserved: Decimal,
-    period_label: String,
 }
 
 struct MovementRaw {
@@ -93,17 +78,12 @@ struct MovementRaw {
     positive: bool,
 }
 
-fn setup_refresh(
-    ui: &MainWindow,
-    state: &DesktopState,
-    handle: &tokio::runtime::Handle,
-    filters: FiltersHandle,
-) {
+fn setup_refresh(ui: &MainWindow, state: &DesktopState, handle: &tokio::runtime::Handle) {
     let ui_weak = ui.as_weak();
     let state = state.clone();
     let handle = handle.clone();
     ui.on_treasury_refresh(move || {
-        reapply(&ui_weak, &state, &handle, &filters);
+        reapply(&ui_weak, &state, &handle);
     });
 }
 
@@ -113,14 +93,11 @@ fn reapply(
     ui_weak: &slint::Weak<MainWindow>,
     state: &DesktopState,
     handle: &tokio::runtime::Handle,
-    filters: &FiltersHandle,
 ) {
     let ui_weak = ui_weak.clone();
     let state = state.clone();
-    let filters = filters.clone();
     handle.spawn(async move {
-        let f = filters.lock().ok().map(|g| g.clone()).unwrap_or_default();
-        let (summary, movements, chart) = build_snapshot(&state, &f).await;
+        let (summary, movements, chart) = build_snapshot(&state).await;
         let _ = slint::invoke_from_event_loop(move || {
             let Some(ui) = ui_weak.upgrade() else { return };
             apply_to_ui(&ui, &summary, &movements, &chart);
@@ -128,26 +105,14 @@ fn reapply(
     });
 }
 
-/// Início do período filtrado (o fim é sempre "agora").
-fn period_start(period: &str, today: NaiveDate) -> NaiveDate {
-    match period {
-        "week" => today - Duration::days(today.weekday().num_days_from_monday() as i64),
-        "month" => NaiveDate::from_ymd_opt(today.year(), today.month(), 1).unwrap_or(today),
-        _ => today,
-    }
-}
-
-fn period_label(period: &str) -> &'static str {
-    match period {
-        "week" => "SALDO LÍQUIDO DA SEMANA",
-        "month" => "SALDO LÍQUIDO DO MÊS",
-        _ => "SALDO LÍQUIDO DO DIA",
-    }
+/// Primeiro dia do mês da data informada.
+fn first_of_month(day: NaiveDate) -> NaiveDate {
+    use chrono::Datelike;
+    NaiveDate::from_ymd_opt(day.year(), day.month(), 1).unwrap_or(day)
 }
 
 async fn build_snapshot(
     state: &DesktopState,
-    filters: &Filters,
 ) -> (SummaryRaw, Vec<MovementRaw>, Vec<TreasuryChartBar>) {
     let cid = state.company_id();
     let treasury = state.treasury_service.find(cid).await.ok().flatten();
@@ -266,10 +231,10 @@ async fn build_snapshot(
     movements.sort_by_key(|m| std::cmp::Reverse(m.at));
 
     // ── Totais ──
-    // O SALDO usa todo o histórico; os cards do topo respeitam o filtro.
+    // O SALDO usa todo o histórico; entradas/saídas e o detalhamento
+    // mostram o DIA corrente.
     let today = Local::now().date_naive();
-    let from = period_start(&filters.period, today);
-    let in_period = |m: &MovementRaw| m.at.date() >= from;
+    let in_period = |m: &MovementRaw| m.at.date() == today;
 
     let sum = |f: &dyn Fn(&MovementRaw) -> bool| -> Decimal {
         movements.iter().filter(|m| f(m)).map(|m| m.amount).sum()
@@ -290,7 +255,7 @@ async fn build_snapshot(
     let outflow = sum(&|m| !m.positive && in_period(m));
 
     // Reserva do mês (progresso da meta): resultado líquido do mês.
-    let month_start = period_start("month", today);
+    let month_start = first_of_month(today);
     let month_in: Decimal = movements
         .iter()
         .filter(|m| m.positive && m.at.date() >= month_start)
@@ -315,28 +280,15 @@ async fn build_snapshot(
         withdrawals_out: by_source("Carteira", false),
         manual_in: by_source("Caixa", true),
         manual_out: by_source("Caixa", false),
-        movements_count: 0, // preenchido após o filtro da lista
+        movements_count: movements.len() as i32,
         goal: treasury.reserve_goal,
         reserved: month_in - month_out,
-        period_label: period_label(&filters.period).to_string(),
     };
 
-    let chart = build_chart(&movements, &filters.period, today);
+    let chart = build_chart(&movements, today);
 
-    // Lista: período + tipo.
-    let mut list: Vec<MovementRaw> = movements
-        .into_iter()
-        .filter(|m| m.at.date() >= from)
-        .filter(|m| match filters.kind.as_str() {
-            "in" => m.positive,
-            "out" => !m.positive,
-            _ => true,
-        })
-        .collect();
-    let count = list.len() as i32;
-    list.truncate(80);
-
-    (SummaryRaw { movements_count: count, ..summary }, list, chart)
+    movements.truncate(MOVEMENTS_LIMIT);
+    (summary, movements, chart)
 }
 
 fn empty_summary() -> SummaryRaw {
@@ -356,49 +308,39 @@ fn empty_summary() -> SummaryRaw {
         movements_count: 0,
         goal: Decimal::ZERO,
         reserved: Decimal::ZERO,
-        period_label: period_label("today").to_string(),
     }
 }
 
-/// Mini-gráfico do card de saldo: 14 buckets com o movimento líquido
-/// (entradas − saídas) de cada um. Hoje = por hora; semana/mês = por
-/// dia. Os 3 buckets mais recentes ficam destacados.
-fn build_chart(
-    movements: &[MovementRaw],
-    period: &str,
-    today: NaiveDate,
-) -> Vec<TreasuryChartBar> {
+/// Mini-gráfico do card de saldo: o dia dividido em 14 faixas, cada uma
+/// com o movimento líquido (entradas − saídas) do intervalo. Só a MAIOR
+/// barra recebe destaque.
+fn build_chart(movements: &[MovementRaw], today: NaiveDate) -> Vec<TreasuryChartBar> {
     const SLOTS: usize = 14;
-    let mut totals = vec![0.0_f64; SLOTS];
+    use chrono::Timelike;
     use rust_decimal::prelude::ToPrimitive;
-    for m in movements {
-        let idx = match period {
-            "today" => {
-                if m.at.date() != today {
-                    continue;
-                }
-                // 24h em 14 faixas.
-                (m.at.time().format("%H").to_string().parse::<usize>().unwrap_or(0) * SLOTS / 24)
-                    .min(SLOTS - 1)
-            }
-            _ => {
-                let days_back = (today - m.at.date()).num_days();
-                if !(0..SLOTS as i64).contains(&days_back) {
-                    continue;
-                }
-                SLOTS - 1 - days_back as usize
-            }
-        };
+
+    let mut totals = vec![0.0_f64; SLOTS];
+    for m in movements.iter().filter(|m| m.at.date() == today) {
+        let idx = (m.at.hour() as usize * SLOTS / 24).min(SLOTS - 1);
         let v = m.amount.to_f64().unwrap_or(0.0);
         totals[idx] += if m.positive { v } else { -v };
     }
+
     let max = totals.iter().copied().fold(0.0_f64, |a, b| a.max(b.abs()));
+    // Índice da maior barra — a única destacada; nenhuma quando tudo é zero.
+    let peak = totals
+        .iter()
+        .enumerate()
+        .max_by(|(_, a), (_, b)| a.abs().total_cmp(&b.abs()))
+        .map(|(i, _)| i)
+        .filter(|_| max > 0.0);
+
     totals
         .into_iter()
         .enumerate()
         .map(|(i, v)| TreasuryChartBar {
             progress: if max > 0.0 { (v.abs() / max) as f32 } else { 0.0 },
-            highlight: i >= SLOTS - 3,
+            highlight: peak == Some(i),
         })
         .collect()
 }
@@ -448,7 +390,7 @@ fn apply_to_ui(
             format!("+ {}", money_br(net))
         }),
         net_positive: net >= Decimal::ZERO,
-        net_label: SharedString::from(s.period_label.clone()),
+        net_label: SharedString::from("SALDO LÍQUIDO DO DIA"),
         orders_display: SharedString::from(format!("+ {}", money_br(s.orders_in))),
         deposits_display: SharedString::from(format!("+ {}", money_br(s.deposits_in))),
         finance_in_display: SharedString::from(format!("+ {}", money_br(s.finance_in))),
@@ -488,40 +430,6 @@ fn apply_to_ui(
     ui.set_treasury_chart(ModelRc::new(VecModel::from(chart.to_vec())));
 }
 
-// ── Filtros ─────────────────────────────────────────────────────
-
-fn setup_filters(
-    ui: &MainWindow,
-    state: &DesktopState,
-    handle: &tokio::runtime::Handle,
-    filters: FiltersHandle,
-) {
-    let ui_weak = ui.as_weak();
-    let st = state.clone();
-    let hd = handle.clone();
-    let f = filters.clone();
-    ui.on_treasury_set_period(move |p| {
-        let Some(ui) = ui_weak.upgrade() else { return };
-        ui.set_treasury_period(p.clone());
-        if let Ok(mut g) = f.lock() {
-            g.period = p.to_string();
-        }
-        reapply(&ui.as_weak(), &st, &hd, &f);
-    });
-
-    let ui_weak = ui.as_weak();
-    let st = state.clone();
-    let hd = handle.clone();
-    ui.on_treasury_set_kind_filter(move |k| {
-        let Some(ui) = ui_weak.upgrade() else { return };
-        ui.set_treasury_kind_filter(k.clone());
-        if let Ok(mut g) = filters.lock() {
-            g.kind = k.to_string();
-        }
-        reapply(&ui.as_weak(), &st, &hd, &filters);
-    });
-}
-
 // ── Cadastro inicial ────────────────────────────────────────────
 
 /// Parse de valor monetário pt-BR ("1.234,56", "5", "R$ 5,00").
@@ -547,7 +455,6 @@ fn setup_open(
     state: &DesktopState,
     handle: &tokio::runtime::Handle,
     sync_notify: Arc<tokio::sync::Notify>,
-    filters: FiltersHandle,
 ) {
     let ui_weak = ui.as_weak();
     let state = state.clone();
@@ -566,7 +473,6 @@ fn setup_open(
         let state = state.clone();
         let notify = sync_notify.clone();
         let handle_inner = handle.clone();
-        let filters = filters.clone();
         handle.spawn(async move {
             let cid = state.company_id();
             let result = state.treasury_service.open(cid, initial, notes_opt).await;
@@ -583,7 +489,7 @@ fn setup_open(
                     }
                 }
             });
-            reapply(&ui_weak, &state, &handle_inner, &filters);
+            reapply(&ui_weak, &state, &handle_inner);
         });
     });
 }
@@ -595,7 +501,6 @@ fn setup_modal(
     state: &DesktopState,
     handle: &tokio::runtime::Handle,
     sync_notify: Arc<tokio::sync::Notify>,
-    filters: FiltersHandle,
 ) {
     // Abrir: limpa o formulário (a meta já abre com o valor atual).
     let ui_weak = ui.as_weak();
@@ -638,7 +543,6 @@ fn setup_modal(
         let state = state.clone();
         let notify = sync_notify.clone();
         let handle_inner = handle.clone();
-        let filters = filters.clone();
         handle.spawn(async move {
             let cid = state.company_id();
             let (result, msg) = match kind.as_str() {
@@ -681,7 +585,7 @@ fn setup_modal(
                     }
                 }
             });
-            reapply(&ui_weak, &state, &handle_inner, &filters);
+            reapply(&ui_weak, &state, &handle_inner);
         });
     });
 }

@@ -1307,10 +1307,6 @@ export component MainWindow inherits Window {
     in-out property <string> treasury-notes-input: "";
     in-out property <string> treasury-setup-error: "";
     in-out property <[TreasuryChartBar]> treasury-chart: [];
-    /// Filtros da tela: período ("today"|"week"|"month") e tipo de
-    /// movimento ("all"|"in"|"out").
-    in-out property <string> treasury-period: "today";
-    in-out property <string> treasury-kind-filter: "all";
     // Modal de aporte/retirada/meta.
     in-out property <bool> treasury-show-modal: false;
     in-out property <string> treasury-modal-kind: "deposit";
@@ -1319,8 +1315,6 @@ export component MainWindow inherits Window {
     in-out property <string> treasury-modal-error: "";
     callback treasury-refresh();
     callback treasury-open();
-    callback treasury-set-period(string);
-    callback treasury-set-kind-filter(string);
     callback treasury-open-modal(string);
     callback treasury-close-modal();
     callback treasury-confirm-modal();
@@ -2384,15 +2378,11 @@ export component MainWindow inherits Window {
                 summary: root.treasury-summary;
                 movements: root.treasury-movements;
                 chart: root.treasury-chart;
-                period: root.treasury-period;
-                kind-filter: root.treasury-kind-filter;
                 initial-input <=> root.treasury-initial-input;
                 notes-input <=> root.treasury-notes-input;
                 setup-error: root.treasury-setup-error;
                 refresh => { root.treasury-refresh(); }
                 open-treasury => { root.treasury-open(); }
-                set-period(p) => { root.treasury-set-period(p); }
-                set-kind-filter(k) => { root.treasury-set-kind-filter(k); }
                 open-deposit => { root.treasury-open-modal("deposit"); }
                 open-withdraw => { root.treasury-open-modal("withdraw"); }
                 open-goal => { root.treasury-open-modal("goal"); }
