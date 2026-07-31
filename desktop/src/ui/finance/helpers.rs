@@ -89,7 +89,9 @@ pub(crate) fn parse_date_br(s: &str) -> Option<NaiveDate> {
 
 pub(crate) fn parse_hex_color(hex: &str) -> Color {
     let h = hex.trim_start_matches('#');
-    if h.len() != 6 {
+    // `len()` conta BYTES: sem `is_ascii()` o fatiamento PANICA no meio
+    // de um caractere multibyte.
+    if !h.is_ascii() || h.len() != 6 {
         return Color::from_rgb_u8(0xBD, 0xBD, 0xBD);
     }
     let r = u8::from_str_radix(&h[0..2], 16).unwrap_or(0xBD);

@@ -122,16 +122,6 @@ fn apply_loaded_orders(ui: &MainWindow, all: Vec<OrderData>) {
 
 /// Conta pedidos ATIVOS (status != Entregue/Cancelado) para o badge da
 /// sidebar. Fonte única (lista de Pedidos + recompute de badges).
-pub(crate) fn active_orders_count(orders: &[letaf_core::order::model::Order]) -> i32 {
-    orders
-        .iter()
-        .filter(|o| {
-            let s = o.status.to_string();
-            s != "delivered" && s != "cancelled"
-        })
-        .count() as i32
-}
-
 /// Callback: registra o pedido selecionado e carrega seus itens com imagens.
 ///
 /// Regras aplicadas (AI_RULES.md §1, §8, §14):

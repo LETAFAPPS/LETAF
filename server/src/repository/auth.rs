@@ -310,7 +310,10 @@ impl UserRepository for PgUserRepository {
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
              ON CONFLICT (id) DO UPDATE SET
                  email = EXCLUDED.email,
-                 password_hash = EXCLUDED.password_hash,
+                 -- Hash vazio = redigido pelo pull (§11) ou cliente sem o
+                 -- dado: preserva o que já está gravado em vez de zerar.
+                 password_hash = CASE WHEN EXCLUDED.password_hash = ''
+                     THEN users.password_hash ELSE EXCLUDED.password_hash END,
                  name = EXCLUDED.name,
                  role = EXCLUDED.role,
                  job_role_id = EXCLUDED.job_role_id,

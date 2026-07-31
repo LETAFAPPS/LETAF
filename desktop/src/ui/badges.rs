@@ -24,9 +24,17 @@ pub(crate) async fn refresh_all_badges(ui_weak: &slint::Weak<MainWindow>, state:
     let cid = state.company_id();
     let today = letaf_core::tz::today();
 
-    let orders = state.order_service.find_all(cid).await.unwrap_or_default();
+    // COUNT(*) direto: este refresh roda a cada ciclo de sync (30 s) e
+    // carregar pedidos (com itens), lançamentos e o catálogo inteiro
+    // (com o base64 das fotos) só para produzir três inteiros era o
+    // trabalho mais caro do aplicativo ocioso. §13.
+    let orders_n = state.order_service.count_active(cid).await.unwrap_or(0) as i32;
+    let stock_n = state
+        .product_service
+        .count_out_of_stock(cid)
+        .await
+        .unwrap_or(0) as i32;
     let entries = state.finance_service.find_all(cid).await.unwrap_or_default();
-    let products = state.product_service.find_all(cid).await.unwrap_or_default();
     let sub_pending = state
         .subscription_service
         .pending_summary(cid, today)
@@ -34,9 +42,7 @@ pub(crate) async fn refresh_all_badges(ui_weak: &slint::Weak<MainWindow>, state:
         .map(|s| s.action_count as i32)
         .unwrap_or(0);
 
-    let orders_n = super::orders::active_orders_count(&orders);
     let overdue_n = super::finance::overdue_count(&entries);
-    let stock_n = super::inventory::out_of_stock_count(&products);
 
     let ui_weak = ui_weak.clone();
     let _ = slint::invoke_from_event_loop(move || {

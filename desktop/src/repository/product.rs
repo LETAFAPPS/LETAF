@@ -195,6 +195,19 @@ impl ProductRepository for SqliteProductRepository {
         Ok(products)
     }
 
+    async fn count_out_of_stock(&self, company_id: Uuid) -> Result<i64, CoreError> {
+        let row: (i64,) = sqlx::query_as(
+            "SELECT COUNT(*) FROM products
+             WHERE company_id = ?1 AND deleted_at IS NULL
+               AND active = 1 AND unlimited_stock = 0 AND stock_quantity <= 0",
+        )
+        .bind(company_id.to_string())
+        .fetch_one(&self.pool)
+        .await
+        .map_err(map_db)?;
+        Ok(row.0)
+    }
+
     async fn find_by_ids(&self, company_id: Uuid, ids: &[Uuid]) -> Result<Vec<Product>, CoreError> {
         if ids.is_empty() { return Ok(Vec::new()); }
         // SQLite não tem `ANY`; monta `IN (?2, ?3, ...)` com placeholders

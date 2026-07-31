@@ -86,6 +86,7 @@ impl ProductService {
         Self::validate_product(&name, price, cost_price, stock_quantity, min_stock, unlimited_stock)?;
         Self::validate_discount(&discount_kind, discount_value, discount_min_qty, &discount_tiers)?;
         Self::validate_variations(&variations)?;
+        Self::validate_cover_color(&cover_color)?;
         // Produto ilimitado força stock_quantity = 0 (campo deixa de ser
         // semântico). Mantemos 0 em vez de None para reaproveitar a coluna
         // existente sem nullable cascade.
@@ -158,6 +159,7 @@ impl ProductService {
         product.unit = unit;
         product.balance_mode = balance_mode;
         product.image_data = image_data;
+        Self::validate_cover_color(&cover_color)?;
         product.cover_color = cover_color;
         product.availability_schedule = availability_schedule;
         product.discount_kind = discount_kind;
@@ -190,6 +192,32 @@ impl ProductService {
     /// Quando `unlimited_stock=true` o valor de `stock_quantity` deixa de
     /// ser semântico (o produto nunca esgota), então não validamos sinal —
     /// o caller é responsável por normalizar para 0.
+    /// `cover_color` precisa ser `#RRGGBB` ASCII.
+    ///
+    /// §11: o valor vem do cliente (desktop ou `POST /products`) e é
+    /// fatiado por byte na UI. Uma cor com caractere multibyte passava
+    /// direto, era replicada pelo sync e derrubava o app de toda a
+    /// empresa ao abrir a lista de produtos.
+    /// Produtos ativos com estoque zerado (badge da navegação).
+    pub async fn count_out_of_stock(&self, company_id: Uuid) -> Result<i64, CoreError> {
+        self.repo.count_out_of_stock(company_id).await
+    }
+
+    fn validate_cover_color(cover_color: &Option<String>) -> Result<(), CoreError> {
+        let Some(c) = cover_color.as_deref() else { return Ok(()) };
+        if c.is_empty() {
+            return Ok(());
+        }
+        let hex = c.strip_prefix('#').unwrap_or(c);
+        let valid = hex.len() == 6 && hex.chars().all(|ch| ch.is_ascii_hexdigit());
+        if !valid {
+            return Err(CoreError::Validation(
+                "Cor de capa inválida — use o formato #RRGGBB".into(),
+            ));
+        }
+        Ok(())
+    }
+
     fn validate_product(
         name: &str,
         price: Option<Decimal>,

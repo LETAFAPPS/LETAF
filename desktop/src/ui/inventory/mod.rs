@@ -9,4 +9,4 @@
 mod setup;
 mod view;
 
-pub(crate) use setup::{out_of_stock_count, setup_inventory};
+pub(crate) use setup::setup_inventory;

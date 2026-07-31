@@ -107,7 +107,11 @@ pub(crate) async fn sync_stock_movement(
     // ESTOQUISTA (`stock.edit`) pode sincronizar seus ajustes — não precisa de
     // `products.edit`. A guarda por delta idempotente mantém o servidor como
     // autoridade do `stock_quantity`. §11.
-    auth.require_any_permission(&["stock.edit", "products.edit"])?;
+    // `pdv.view` entra na lista: a baixa de estoque da VENDA gera este
+    // ledger. Sem isso o operador de caixa levava 403 a cada ciclo, o
+    // movimento ficava preso para sempre e o estoque do servidor nunca
+    // era decrementado (a vitrine web vendia produto inexistente). §7.6.
+    auth.require_any_permission(&["stock.edit", "products.edit", "pdv.view"])?;
     state
         .product_service
         .apply_stock_movement(auth.0.company_id, movement)

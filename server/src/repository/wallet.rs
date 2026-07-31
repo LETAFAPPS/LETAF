@@ -165,15 +165,21 @@ impl WalletRepository for PgWalletRepository {
         Ok(())
     }
 
+    /// Atualiza a conta SEM tocar no `balance`.
+    ///
+    /// O saldo só muda por `apply_movement`, que usa CAS otimista. Gravar
+    /// o saldo aqui (lido antes da alteração) apagava um débito
+    /// concorrente: alterar o limite de fiado enquanto o PDV finalizava
+    /// uma venda `wallet` do mesmo cliente desfazia a cobrança e deixava
+    /// o movimento órfão no extrato.
     async fn update_account(&self, a: &WalletAccount) -> Result<(), CoreError> {
         sqlx::query(
             "UPDATE wallet_accounts SET
-               customer_id = $1, balance = $2, credit_limit = $3,
-               updated_at = $4, deleted_at = $5, synced = $6
-             WHERE company_id = $7 AND id = $8",
+               customer_id = $1, credit_limit = $2,
+               updated_at = $3, deleted_at = $4, synced = $5
+             WHERE company_id = $6 AND id = $7",
         )
         .bind(a.customer_id)
-        .bind(a.balance)
         .bind(a.credit_limit)
         .bind(a.base.updated_at)
         .bind(a.base.deleted_at)

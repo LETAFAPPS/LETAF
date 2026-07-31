@@ -28,6 +28,20 @@ pub trait ProductRepository: Send + Sync {
         Ok(self.find_all(company_id).await?.len() as i64)
     }
 
+    /// Conta produtos ATIVOS com estoque zerado (badge "Estoque").
+    ///
+    /// Padrão carrega a lista; o SQLite sobrescreve com `COUNT(*)` — o
+    /// badge roda a cada ciclo de sync e `find_all` traz `image_data`
+    /// (base64 das fotos) do catálogo inteiro só para contar. §13.
+    async fn count_out_of_stock(&self, company_id: Uuid) -> Result<i64, CoreError> {
+        Ok(self
+            .find_all(company_id)
+            .await?
+            .iter()
+            .filter(|p| p.active && !p.unlimited_stock && p.stock_quantity <= 0.0)
+            .count() as i64)
+    }
+
     /// Busca vários produtos por id numa única query (evita N+1, ex.: no
     /// checkout ao validar preços de um carrinho). Ignora ids inexistentes.
     async fn find_by_ids(&self, company_id: Uuid, ids: &[Uuid]) -> Result<Vec<Product>, CoreError>;

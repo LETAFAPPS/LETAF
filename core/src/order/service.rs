@@ -276,6 +276,11 @@ impl OrderService {
         self.repo.find_all_paged(company_id, limit, offset).await
     }
 
+    /// Pedidos em andamento (badge da navegação).
+    pub async fn count_active(&self, company_id: Uuid) -> Result<i64, CoreError> {
+        self.repo.count_active(company_id).await
+    }
+
     pub async fn find_by_customer(&self, company_id: Uuid, customer_id: Uuid) -> Result<Vec<Order>, CoreError> {
         self.repo.find_by_customer(company_id, customer_id).await
     }
@@ -379,7 +384,10 @@ impl OrderService {
         company_id: Uuid,
         customer_id: Uuid,
     ) -> Result<u32, CoreError> {
-        let orders = self.repo.find_all(company_id).await?;
+        // Por CLIENTE (há índice `idx_orders_customer`) em vez de
+        // `find_all`, que trazia todos os pedidos da empresa — com os
+        // itens — só para filtrar os de um cliente. §13.
+        let orders = self.repo.find_by_customer(company_id, customer_id).await?;
         let mut settled = 0u32;
         for o in orders.iter().filter(|o| {
             o.customer_id == customer_id

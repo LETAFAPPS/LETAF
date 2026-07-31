@@ -252,7 +252,10 @@ impl UserRepository for SqliteUserRepository {
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)
              ON CONFLICT (id) DO UPDATE SET
                  email = excluded.email,
-                 password_hash = excluded.password_hash,
+                 -- Hash vazio = redigido pelo pull (§11): preserva o que já
+                 -- está gravado em vez de zerar o login offline.
+                 password_hash = CASE WHEN excluded.password_hash = ''
+                     THEN users.password_hash ELSE excluded.password_hash END,
                  name = excluded.name,
                  role = excluded.role,
                  job_role_id = excluded.job_role_id,

@@ -171,6 +171,16 @@ pub(super) async fn update_admin(
     // valida a nova função só para os demais; ao master ninguém pode ser
     // rebaixado nem promovido.
     let is_master = state.admin_role_service.role_for_user(id).await?.is_none();
+    // A CREDENCIAL do master também é imutável para os demais (§11): a
+    // função dele já não podia ser trocada, ele não pode ser excluído nem
+    // desativado — mas redefinir a senha dava a qualquer super admin
+    // restrito com a tela "admins" o caminho para logar como master e
+    // obter `screen:*`, contornando todo o RBAC do painel.
+    if is_master && id != auth.0.sub {
+        return Err(ServerError::Core(CoreError::Validation(
+            "O super admin master só pode ser editado por ele mesmo.".into(),
+        )));
+    }
     let new_role = if is_master {
         None
     } else {

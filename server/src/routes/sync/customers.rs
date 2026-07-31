@@ -59,7 +59,12 @@ pub(crate) async fn sync_company(
 
 /// GET /sync/pull/users?since=<timestamp> — pull de usuários.
 ///
-/// Retorna SyncUserPayload para incluir password_hash na replicação.
+/// Retorna `SyncUserPayload` para replicar o `password_hash` (login
+/// offline). §11 — mínimo privilégio: o hash dos OUTROS só vai para quem
+/// administra a equipe (`collaborators.view`); os demais recebem apenas o
+/// próprio. Sem isso, um funcionário de estoque baixava o hash bcrypt do
+/// Admin e podia quebrá-lo offline. Hash vazio NÃO apaga o já gravado
+/// (guard no `ON CONFLICT` dos dois bancos).
 pub(crate) async fn pull_users(
     State(state): State<AppState>,
     auth: AuthClaims,
@@ -71,7 +76,18 @@ pub(crate) async fn pull_users(
         .find_updated_since(auth.0.company_id, params.since)
         .await?;
 
-    let payloads: Vec<SyncUserPayload> = users.iter().map(SyncUserPayload::from).collect();
+    let sees_all = auth.require_permission("collaborators.view").is_ok();
+    let caller = auth.0.sub;
+    let payloads: Vec<SyncUserPayload> = users
+        .iter()
+        .map(|u| {
+            let mut payload = SyncUserPayload::from(u);
+            if !sees_all && u.base.id != caller {
+                payload.password_hash = String::new();
+            }
+            payload
+        })
+        .collect();
     Ok(Json(payloads))
 }
 

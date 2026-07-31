@@ -56,13 +56,22 @@ async fn account_id_for(state: &DesktopState, customer_id: Uuid) -> Option<Uuid>
     }
 }
 
-/// Debita na carteira o valor de uma conta a receber recém-criada.
-pub(crate) async fn charge(state: &DesktopState, entry: &FinanceEntry) {
-    let Some(customer_id) = linked_customer(entry) else { return };
-    if entry.status.is_settled() || entry.status == FinanceStatus::Cancelled {
-        return;
-    }
-    apply_charge(state, customer_id, entry.amount, &entry.description).await;
+/// Debita na carteira o valor de um GRUPO de contas a receber recém-criado
+/// (lançamento simples, parcelado ou recorrente).
+///
+/// O débito é a SOMA das entradas: é exatamente o que
+/// `open_customer_receivables_total` vai descontar do espelho do fiado.
+/// Debitar só a 1ª parcela deixava a carteira menor que a dívida e o
+/// espelho apagava fiado real do Financeiro.
+pub(crate) async fn charge_group(state: &DesktopState, entries: &[FinanceEntry]) {
+    let Some(head) = entries.first() else { return };
+    let Some(customer_id) = linked_customer(head) else { return };
+    let total: Decimal = entries
+        .iter()
+        .filter(|e| !e.status.is_settled() && e.status != FinanceStatus::Cancelled)
+        .map(|e| e.amount)
+        .sum();
+    apply_charge(state, customer_id, total, &head.description).await;
 }
 
 /// Credita a baixa (total ou parcial) de uma conta a receber.

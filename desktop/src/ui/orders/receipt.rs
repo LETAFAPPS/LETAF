@@ -73,12 +73,22 @@ pub(crate) fn setup_print_receipt_now(
                     .ok().flatten();
                 let paper_width = printer_default.as_ref().map(|p| p.paper_width).unwrap_or(80);
                 let printer_name = printer_default.as_ref().map(|p| p.system_name.clone());
-                let result = match crate::print::pdf::build_full_receipt_pdf(
-                    &order, &customer_name, &customer_phone, paper_width,
-                ) {
-                    Ok(bytes) => send_pdf_to_printer(&bytes, suffix, printer_name.as_deref()),
-                    Err(e) => Err(format!("falha ao gerar PDF: {e}")),
-                };
+                // Gerar o PDF é CPU-bound e `send_pdf_to_printer` espera o
+                // spooler (`lp`/`Out-Printer -Wait`): fora do executor,
+                // senão prende uma worker thread do Tokio por segundos e
+                // trava sync/health/UI que caírem nela.
+                let order_c = order.clone();
+                let (name_c, phone_c) = (customer_name.clone(), customer_phone.clone());
+                let result = tokio::task::spawn_blocking(move || {
+                    match crate::print::pdf::build_full_receipt_pdf(
+                        &order_c, &name_c, &phone_c, paper_width,
+                    ) {
+                        Ok(bytes) => send_pdf_to_printer(&bytes, suffix, printer_name.as_deref()),
+                        Err(e) => Err(format!("falha ao gerar PDF: {e}")),
+                    }
+                })
+                .await
+                .unwrap_or_else(|e| Err(format!("falha ao imprimir: {e}")));
                 let _ = slint::invoke_from_event_loop(move || {
                     let Some(ui) = ui_weak2.upgrade() else { return };
                     match result {
@@ -114,12 +124,18 @@ pub(crate) fn setup_print_receipt_now(
                 .find_by_kind(cid, "kitchen").await
                 .unwrap_or_default();
             if kitchen_printers.is_empty() {
-                let result = match crate::print::pdf::build_kitchen_receipt_pdf(
-                    &order, &customer_name, &customer_phone, 80,
-                ) {
-                    Ok(bytes) => send_pdf_to_printer(&bytes, suffix, None),
-                    Err(e) => Err(format!("falha ao gerar PDF: {e}")),
-                };
+                let order_c = order.clone();
+                let (name_c, phone_c) = (customer_name.clone(), customer_phone.clone());
+                let result = tokio::task::spawn_blocking(move || {
+                    match crate::print::pdf::build_kitchen_receipt_pdf(
+                        &order_c, &name_c, &phone_c, 80,
+                    ) {
+                        Ok(bytes) => send_pdf_to_printer(&bytes, suffix, None),
+                        Err(e) => Err(format!("falha ao gerar PDF: {e}")),
+                    }
+                })
+                .await
+                .unwrap_or_else(|e| Err(format!("falha ao imprimir: {e}")));
                 let _ = slint::invoke_from_event_loop(move || {
                     let Some(ui) = ui_weak2.upgrade() else { return };
                     match result {
@@ -182,17 +198,22 @@ pub(crate) fn setup_print_receipt_now(
                 // Order parcial: clona o original mas com itens filtrados.
                 let mut partial = order.clone();
                 partial.items = items.clone();
-                let pdf = crate::print::pdf::build_kitchen_receipt_pdf(
-                    &partial, &customer_name, &customer_phone, printer.paper_width,
-                );
-                match pdf {
-                    Ok(bytes) => {
-                        match send_pdf_to_printer(&bytes, suffix, Some(&printer.system_name)) {
-                            Ok(()) => printed_count += 1,
-                            Err(e) => errors.push(format!("{}: {e}", printer.name)),
-                        }
+                let (name_c, phone_c) = (customer_name.clone(), customer_phone.clone());
+                let paper = printer.paper_width;
+                let system_name = printer.system_name.clone();
+                let outcome = tokio::task::spawn_blocking(move || {
+                    match crate::print::pdf::build_kitchen_receipt_pdf(
+                        &partial, &name_c, &phone_c, paper,
+                    ) {
+                        Ok(bytes) => send_pdf_to_printer(&bytes, suffix, Some(&system_name)),
+                        Err(e) => Err(format!("PDF {e}")),
                     }
-                    Err(e) => errors.push(format!("{}: PDF {e}", printer.name)),
+                })
+                .await
+                .unwrap_or_else(|e| Err(format!("falha ao imprimir: {e}")));
+                match outcome {
+                    Ok(()) => printed_count += 1,
+                    Err(e) => errors.push(format!("{}: {e}", printer.name)),
                 }
             }
             let _ = slint::invoke_from_event_loop(move || {

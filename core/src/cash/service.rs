@@ -420,7 +420,15 @@ pub fn summarize(movements: &[CashMovement]) -> SessionSummary {
             MovementKind::Suprimento => {
                 s.suprimento_total += mv.amount;
                 s.suprimento_count += 1;
-                cash_balance += mv.amount;
+                // Só entra na GAVETA o suprimento em dinheiro. Recebimento
+                // de conta via PIX/cartão também é registrado como
+                // suprimento (com a forma escolhida) e somá-lo aqui
+                // inflava o esperado no fechamento — o operador contava a
+                // gaveta e o sistema acusava quebra do valor recebido.
+                // Mesmo critério do ramo `Sale`.
+                if mv.method.as_deref().unwrap_or("cash") == "cash" {
+                    cash_balance += mv.amount;
+                }
             }
         }
     }

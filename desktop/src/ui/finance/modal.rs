@@ -474,12 +474,17 @@ pub(crate) fn setup_save_modal(
 
 /// Cria o lançamento e, quando é conta a receber de um cliente,
 /// registra a dívida na carteira dele (§ ponte `wallet_link`).
+///
+/// Usa o GRUPO inteiro: com parcelas o head vale só a 1ª parcela e com
+/// recorrência há 12 ocorrências — debitar só o head deixaria a carteira
+/// menor que a dívida, e como o espelho do fiado desconta TODAS as contas
+/// abertas do cliente, a diferença apagava fiado real do Financeiro.
 async fn create_new(
     state: &DesktopState,
     params: CreateFinanceParams,
 ) -> Result<(), letaf_core::error::CoreError> {
-    let head = state.finance_service.create(params).await?;
-    wallet_link::charge(state, &head).await;
+    let entries = state.finance_service.create_group(params).await?;
+    wallet_link::charge_group(state, &entries).await;
     Ok(())
 }
 
@@ -522,8 +527,10 @@ pub(crate) async fn update_existing(
     entry.due_date = due_date;
     entry.notes = if notes.is_empty() { None } else { Some(notes) };
     entry.base.updated_at = chrono::Utc::now().naive_utc();
-    entry.base.synced = false;
-    state.finance_service.sync_upsert(cid, entry.clone()).await?;
+    // `sync_upsert` é o caminho do PULL: ele força `synced = true` e a
+    // edição nunca chegava ao servidor (§7.3). `update` preserva
+    // `synced = false`, então o push leva a alteração.
+    state.finance_service.update(cid, entry.clone()).await?;
     wallet_link::update(state, &before, &entry).await;
     Ok(())
 }

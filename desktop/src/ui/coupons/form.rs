@@ -171,12 +171,15 @@ pub(crate) fn parse_date(s: &str, end_of_day: bool) -> Result<Option<NaiveDateTi
     if t.is_empty() { return Ok(None); }
     let d = NaiveDate::parse_from_str(t, "%d/%m/%Y")
         .map_err(|_| "Data inválida (use DD/MM/AAAA)")?;
+    // O operador digita a data no relógio DELE; o servidor compara com
+    // `Utc::now()`. Sem converter, um cupom "válido até 31/08" morria às
+    // 21h de 31/08 — no pico do jantar do último dia.
     let dt = if end_of_day {
         d.and_hms_opt(23, 59, 59)
     } else {
         d.and_hms_opt(0, 0, 0)
     };
-    Ok(dt)
+    Ok(dt.map(letaf_core::tz::to_utc))
 }
 
 /// Número → string para pré-preencher o form de edição. Campos são

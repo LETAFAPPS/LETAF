@@ -99,9 +99,12 @@ pub fn cash_flow(
             continue;
         }
         // Liquidado → dia da baixa; senão → previsão na due_date.
+        // `paid_at` é UTC (§6) e `due_date` já é data local: converte a
+        // baixa antes de comparar, senão o que foi pago depois das 21h
+        // aparece no fluxo do dia seguinte.
         let day = if e.status.is_settled() {
             match e.paid_at {
-                Some(p) => p.date(),
+                Some(p) => crate::tz::to_local(p).date(),
                 None => continue,
             }
         } else {
@@ -123,7 +126,7 @@ pub fn cash_flow(
         if o.payment_method.is_none() {
             continue;
         }
-        if let Some(i) = idx_of(o.base.created_at.date()) {
+        if let Some(i) = idx_of(crate::tz::to_local(o.base.created_at).date()) {
             inflow[i] += o.total;
         }
     }

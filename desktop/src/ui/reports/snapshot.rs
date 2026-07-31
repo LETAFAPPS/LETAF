@@ -145,7 +145,9 @@ pub(crate) fn build_snapshot<'a>(
             .iter()
             .copied()
             .filter(|o| {
-                let d = o.base.created_at.date();
+                // UTC → fuso da loja (§6): sem isso a janela do relatório
+                // ia das 21h às 21h e o pico do jantar caía no dia seguinte.
+                let d = letaf_core::tz::to_local(o.base.created_at).date();
                 d >= from && d <= to
             })
             .collect()

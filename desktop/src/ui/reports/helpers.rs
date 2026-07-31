@@ -198,8 +198,12 @@ where
 {
     let mut totals = vec![0.0_f64; 24];
     for o in orders {
-        if o.base.created_at.date() == day {
-            let h = o.base.created_at.hour() as usize;
+        // `created_at` é UTC (§6): converte para o fuso da loja antes de
+        // comparar o dia/hora, senão o expediente das 21h em diante cai
+        // no dia seguinte e as barras ficam 3h deslocadas.
+        let local = letaf_core::tz::to_local(o.base.created_at);
+        if local.date() == day {
+            let h = local.hour() as usize;
             if h < 24 {
                 totals[h] += per_order(o);
             }
@@ -214,7 +218,7 @@ where
 {
     let mut totals = vec![0.0_f64; span as usize];
     for o in orders {
-        let idx = (o.base.created_at.date() - start).num_days();
+        let idx = (letaf_core::tz::to_local(o.base.created_at).date() - start).num_days();
         if idx >= 0 {
             if let Some(v) = totals.get_mut(idx as usize) {
                 *v += per_order(o);
@@ -230,7 +234,7 @@ where
 {
     let mut totals = vec![0.0_f64; 12];
     for o in orders {
-        let d = o.base.created_at.date();
+        let d = letaf_core::tz::to_local(o.base.created_at).date();
         if d.year() == year {
             let m = d.month() as usize;
             if (1..=12).contains(&m) {

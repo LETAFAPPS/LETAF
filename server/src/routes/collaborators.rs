@@ -16,6 +16,36 @@ use crate::middleware::tenant::TenantContext;
 const PERM_VIEW: &str = "collaborators.view";
 const PERM_EDIT: &str = "collaborators.edit";
 
+/// Barra escalada de privilégio por ATRIBUIÇÃO de Função (§11).
+///
+/// `require_can_grant` já impedia MONTAR uma Função com permissões que o
+/// chamador não tem (`job_roles.rs`), mas nada impedia ATRIBUIR uma Função
+/// existente e mais poderosa: um funcionário com `collaborators.edit`
+/// apontava a própria conta (ou uma conta nova, com senha escolhida por
+/// ele) para a Função "Gerente" e, ao relogar, recebia `finance.*`/`cash.*`
+/// que nunca teve. Aqui as permissões da Função ALVO passam pelo mesmo
+/// crivo. Admin/SuperAdmin seguem com bypass dentro de `require_can_grant`.
+async fn require_can_assign(
+    state: &AppState,
+    auth: &AuthClaims,
+    company_id: Uuid,
+    job_role_id: Option<Uuid>,
+) -> Result<(), ServerError> {
+    let Some(role_id) = job_role_id else {
+        return Ok(());
+    };
+    let role = state
+        .job_role_service
+        .find_by_id(company_id, role_id)
+        .await?
+        .ok_or_else(|| {
+            ServerError::Core(letaf_core::error::CoreError::Validation(
+                "Função não encontrada".into(),
+            ))
+        })?;
+    auth.require_can_grant(&role.permissions)
+}
+
 /// Rotas de Funcionário (colaborador) — cadastro/edição com Função.
 /// Gateadas por `collaborators.*` (Admin tem bypass).
 pub fn routes() -> Router<AppState> {
@@ -100,6 +130,7 @@ async fn create(
 ) -> Result<(StatusCode, Json<CollaboratorPayload>), ServerError> {
     auth.verify_company(tenant.company_id)?;
     auth.require_permission(PERM_EDIT)?;
+    require_can_assign(&state, &auth, tenant.company_id, body.job_role_id).await?;
     let user = state
         .auth_service
         .create_employee(tenant.company_id, body.email, body.password, body.name, body.job_role_id)
@@ -116,6 +147,7 @@ async fn update(
 ) -> Result<Json<CollaboratorPayload>, ServerError> {
     auth.verify_company(tenant.company_id)?;
     auth.require_permission(PERM_EDIT)?;
+    require_can_assign(&state, &auth, tenant.company_id, body.job_role_id).await?;
     let user = state
         .auth_service
         .update_employee(tenant.company_id, id, body.name, body.job_role_id, body.password)

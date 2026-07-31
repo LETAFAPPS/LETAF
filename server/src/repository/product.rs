@@ -797,15 +797,22 @@ impl ProductRepository for PgProductRepository {
         .map_err(map_db)?
         .rows_affected();
         if inserted == 1 {
-            // Aplica o delta ao materializado só na 1ª vez. Não toca
-            // updated_at/synced do produto (mudança veio do sync).
+            // Aplica o delta ao materializado só na 1ª vez, e BUMPA
+            // `updated_at`: o desktop puxa estoque pela linha do produto
+            // (`updated_at > since`) e não puxa `stock_movements`. Sem o
+            // bump, a venda de um terminal NUNCA chegava aos outros —
+            // dois caixas na mesma loja vendiam o mesmo estoque para
+            // sempre. Quem originou a venda está protegido pela guarda do
+            // `ON CONFLICT` local (só aceita o absoluto com o ledger em
+            // dia), então o bump não reintroduz overselling.
             sqlx::query(
-                "UPDATE products SET stock_quantity = stock_quantity + $1
+                "UPDATE products SET stock_quantity = stock_quantity + $1, updated_at = $4
                  WHERE company_id = $2 AND id = $3 AND unlimited_stock = false",
             )
             .bind(m.delta)
             .bind(m.base.company_id)
             .bind(m.product_id)
+            .bind(m.base.updated_at)
             .execute(&mut *tx)
             .await
             .map_err(map_db)?;

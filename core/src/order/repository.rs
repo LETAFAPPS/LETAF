@@ -70,6 +70,22 @@ pub trait OrderRepository: Send + Sync {
     /// Lista pedidos de um cliente específico (sem itens).
     async fn find_by_customer(&self, company_id: Uuid, customer_id: Uuid) -> Result<Vec<Order>, CoreError>;
 
+    /// Conta pedidos em andamento (badge "Pedidos"): tudo que não está
+    /// entregue nem cancelado. Padrão carrega a lista; o SQLite
+    /// sobrescreve com `COUNT(*)` — o badge roda a cada ciclo de sync e
+    /// `find_all` hidrata os ITENS de todos os pedidos. §13.
+    async fn count_active(&self, company_id: Uuid) -> Result<i64, CoreError> {
+        Ok(self
+            .find_all(company_id)
+            .await?
+            .iter()
+            .filter(|o| {
+                let s = o.status.to_string();
+                s != "delivered" && s != "cancelled"
+            })
+            .count() as i64)
+    }
+
     /// Conta usos de um cupom (case-insensitive) em pedidos não-cancelados.
     /// Query dedicada — evita materializar todos os pedidos no checkout.
     async fn count_coupon_uses(&self, company_id: Uuid, coupon_code: &str) -> Result<i64, CoreError>;

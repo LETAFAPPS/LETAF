@@ -446,7 +446,9 @@ pub(crate) fn fill_customers(
     for o in all_orders {
         if o.base.deleted_at.is_some() || o.status == OrderStatus::Cancelled { continue; }
         if o.customer_id.is_nil() { continue; }
-        let d = o.base.created_at.date();
+        // UTC → fuso da loja (§6): sem isso o primeiro pedido de um
+        // cliente feito depois das 21h contava no dia seguinte.
+        let d = letaf_core::tz::to_local(o.base.created_at).date();
         first_order
             .entry(o.customer_id)
             .and_modify(|cur| { if d < *cur { *cur = d; } })
@@ -582,7 +584,7 @@ pub(crate) fn fill_customers(
 fn hour_counts(orders: &[&Order]) -> Vec<f64> {
     let mut totals = vec![0.0_f64; 24];
     for o in orders {
-        let h = o.base.created_at.hour() as usize;
+        let h = letaf_core::tz::to_local(o.base.created_at).hour() as usize;
         if h < 24 {
             totals[h] += 1.0;
         }

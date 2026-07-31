@@ -53,6 +53,15 @@ impl CartItem {
 }
 
 pub(crate) struct PdvState {
+    /// `true` enquanto uma finalização está EM VOO.
+    ///
+    /// A criação do pedido é assíncrona e o carrinho só é limpo no
+    /// retorno: sem esta trava, duplo-clique em "Finalizar" (ou F9
+    /// pressionado duas vezes) disparava duas vendas do mesmo carrinho —
+    /// dois pedidos, duas baixas de estoque e, no fiado, duas cobranças.
+    /// O SQLite ainda não tem UNIQUE em `(company_id, number)`, então
+    /// nem o retry por número duplicado salvava.
+    pub(crate) finalizing: bool,
     pub(crate) products_all: Vec<Product>,
     pub(crate) categories: Vec<(Uuid, String)>,
     pub(crate) active_category_ids: Vec<Uuid>,
@@ -93,6 +102,7 @@ pub(crate) struct PdvState {
 impl PdvState {
     pub(crate) fn new() -> Self {
         Self {
+            finalizing: false,
             products_all: Vec::new(),
             categories: Vec::new(),
             active_category_ids: Vec::new(),

@@ -173,7 +173,10 @@ pub(crate) fn setup_refresh(
             let products = state.product_service.find_all(cid).await.unwrap_or_default();
             let categories = state.category_service.find_all(cid).await.unwrap_or_default();
             // Badge da sidebar: produtos ativos esgotados (fora de estoque).
-            let out = out_of_stock_count(&products);
+            let out = products
+                .iter()
+                .filter(|p| p.active && !p.unlimited_stock && p.stock_quantity <= 0.0)
+                .count() as i32;
             if let Ok(mut g) = cache.lock() { *g = products; }
             if let Ok(mut g) = cats_cache.lock() { *g = categories; }
             apply_to_ui_from_cache(&ui_weak, &cache, &cats_cache);
@@ -185,15 +188,6 @@ pub(crate) fn setup_refresh(
             });
         });
     });
-}
-
-/// Conta os produtos ATIVOS fora de estoque (estoque não-ilimitado com
-/// saldo ≤ 0). Fonte única do badge da sidebar (refresh + recompute).
-pub(crate) fn out_of_stock_count(products: &[Product]) -> i32 {
-    products
-        .iter()
-        .filter(|p| p.active && !p.unlimited_stock && p.stock_quantity <= 0.0)
-        .count() as i32
 }
 
 // ── Ações: abrir modal "+ Estoque" / "Editar estoque" ────────────

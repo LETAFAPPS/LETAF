@@ -31,7 +31,7 @@ pub(crate) use edit::{
     setup_edit_order_filter_picker, setup_edit_order_inc, setup_save_edit_order,
 };
 pub(crate) use list::{
-    active_orders_count, setup_advance_order_status, setup_cancel_order, setup_open_order,
+    setup_advance_order_status, setup_cancel_order, setup_open_order,
     setup_refresh_orders, setup_set_order_payment,
 };
 pub(crate) use receipt::{send_to_default_printer, setup_print_receipt_now};

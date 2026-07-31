@@ -124,7 +124,10 @@ pub(crate) async fn sync_finance_entry(
     Json(entry): Json<FinanceEntry>,
 ) -> Result<Json<Value>, ServerError> {
     auth.verify_any_role(ROLES_OPERATORS)?;
-    auth.require_permission("finance.edit")?;
+    // `pdv.view` entra na lista porque a venda FIADO gera o espelho
+    // automático da dívida em `finance_entries`; sem isso o caixa levava
+    // 403 a cada ciclo e a conta a receber nunca chegava ao servidor.
+    auth.require_any_permission(&["finance.edit", "pdv.view"])?;
     state
         .finance_service
         .sync_upsert(auth.0.company_id, entry)
@@ -224,7 +227,8 @@ pub(crate) async fn sync_wallet_account(
     Json(account): Json<WalletAccount>,
 ) -> Result<Json<Value>, ServerError> {
     auth.verify_any_role(ROLES_OPERATORS)?;
-    auth.require_permission("customers.edit")?;
+    // Idem: a cobrança fiada do PDV move a carteira do cliente.
+    auth.require_any_permission(&["customers.edit", "pdv.view"])?;
     state
         .wallet_service
         .sync_upsert_account(auth.0.company_id, account)
@@ -261,7 +265,8 @@ pub(crate) async fn sync_wallet_movement(
     Json(movement): Json<WalletMovement>,
 ) -> Result<Json<Value>, ServerError> {
     auth.verify_any_role(ROLES_OPERATORS)?;
-    auth.require_permission("customers.edit")?;
+    // Idem: a cobrança fiada do PDV move a carteira do cliente.
+    auth.require_any_permission(&["customers.edit", "pdv.view"])?;
     state
         .wallet_service
         .sync_upsert_movement(auth.0.company_id, movement)

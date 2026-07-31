@@ -829,14 +829,19 @@ fn setup_impersonation(
                     return;
                 };
                 *snapshot.lock().unwrap() = Some(sa);
-                // Empresa comum é offline-first: retoma o sync para popular os
-                // dados do tenant no SQLite local.
-                state.set_sync_paused(false);
+                // A troca de tenant NÃO é atômica: `apply_login` tem awaits
+                // entre gravar o token e trocar o `company_id`. Com o worker
+                // rodando, um tick nessa janela usaria o company_id de um
+                // tenant com o JWT de outro. Despausa só DEPOIS — é o que o
+                // caminho de SAÍDA da impersonation já fazia.
                 apply_login(
                     &state, &auth_token, &notify,
                     dto.user.company_id, &dto.company_name, &dto.subdomain, dto.token,
                 )
                 .await;
+                // Empresa comum é offline-first: retoma o sync para popular os
+                // dados do tenant no SQLite local.
+                state.set_sync_paused(false);
                 state.session.save_perms(true, false, &dto.perms).await;
                 state.session.save_user_name(&dto.user.name).await;
                 let company_name = dto.company_name;

@@ -69,11 +69,24 @@ impl FinanceService {
     /// Cria um lançamento (e suas parcelas/recorrências, se houver).
     /// Retorna o cabeça do grupo.
     pub async fn create(&self, p: CreateFinanceParams) -> Result<FinanceEntry, CoreError> {
+        let entries = self.create_group(p).await?;
+        Ok(entries.into_iter().next().expect("grupo tem ao menos o head"))
+    }
+
+    /// Igual ao `create`, mas devolve TODAS as entradas criadas.
+    ///
+    /// Necessário para quem precisa do valor TOTAL do grupo: com parcelas
+    /// o head vale só a 1ª parcela e com recorrência há N ocorrências —
+    /// quem olhasse apenas o head debitaria a menos (ver a ponte
+    /// Financeiro→carteira em `desktop/src/ui/finance/wallet_link.rs`).
+    pub async fn create_group(
+        &self,
+        p: CreateFinanceParams,
+    ) -> Result<Vec<FinanceEntry>, CoreError> {
         validate_params(&p)?;
         let entries = build_entries(&p);
-        let head = entries[0].clone();
         self.repo.create_batch(&entries).await?;
-        Ok(head)
+        Ok(entries)
     }
 
     /// Soma das contas a receber ABERTAS de um cliente, EXCLUINDO a
@@ -346,6 +359,23 @@ impl FinanceService {
     /// Upsert vindo do sync. Recebe a entidade por valor para poder
     /// marcar `synced = true` e validar o `company_id` contra o do
     /// chamador (AI_RULES.md §11 — nunca confiar no payload).
+    /// Edição LOCAL de um lançamento (origem: usuário).
+    ///
+    /// Diferente do `sync_upsert` — que é o caminho do PULL e marca
+    /// `synced = true` —, aqui a entrada fica `synced = false` para o
+    /// worker levar a alteração ao servidor (§7.3). Usar `sync_upsert`
+    /// numa edição fazia a mudança morrer no SQLite.
+    pub async fn update(&self, company_id: Uuid, mut entry: FinanceEntry) -> Result<(), CoreError> {
+        if entry.base.company_id != company_id {
+            return Err(CoreError::Validation(
+                "Operação não permitida para esta empresa".into(),
+            ));
+        }
+        entry.base.updated_at = Utc::now().naive_utc();
+        entry.base.synced = false;
+        self.repo.update(&entry).await
+    }
+
     pub async fn sync_upsert(
         &self,
         company_id: Uuid,

@@ -49,7 +49,9 @@ pub(crate) fn cat_color(idx: usize) -> Color {
 pub(crate) fn product_color(hex: Option<&str>) -> (Color, bool) {
     if let Some(h) = hex {
         let h = h.trim_start_matches('#');
-        if h.len() == 6 {
+        // `len()` conta BYTES: sem `is_ascii()` uma string de 6 bytes com
+        // acentuação (ex.: "#€abc") passava e o fatiamento PANICAVA.
+        if h.is_ascii() && h.len() == 6 {
             if let (Ok(r), Ok(g), Ok(b)) = (
                 u8::from_str_radix(&h[0..2], 16),
                 u8::from_str_radix(&h[2..4], 16),

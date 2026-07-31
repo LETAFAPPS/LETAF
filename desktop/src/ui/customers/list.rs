@@ -110,7 +110,8 @@ pub(crate) fn build_decoded(
         let last = list.first().map(|o| o.base.created_at);
         let days = last.map(|d| (now - d).num_days());
         let (status, status_label) = status_for(days);
-        let last_order = last.map(|d| d.format("%d/%m").to_string())
+        let last_order = last
+            .map(|d| letaf_core::tz::to_local(d).format("%d/%m").to_string())
             .unwrap_or_default();
 
         // Posição no ranking de LTV (1 = maior LTV entre todos).
@@ -129,7 +130,9 @@ pub(crate) fn build_decoded(
             id: SharedString::from(o.base.id.to_string()),
             number: SharedString::from(format!("#{:04}", o.number)),
             summary: SharedString::from(order_summary(o)),
-            date: SharedString::from(o.base.created_at.format("%d/%m").to_string()),
+            date: SharedString::from(
+                letaf_core::tz::to_local(o.base.created_at).format("%d/%m").to_string(),
+            ),
             status: SharedString::from(o.status.to_string()),
             status_label: SharedString::from(status_label_pt(&o.status)),
             total: SharedString::from(money(o.total.to_f64().unwrap_or(0.0))),
@@ -162,7 +165,9 @@ pub(crate) fn build_decoded(
                     .unwrap_or_else(|| "?".to_string()),
             ),
             notes: SharedString::from(c.notes.as_deref().unwrap_or("")),
-            created_at: SharedString::from(c.base.created_at.format("%d/%m/%Y").to_string()),
+            created_at: SharedString::from(
+                letaf_core::tz::to_local(c.base.created_at).format("%d/%m/%Y").to_string(),
+            ),
             ltv: SharedString::from(money(ltv)),
             ltv_pct: SharedString::from(ltv_pct),
             order_count: count,

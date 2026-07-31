@@ -14,12 +14,37 @@ use super::state::PdvState;
 use super::customer::apply_wallet_to_ui;
 use super::view::apply_state_to_ui;
 
-/// `pdv-finalize` — agora dispara DIRETO a criação do pedido a partir
-/// do estado integrado no carrinho (sem modal intermediário).
+/// Meio centavo — tolerância de arredondamento nas comparações de
+/// dinheiro, igual à usada no core.
+fn dec_epsilon() -> rust_decimal::Decimal {
+    rust_decimal::Decimal::new(5, 3)
+}
+
+/// Solta a trava de finalização ao sair de escopo.
+///
+/// A validação tem mais de dez `return` antecipados; um guard com `Drop`
+/// libera a trava em todos eles sem repetir a limpeza. Quando a venda
+/// chega a ser disparada, o guard viaja para dentro da task async e só
+/// cai quando ela termina — que é exatamente a janela em que um segundo
+/// clique precisa ser ignorado.
+struct FinalizeGuard(Arc<Mutex<PdvState>>);
+
+impl Drop for FinalizeGuard {
+    fn drop(&mut self) {
+        if let Ok(mut g) = self.0.lock() {
+            g.finalizing = false;
+        }
+    }
+}
+
+/// `pdv-finalize` — dispara DIRETO a criação do pedido a partir do
+/// estado integrado no carrinho (sem modal intermediário).
+///
 /// Validações:
-///   - Carrinho não vazio.
-///   - Se `sale-type == "delivery"`, endereço (rua + nº + bairro) obrigatório.
-///   - `payment_method` é validado pelo service.
+/// - carrinho não vazio;
+/// - `sale-type == "delivery"` exige endereço (rua + nº + bairro);
+/// - `payment_method` é validado pelo service;
+/// - pagamento em carteira revalida saldo + limite no backend.
 pub(crate) fn setup_finalize(
     ui: &MainWindow,
     state: &DesktopState,
@@ -32,6 +57,17 @@ pub(crate) fn setup_finalize(
     let handle = handle.clone();
     ui.on_pdv_finalize(move || {
         let Some(ui_ref) = ui_weak.upgrade() else { return };
+
+        // Trava de reentrada: a venda é assíncrona e o carrinho só é
+        // limpo no retorno — sem isto, duplo-clique (ou F9 duas vezes)
+        // criava DOIS pedidos do mesmo carrinho, com duas baixas de
+        // estoque e duas cobranças no fiado.
+        match pdv.lock() {
+            Ok(mut g) if !g.finalizing => g.finalizing = true,
+            Ok(_) => return,
+            Err(_) => return,
+        }
+        let finalize_guard = FinalizeGuard(pdv.clone());
 
         // Caixa aberto é pré-requisito do PDV — o `session_id` vive
         // no `cash_summary` populado pelo `cash_refresh`. Sem ele,
@@ -220,8 +256,40 @@ pub(crate) fn setup_finalize(
         let pdv = pdv.clone();
         let notify = sync_notify.clone();
         let payment_method_clone = payment_method.clone();
+        let ui_weak_block = ui_weak.clone();
         handle.spawn(async move {
+            // Segura a trava até o fim da venda (inclusive nos erros).
+            let _finalize_guard = finalize_guard;
             let cid = state.company_id();
+
+            // §11 — o limite de fiado é decidido no BACKEND, com o saldo
+            // recarregado agora. A checagem da tela usa uma propriedade
+            // carregada quando o cliente foi selecionado: se outro
+            // terminal (ou o sync) mexeu no saldo desde então, ela
+            // libera indevidamente. Sem esta trava o pedido era criado
+            // como PAGO, o estoque baixava e a cobrança era recusada
+            // depois — venda sem débito nenhum.
+            if payment_method_clone == "wallet" {
+                let total_due = letaf_core::money::from_db_f64(total);
+                let blocked = match wallet_account_uuid {
+                    Some(acc_id) => match state.wallet_service.find_account_by_id(cid, acc_id).await
+                    {
+                        Ok(Some(acc)) => acc.balance + acc.credit_limit + dec_epsilon() < total_due,
+                        _ => true,
+                    },
+                    None => true,
+                };
+                if blocked {
+                    let _ = slint::invoke_from_event_loop(move || {
+                        let Some(ui) = ui_weak_block.upgrade() else { return };
+                        let msg = "Saldo + limite da carteira não cobre o total.";
+                        ui.set_pdv_finalize_error(SharedString::from(msg));
+                        show_toast(&ui, msg, "error");
+                    });
+                    return;
+                }
+            }
+
             let result = state.order_service.create_pdv(
                 cid,
                 customer_id,

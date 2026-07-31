@@ -155,15 +155,21 @@ impl WalletRepository for SqliteWalletRepository {
         Ok(())
     }
 
+    /// Atualiza a conta SEM tocar no `balance`.
+    ///
+    /// O saldo só muda por `apply_movement`, que usa CAS otimista. Gravar
+    /// o saldo aqui (lido antes da alteração) apagava um débito
+    /// concorrente: alterar o limite de fiado enquanto o PDV finalizava
+    /// uma venda `wallet` do mesmo cliente desfazia a cobrança e deixava
+    /// o movimento órfão no extrato.
     async fn update_account(&self, a: &WalletAccount) -> Result<(), CoreError> {
         sqlx::query(
             "UPDATE wallet_accounts SET
-               customer_id = ?, balance = ?, credit_limit = ?,
+               customer_id = ?, credit_limit = ?,
                updated_at = ?, deleted_at = ?, synced = ?
              WHERE company_id = ? AND id = ?",
         )
         .bind(a.customer_id.to_string())
-        .bind(a.balance.to_f64().unwrap_or(0.0))
         .bind(a.credit_limit.to_f64().unwrap_or(0.0))
         .bind(ts(a.base.updated_at))
         .bind(a.base.deleted_at.map(ts))

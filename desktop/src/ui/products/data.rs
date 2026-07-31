@@ -200,7 +200,10 @@ pub(crate) fn parse_addon_group_ids_csv(csv: &str) -> Vec<Uuid> {
 /// Parseia `#RRGGBB` → `(r, g, b)`. Retorna `None` em qualquer formato inválido.
 pub(crate) fn parse_hex_color(s: &str) -> Option<(u8, u8, u8)> {
     let s = s.strip_prefix('#')?;
-    if s.len() != 6 { return None; }
+    // `len()` conta BYTES: sem o `is_ascii()` uma string como "#€abc"
+    // (6 bytes, 4 chars) passava no guard e o fatiamento PANICAVA no
+    // meio do caractere, derrubando o app ao abrir a lista.
+    if !s.is_ascii() || s.len() != 6 { return None; }
     let r = u8::from_str_radix(&s[0..2], 16).ok()?;
     let g = u8::from_str_radix(&s[2..4], 16).ok()?;
     let b = u8::from_str_radix(&s[4..6], 16).ok()?;

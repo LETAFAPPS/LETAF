@@ -115,15 +115,22 @@ impl OrderRepository for SqliteOrderRepository {
 
         // Baixa de estoque na MESMA transação (§4). `unlimited_stock`
         // não decrementa; insuficiente/inexistente aborta (rollback no drop).
+        //
+        // NÃO marca o produto como pendente: o servidor ignora
+        // `stock_quantity` no upsert (o estoque lá evolui só pelo ledger
+        // `stock_movements`), então esse push era ruído — e, para um
+        // operador só com `pdv.view`, virava 403 eterno que deixava o
+        // catálogo inteiro preso em `synced = 0`. Quem viaja é o
+        // StockMovement; o absoluto volta no pull com a guarda do
+        // `ON CONFLICT` local decidindo quando aceitar.
         for (product_id, qty) in stock_deltas {
             let rows = sqlx::query(
                 "UPDATE products
-                    SET stock_quantity = stock_quantity - ?1, updated_at = ?2, synced = 0
-                  WHERE company_id = ?3 AND id = ?4 AND deleted_at IS NULL
+                    SET stock_quantity = stock_quantity - ?1
+                  WHERE company_id = ?2 AND id = ?3 AND deleted_at IS NULL
                     AND unlimited_stock = 0 AND stock_quantity - ?1 >= 0",
             )
             .bind(qty)
-            .bind(&now)
             .bind(order.base.company_id.to_string())
             .bind(product_id.to_string())
             .execute(&mut *tx)
@@ -228,6 +235,19 @@ impl OrderRepository for SqliteOrderRepository {
             .collect::<Result<Vec<_>, _>>()?;
         self.attach_items(&mut orders).await?;
         Ok(orders)
+    }
+
+    async fn count_active(&self, company_id: Uuid) -> Result<i64, CoreError> {
+        let row: (i64,) = sqlx::query_as(
+            "SELECT COUNT(*) FROM orders
+             WHERE company_id = ?1 AND deleted_at IS NULL
+               AND status NOT IN ('delivered', 'cancelled')",
+        )
+        .bind(company_id.to_string())
+        .fetch_one(&self.pool)
+        .await
+        .map_err(map_db)?;
+        Ok(row.0)
     }
 
     async fn count_coupon_uses(&self, company_id: Uuid, coupon_code: &str) -> Result<i64, CoreError> {
@@ -354,12 +374,11 @@ impl OrderRepository for SqliteOrderRepository {
             }
             let rows = sqlx::query(
                 "UPDATE products
-                    SET stock_quantity = stock_quantity + ?1, updated_at = ?2, synced = 0
-                  WHERE company_id = ?3 AND id = ?4 AND deleted_at IS NULL
+                    SET stock_quantity = stock_quantity + ?1
+                  WHERE company_id = ?2 AND id = ?3 AND deleted_at IS NULL
                     AND unlimited_stock = 0 AND stock_quantity + ?1 >= 0",
             )
             .bind(delta)
-            .bind(&now)
             .bind(order.base.company_id.to_string())
             .bind(product_id.to_string())
             .execute(&mut *tx)
@@ -449,12 +468,11 @@ impl OrderRepository for SqliteOrderRepository {
         for (product_id, qty) in restitutions {
             let rows = sqlx::query(
                 "UPDATE products
-                    SET stock_quantity = stock_quantity + ?1, updated_at = ?2, synced = 0
-                  WHERE company_id = ?3 AND id = ?4 AND deleted_at IS NULL
+                    SET stock_quantity = stock_quantity + ?1
+                  WHERE company_id = ?2 AND id = ?3 AND deleted_at IS NULL
                     AND unlimited_stock = 0",
             )
             .bind(qty)
-            .bind(&now)
             .bind(company_id.to_string())
             .bind(product_id.to_string())
             .execute(&mut *tx)
