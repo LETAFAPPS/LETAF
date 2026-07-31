@@ -34,8 +34,12 @@ pub struct Treasury {
 
 impl Treasury {
     pub fn new(company_id: Uuid, initial_balance: Decimal, notes: Option<String>) -> Self {
+        // Singleton por empresa: id derivado do `company_id` para dois
+        // terminais offline não criarem duas tesourarias (§7).
+        let mut base = BaseFields::new(company_id);
+        base.id = crate::deterministic_id::treasury_account(company_id);
         Self {
-            base: BaseFields::new(company_id),
+            base,
             initial_balance,
             notes,
             reserve_goal: Decimal::ZERO,

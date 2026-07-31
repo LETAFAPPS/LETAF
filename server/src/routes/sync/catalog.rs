@@ -49,6 +49,11 @@ pub(crate) async fn reconcile_manifest(
         "treasury_accounts" | "treasury_movements" => Some("finance.view"),
         "wallet_accounts" | "wallet_movements" => Some("customers.view"),
         "subscriptions" | "subscription_invoices" => Some("subscription.view"),
+        // O manifesto expõe ids/updated_at; sem este arm, um caixa
+        // enumerava Funções e usuários da loja — contornando o gate que o
+        // PULL dessas entidades já exige (§11) — e o `server_drift`
+        // resultante disparava um repull que levava 403 a cada 5 min.
+        "job_roles" | "users" => Some("collaborators.view"),
         _ => None,
     } {
         auth.require_permission(perm)?;

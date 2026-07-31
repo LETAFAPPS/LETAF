@@ -221,10 +221,13 @@ impl CouponRepository for PgCouponRepository {
         sqlx::query(
             "INSERT INTO coupons (id, company_id, title, code, coupon_type, discount_kind, discount_value, min_order_value, max_discount, per_user_limit, usage_limit, valid_from, valid_until, active, created_at, updated_at, deleted_at, synced)
              VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
-             -- Chave NATURAL: dois terminais offline criam o mesmo cupom
-             -- com ids diferentes; por `id` isso batia no índice único
-             -- (company_id, code) → 500 eterno no push. §7.6.
-             ON CONFLICT (company_id, code) WHERE deleted_at IS NULL DO UPDATE SET
+             -- Conflita por `id`. Arbitrar por (company_id, code) parecia
+             -- resolver o caso raro de dois terminais criarem o mesmo
+             -- código offline, mas QUEBRAVA o rotineiro: o índice é
+             -- PARCIAL (`WHERE deleted_at IS NULL`), então editar o
+             -- código ou excluir o cupom não casava com o arbiter e o
+             -- INSERT estourava na PRIMARY KEY.
+             ON CONFLICT (id) DO UPDATE SET
                  title = EXCLUDED.title,
                  code = EXCLUDED.code,
                  coupon_type = EXCLUDED.coupon_type,

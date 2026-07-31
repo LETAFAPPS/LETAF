@@ -106,8 +106,14 @@ pub struct WalletAccount {
 
 impl WalletAccount {
     pub fn new(company_id: Uuid, customer_id: Uuid) -> Self {
+        // Id DERIVADO da chave natural: dois terminais offline abrindo a
+        // carteira do mesmo cliente chegam ao MESMO id (§7). Com id
+        // aleatório, os movimentos de um deles apontavam para uma conta
+        // que o servidor não conhecia e o saldo nunca era aplicado.
+        let mut base = BaseFields::new(company_id);
+        base.id = crate::deterministic_id::wallet_account(company_id, customer_id);
         Self {
-            base: BaseFields::new(company_id),
+            base,
             customer_id,
             balance: Decimal::ZERO,
             credit_limit: Decimal::ZERO,

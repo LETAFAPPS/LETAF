@@ -33,6 +33,15 @@ pub struct SyncStatus {
     /// só "ainda não enviado". `> 0` acende o estado de erro para o operador ver
     /// que há dado preso, em vez de um "Sincronizado" enganoso (§7.6).
     pub rejected_count: u32,
+    /// Entidades cujo PULL falhou no último ciclo (403 de permissão, 500,
+    /// erro de decode). Sem isto, uma entidade podia estar congelada há
+    /// horas com a UI mostrando "Sincronizado" — a falha só existia no
+    /// log (§7.6).
+    pub pull_failed_count: u32,
+    /// Registros que o servidor mandou e este binário não soube ler
+    /// (versão mais nova do lado de lá). Foram PULADOS: o resto da página
+    /// entrou, mas o operador precisa saber que falta dado.
+    pub poison_count: u32,
 }
 
 impl Default for SyncStatus {
@@ -43,6 +52,8 @@ impl Default for SyncStatus {
             last_sync_at: None,
             pending_count: 0,
             rejected_count: 0,
+            pull_failed_count: 0,
+            poison_count: 0,
         }
     }
 }
@@ -78,12 +89,16 @@ impl SyncStatusHandle {
         last_sync_at: NaiveDateTime,
         pending_count: u32,
         rejected_count: u32,
+        pull_failed_count: u32,
+        poison_count: u32,
     ) {
         if let Ok(mut g) = self.0.write() {
             g.online = online;
-            // Erro quando a rede caiu OU quando há dado rejeitado (4xx) preso —
-            // ambos são situações que o operador precisa enxergar.
-            g.phase = if !online || rejected_count > 0 {
+            // Erro quando a rede caiu, quando há dado rejeitado (4xx)
+            // preso, quando alguma entidade não conseguiu ser PUXADA ou
+            // quando veio registro ilegível — todas são situações em que
+            // os dois bancos estão divergindo e o operador precisa ver.
+            g.phase = if !online || rejected_count > 0 || pull_failed_count > 0 || poison_count > 0 {
                 SyncPhase::Error
             } else {
                 SyncPhase::Idle
@@ -93,6 +108,8 @@ impl SyncStatusHandle {
             }
             g.pending_count = pending_count;
             g.rejected_count = rejected_count;
+            g.pull_failed_count = pull_failed_count;
+            g.poison_count = poison_count;
         }
     }
 

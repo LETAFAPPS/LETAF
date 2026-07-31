@@ -25,6 +25,7 @@ pub mod coupon;
 pub mod customer;
 pub mod customer_address;
 pub mod dashboard;
+pub mod deterministic_id;
 pub mod discount;
 pub mod entity;
 pub mod error;

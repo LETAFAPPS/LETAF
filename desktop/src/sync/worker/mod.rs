@@ -211,6 +211,8 @@ impl SyncWorker {
         // Início do ciclo
         if let Ok(mut g) = self.network_failed.lock() { *g = false; }
         self.push_rejected.store(0, std::sync::atomic::Ordering::Relaxed);
+        self.pull_failed.store(0, std::sync::atomic::Ordering::Relaxed);
+        self.poison_count.store(0, std::sync::atomic::Ordering::Relaxed);
         self.state.sync_status.mark_syncing();
 
         // Reconciliação (anti-entropia §7): no 1º ciclo (login) e a cada N
@@ -234,7 +236,11 @@ impl SyncWorker {
         let pending = self.count_pending().await;
         let rejected = self.push_rejected.load(std::sync::atomic::Ordering::Relaxed);
         let now = chrono::Utc::now().naive_utc();
-        self.state.sync_status.mark_finished(online, now, pending, rejected);
+        let pull_failed = self.pull_failed.load(std::sync::atomic::Ordering::Relaxed);
+        let poison = self.poison_count.load(std::sync::atomic::Ordering::Relaxed);
+        self.state
+            .sync_status
+            .mark_finished(online, now, pending, rejected, pull_failed, poison);
         // Notifica a UI para refrescar telas dependentes do `synced`
         // (master-detail de Produtos atualiza o rótulo abaixo do nome).
         //
@@ -467,8 +473,15 @@ impl SyncWorker {
                         // futuro e congelava a entidade até o relógio
                         // alcançar — nenhuma alteração legítima passava no
                         // `updated_at > since`.
-                        let capped = ts.min(chrono::Utc::now().naive_utc());
-                        self.advance_cursor($label, capped - chrono::Duration::microseconds(1));
+                        // Limita ao AGORA (relógio adiantado de outro
+                        // terminal congelaria a entidade), mas NUNCA
+                        // retrocede: com o relógio local atrasado, o
+                        // `min(now)` sozinho cravava o cursor em "agora" e
+                        // a mesma janela era re-baixada a cada 30 s, para
+                        // sempre.
+                        let capped = ts.min(chrono::Utc::now().naive_utc())
+                            - chrono::Duration::microseconds(1);
+                        self.advance_cursor($label, capped.max(since));
                     }
                     Ok(_) => {}
                     Err(e) => {
@@ -513,10 +526,14 @@ impl SyncWorker {
         let snapshot = self.cursor_snapshot();
         let pairs: Vec<(&str, chrono::NaiveDateTime)> =
             snapshot.iter().map(|(k, v)| (*k, *v)).collect();
-        self.state
-            .session
-            .save_pull_cursors(self.state.company_id(), &pairs)
-            .await;
+        // Grava sob a empresa DONA do mapa (não `company_id()`): a troca
+        // de tenant acontece em outra task e podia cair no meio do ciclo,
+        // salvando os cursores da empresa antiga sob a chave da nova.
+        let dona = match self.cursor_company.lock() {
+            Ok(g) => *g,
+            Err(p) => *p.into_inner(),
+        };
+        self.state.session.save_pull_cursors(dona, &pairs).await;
         if any_failed {
             tracing::debug!("Pull com falhas parciais; cursores das que falharam preservados");
         }

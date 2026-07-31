@@ -25,8 +25,13 @@ impl BusinessHours {
         close_time: String,
         is_open: bool,
     ) -> Self {
+        // Id derivado de `(company_id, day_of_week)`: instalação nova
+        // configurando horários offline não colide com o que já existe
+        // no servidor (§7).
+        let mut base = BaseFields::new(company_id);
+        base.id = crate::deterministic_id::business_hours(company_id, day_of_week);
         Self {
-            base: BaseFields::new(company_id),
+            base,
             day_of_week,
             open_time,
             close_time,

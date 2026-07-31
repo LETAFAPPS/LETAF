@@ -198,19 +198,39 @@ impl PaymentMethodRepository for SqlitePaymentMethodRepository {
 
     async fn sync_upsert(&self, m: &PaymentMethod) -> Result<(), CoreError> {
         // Só pode haver UM `is_default` por empresa (índice parcial). Se a
-        // linha que chega é a nova padrão, tira o flag das outras ANTES —
-        // senão o upsert viola a restrição, devolve erro e congela o pull
-        // de `payment_methods` para sempre.
+        // linha que chega é a nova padrão, o flag das outras precisa cair
+        // ANTES — senão o upsert viola a restrição e congela o pull.
+        //
+        // Mas SÓ quando o upsert de fato vai aplicar: limpar o padrão e o
+        // upsert ser descartado pelo LWW (caso comum no repull desde a
+        // época) deixava a empresa SEM padrão nenhum, de forma permanente
+        // e silenciosa — os dois lados com o mesmo `updated_at` e valores
+        // diferentes, que nem o pull nem a reconciliação corrigem.
+        //
+        // Tudo numa transação: ou limpa e grava, ou nada.
+        let mut tx = self.pool.begin().await.map_err(map_db)?;
         if m.is_default {
-            sqlx::query(
-                "UPDATE payment_methods SET is_default = 0
-                 WHERE company_id = ?1 AND id <> ?2 AND is_default = 1",
-            )
-            .bind(m.base.company_id.to_string())
-            .bind(m.base.id.to_string())
-            .execute(&self.pool)
-            .await
-            .map_err(map_db)?;
+            let stored: Option<(String,)> =
+                sqlx::query_as("SELECT updated_at FROM payment_methods WHERE id = ?1")
+                    .bind(m.base.id.to_string())
+                    .fetch_optional(&mut *tx)
+                    .await
+                    .map_err(map_db)?;
+            let vai_aplicar = match stored {
+                None => true,
+                Some((atual,)) => ts(m.base.updated_at) > atual,
+            };
+            if vai_aplicar {
+                sqlx::query(
+                    "UPDATE payment_methods SET is_default = 0
+                     WHERE company_id = ?1 AND id <> ?2 AND is_default = 1",
+                )
+                .bind(m.base.company_id.to_string())
+                .bind(m.base.id.to_string())
+                .execute(&mut *tx)
+                .await
+                .map_err(map_db)?;
+            }
         }
         sqlx::query(
             "INSERT INTO payment_methods
@@ -239,9 +259,10 @@ impl PaymentMethodRepository for SqlitePaymentMethodRepository {
         .bind(ts(m.base.updated_at))
         .bind(m.base.deleted_at.map(ts))
         .bind(m.base.synced)
-        .execute(&self.pool)
+        .execute(&mut *tx)
         .await
         .map_err(map_db)?;
+        tx.commit().await.map_err(map_db)?;
         Ok(())
     }
 

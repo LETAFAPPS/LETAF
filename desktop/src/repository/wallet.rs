@@ -308,12 +308,14 @@ impl WalletRepository for SqliteWalletRepository {
              (id, company_id, customer_id, balance, credit_limit,
               created_at, updated_at, deleted_at, synced)
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-             -- Conflito pela CHAVE NATURAL, não pelo `id`: dois terminais
-             -- offline criam a mesma entidade com ids diferentes e o
-             -- `ON CONFLICT (id)` esbarrava no índice único natural →
-             -- 500 no push (reenviado a cada 30 s para sempre) e pull da
-             -- entidade congelado do outro lado. §7.6.
-             ON CONFLICT(company_id, customer_id) WHERE deleted_at IS NULL DO UPDATE SET
+             -- Conflita por `id` — que agora é DERIVADO de
+             -- (company_id, customer_id) em `WalletAccount::new`, então
+             -- dois terminais offline chegam ao MESMO id e não há colisão
+             -- de chave natural. Arbitrar pelo índice PARCIAL
+             -- (`WHERE deleted_at IS NULL`) quebrava: quando a linha que
+             -- chega não satisfaz o predicado, o ON CONFLICT não arbitra
+             -- nada e o INSERT estoura na PRIMARY KEY.
+             ON CONFLICT(id) DO UPDATE SET
                customer_id = excluded.customer_id,
                balance = excluded.balance,
                credit_limit = excluded.credit_limit,

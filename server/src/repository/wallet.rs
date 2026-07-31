@@ -344,12 +344,14 @@ impl WalletRepository for PgWalletRepository {
              (id, company_id, customer_id, balance, credit_limit,
               created_at, updated_at, deleted_at, synced)
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-             -- Conflito pela CHAVE NATURAL, não pelo `id`: dois terminais
-             -- offline criam a mesma entidade com ids diferentes e o
-             -- `ON CONFLICT (id)` esbarrava no índice único natural →
-             -- 500 no push (reenviado a cada 30 s para sempre) e pull da
-             -- entidade congelado do outro lado. §7.6.
-             ON CONFLICT (company_id, customer_id) WHERE deleted_at IS NULL DO UPDATE SET
+             -- Conflita por `id` — que agora é DERIVADO de
+             -- (company_id, customer_id) em `WalletAccount::new`, então
+             -- dois terminais offline chegam ao MESMO id e não há colisão
+             -- de chave natural. Arbitrar pelo índice PARCIAL
+             -- (`WHERE deleted_at IS NULL`) quebrava: quando a linha que
+             -- chega não satisfaz o predicado, o ON CONFLICT não arbitra
+             -- nada e o INSERT estoura na PRIMARY KEY.
+             ON CONFLICT (id) DO UPDATE SET
                customer_id = EXCLUDED.customer_id,
                -- balance NÃO é sobrescrito no conflito: o saldo evolui só pelo
                -- ledger (sync_upsert_movement aplica o delta), evitando LWW
@@ -483,13 +485,22 @@ impl WalletRepository for PgWalletRepository {
             // Aplica o delta ao saldo materializado só na 1ª vez. Bump de
             // `updated_at` para o novo saldo propagar aos desktops no pull.
             let delta = m.kind.sign() * m.amount;
+            // `GREATEST(..., now())` com o relógio do SERVIDOR: o
+            // `updated_at` do movimento vem do cliente e podia ser
+            // ANTERIOR ao que a conta já tinha (terminal que voltou de
+            // offline). Carimbar para trás fazia o saldo corrigido nunca
+            // passar no `updated_at > since` dos outros terminais — e a
+            // reconciliação também não pegava, porque o servidor ficava
+            // "mais velho" que o local. Mesmo tratamento do ledger de
+            // estoque em `product.rs`.
             sqlx::query(
                 "UPDATE wallet_accounts
-                    SET balance = balance + $1, updated_at = $2, synced = true
-                  WHERE company_id = $3 AND id = $4",
+                    SET balance = balance + $1,
+                        updated_at = GREATEST(wallet_accounts.updated_at, (now() AT TIME ZONE 'utc')),
+                        synced = true
+                  WHERE company_id = $2 AND id = $3",
             )
             .bind(delta)
-            .bind(m.base.updated_at)
             .bind(m.base.company_id)
             .bind(m.account_id)
             .execute(&mut *tx)

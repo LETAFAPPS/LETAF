@@ -702,7 +702,10 @@ async fn upsert_order(tx: &mut Transaction<'_, Sqlite>, order: &Order) -> Result
                  -- (fidelidade/carteira) mudava `updated_at` e vencia o
                  -- LWW, mas o `customer_id` ficava fora do UPDATE: o
                  -- pedido continuava anonimo do outro lado.
-                 customer_id = excluded.customer_id,
+                 -- COALESCE: o desktop manda o UUID nil quando não há
+                 -- cliente, que vira NULL. Sem isso, uma cópia defasada
+                 -- que só mudou o status APAGAVA o vínculo feito na web.
+                 customer_id = COALESCE(excluded.customer_id, orders.customer_id),
                  status = excluded.status,
              total = excluded.total,
              delivery_type = excluded.delivery_type,

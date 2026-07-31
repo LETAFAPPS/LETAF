@@ -42,7 +42,11 @@ pub(crate) async fn pull_cash_sessions(
     auth.verify_any_role(ROLES_OPERATORS)?;
     // Dado sensível (caixa): pull e push exigem cash.view (§11) — operadores
     // do PDV têm a permissão, então não trava o fluxo do caixa.
-    auth.require_permission("cash.view")?;
+    // Idem à sessão: a baixa de um recebimento no Financeiro cria o
+    // movimento de caixa. Sem `finance.edit` aqui, a sessão subia e os
+    // movimentos dela levavam 403 eterno — o fechamento no servidor nunca
+    // batia com o do desktop de origem.
+    auth.require_any_permission(&["cash.view", "finance.edit"])?;
     let items = state.cash_service
         .find_sessions_updated_since_paged(
             auth.0.company_id,

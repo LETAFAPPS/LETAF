@@ -883,7 +883,10 @@ async fn upsert_order_row(
                  -- (fidelidade/carteira) mudava `updated_at` e vencia o
                  -- LWW, mas o `customer_id` ficava fora do UPDATE: o
                  -- pedido continuava anonimo do outro lado.
-                 customer_id = EXCLUDED.customer_id,
+                 -- COALESCE: o desktop manda o UUID nil quando não há
+                 -- cliente, que vira NULL. Sem isso, uma cópia defasada
+                 -- que só mudou o status APAGAVA o vínculo feito na web.
+                 customer_id = COALESCE(EXCLUDED.customer_id, orders.customer_id),
                  status = EXCLUDED.status,
              total = EXCLUDED.total,
              delivery_type = EXCLUDED.delivery_type,
