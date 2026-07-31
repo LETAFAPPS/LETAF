@@ -16,6 +16,9 @@
 //! Pedidos pagos com carteira NÃO contam: consomem crédito que já
 //! entrou no depósito do cliente.
 //!
+//! Nada anterior à ABERTURA da carteira entra na conta: o saldo inicial
+//! já resume o que existia até aquele instante.
+//!
 //! O SALDO considera todo o histórico; entradas/saídas mostram o DIA
 //! corrente (no fuso da loja), o mini-gráfico mostra as ÚLTIMAS 12
 //! HORAS e a lista traz as 15 últimas movimentações.
@@ -238,6 +241,13 @@ async fn build_snapshot(
             positive,
         });
     }
+
+    // A carteira começa a contar da ABERTURA: o saldo inicial já
+    // representa o dinheiro que existia até ali, então movimentações
+    // anteriores contariam o mesmo dinheiro duas vezes. `created_at` e
+    // `at` estão os dois em UTC.
+    let opened_at = treasury.base.created_at;
+    movements.retain(|m| m.at >= opened_at);
 
     movements.sort_by_key(|m| std::cmp::Reverse(m.at));
 
