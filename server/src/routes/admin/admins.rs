@@ -130,6 +130,7 @@ pub(super) async fn create_admin(
     // §11: novos usuários SEMPRE têm uma função cadastrada. O master (acesso
     // total, sem função) é único e só existe no banco — não se cria pela API.
     let role_id = require_valid_role(&state, body.admin_role_id.as_deref()).await?;
+    require_can_assign_role(&state, &auth, role_id).await?;
     let user = state
         .auth_service
         .create(
@@ -184,7 +185,14 @@ pub(super) async fn update_admin(
     let new_role = if is_master {
         None
     } else {
-        Some(require_valid_role(&state, body.admin_role_id.as_deref()).await?)
+        let role_id = require_valid_role(&state, body.admin_role_id.as_deref()).await?;
+        require_can_assign_role(&state, &auth, role_id).await?;
+        // Também não se redefine a senha de quem tem MAIS telas que você:
+        // seria o mesmo bypass por outro caminho.
+        if let Some(current) = state.admin_role_service.role_for_user(id).await? {
+            auth.require_can_grant_screens(&current.screens)?;
+        }
+        Some(role_id)
     };
     state
         .auth_service
@@ -201,6 +209,21 @@ pub(super) async fn update_admin(
 /// Valida a função escolhida para um usuário restrito: precisa ser um id
 /// existente no catálogo. Vazio/ausente/inexistente → erro (nunca vira
 /// master — §11: só há um super admin master, criado direto no banco).
+/// A Função de admin escolhida não pode conceder tela que o chamador não
+/// possua (§11 — escalada por delegação no painel).
+async fn require_can_assign_role(
+    state: &AppState,
+    auth: &AuthClaims,
+    role_id: Uuid,
+) -> Result<(), ServerError> {
+    let role = state
+        .admin_role_service
+        .find_by_id(role_id)
+        .await?
+        .ok_or_else(|| ServerError::Core(CoreError::Validation("Função inválida.".into())))?;
+    auth.require_can_grant_screens(&role.screens)
+}
+
 async fn require_valid_role(
     state: &AppState,
     admin_role_id: Option<&str>,

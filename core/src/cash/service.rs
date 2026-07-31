@@ -232,6 +232,40 @@ impl CashService {
         Ok(mv)
     }
 
+    /// Estorno de uma venda CANCELADA na sessão de caixa ABERTA.
+    ///
+    /// Lança um movimento `Sale` com valor NEGATIVO e o mesmo método, de
+    /// modo que `summarize` desconte do total do dia, do total por forma
+    /// e — quando foi em dinheiro — do esperado na gaveta. Sem isso, o
+    /// fechamento pedia o dinheiro de um pedido que já não existe.
+    ///
+    /// Sem sessão aberta (cancelamento no dia seguinte, por exemplo) o
+    /// estorno é ignorado: lançar numa sessão que não é a da venda
+    /// distorceria a conferência daquele turno.
+    pub async fn register_sale_reversal(
+        &self,
+        company_id: Uuid,
+        order_id: Uuid,
+        amount: Decimal,
+        method: String,
+    ) -> Result<Option<CashMovement>, CoreError> {
+        let Some(session) = self.sessions.find_active(company_id).await? else {
+            return Ok(None);
+        };
+        let mv = CashMovement::new(
+            company_id,
+            session.base.id,
+            MovementKind::SaleReversal,
+            amount,
+            Some(method),
+            "Estorno de venda cancelada".to_string(),
+            None,
+            Some(order_id),
+        );
+        self.movements.create(&mv).await?;
+        Ok(Some(mv))
+    }
+
     pub async fn register_sale_movement(
         &self,
         company_id: Uuid,
@@ -417,17 +451,42 @@ pub fn summarize(movements: &[CashMovement]) -> SessionSummary {
                 s.sangria_count += 1;
                 cash_balance -= mv.amount;
             }
+            MovementKind::SaleReversal => {
+                // Espelho negativo da venda: sai do total do dia, do
+                // total da forma e (se dinheiro) do esperado na gaveta.
+                s.sales_total -= mv.amount;
+                s.sales_count = s.sales_count.saturating_sub(1);
+                let key = mv.method.clone().unwrap_or_else(|| "cash".into());
+                let entry = s.by_method.entry(key.clone()).or_insert(MethodTotals {
+                    amount: Decimal::ZERO,
+                    count: 0,
+                });
+                entry.amount -= mv.amount;
+                entry.count = entry.count.saturating_sub(1);
+                if key == "cash" {
+                    cash_balance -= mv.amount;
+                }
+            }
             MovementKind::Suprimento => {
                 s.suprimento_total += mv.amount;
                 s.suprimento_count += 1;
-                // Só entra na GAVETA o suprimento em dinheiro. Recebimento
-                // de conta via PIX/cartão também é registrado como
-                // suprimento (com a forma escolhida) e somá-lo aqui
-                // inflava o esperado no fechamento — o operador contava a
-                // gaveta e o sistema acusava quebra do valor recebido.
-                // Mesmo critério do ramo `Sale`.
-                if mv.method.as_deref().unwrap_or("cash") == "cash" {
+                let key = mv.method.clone().unwrap_or_else(|| "cash".into());
+                if key == "cash" {
+                    // Suprimento em dinheiro entra na gaveta.
                     cash_balance += mv.amount;
+                } else {
+                    // Recebimento de conta via PIX/cartão é registrado
+                    // como suprimento com a forma escolhida: NÃO entra na
+                    // gaveta (inflava o esperado e acusava quebra), mas
+                    // PRECISA entrar no total daquela forma — é o valor
+                    // que o operador vai conferir no extrato do PIX/da
+                    // maquininha no fechamento.
+                    let entry = s.by_method.entry(key).or_insert(MethodTotals {
+                        amount: Decimal::ZERO,
+                        count: 0,
+                    });
+                    entry.amount += mv.amount;
+                    entry.count += 1;
                 }
             }
         }

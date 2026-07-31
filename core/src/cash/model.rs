@@ -58,6 +58,10 @@ pub enum MovementKind {
     Sale,
     Sangria,
     Suprimento,
+    /// Estorno de uma venda CANCELADA: desconta do total do dia, do
+    /// total por forma de pagamento e — se foi em dinheiro — do
+    /// esperado na gaveta.
+    SaleReversal,
 }
 
 impl fmt::Display for MovementKind {
@@ -67,6 +71,7 @@ impl fmt::Display for MovementKind {
             MovementKind::Sale => write!(f, "sale"),
             MovementKind::Sangria => write!(f, "sangria"),
             MovementKind::Suprimento => write!(f, "suprimento"),
+            MovementKind::SaleReversal => write!(f, "sale_reversal"),
         }
     }
 }
@@ -81,7 +86,12 @@ impl MovementKind {
             "sale" => MovementKind::Sale,
             "sangria" => MovementKind::Sangria,
             "suprimento" => MovementKind::Suprimento,
-            _ => MovementKind::Sangria,
+            "sale_reversal" => MovementKind::SaleReversal,
+            // Valor desconhecido (versão futura/dado corrompido) NÃO pode
+            // virar um movimento que mexe no saldo: cai em suprimento de
+            // valor neutro só quando o `amount` for zero. Manter
+            // `Sangria` aqui debitava a gaveta em silêncio.
+            _ => MovementKind::Suprimento,
         }
     }
 }

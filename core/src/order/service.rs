@@ -607,6 +607,27 @@ impl OrderService {
             .map(|item| (item.product_id, item.quantity))
             .collect();
         self.repo.cancel_atomic(company_id, id, trimmed, &restitutions).await?;
+
+        // Estorna a VENDA na sessão de caixa: sem isso a gaveta seguia
+        // esperando o dinheiro de um pedido cancelado e o fechamento
+        // acusava quebra. Falha aqui não desfaz o cancelamento (o pedido
+        // é a fonte de verdade) — só loga, igual às demais pontes.
+        if let (Some(cash), Some(method)) =
+            (&self.cash_service, order.payment_method.as_deref())
+        {
+            if let Err(e) = cash
+                .register_sale_reversal(
+                    company_id,
+                    order.base.id,
+                    order.total,
+                    method.to_string(),
+                )
+                .await
+            {
+                tracing::warn!("pedido {} cancelado, mas o caixa não estornou: {e}", order.base.id);
+            }
+        }
+
         self.repo.find_by_id(company_id, id).await?
             .ok_or_else(|| CoreError::NotFound("Order not found".into()))
     }

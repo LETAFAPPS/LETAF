@@ -171,7 +171,15 @@ pub(crate) fn apply_to_ui(
                 MovementKind::Suprimento => (
                     format!("Suprimento · {}", m.reason),
                     "pos",
-                    "Dinheiro".into(),
+                    // A forma REAL: recebimento de conta pode ter entrado
+                    // por PIX/cartão e rotular tudo como "Dinheiro"
+                    // contradizia o que a linha soma no fechamento.
+                    method_to_label(m.method.as_deref()),
+                ),
+                MovementKind::SaleReversal => (
+                    "Venda cancelada".to_string(),
+                    "neg",
+                    method_to_label(m.method.as_deref()),
                 ),
                 MovementKind::Opening => (
                     "Abertura".into(),

@@ -805,14 +805,21 @@ impl ProductRepository for PgProductRepository {
             // sempre. Quem originou a venda está protegido pela guarda do
             // `ON CONFLICT` local (só aceita o absoluto com o ledger em
             // dia), então o bump não reintroduz overselling.
+            // `GREATEST(..., now())` com o relógio do SERVIDOR: usar o
+            // `updated_at` do movimento (que vem do cliente, §11) podia
+            // gravar um instante ANTERIOR ao cursor de pull dos outros
+            // terminais — um terminal que ficou offline e voltou fazia a
+            // baixa "no passado" e ninguém mais via. Relógio adiantado
+            // era pior ainda: jogava o cursor de todos para o futuro.
             sqlx::query(
-                "UPDATE products SET stock_quantity = stock_quantity + $1, updated_at = $4
-                 WHERE company_id = $2 AND id = $3 AND unlimited_stock = false",
+                "UPDATE products
+                    SET stock_quantity = stock_quantity + $1,
+                        updated_at = GREATEST(products.updated_at, (now() AT TIME ZONE 'utc'))
+                  WHERE company_id = $2 AND id = $3 AND unlimited_stock = false",
             )
             .bind(m.delta)
             .bind(m.base.company_id)
             .bind(m.product_id)
-            .bind(m.base.updated_at)
             .execute(&mut *tx)
             .await
             .map_err(map_db)?;

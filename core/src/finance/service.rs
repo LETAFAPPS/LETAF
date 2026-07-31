@@ -110,6 +110,11 @@ impl FinanceService {
                     && e.notes.as_deref() != Some(FIADO_AUTO_TAG)
                     && !e.status.is_settled()
                     && e.status != FinanceStatus::Cancelled
+                    // Recorrência não é dívida assumida — mesmo recorte
+                    // usado ao debitar a carteira (`wallet_link`). Os dois
+                    // lados PRECISAM considerar o mesmo conjunto, senão o
+                    // espelho desconta o que a carteira não debitou.
+                    && e.recurrence == FinanceRecurrence::Once
             })
             .map(|e| e.amount)
             .sum();

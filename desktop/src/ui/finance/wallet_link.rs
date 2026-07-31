@@ -15,7 +15,9 @@
 use rust_decimal::Decimal;
 use uuid::Uuid;
 
-use letaf_core::finance::model::{FinanceEntry, FinanceKind, FinanceStatus, PartyType};
+use letaf_core::finance::model::{
+    FinanceEntry, FinanceKind, FinanceRecurrence, FinanceStatus, PartyType,
+};
 use letaf_core::finance::service::FIADO_AUTO_TAG;
 
 use crate::context::DesktopState;
@@ -26,6 +28,12 @@ fn linked_customer(entry: &FinanceEntry) -> Option<Uuid> {
     if entry.kind != FinanceKind::Receivable
         || entry.party_type != PartyType::Customer
         || entry.notes.as_deref() == Some(FIADO_AUTO_TAG)
+        // Recorrência é COMPROMISSO futuro, não dívida assumida: uma
+        // mensalidade de R$ 200 gera 12 ocorrências e debitar as 12 no
+        // ato deixaria o cliente com −2.400 e bloqueado no PDV por algo
+        // que ainda nem venceu. O mesmo recorte vale no espelho do fiado
+        // (`open_customer_receivables_total`).
+        || entry.recurrence != FinanceRecurrence::Once
     {
         return None;
     }

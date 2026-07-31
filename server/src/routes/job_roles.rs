@@ -75,6 +75,19 @@ async fn get_one(
     Ok(Json(item))
 }
 
+/// O chamador só mexe numa Função cujas permissões ATUAIS ele possua.
+async fn require_can_touch_role(
+    state: &AppState,
+    auth: &AuthClaims,
+    company_id: Uuid,
+    id: Uuid,
+) -> Result<(), ServerError> {
+    let Some(role) = state.job_role_service.find_by_id(company_id, id).await? else {
+        return Ok(());
+    };
+    auth.require_can_grant(&role.permissions)
+}
+
 async fn create(
     State(state): State<AppState>,
     auth: AuthClaims,
@@ -101,6 +114,11 @@ async fn update(
     auth.verify_company(tenant.company_id)?;
     auth.require_permission(PERM_EDIT)?;
     auth.require_can_grant(&body.permissions)?;
+    // Também sobre as permissões ATUAIS: sem isso um funcionário
+    // reescrevia a Função "Gerente" reduzindo-a ao próprio conjunto —
+    // não subia o dele, mas derrubava o do gerente na hora
+    // (`bump_token_version_by_job_role` logo abaixo).
+    require_can_touch_role(&state, &auth, tenant.company_id, id).await?;
     let item = state
         .job_role_service
         .update(tenant.company_id, id, body.name, body.permissions)
@@ -122,6 +140,10 @@ async fn delete(
 ) -> Result<Json<Value>, ServerError> {
     auth.verify_company(tenant.company_id)?;
     auth.require_permission(PERM_EDIT)?;
+    // Apagar a Função deixa quem a tinha SEM permissão nenhuma no
+    // próximo login — negação de serviço por delegação se o alvo for
+    // mais poderoso que o chamador.
+    require_can_touch_role(&state, &auth, tenant.company_id, id).await?;
     state.job_role_service.soft_delete(tenant.company_id, id).await?;
     Ok(Json(json!({ "deleted": true })))
 }

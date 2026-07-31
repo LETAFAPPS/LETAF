@@ -53,6 +53,7 @@ pub(super) async fn create_role(
     Json(body): Json<RoleBody>,
 ) -> Result<(StatusCode, Json<Value>), ServerError> {
     auth.require_screen("roles")?;
+    auth.require_can_grant_screens(&body.screens)?;
     let role = state.admin_role_service.create(body.name, body.screens).await?;
     audit(&state, &auth, "role.create", "admin_role", Some(role.id), role.name.clone(), String::new()).await;
     Ok((StatusCode::CREATED, Json(json!({ "id": role.id }))))
@@ -65,6 +66,12 @@ pub(super) async fn update_role(
     Json(body): Json<RoleBody>,
 ) -> Result<Json<Value>, ServerError> {
     auth.require_screen("roles")?;
+    auth.require_can_grant_screens(&body.screens)?;
+    // E sobre as telas ATUAIS da função — senão dava para reescrever uma
+    // função mais poderosa (inclusive a própria) sem tê-las.
+    if let Some(current) = state.admin_role_service.find_by_id(id).await? {
+        auth.require_can_grant_screens(&current.screens)?;
+    }
     let role = state.admin_role_service.update(id, body.name, body.screens).await?;
     audit(&state, &auth, "role.update", "admin_role", Some(id), role.name, String::new()).await;
     Ok(Json(json!({ "ok": true })))
@@ -76,6 +83,9 @@ pub(super) async fn delete_role(
     Path(id): Path<Uuid>,
 ) -> Result<Json<Value>, ServerError> {
     auth.require_screen("roles")?;
+    if let Some(current) = state.admin_role_service.find_by_id(id).await? {
+        auth.require_can_grant_screens(&current.screens)?;
+    }
     let in_use = state.admin_role_service.count_users(id).await?;
     if in_use > 0 {
         return Err(ServerError::Core(CoreError::Validation(format!(

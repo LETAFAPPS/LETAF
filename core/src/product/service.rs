@@ -192,17 +192,17 @@ impl ProductService {
     /// Quando `unlimited_stock=true` o valor de `stock_quantity` deixa de
     /// ser semântico (o produto nunca esgota), então não validamos sinal —
     /// o caller é responsável por normalizar para 0.
+    /// Produtos ativos com estoque zerado (badge da navegação).
+    pub async fn count_out_of_stock(&self, company_id: Uuid) -> Result<i64, CoreError> {
+        self.repo.count_out_of_stock(company_id).await
+    }
+
     /// `cover_color` precisa ser `#RRGGBB` ASCII.
     ///
     /// §11: o valor vem do cliente (desktop ou `POST /products`) e é
     /// fatiado por byte na UI. Uma cor com caractere multibyte passava
     /// direto, era replicada pelo sync e derrubava o app de toda a
     /// empresa ao abrir a lista de produtos.
-    /// Produtos ativos com estoque zerado (badge da navegação).
-    pub async fn count_out_of_stock(&self, company_id: Uuid) -> Result<i64, CoreError> {
-        self.repo.count_out_of_stock(company_id).await
-    }
-
     fn validate_cover_color(cover_color: &Option<String>) -> Result<(), CoreError> {
         let Some(c) = cover_color.as_deref() else { return Ok(()) };
         if c.is_empty() {

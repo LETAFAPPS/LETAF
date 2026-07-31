@@ -238,6 +238,10 @@ mod tests {
             "plan_usage",            // helper de contagem
             "email_available",       // helper de validação
             "require_valid_role",    // helper de validação de função
+            // Helper do gate anti-escalada do painel: confere que as telas
+            // da Função alvo são um subconjunto das do chamador. Chamado
+            // pelos handlers, que têm o `require_screen` deles.
+            "require_can_assign_role",
             "ensure_platform_admin", // bootstrap no startup, sem requisição
         ];
 

@@ -1071,6 +1071,17 @@ impl SubscriptionService {
         self.repo.mark_invoice_synced(company_id, id, updated_at).await
     }
 
+    /// Upsert de assinatura vindo do DESKTOP (cliente não-confiável, §11).
+    ///
+    /// O desktop origina legitimamente a ESCOLHA do plano (troca feita
+    /// offline). Todo o resto é estado de COBRANÇA, decidido pelo
+    /// servidor/gateway: aceitar do payload permitia ao próprio lojista
+    /// mandar `status = active`, `next_charge_date = 2099` e
+    /// `plan_amount = 0` e ficar com assinatura vitalícia grátis —
+    /// `find_due_subscriptions` nunca mais a veria.
+    ///
+    /// Por isso, quando a assinatura já existe aqui, os campos de
+    /// cobrança são restaurados a partir do que está gravado.
     pub async fn sync_upsert_subscription(
         &self,
         company_id: Uuid,
@@ -1079,10 +1090,33 @@ impl SubscriptionService {
         if s.base.company_id != company_id {
             return Err(CoreError::Validation("Operação não permitida para esta empresa".into()));
         }
+        if let Some(stored) = self
+            .repo
+            .find_current(company_id)
+            .await?
+            .filter(|cur| cur.base.id == s.base.id)
+        {
+            s.status = stored.status;
+            s.next_charge_date = stored.next_charge_date;
+            s.plan_amount = stored.plan_amount;
+            s.plan_period_days = stored.plan_period_days;
+            s.trial_days = stored.trial_days;
+            s.plan_discount_monthly = stored.plan_discount_monthly;
+            s.plan_discount_name = stored.plan_discount_name;
+            s.gateway = stored.gateway;
+            s.gateway_subscription_id = stored.gateway_subscription_id;
+            s.card_status = stored.card_status;
+            s.pix_auto_rec_id = stored.pix_auto_rec_id;
+            s.pix_auto_status = stored.pix_auto_status;
+            s.payment_method = stored.payment_method;
+        }
         s.base.synced = true;
         self.repo.sync_upsert_subscription(&s).await
     }
 
+    /// Upsert de FATURA vinda do desktop — mesma regra: `status`,
+    /// `paid_at`, `amount` e os campos do gateway são do servidor. Sem
+    /// isso, o lojista marcava toda fatura como paga pelo push.
     pub async fn sync_upsert_invoice(
         &self,
         company_id: Uuid,
@@ -1090,6 +1124,18 @@ impl SubscriptionService {
     ) -> Result<(), CoreError> {
         if inv.base.company_id != company_id {
             return Err(CoreError::Validation("Operação não permitida para esta empresa".into()));
+        }
+        let stored = self
+            .repo
+            .find_invoices(company_id)
+            .await?
+            .into_iter()
+            .find(|i| i.base.id == inv.base.id);
+        if let Some(stored) = stored {
+            inv.status = stored.status;
+            inv.paid_at = stored.paid_at;
+            inv.amount = stored.amount;
+            inv.number = stored.number;
         }
         inv.base.synced = true;
         self.repo.sync_upsert_invoice(&inv).await

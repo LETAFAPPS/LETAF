@@ -206,8 +206,16 @@ pub(crate) fn month_pt(m: u32) -> &'static str {
 /// Converte `Coupon` (domínio) → `CouponData` (Slint). Labels/resumo
 /// pré-formatados em pt-BR (UI não faz lógica — §1/§3).
 pub(crate) fn to_coupon_data(c: &Coupon) -> CouponData {
+    // A validade é GRAVADA em UTC (o servidor compara com `Utc::now`),
+    // então precisa voltar ao fuso da loja para exibir — sem isso um
+    // cupom "até 31/08" aparecia como 01/09 e cada edição empurrava a
+    // data mais um dia.
     let date_str = |d: Option<NaiveDateTime>| -> SharedString {
-        d.map(|x| SharedString::from(x.date().format("%d/%m/%Y").to_string()))
+        d.map(|x| {
+            SharedString::from(
+                letaf_core::tz::to_local(x).date().format("%d/%m/%Y").to_string(),
+            )
+        })
             .unwrap_or_default()
     };
     CouponData {

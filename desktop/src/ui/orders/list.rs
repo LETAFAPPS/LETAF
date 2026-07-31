@@ -332,12 +332,47 @@ pub(crate) fn setup_advance_order_status(
     });
 }
 
+/// Devolve à carteira do cliente o valor de um pedido fiado cancelado.
+///
+/// Também reajusta o espelho do fiado no Financeiro. Falha só loga: o
+/// cancelamento é a fonte de verdade e não é desfeito pelo reflexo.
+async fn refund_wallet_charge(
+    state: &DesktopState,
+    cid: uuid::Uuid,
+    order: &letaf_core::order::model::Order,
+) {
+    if order.customer_id.is_nil() {
+        return;
+    }
+    let account = match state
+        .wallet_service
+        .find_account_by_customer(cid, order.customer_id)
+        .await
+    {
+        Ok(Some(a)) => a,
+        _ => return,
+    };
+    match state
+        .wallet_service
+        .refund_order(cid, account.base.id, order.total, order.base.id)
+        .await
+    {
+        Ok((account, _)) => {
+            super::super::wallet::sync_fiado_to_finance(state, &account).await;
+        }
+        Err(e) => tracing::warn!(
+            "pedido {} cancelado, mas a carteira não foi estornada: {e}",
+            order.base.id
+        ),
+    }
+}
+
 /// Callback: cancela o pedido com motivo obrigatório.
 ///
 /// Regras aplicadas (AI_RULES.md §1, §6, §11):
-/// - Recebe `(id, reason)` da UI
-/// - Delega ao `OrderService::cancel` que valida motivo não vazio
-/// - Atualiza UI somente se a operação for bem-sucedida
+/// - recebe `(id, reason)` da UI;
+/// - delega ao `OrderService::cancel`, que valida o motivo;
+/// - estorna carteira e caixa quando a venda já havia sido cobrada.
 pub(crate) fn setup_cancel_order(
     ui: &MainWindow,
     state: &DesktopState,
@@ -378,6 +413,20 @@ async fn run_cancel_order(
     };
     let cid = state.company_id();
 
+    // Carteira: se a venda foi paga com saldo do cliente, devolve o
+    // valor. Sem isso o pedido cancelado continuava cobrado — a dívida
+    // ficava na carteira e no espelho do fiado no Financeiro.
+    let charged = state
+        .order_service
+        .find_by_id(cid, order_id)
+        .await
+        .ok()
+        .flatten()
+        .filter(|o| {
+            o.payment_method.as_deref() == Some("wallet")
+                && o.status != letaf_core::order::model::OrderStatus::Cancelled
+        });
+
     if let Err(e) = state.order_service.cancel(cid, order_id, reason).await {
         tracing::warn!("cancel order error: {e}");
         let msg = format!("Falha ao cancelar: {}", friendly_error(&e));
@@ -388,6 +437,10 @@ async fn run_cancel_order(
             }
         });
         return;
+    }
+
+    if let Some(order) = charged {
+        refund_wallet_charge(&state, cid, &order).await;
     }
     notify.notify_one();
 

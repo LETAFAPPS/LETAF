@@ -117,6 +117,33 @@ impl AuthClaims {
         Ok(())
     }
 
+    /// Espelho de [`Self::require_can_grant`] para o painel: impede que um
+    /// super admin RESTRITO conceda telas que ele mesmo não tem.
+    ///
+    /// Sem isto, quem tinha a tela "admins" criava um super admin novo
+    /// (com senha escolhida por ele) apontando para uma Função mais
+    /// poderosa — ou redefinia a senha de um colega mais poderoso — e
+    /// logava com acesso total. O master (`screen:*`) segue podendo tudo.
+    pub fn require_can_grant_screens(&self, screens: &[String]) -> Result<(), ServerError> {
+        if self.0.perms.iter().any(|p| p == "screen:*") {
+            return Ok(());
+        }
+        // Token sem nenhuma entrada `screen:` = master legado (ver
+        // `require_screen`): mantém o mesmo tratamento.
+        if !self.0.perms.iter().any(|p| p.starts_with("screen:")) {
+            return Ok(());
+        }
+        if let Some(missing) = screens
+            .iter()
+            .find(|s| !self.0.perms.iter().any(|p| p == &format!("screen:{s}")))
+        {
+            return Err(ServerError::Forbidden(format!(
+                "Você não pode conceder acesso a uma tela que não possui: {missing}"
+            )));
+        }
+        Ok(())
+    }
+
     /// Exige super admin E acesso à TELA `screen` do painel (RBAC do painel).
     /// As telas concedidas vêm no token como `"screen:<chave>"` (resolvidas
     /// da Função no login). Master = `"screen:*"`. Compatibilidade: um token

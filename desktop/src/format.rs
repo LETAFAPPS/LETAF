@@ -29,11 +29,31 @@ pub fn parse_money_br(s: &str) -> Option<rust_decimal::Decimal> {
         return None;
     }
     let normalized = if cleaned.contains(',') {
+        // Com vírgula, ela é o decimal e todo ponto é milhar.
         cleaned.replace('.', "").replace(',', ".")
+    } else if is_thousands_only(&cleaned) {
+        // Sem vírgula, o ponto seguido de exatamente 3 dígitos é milhar:
+        // quem digita "1.500" no limite de fiado quer mil e quinhentos.
+        cleaned.replace('.', "")
     } else {
+        // Sem vírgula e sem cara de milhar, o ponto é decimal: quem
+        // digita "1.5" quer um e meio (antes virava quinze).
         cleaned
     };
     rust_decimal::Decimal::from_str(&normalized).ok()
+}
+
+/// `true` quando todos os pontos separam grupos de exatamente 3 dígitos
+/// ("1.500", "1.234.567") — a grafia de milhar do pt-BR.
+fn is_thousands_only(cleaned: &str) -> bool {
+    let digits = cleaned.trim_start_matches('-');
+    let mut parts = digits.split('.');
+    let Some(first) = parts.next() else { return false };
+    if first.is_empty() || first.len() > 3 {
+        return false;
+    }
+    let rest: Vec<&str> = parts.collect();
+    !rest.is_empty() && rest.iter().all(|p| p.len() == 3)
 }
 
 /// Igual ao [`parse_money_br`], em `f64`, para os pontos da UI que ainda
@@ -342,6 +362,13 @@ mod tests {
         assert_eq!(parse_money_br("1.234,56"), Some(dec("1234.56")));
         assert_eq!(parse_money_br("R$ 1.234,56"), Some(dec("1234.56")));
         assert_eq!(parse_money_br("16,90"), Some(dec("16.90")));
+    }
+
+    #[test]
+    fn parse_money_br_ponto_com_tres_digitos_e_milhar() {
+        // Limite de fiado / valor de lançamento: "1.500" = mil e quinhentos.
+        assert_eq!(parse_money_br("1.500"), Some(dec("1500")));
+        assert_eq!(parse_money_br("1.234.567"), Some(dec("1234567")));
     }
 
     #[test]
