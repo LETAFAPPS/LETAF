@@ -95,14 +95,16 @@ pub(crate) fn apply_to_ui(
     ui.set_cash_close_sys_credit(SharedString::from(fmt_brl(sys_credit_val)));
     ui.set_cash_close_sys_debit(SharedString::from(fmt_brl(sys_debit_val)));
     ui.set_cash_close_sys_total(SharedString::from(fmt_brl(sys_total_val)));
-    // Diferenças iniciais (informado = 0): diff = 0 - sistema.
-    ui.set_cash_close_diff_cash(SharedString::from(fmt_brl_signed(-sys_cash_val)));
-    ui.set_cash_close_diff_pix(SharedString::from(fmt_brl_signed(-sys_pix_val)));
-    ui.set_cash_close_diff_credit(SharedString::from(fmt_brl_signed(-sys_credit_val)));
-    ui.set_cash_close_diff_debit(SharedString::from(fmt_brl_signed(-sys_debit_val)));
-    ui.set_cash_close_diff_total(SharedString::from(fmt_brl_signed(-sys_total_val)));
+    // Sem nada informado ainda: a diferença fica em branco (só é
+    // calculada depois que o operador preenche o campo).
+    let pending = SharedString::from(super::PENDING_DIFF);
+    ui.set_cash_close_diff_cash(pending.clone());
+    ui.set_cash_close_diff_pix(pending.clone());
+    ui.set_cash_close_diff_credit(pending.clone());
+    ui.set_cash_close_diff_debit(pending.clone());
+    ui.set_cash_close_diff_total(pending);
     ui.set_cash_close_in_total(SharedString::from(fmt_brl(rust_decimal::Decimal::ZERO)));
-    ui.set_cash_close_has_diff(sys_total_val.abs() > rust_decimal::Decimal::new(5, 3));
+    ui.set_cash_close_has_diff(false);
 
     // Histórico
     let session_rows: Vec<CashSessionRow> = recent
@@ -198,6 +200,7 @@ pub(crate) fn apply_to_ui(
         ("pix", "PIX", "pix"),
         ("credit", "Cartão Crédito", "credit"),
         ("debit", "Cartão Débito", "debit"),
+        ("wallet", "Carteira", "wallet"),
     ];
     let mt_rows: Vec<CashMethodTotalRow> = methods
         .iter()

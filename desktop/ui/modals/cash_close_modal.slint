@@ -1,6 +1,7 @@
 import { ScrollView } from "std-widgets.slint";
 import { AssetIcon } from "../components/icons.slint";
 import { Theme } from "../theme.slint";
+import { ModalHeader } from "../components/modal_header.slint";
 import { Card } from "../components/cards.slint";
 import { ActionBtn, OutlineBtn } from "../components/buttons.slint";
 import { CashIcon, CardIcon } from "../components/cash_icons.slint";
@@ -56,254 +57,224 @@ export component CashCloseModal inherits Rectangle {
                 TouchArea { }
 
                 VerticalLayout {
-                    padding: 0px;
-                    spacing: 0px;
+                    padding: 24px;
+                    spacing: 14px;
 
-                    Rectangle {
-                        background: Theme.surface;
+                    ModalHeader {
+                        icon: @image-url("../assets/icons-orange/online-earning.svg");
+                        title: "Fechar Caixa";
+                        subtitle: "Conte o dinheiro físico e informe os totais por método para reconciliação";
+                    }
+
+
+                    // (Header "Aberto às / Duração / Operador" removido —
+                    //  redundante com o card de cabeçalho na CashPage.)
+
+                    // Tabela header — alinhada aos widths das linhas
+                    // (ícone 28px + spacing 8 + nome stretch + sistema 90 + input 100 + diff 80).
+                    HorizontalLayout {
+                        spacing: 8px;
+                        Rectangle { width: 28px; }  // espaço para o ícone
+                        Text { text: "MÉTODO"; font-size: 10px; font-weight: 700; color: Theme.text-secondary; letter-spacing: 1px; horizontal-stretch: 1; }
+                        Text { text: "VALOR"; font-size: 10px; font-weight: 700; color: Theme.text-secondary; letter-spacing: 1px; width: 90px; horizontal-alignment: right; }
+                        Text { text: "INFORMADO"; font-size: 10px; font-weight: 700; color: Theme.text-secondary; letter-spacing: 1px; width: 70px; horizontal-alignment: right; }
+                        Text { text: "DIFERENÇA"; font-size: 10px; font-weight: 700; color: Theme.text-secondary; letter-spacing: 1px; width: 80px; horizontal-alignment: right; }
+                    }
+
+                    // Linhas (cash, pix, credit, debit). Cada uma com:
+                    // - Ícone quadrado colorido (mesmo padrão da CashPage)
+                    // - Nome + contagem de vendas
+                    // - VALOR do sistema (computado)
+                    // - INPUT do operador (informado) — width: 100px
+                    // - DIFERENÇA: verde quando bate ("R$ 0,00"),
+                    //   vermelho caso contrário.
+                    // CASH
+                    HorizontalLayout {
+                        spacing: 8px; height: 32px;
+                        Rectangle {
+                            width: 32px; height: 32px;
+                            y: (parent.height - 32px) / 2;
+                            CashIcon { tint: #43A047; }
+                        }
                         VerticalLayout {
-                            padding-left: 22px; padding-right: 22px;
-                            padding-top: 18px; padding-bottom: 14px;
+                            horizontal-stretch: 1; alignment: center; spacing: 0px;
+                            Text { text: "Dinheiro"; font-size: 12px; font-weight: 600; color: Theme.text-primary; vertical-alignment: center; }
+                        }
+                        Text { text: root.sys-cash-display; font-size: 12px; color: Theme.text-primary; width: 90px; horizontal-alignment: right; vertical-alignment: center; }
+                        Rectangle {
+                            width: 70px; height: 32px;
+                            y: (parent.height - 32px) / 2;
+                            border-radius: 6px;
+                            border-width: 1px;
+                            border-color: cash-input.has-focus ? Theme.primary : Theme.border;
+                            background: Theme.surface;
+                            cash-input := TextInput {
+                                x: 8px; y: 0; width: parent.width - 16px; height: parent.height;
+                                text <=> root.in-cash;
+                                font-size: 12px; color: Theme.text-primary;
+                                vertical-alignment: center; horizontal-alignment: right;
+                                single-line: true; input-type: decimal;
+                                edited => { root.recalc(); }
+                            }
+                        }
+                        Text { text: root.diff-cash-display; font-size: 12px; font-weight: 600; color: root.diff-cash-display == "—" ? Theme.text-secondary : (root.diff-cash-display == "R$ 0,00" ? #2E7D32 : Theme.danger); width: 80px; horizontal-alignment: right; vertical-alignment: center; }
+                    }
+                    // PIX
+                    HorizontalLayout {
+                        spacing: 8px; height: 32px;
+                        Text {
+                            width: 32px;
+                            text: "❖"; color: #1E88E5;
+                            font-size: 26px; font-weight: 900;
+                            horizontal-alignment: center; vertical-alignment: center;
+                        }
+                        VerticalLayout {
+                            horizontal-stretch: 1; alignment: center;
+                            Text { text: "PIX"; font-size: 12px; font-weight: 600; color: Theme.text-primary; vertical-alignment: center; }
+                        }
+                        Text { text: root.sys-pix-display; font-size: 12px; color: Theme.text-primary; width: 90px; horizontal-alignment: right; vertical-alignment: center; }
+                        Rectangle {
+                            width: 70px; height: 32px;
+                            y: (parent.height - 32px) / 2;
+                            border-radius: 6px; border-width: 1px;
+                            border-color: pix-input.has-focus ? Theme.primary : Theme.border;
+                            background: Theme.surface;
+                            pix-input := TextInput {
+                                x: 8px; y: 0; width: parent.width - 16px; height: parent.height;
+                                text <=> root.in-pix;
+                                font-size: 12px; color: Theme.text-primary;
+                                vertical-alignment: center; horizontal-alignment: right;
+                                single-line: true; input-type: decimal;
+                                edited => { root.recalc(); }
+                            }
+                        }
+                        Text { text: root.diff-pix-display; font-size: 12px; font-weight: 600; color: root.diff-pix-display == "—" ? Theme.text-secondary : (root.diff-pix-display == "R$ 0,00" ? #2E7D32 : Theme.danger); width: 80px; horizontal-alignment: right; vertical-alignment: center; }
+                    }
+                    // CRÉDITO
+                    HorizontalLayout {
+                        spacing: 8px; height: 32px;
+                        Rectangle {
+                            width: 32px; height: 32px;
+                            y: (parent.height - 32px) / 2;
+                            CardIcon { tint: #E53935; debit: true; }
+                        }
+                        VerticalLayout {
+                            horizontal-stretch: 1; alignment: center;
+                            Text { text: "Cartão Crédito"; font-size: 12px; font-weight: 600; color: Theme.text-primary; vertical-alignment: center; }
+                        }
+                        Text { text: root.sys-credit-display; font-size: 12px; color: Theme.text-primary; width: 90px; horizontal-alignment: right; vertical-alignment: center; }
+                        Rectangle {
+                            width: 70px; height: 32px;
+                            y: (parent.height - 32px) / 2;
+                            border-radius: 6px; border-width: 1px;
+                            border-color: credit-input.has-focus ? Theme.primary : Theme.border;
+                            background: Theme.surface;
+                            credit-input := TextInput {
+                                x: 8px; y: 0; width: parent.width - 16px; height: parent.height;
+                                text <=> root.in-credit;
+                                font-size: 12px; color: Theme.text-primary;
+                                vertical-alignment: center; horizontal-alignment: right;
+                                single-line: true; input-type: decimal;
+                                edited => { root.recalc(); }
+                            }
+                        }
+                        Text { text: root.diff-credit-display; font-size: 12px; font-weight: 600; color: root.diff-credit-display == "—" ? Theme.text-secondary : (root.diff-credit-display == "R$ 0,00" ? #2E7D32 : Theme.danger); width: 80px; horizontal-alignment: right; vertical-alignment: center; }
+                    }
+                    // DÉBITO
+                    HorizontalLayout {
+                        spacing: 8px; height: 32px;
+                        Rectangle {
+                            width: 32px; height: 32px;
+                            y: (parent.height - 32px) / 2;
+                            CardIcon { tint: Theme.accent; debit: true; }
+                        }
+                        VerticalLayout {
+                            horizontal-stretch: 1; alignment: center;
+                            Text { text: "Cartão Débito"; font-size: 12px; font-weight: 600; color: Theme.text-primary; vertical-alignment: center; }
+                        }
+                        Text { text: root.sys-debit-display; font-size: 12px; color: Theme.text-primary; width: 90px; horizontal-alignment: right; vertical-alignment: center; }
+                        Rectangle {
+                            width: 70px; height: 32px;
+                            y: (parent.height - 32px) / 2;
+                            border-radius: 6px; border-width: 1px;
+                            border-color: debit-input.has-focus ? Theme.primary : Theme.border;
+                            background: Theme.surface;
+                            debit-input := TextInput {
+                                x: 8px; y: 0; width: parent.width - 16px; height: parent.height;
+                                text <=> root.in-debit;
+                                font-size: 12px; color: Theme.text-primary;
+                                vertical-alignment: center; horizontal-alignment: right;
+                                single-line: true; input-type: decimal;
+                                edited => { root.recalc(); }
+                            }
+                        }
+                        Text { text: root.diff-debit-display; font-size: 12px; font-weight: 600; color: root.diff-debit-display == "—" ? Theme.text-secondary : (root.diff-debit-display == "R$ 0,00" ? #2E7D32 : Theme.danger); width: 80px; horizontal-alignment: right; vertical-alignment: center; }
+                    }
+
+                    Rectangle { height: 1px; background: Theme.border; }
+
+                    // TOTAL (mesmos widths das linhas para alinhar colunas)
+                    HorizontalLayout {
+                        spacing: 8px; height: 36px;
+                        Rectangle { width: 28px; }
+                        Text { text: "TOTAL"; font-size: 12px; font-weight: 800; color: Theme.text-primary; horizontal-stretch: 1; vertical-alignment: center; }
+                        Text { text: root.sys-total-display; font-size: 14px; font-weight: 700; color: Theme.text-primary; width: 90px; horizontal-alignment: right; vertical-alignment: center; }
+                        Text { text: root.in-total-display; font-size: 14px; font-weight: 700; color: Theme.text-primary; width: 70px; horizontal-alignment: right; vertical-alignment: center; }
+                        Text { text: root.diff-total-display; font-size: 14px; font-weight: 700; color: root.diff-total-display == "—" ? Theme.text-secondary : (root.has-diff ? Theme.danger : #2E7D32); width: 80px; horizontal-alignment: right; vertical-alignment: center; }
+                    }
+
+                    // Alerta de diferença
+                    if root.has-diff: Rectangle {
+                        background: #FFEBEE;
+                        border-radius: 8px;
+                        VerticalLayout {
+                            padding: 12px;
                             spacing: 2px;
-                            HorizontalLayout {
-                                spacing: 12px;
-                                VerticalLayout {
-                                    alignment: center;
-                                    Image { width: 40px; height: 40px; image-fit: contain; source: @image-url("../assets/icons-orange/online-earning.svg"); }
-                                }
-                                VerticalLayout {
-                                    horizontal-stretch: 1; spacing: 2px;
-                                    Text {
-                                        text: "Fechar Caixa";
-                                        font-size: 16px; font-weight: 700;
-                                        color: Theme.text-primary;
-                                    }
-                                    Text {
-                                        text: "Conte o dinheiro físico e informe os totais por método para reconciliação";
-                                        font-size: 11px; color: Theme.text-secondary;
-                                        wrap: word-wrap;
-                                    }
-                                }
+                            Text {
+                                text: "⚠ Diferença Detectada";
+                                font-size: 12px; font-weight: 700; color: #C62828;
+                                wrap: word-wrap;
                             }
                         }
                     }
 
-                    Rectangle {
-                        background: Theme.bg;
-                        VerticalLayout {
-                            padding: 18px;
-                            spacing: 12px;
+                    // Observação
+                    VerticalLayout {
+                        spacing: 6px;
+                        Text {
+                            text: root.has-diff ? "Observação (Obrigatória)" : "Observação";
+                            font-size: 10px; font-weight: 700; color: Theme.text-secondary; letter-spacing: 1px;
+                        }
+                        Rectangle {
+                            height: 60px;
+                            border-radius: 6px;
+                            border-width: 1px;
+                            border-color: notes-input.has-focus ? Theme.primary : Theme.border;
+                            background: Theme.surface;
+                            notes-input := TextInput {
+                                x: 10px; y: 6px;
+                                width: parent.width - 20px; height: parent.height - 12px;
+                                text <=> root.notes;
+                                font-size: 12px; color: Theme.text-primary;
+                                wrap: word-wrap;
+                            }
+                            if root.notes == "": Text {
+                                x: 10px; y: 6px;
+                                width: parent.width - 20px; height: parent.height - 12px;
+                                text: "Ex: 2 reais de troco a menos · cliente arredondou no PIX";
+                                font-size: 12px; color: #BDBDBD;
+                            }
+                        }
+                    }
 
-                            // (Header "Aberto às / Duração / Operador" removido —
-                            //  redundante com o card de cabeçalho na CashPage.)
-
-                            // Tabela header — alinhada aos widths das linhas
-                            // (ícone 28px + spacing 8 + nome stretch + sistema 90 + input 100 + diff 80).
-                            HorizontalLayout {
-                                spacing: 8px;
-                                Rectangle { width: 28px; }  // espaço para o ícone
-                                Text { text: "MÉTODO"; font-size: 10px; font-weight: 700; color: Theme.text-secondary; letter-spacing: 1px; horizontal-stretch: 1; }
-                                Text { text: "VALOR"; font-size: 10px; font-weight: 700; color: Theme.text-secondary; letter-spacing: 1px; width: 90px; horizontal-alignment: right; }
-                                Text { text: "INFORMADO"; font-size: 10px; font-weight: 700; color: Theme.text-secondary; letter-spacing: 1px; width: 70px; horizontal-alignment: right; }
-                                Text { text: "DIFERENÇA"; font-size: 10px; font-weight: 700; color: Theme.text-secondary; letter-spacing: 1px; width: 80px; horizontal-alignment: right; }
-                            }
-
-                            // Linhas (cash, pix, credit, debit). Cada uma com:
-                            // - Ícone quadrado colorido (mesmo padrão da CashPage)
-                            // - Nome + contagem de vendas
-                            // - VALOR do sistema (computado)
-                            // - INPUT do operador (informado) — width: 100px
-                            // - DIFERENÇA: verde quando bate ("R$ 0,00"),
-                            //   vermelho caso contrário.
-                            // CASH
-                            HorizontalLayout {
-                                spacing: 8px; height: 32px;
-                                Rectangle {
-                                    width: 32px; height: 32px;
-                                    y: (parent.height - 32px) / 2;
-                                    CashIcon { tint: #43A047; }
-                                }
-                                VerticalLayout {
-                                    horizontal-stretch: 1; alignment: center; spacing: 0px;
-                                    Text { text: "Dinheiro"; font-size: 12px; font-weight: 600; color: Theme.text-primary; vertical-alignment: center; }
-                                }
-                                Text { text: root.sys-cash-display; font-size: 12px; color: Theme.text-primary; width: 90px; horizontal-alignment: right; vertical-alignment: center; }
-                                Rectangle {
-                                    width: 70px; height: 32px;
-                                    y: (parent.height - 32px) / 2;
-                                    border-radius: 6px;
-                                    border-width: 1px;
-                                    border-color: cash-input.has-focus ? Theme.primary : Theme.border;
-                                    background: Theme.surface;
-                                    cash-input := TextInput {
-                                        x: 8px; y: 0; width: parent.width - 16px; height: parent.height;
-                                        text <=> root.in-cash;
-                                        font-size: 12px; color: Theme.text-primary;
-                                        vertical-alignment: center; horizontal-alignment: right;
-                                        single-line: true; input-type: decimal;
-                                        edited => { root.recalc(); }
-                                    }
-                                }
-                                Text { text: root.diff-cash-display; font-size: 12px; font-weight: 600; color: root.diff-cash-display == "R$ 0,00" ? #2E7D32 : Theme.danger; width: 80px; horizontal-alignment: right; vertical-alignment: center; }
-                            }
-                            // PIX
-                            HorizontalLayout {
-                                spacing: 8px; height: 32px;
-                                Text {
-                                    width: 32px;
-                                    text: "❖"; color: #1E88E5;
-                                    font-size: 26px; font-weight: 900;
-                                    horizontal-alignment: center; vertical-alignment: center;
-                                }
-                                VerticalLayout {
-                                    horizontal-stretch: 1; alignment: center;
-                                    Text { text: "PIX"; font-size: 12px; font-weight: 600; color: Theme.text-primary; vertical-alignment: center; }
-                                }
-                                Text { text: root.sys-pix-display; font-size: 12px; color: Theme.text-primary; width: 90px; horizontal-alignment: right; vertical-alignment: center; }
-                                Rectangle {
-                                    width: 70px; height: 32px;
-                                    y: (parent.height - 32px) / 2;
-                                    border-radius: 6px; border-width: 1px;
-                                    border-color: pix-input.has-focus ? Theme.primary : Theme.border;
-                                    background: Theme.surface;
-                                    pix-input := TextInput {
-                                        x: 8px; y: 0; width: parent.width - 16px; height: parent.height;
-                                        text <=> root.in-pix;
-                                        font-size: 12px; color: Theme.text-primary;
-                                        vertical-alignment: center; horizontal-alignment: right;
-                                        single-line: true; input-type: decimal;
-                                        edited => { root.recalc(); }
-                                    }
-                                }
-                                Text { text: root.diff-pix-display; font-size: 12px; font-weight: 600; color: root.diff-pix-display == "R$ 0,00" ? #2E7D32 : Theme.danger; width: 80px; horizontal-alignment: right; vertical-alignment: center; }
-                            }
-                            // CRÉDITO
-                            HorizontalLayout {
-                                spacing: 8px; height: 32px;
-                                Rectangle {
-                                    width: 32px; height: 32px;
-                                    y: (parent.height - 32px) / 2;
-                                    CardIcon { tint: #E53935; debit: true; }
-                                }
-                                VerticalLayout {
-                                    horizontal-stretch: 1; alignment: center;
-                                    Text { text: "Cartão Crédito"; font-size: 12px; font-weight: 600; color: Theme.text-primary; vertical-alignment: center; }
-                                }
-                                Text { text: root.sys-credit-display; font-size: 12px; color: Theme.text-primary; width: 90px; horizontal-alignment: right; vertical-alignment: center; }
-                                Rectangle {
-                                    width: 70px; height: 32px;
-                                    y: (parent.height - 32px) / 2;
-                                    border-radius: 6px; border-width: 1px;
-                                    border-color: credit-input.has-focus ? Theme.primary : Theme.border;
-                                    background: Theme.surface;
-                                    credit-input := TextInput {
-                                        x: 8px; y: 0; width: parent.width - 16px; height: parent.height;
-                                        text <=> root.in-credit;
-                                        font-size: 12px; color: Theme.text-primary;
-                                        vertical-alignment: center; horizontal-alignment: right;
-                                        single-line: true; input-type: decimal;
-                                        edited => { root.recalc(); }
-                                    }
-                                }
-                                Text { text: root.diff-credit-display; font-size: 12px; font-weight: 600; color: root.diff-credit-display == "R$ 0,00" ? #2E7D32 : Theme.danger; width: 80px; horizontal-alignment: right; vertical-alignment: center; }
-                            }
-                            // DÉBITO
-                            HorizontalLayout {
-                                spacing: 8px; height: 32px;
-                                Rectangle {
-                                    width: 32px; height: 32px;
-                                    y: (parent.height - 32px) / 2;
-                                    CardIcon { tint: Theme.accent; debit: true; }
-                                }
-                                VerticalLayout {
-                                    horizontal-stretch: 1; alignment: center;
-                                    Text { text: "Cartão Débito"; font-size: 12px; font-weight: 600; color: Theme.text-primary; vertical-alignment: center; }
-                                }
-                                Text { text: root.sys-debit-display; font-size: 12px; color: Theme.text-primary; width: 90px; horizontal-alignment: right; vertical-alignment: center; }
-                                Rectangle {
-                                    width: 70px; height: 32px;
-                                    y: (parent.height - 32px) / 2;
-                                    border-radius: 6px; border-width: 1px;
-                                    border-color: debit-input.has-focus ? Theme.primary : Theme.border;
-                                    background: Theme.surface;
-                                    debit-input := TextInput {
-                                        x: 8px; y: 0; width: parent.width - 16px; height: parent.height;
-                                        text <=> root.in-debit;
-                                        font-size: 12px; color: Theme.text-primary;
-                                        vertical-alignment: center; horizontal-alignment: right;
-                                        single-line: true; input-type: decimal;
-                                        edited => { root.recalc(); }
-                                    }
-                                }
-                                Text { text: root.diff-debit-display; font-size: 12px; font-weight: 600; color: root.diff-debit-display == "R$ 0,00" ? #2E7D32 : Theme.danger; width: 80px; horizontal-alignment: right; vertical-alignment: center; }
-                            }
-
-                            Rectangle { height: 1px; background: Theme.border; }
-
-                            // TOTAL (mesmos widths das linhas para alinhar colunas)
-                            HorizontalLayout {
-                                spacing: 8px; height: 36px;
-                                Rectangle { width: 28px; }
-                                Text { text: "TOTAL"; font-size: 12px; font-weight: 800; color: Theme.text-primary; horizontal-stretch: 1; vertical-alignment: center; }
-                                Text { text: root.sys-total-display; font-size: 14px; font-weight: 700; color: Theme.text-primary; width: 90px; horizontal-alignment: right; vertical-alignment: center; }
-                                Text { text: root.in-total-display; font-size: 14px; font-weight: 700; color: Theme.text-primary; width: 70px; horizontal-alignment: right; vertical-alignment: center; }
-                                Text { text: root.diff-total-display; font-size: 14px; font-weight: 700; color: root.has-diff ? Theme.danger : #2E7D32; width: 80px; horizontal-alignment: right; vertical-alignment: center; }
-                            }
-
-                            // Alerta de diferença
-                            if root.has-diff: Rectangle {
-                                background: #FFEBEE;
-                                border-radius: 8px;
-                                VerticalLayout {
-                                    padding: 12px;
-                                    spacing: 2px;
-                                    Text {
-                                        text: "⚠ Diferença Detectada";
-                                        font-size: 12px; font-weight: 700; color: #C62828;
-                                        wrap: word-wrap;
-                                    }
-                                }
-                            }
-
-                            // Observação
-                            VerticalLayout {
-                                spacing: 6px;
-                                Text {
-                                    text: root.has-diff ? "Observação (Obrigatória)" : "Observação";
-                                    font-size: 10px; font-weight: 700; color: Theme.text-secondary; letter-spacing: 1px;
-                                }
-                                Rectangle {
-                                    height: 60px;
-                                    border-radius: 6px;
-                                    border-width: 1px;
-                                    border-color: notes-input.has-focus ? Theme.primary : Theme.border;
-                                    background: Theme.surface;
-                                    notes-input := TextInput {
-                                        x: 10px; y: 6px;
-                                        width: parent.width - 20px; height: parent.height - 12px;
-                                        text <=> root.notes;
-                                        font-size: 12px; color: Theme.text-primary;
-                                        wrap: word-wrap;
-                                    }
-                                    if root.notes == "": Text {
-                                        x: 10px; y: 6px;
-                                        width: parent.width - 20px; height: parent.height - 12px;
-                                        text: "Ex: 2 reais de troco a menos · cliente arredondou no PIX";
-                                        font-size: 12px; color: #BDBDBD;
-                                    }
-                                }
-                            }
-
-                            HorizontalLayout {
-                                spacing: 10px;
-                                alignment: end;
-                                ActionBtn {
-                                    label: "Confirmar Fechamento";
-                                    bg-color: Theme.btn-accent;
-                                    min-width: 200px; height: 40px;
-                                    clicked => { root.confirm(); }
-                                }
-                            }
+                    HorizontalLayout {
+                        spacing: 10px;
+                        alignment: end;
+                        ActionBtn {
+                            label: "Confirmar Fechamento";
+                            bg-color: Theme.btn-accent;
+                            min-width: 200px; height: 40px;
+                            clicked => { root.confirm(); }
                         }
                     }
                 }

@@ -424,9 +424,11 @@ pub fn summarize(movements: &[CashMovement]) -> SessionSummary {
             }
         }
     }
-    // Garante chaves padrão para a UI conseguir renderizar sempre 4
-    // linhas (cash/credit/debit/pix), mesmo sem vendas no método.
-    for default_key in ["cash", "credit", "debit", "pix"] {
+    // Garante chaves padrão para a UI conseguir renderizar sempre as
+    // mesmas linhas (dinheiro/crédito/débito/PIX/carteira), mesmo sem
+    // vendas no método. "wallet" não mexe na gaveta — o dinheiro já
+    // entrou quando o cliente depositou na carteira.
+    for default_key in ["cash", "credit", "debit", "pix", "wallet"] {
         s.by_method.entry(default_key.to_string()).or_default();
     }
     s.cash_expected = if cash_balance.abs() < dec!(0.005) {

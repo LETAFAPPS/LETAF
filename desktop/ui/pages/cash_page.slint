@@ -14,32 +14,33 @@ import { CashSessionRow, CashMovementRow, CashMethodTotalRow, CashSummaryData } 
 //
 // AI_RULES §1/§14: tudo já vem formatado de Rust; UI só pinta.
 
-// Botão do filtro segmentado de movimentações.
+// Botão do filtro de movimentações — selecionado em CONTORNO, igual
+// aos filtros de Relatórios.
 component SegBtn inherits TouchArea {
     in property <string> label;
     in property <bool> selected;
-    in property <length> pad: 12px;
+    in property <length> pad: 10px;
     height: 28px;
     width: seg-t.preferred-width + root.pad * 2;
     Rectangle {
-        border-radius: 7px;
-        background: root.selected ? Theme.btn-accent
-            : (root.has-hover ? Theme.row-hover : transparent);
+        border-radius: 6px;
+        border-width: root.selected ? 1.5px : 0px;
+        border-color: Theme.sidebar-sel-bg;
+        background: root.selected ? transparent : (root.has-hover ? #00000008 : transparent);
         seg-t := Text {
             width: parent.width; height: parent.height;
             text: root.label;
-            font-size: 11.5px; font-weight: root.selected ? 700 : 600;
-            color: root.selected ? white : Theme.text-secondary;
+            font-size: 11px; font-weight: 600;
+            color: root.selected ? Theme.sidebar-sel-bg : Theme.text-secondary;
             horizontal-alignment: center; vertical-alignment: center;
         }
     }
 }
 
-// Card de total com barra de acento à esquerda (Total / Sangrias / Suprimentos).
+// Card de total simples (Total / Sangrias / Suprimentos).
 component StatCard inherits Rectangle {
     in property <string> label;
     in property <string> value;
-    in property <color> accent;
     horizontal-stretch: 1;
     preferred-width: 0px;
     height: 76px;
@@ -50,15 +51,8 @@ component StatCard inherits Rectangle {
     drop-shadow-offset-y: 0px;
     drop-shadow-color: Theme.card-shadow;
     background: Theme.surface;
-    clip: true;
-    // Faixa de acento (a cor identifica o tipo do total).
-    Rectangle {
-        x: 0; y: 0;
-        width: 4px; height: parent.height;
-        background: root.accent;
-    }
     VerticalLayout {
-        padding-left: 18px; padding-right: 14px;
+        padding-left: 16px; padding-right: 14px;
         padding-top: 14px; padding-bottom: 14px;
         spacing: 5px;
         alignment: center;
@@ -120,7 +114,8 @@ export component CashPage inherits VerticalLayout {
         return key == "money" ? #2E7D32
             : (key == "pix" ? #1E88E5
             : (key == "credit" ? #E53935
-            : #F9A825));  // debit
+            : (key == "debit" ? #F9A825
+            : Theme.btn-accent)));  // wallet
     }
 
     // Cor do ícone de cada tipo de movimentação.
@@ -162,9 +157,9 @@ export component CashPage inherits VerticalLayout {
                 if root.summary.open && root.summary.status-subtitle != "": VerticalLayout {
                     alignment: center;
                     Rectangle {
-                        height: 22px;
+                        height: 24px;
                         width: badge-txt.preferred-width + 20px;
-                        border-radius: 11px;
+                        border-radius: 7px;
                         background: Theme.accent.transparentize(0.86);
                         badge-txt := Text {
                             text: root.summary.status-subtitle;
@@ -323,13 +318,6 @@ export component CashPage inherits VerticalLayout {
                 border-radius: 16px;
                 background: Theme.sidebar-bg;
                 clip: true;
-                // Brilho decorativo no canto superior direito.
-                Rectangle {
-                    x: parent.width - 68px; y: -46px;
-                    width: 150px; height: 150px;
-                    border-radius: 75px;
-                    background: Theme.btn-accent.transparentize(0.88);
-                }
                 VerticalLayout {
                     padding: 18px;
                     spacing: 0px;
@@ -341,7 +329,7 @@ export component CashPage inherits VerticalLayout {
                     }
                     Rectangle { height: 6px; }
                     Text {
-                        text: root.summary.total-expected-display;
+                        text: root.summary.cash-now-display;
                         font-size: 30px; font-weight: 800;
                         color: white;
                     }
@@ -350,11 +338,6 @@ export component CashPage inherits VerticalLayout {
                     Rectangle { height: 12px; }
                     HorizontalLayout {
                         spacing: 8px;
-                        HeroStat {
-                            label: "EM DINHEIRO";
-                            value: root.summary.cash-now-display;
-                            value-color: #7BD389;
-                        }
                         HeroStat {
                             label: "VENDAS";
                             value: root.summary.sales-count-display;
@@ -367,11 +350,11 @@ export component CashPage inherits VerticalLayout {
                 }
             }
 
-            // Pagamentos da sessão.
+            // Pagamentos da sessão — altura conforme a lista.
             Card {
-                vertical-stretch: 1;
+                height: pay-l.preferred-height;
                 border-radius: 14px;
-                VerticalLayout {
+                pay-l := VerticalLayout {
                     padding: 18px;
                     spacing: 10px;
                     alignment: start;
@@ -395,6 +378,7 @@ export component CashPage inherits VerticalLayout {
                                     if m.key == "pix": AssetIcon { width: 100%; height: 100%; icon-size: 18px; icon-color: root.method-color(m.key); source: @image-url("../assets/icons/pay-pix.svg"); }
                                     if m.key == "credit": AssetIcon { width: 100%; height: 100%; icon-size: 18px; icon-color: root.method-color(m.key); source: @image-url("../assets/icons/pay-cartao-credito.svg"); }
                                     if m.key == "debit": AssetIcon { width: 100%; height: 100%; icon-size: 18px; icon-color: root.method-color(m.key); source: @image-url("../assets/icons/pay-cartao-debito.svg"); }
+                                    if m.key == "wallet": AssetIcon { width: 100%; height: 100%; icon-size: 18px; icon-color: root.method-color(m.key); source: @image-url("../assets/icons/pay-carteira.svg"); }
                                 }
                             }
                             VerticalLayout {
@@ -426,9 +410,10 @@ export component CashPage inherits VerticalLayout {
                             }
                         }
                     }
-                    Rectangle { height: 1px; background: Theme.border; }
                 }
             }
+            // Espaço livre abaixo dos cards da coluna.
+            Rectangle { vertical-stretch: 1; background: transparent; }
         }
 
         // ── Coluna direita: totais + movimentações ──
@@ -438,21 +423,9 @@ export component CashPage inherits VerticalLayout {
 
             HorizontalLayout {
                 spacing: 16px;
-                StatCard {
-                    label: "TOTAL";
-                    value: root.summary.total-day-display;
-                    accent: #2E7D32;
-                }
-                StatCard {
-                    label: "SANGRIAS";
-                    value: root.summary.sangrias-display;
-                    accent: Theme.btn-accent;
-                }
-                StatCard {
-                    label: "SUPRIMENTOS";
-                    value: root.summary.suprimentos-display;
-                    accent: #1E88E5;
-                }
+                StatCard { label: "TOTAL"; value: root.summary.total-day-display; }
+                StatCard { label: "SANGRIAS"; value: root.summary.sangrias-display; }
+                StatCard { label: "SUPRIMENTOS"; value: root.summary.suprimentos-display; }
             }
 
             Card {
@@ -507,7 +480,7 @@ export component CashPage inherits VerticalLayout {
                         height: 30px;
                         background: transparent;
                         HorizontalLayout {
-                            padding-left: 18px; padding-right: 18px;
+                            padding-left: 26px; padding-right: 26px;
                             spacing: 12px;
                             Text { text: "HORA"; font-size: 10px; font-weight: 800; letter-spacing: 1px; color: Theme.text-secondary; width: 54px; vertical-alignment: center; }
                             Text { text: "TIPO"; font-size: 10px; font-weight: 800; letter-spacing: 1px; color: Theme.text-secondary; horizontal-stretch: 1; vertical-alignment: center; }
@@ -523,15 +496,28 @@ export component CashPage inherits VerticalLayout {
                         vertical-stretch: 1;
                         VerticalLayout {
                             alignment: start;
+                            // Folga lateral para a sombra dos cards não ser
+                            // recortada; o respiro entre eles vai na altura
+                            // do wrapper (colapsa quando o filtro esconde).
+                            padding-left: 12px; padding-right: 12px;
+                            padding-top: 8px; padding-bottom: 8px;
                             for mv in root.movements: Rectangle {
-                                // Colapsa quando o filtro exclui a linha.
-                                height: (root.mv-filter == "all" || root.mv-filter == mv.kind) ? 46px : 0px;
+                                height: (root.mv-filter == "all" || root.mv-filter == mv.kind) ? 58px : 0px;
                                 visible: root.mv-filter == "all" || root.mv-filter == mv.kind;
-                                background: mv-ta.has-hover ? Theme.row-hover : transparent;
+                                background: transparent;
+                                Rectangle {
+                                x: 0; y: 0;
+                                width: parent.width; height: 50px;
+                                border-radius: 10px;
+                                border-width: 1px;
+                                border-color: Theme.card-border;
+                                drop-shadow-blur: 8px;
+                                drop-shadow-offset-y: 0px;
+                                drop-shadow-color: Theme.card-shadow;
+                                background: mv-ta.has-hover ? Theme.row-hover : Theme.surface;
                                 mv-ta := TouchArea { }
-                                Rectangle { x: 0; y: parent.height - 1px; width: parent.width; height: 1px; background: Theme.border; }
                                 HorizontalLayout {
-                                    padding-left: 18px; padding-right: 18px;
+                                    padding-left: 14px; padding-right: 14px;
                                     spacing: 12px;
                                     Text {
                                         text: mv.time-display;
@@ -577,6 +563,7 @@ export component CashPage inherits VerticalLayout {
                                         color: mv.sign == "pos" ? #2E7D32 : (mv.sign == "neg" ? Theme.danger : Theme.text-primary);
                                         width: 110px; horizontal-alignment: right; vertical-alignment: center;
                                     }
+                                }
                                 }
                             }
                         }

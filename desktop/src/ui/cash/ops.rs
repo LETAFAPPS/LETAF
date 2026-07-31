@@ -212,28 +212,58 @@ pub(crate) fn setup_close_recalc(ui: &MainWindow) {
         let sys_cash_used = if sys_cash_ui > 0.0 { sys_cash_ui } else { sys_cash };
         let _ = sys_total_expected;
 
-        let in_cash = parse_amount(&ui.get_cash_close_in_cash());
-        let in_pix = parse_amount(&ui.get_cash_close_in_pix());
-        let in_credit = parse_amount(&ui.get_cash_close_in_credit());
-        let in_debit = parse_amount(&ui.get_cash_close_in_debit());
+        // Cada linha só entra na conferência depois de preenchida: campo
+        // vazio mostra "—" e não conta na diferença (nem no total).
+        let rows = [
+            (ui.get_cash_close_in_cash(), sys_cash_used),
+            (ui.get_cash_close_in_pix(), sys_pix),
+            (ui.get_cash_close_in_credit(), sys_credit),
+            (ui.get_cash_close_in_debit(), sys_debit),
+        ];
+        let diffs: Vec<Option<f64>> = rows
+            .iter()
+            .map(|(raw, sys)| filled_diff(raw, *sys))
+            .collect();
 
-        let diff_cash = in_cash - sys_cash_used;
-        let diff_pix = in_pix - sys_pix;
-        let diff_credit = in_credit - sys_credit;
-        let diff_debit = in_debit - sys_debit;
         let sys_total = sys_cash_used + sys_pix + sys_credit + sys_debit;
-        let in_total = in_cash + in_pix + in_credit + in_debit;
-        let diff_total = in_total - sys_total;
+        // Total informado/diferença consideram só as linhas preenchidas.
+        let in_total: f64 = rows
+            .iter()
+            .zip(&diffs)
+            .filter(|(_, d)| d.is_some())
+            .map(|((raw, _), _)| parse_amount(raw))
+            .sum();
+        let diff_total: Option<f64> = if diffs.iter().all(|d| d.is_none()) {
+            None
+        } else {
+            Some(diffs.iter().flatten().sum())
+        };
 
         ui.set_cash_close_sys_total(SharedString::from(fmt_brl(sys_total)));
         ui.set_cash_close_in_total(SharedString::from(fmt_brl(in_total)));
-        ui.set_cash_close_diff_cash(SharedString::from(fmt_brl_signed(diff_cash)));
-        ui.set_cash_close_diff_pix(SharedString::from(fmt_brl_signed(diff_pix)));
-        ui.set_cash_close_diff_credit(SharedString::from(fmt_brl_signed(diff_credit)));
-        ui.set_cash_close_diff_debit(SharedString::from(fmt_brl_signed(diff_debit)));
-        ui.set_cash_close_diff_total(SharedString::from(fmt_brl_signed(diff_total)));
-        ui.set_cash_close_has_diff(diff_cash.abs() > 0.005);
+        ui.set_cash_close_diff_cash(diff_text(diffs[0]));
+        ui.set_cash_close_diff_pix(diff_text(diffs[1]));
+        ui.set_cash_close_diff_credit(diff_text(diffs[2]));
+        ui.set_cash_close_diff_debit(diff_text(diffs[3]));
+        ui.set_cash_close_diff_total(diff_text(diff_total));
+        ui.set_cash_close_has_diff(diffs.iter().flatten().any(|d| d.abs() > 0.005));
     });
+}
+
+/// Diferença de uma linha: `None` enquanto o campo informado está vazio.
+fn filled_diff(raw: &str, sys: f64) -> Option<f64> {
+    if raw.trim().is_empty() {
+        return None;
+    }
+    Some(parse_amount(raw) - sys)
+}
+
+/// Texto da coluna "diferença" (vazio = ainda não conferido).
+fn diff_text(diff: Option<f64>) -> SharedString {
+    match diff {
+        Some(v) => SharedString::from(fmt_brl_signed(v)),
+        None => SharedString::from(super::PENDING_DIFF),
+    }
 }
 
 pub(crate) fn setup_close_confirm(

@@ -13,4 +13,8 @@ mod core;
 mod ops;
 mod view;
 
+/// Texto da coluna "diferença" enquanto o campo informado está vazio —
+/// a conferência só é calculada depois que o operador digita o valor.
+pub(crate) const PENDING_DIFF: &str = "—";
+
 pub(crate) use core::setup_cash;

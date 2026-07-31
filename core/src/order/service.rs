@@ -215,29 +215,29 @@ impl OrderService {
                     // Falha NÃO desfaz a venda — pedido é fonte de
                     // verdade; movimento é só reflexo agregado.
                     //
-                    // EXCEÇÃO: `payment_method == "wallet"` não passa
-                    // pelo caixa físico (saldo do cliente cobre); a
-                    // contabilização vira `WalletMovement::OrderCharge`
-                    // disparado pelo controller PDV após este retorno.
+                    // `payment_method == "wallet"` entra como venda da
+                    // sessão (aparece no resumo por forma de pagamento),
+                    // mas NÃO altera o saldo da gaveta: o dinheiro já
+                    // entrou no depósito do cliente. O débito do saldo
+                    // vira `WalletMovement::OrderCharge`, disparado pelo
+                    // controller PDV após este retorno.
                     if let (Some(cash), Some(sid), Some(method)) =
                         (&self.cash_service, session_id, order.payment_method.as_ref())
                     {
-                        if method != "wallet" {
-                            if let Err(e) = cash
-                                .register_sale_movement(
-                                    company_id,
-                                    sid,
-                                    order.base.id,
-                                    order.total,
-                                    method.clone(),
-                                )
-                                .await
-                            {
-                                tracing::warn!(
-                                    "PDV order {} created but cash movement failed: {e}",
-                                    order.base.id
-                                );
-                            }
+                        if let Err(e) = cash
+                            .register_sale_movement(
+                                company_id,
+                                sid,
+                                order.base.id,
+                                order.total,
+                                method.clone(),
+                            )
+                            .await
+                        {
+                            tracing::warn!(
+                                "PDV order {} created but cash movement failed: {e}",
+                                order.base.id
+                            );
                         }
                     }
                     return Ok(order);
