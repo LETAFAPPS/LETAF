@@ -7,29 +7,49 @@
 //!
 //! Modelo de fluxo (dinheiro REAL entrando/saindo do estabelecimento):
 //! - entram: pedidos PAGOS com forma ≠ carteira (não cancelados),
-//!   depósitos de clientes na carteira (inclui quitação de fiado) e
+//!   depósitos de clientes na carteira (inclui quitação de fiado),
 //!   Financeiro Recebido EXCETO fiado automático (o fiado entra pelo
-//!   depósito — contar os dois duplicaria);
-//! - saem: saques de clientes e Financeiro Pago;
-//! - ajustes manuais de carteira seguem o sinal do valor.
+//!   depósito — contar os dois duplicaria) e os APORTES manuais;
+//! - saem: saques de clientes, Financeiro Pago e as RETIRADAS manuais;
+//! - ajustes manuais de carteira de cliente seguem o sinal do valor.
 //!
 //! Pedidos pagos com carteira NÃO contam: consomem crédito que já
 //! entrou no depósito do cliente.
+//!
+//! O SALDO considera todo o histórico; os cards de período (Hoje /
+//! Semana / Mês) e a lista de movimentações respeitam o filtro.
 
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
+use chrono::{Datelike, Duration, Local, NaiveDate, NaiveDateTime};
 use rust_decimal::Decimal;
 use slint::{ComponentHandle, ModelRc, SharedString, VecModel};
 
 use letaf_core::finance::model::{FinanceKind, FinanceStatus};
 use letaf_core::order::model::OrderStatus;
+use letaf_core::treasury::model::TreasuryMovementKind;
 use letaf_core::wallet::model::WalletMovementKind;
 
 use crate::context::DesktopState;
 use crate::format::{format_order_date, format_order_time, money_br};
-use crate::{MainWindow, TreasuryMovementRow, TreasurySummary};
+use crate::{MainWindow, TreasuryChartBar, TreasuryMovementRow, TreasurySummary};
 
 use super::helpers::{friendly_error, show_toast};
+
+/// Filtros da tela (período + tipo de movimento), guardados no Rust.
+#[derive(Clone)]
+struct Filters {
+    period: String,
+    kind: String,
+}
+
+impl Default for Filters {
+    fn default() -> Self {
+        Self { period: "today".into(), kind: "all".into() }
+    }
+}
+
+type FiltersHandle = Arc<Mutex<Filters>>;
 
 pub(crate) fn setup_treasury(
     ui: &MainWindow,
@@ -37,8 +57,11 @@ pub(crate) fn setup_treasury(
     handle: &tokio::runtime::Handle,
     sync_notify: Arc<tokio::sync::Notify>,
 ) {
-    setup_refresh(ui, state, handle);
-    setup_open(ui, state, handle, sync_notify);
+    let filters: FiltersHandle = Arc::new(Mutex::new(Filters::default()));
+    setup_refresh(ui, state, handle, filters.clone());
+    setup_open(ui, state, handle, sync_notify.clone(), filters.clone());
+    setup_filters(ui, state, handle, filters.clone());
+    setup_modal(ui, state, handle, sync_notify, filters);
 }
 
 // ── Snapshot (Send-safe) ────────────────────────────────────────
@@ -54,62 +77,85 @@ struct SummaryRaw {
     finance_in: Decimal,
     finance_out: Decimal,
     withdrawals_out: Decimal,
+    manual_in: Decimal,
+    manual_out: Decimal,
     movements_count: i32,
+    goal: Decimal,
+    reserved: Decimal,
+    period_label: String,
 }
 
 struct MovementRaw {
     title: String,
     source: String,
-    at: chrono::NaiveDateTime,
+    at: NaiveDateTime,
     amount: Decimal,
     positive: bool,
 }
 
-fn setup_refresh(ui: &MainWindow, state: &DesktopState, handle: &tokio::runtime::Handle) {
+fn setup_refresh(
+    ui: &MainWindow,
+    state: &DesktopState,
+    handle: &tokio::runtime::Handle,
+    filters: FiltersHandle,
+) {
     let ui_weak = ui.as_weak();
     let state = state.clone();
     let handle = handle.clone();
     ui.on_treasury_refresh(move || {
-        let ui_weak = ui_weak.clone();
-        let state = state.clone();
-        handle.spawn(async move {
-            let (summary, movements) = build_snapshot(&state).await;
-            let _ = slint::invoke_from_event_loop(move || {
-                let Some(ui) = ui_weak.upgrade() else { return };
-                apply_to_ui(&ui, &summary, &movements);
-            });
+        reapply(&ui_weak, &state, &handle, &filters);
+    });
+}
+
+/// Recarrega o snapshot e aplica na UI (usado pelo refresh e por toda
+/// operação que muda o saldo).
+fn reapply(
+    ui_weak: &slint::Weak<MainWindow>,
+    state: &DesktopState,
+    handle: &tokio::runtime::Handle,
+    filters: &FiltersHandle,
+) {
+    let ui_weak = ui_weak.clone();
+    let state = state.clone();
+    let filters = filters.clone();
+    handle.spawn(async move {
+        let f = filters.lock().ok().map(|g| g.clone()).unwrap_or_default();
+        let (summary, movements, chart) = build_snapshot(&state, &f).await;
+        let _ = slint::invoke_from_event_loop(move || {
+            let Some(ui) = ui_weak.upgrade() else { return };
+            apply_to_ui(&ui, &summary, &movements, &chart);
         });
     });
 }
 
-async fn build_snapshot(state: &DesktopState) -> (SummaryRaw, Vec<MovementRaw>) {
+/// Início do período filtrado (o fim é sempre "agora").
+fn period_start(period: &str, today: NaiveDate) -> NaiveDate {
+    match period {
+        "week" => today - Duration::days(today.weekday().num_days_from_monday() as i64),
+        "month" => NaiveDate::from_ymd_opt(today.year(), today.month(), 1).unwrap_or(today),
+        _ => today,
+    }
+}
+
+fn period_label(period: &str) -> &'static str {
+    match period {
+        "week" => "SALDO LÍQUIDO DA SEMANA",
+        "month" => "SALDO LÍQUIDO DO MÊS",
+        _ => "SALDO LÍQUIDO DO DIA",
+    }
+}
+
+async fn build_snapshot(
+    state: &DesktopState,
+    filters: &Filters,
+) -> (SummaryRaw, Vec<MovementRaw>, Vec<TreasuryChartBar>) {
     let cid = state.company_id();
     let treasury = state.treasury_service.find(cid).await.ok().flatten();
     let Some(treasury) = treasury else {
-        return (
-            SummaryRaw {
-                has_account: false,
-                balance: Decimal::ZERO,
-                initial: Decimal::ZERO,
-                inflow: Decimal::ZERO,
-                outflow: Decimal::ZERO,
-                orders_in: Decimal::ZERO,
-                deposits_in: Decimal::ZERO,
-                finance_in: Decimal::ZERO,
-                finance_out: Decimal::ZERO,
-                withdrawals_out: Decimal::ZERO,
-                movements_count: 0,
-            },
-            Vec::new(),
-        );
+        return (empty_summary(), Vec::new(), Vec::new());
     };
 
     let mut movements: Vec<MovementRaw> = Vec::new();
-    let mut orders_in = Decimal::ZERO;
-    let mut deposits_in = Decimal::ZERO;
-    let mut withdrawals_out = Decimal::ZERO;
-    let mut finance_in = Decimal::ZERO;
-    let mut finance_out = Decimal::ZERO;
 
     // Pedidos pagos (dinheiro novo — forma ≠ carteira).
     let orders = state.order_service.find_all(cid).await.unwrap_or_default();
@@ -118,7 +164,6 @@ async fn build_snapshot(state: &DesktopState) -> (SummaryRaw, Vec<MovementRaw>) 
             && o.payment_method.as_deref() != Some("wallet")
             && o.status != OrderStatus::Cancelled
     }) {
-        orders_in += o.total;
         movements.push(MovementRaw {
             title: format!("Pedido #{:04}", o.number),
             source: "Pedido".into(),
@@ -144,41 +189,27 @@ async fn build_snapshot(state: &DesktopState) -> (SummaryRaw, Vec<MovementRaw>) 
             .unwrap_or_default();
         for m in list {
             match m.kind {
-                WalletMovementKind::Deposit => {
-                    deposits_in += m.amount;
-                    movements.push(MovementRaw {
-                        title: m.notes.clone().unwrap_or_else(|| "Depósito de cliente".into()),
-                        source: "Carteira".into(),
-                        at: m.base.created_at,
-                        amount: m.amount,
-                        positive: true,
-                    });
-                }
-                WalletMovementKind::Withdraw => {
-                    withdrawals_out += m.amount;
-                    movements.push(MovementRaw {
-                        title: m.notes.clone().unwrap_or_else(|| "Saque de cliente".into()),
-                        source: "Carteira".into(),
-                        at: m.base.created_at,
-                        amount: m.amount,
-                        positive: false,
-                    });
-                }
-                WalletMovementKind::ManualAdjust => {
-                    let positive = m.amount >= Decimal::ZERO;
-                    if positive {
-                        deposits_in += m.amount;
-                    } else {
-                        withdrawals_out += -m.amount;
-                    }
-                    movements.push(MovementRaw {
-                        title: m.notes.clone().unwrap_or_else(|| "Ajuste de carteira".into()),
-                        source: "Carteira".into(),
-                        at: m.base.created_at,
-                        amount: m.amount.abs(),
-                        positive,
-                    });
-                }
+                WalletMovementKind::Deposit => movements.push(MovementRaw {
+                    title: m.notes.clone().unwrap_or_else(|| "Depósito de cliente".into()),
+                    source: "Carteira".into(),
+                    at: m.base.created_at,
+                    amount: m.amount,
+                    positive: true,
+                }),
+                WalletMovementKind::Withdraw => movements.push(MovementRaw {
+                    title: m.notes.clone().unwrap_or_else(|| "Saque de cliente".into()),
+                    source: "Carteira".into(),
+                    at: m.base.created_at,
+                    amount: m.amount,
+                    positive: false,
+                }),
+                WalletMovementKind::ManualAdjust => movements.push(MovementRaw {
+                    title: m.notes.clone().unwrap_or_else(|| "Ajuste de carteira".into()),
+                    source: "Carteira".into(),
+                    at: m.base.created_at,
+                    amount: m.amount.abs(),
+                    positive: m.amount >= Decimal::ZERO,
+                }),
                 WalletMovementKind::OrderCharge
                 | WalletMovementKind::OrderRefund
                 | WalletMovementKind::LimitChange => {}
@@ -190,74 +221,251 @@ async fn build_snapshot(state: &DesktopState) -> (SummaryRaw, Vec<MovementRaw>) 
     // pelo depósito) e pagamentos liquidados.
     let entries = state.finance_service.find_all(cid).await.unwrap_or_default();
     for e in &entries {
-        let is_fiado = e.notes.as_deref()
-            == Some(letaf_core::finance::service::FIADO_AUTO_TAG);
+        let is_fiado =
+            e.notes.as_deref() == Some(letaf_core::finance::service::FIADO_AUTO_TAG);
         match (e.kind, e.status) {
             (FinanceKind::Receivable, FinanceStatus::Received) if !is_fiado => {
-                finance_in += e.amount;
                 movements.push(MovementRaw {
                     title: e.description.clone(),
                     source: "Financeiro".into(),
                     at: e.paid_at.unwrap_or(e.base.updated_at),
                     amount: e.amount,
                     positive: true,
-                });
+                })
             }
-            (FinanceKind::Payable, FinanceStatus::Paid) => {
-                finance_out += e.amount;
-                movements.push(MovementRaw {
-                    title: e.description.clone(),
-                    source: "Financeiro".into(),
-                    at: e.paid_at.unwrap_or(e.base.updated_at),
-                    amount: e.amount,
-                    positive: false,
-                });
-            }
+            (FinanceKind::Payable, FinanceStatus::Paid) => movements.push(MovementRaw {
+                title: e.description.clone(),
+                source: "Financeiro".into(),
+                at: e.paid_at.unwrap_or(e.base.updated_at),
+                amount: e.amount,
+                positive: false,
+            }),
             _ => {}
         }
     }
 
+    // Aportes / retiradas manuais do caixa.
+    let manual = state
+        .treasury_service
+        .find_movements(cid, 9_999)
+        .await
+        .unwrap_or_default();
+    for m in &manual {
+        let positive = m.kind == TreasuryMovementKind::Deposit;
+        movements.push(MovementRaw {
+            title: m.notes.clone().unwrap_or_else(|| {
+                if positive { "Depósito no caixa".into() } else { "Retirada do caixa".into() }
+            }),
+            source: "Caixa".into(),
+            at: m.base.created_at,
+            amount: m.amount,
+            positive,
+        });
+    }
+
     movements.sort_by_key(|m| std::cmp::Reverse(m.at));
-    let movements_count = movements.len() as i32;
-    movements.truncate(50);
 
-    let inflow = orders_in + deposits_in + finance_in;
-    let outflow = withdrawals_out + finance_out;
-    let balance = treasury.initial_balance + inflow - outflow;
+    // ── Totais ──
+    // O SALDO usa todo o histórico; os cards do topo respeitam o filtro.
+    let today = Local::now().date_naive();
+    let from = period_start(&filters.period, today);
+    let in_period = |m: &MovementRaw| m.at.date() >= from;
 
-    (
-        SummaryRaw {
-            has_account: true,
-            balance,
-            initial: treasury.initial_balance,
-            inflow,
-            outflow,
-            orders_in,
-            deposits_in,
-            finance_in,
-            finance_out,
-            withdrawals_out,
-            movements_count,
-        },
-        movements,
-    )
+    let sum = |f: &dyn Fn(&MovementRaw) -> bool| -> Decimal {
+        movements.iter().filter(|m| f(m)).map(|m| m.amount).sum()
+    };
+    let by_source = |source: &str, positive: bool| -> Decimal {
+        movements
+            .iter()
+            .filter(|m| m.source == source && m.positive == positive && in_period(m))
+            .map(|m| m.amount)
+            .sum()
+    };
+
+    let total_in = sum(&|m| m.positive);
+    let total_out = sum(&|m| !m.positive);
+    let balance = treasury.initial_balance + total_in - total_out;
+
+    let inflow = sum(&|m| m.positive && in_period(m));
+    let outflow = sum(&|m| !m.positive && in_period(m));
+
+    // Reserva do mês (progresso da meta): resultado líquido do mês.
+    let month_start = period_start("month", today);
+    let month_in: Decimal = movements
+        .iter()
+        .filter(|m| m.positive && m.at.date() >= month_start)
+        .map(|m| m.amount)
+        .sum();
+    let month_out: Decimal = movements
+        .iter()
+        .filter(|m| !m.positive && m.at.date() >= month_start)
+        .map(|m| m.amount)
+        .sum();
+
+    let summary = SummaryRaw {
+        has_account: true,
+        balance,
+        initial: treasury.initial_balance,
+        inflow,
+        outflow,
+        orders_in: by_source("Pedido", true),
+        deposits_in: by_source("Carteira", true),
+        finance_in: by_source("Financeiro", true),
+        finance_out: by_source("Financeiro", false),
+        withdrawals_out: by_source("Carteira", false),
+        manual_in: by_source("Caixa", true),
+        manual_out: by_source("Caixa", false),
+        movements_count: 0, // preenchido após o filtro da lista
+        goal: treasury.reserve_goal,
+        reserved: month_in - month_out,
+        period_label: period_label(&filters.period).to_string(),
+    };
+
+    let chart = build_chart(&movements, &filters.period, today);
+
+    // Lista: período + tipo.
+    let mut list: Vec<MovementRaw> = movements
+        .into_iter()
+        .filter(|m| m.at.date() >= from)
+        .filter(|m| match filters.kind.as_str() {
+            "in" => m.positive,
+            "out" => !m.positive,
+            _ => true,
+        })
+        .collect();
+    let count = list.len() as i32;
+    list.truncate(80);
+
+    (SummaryRaw { movements_count: count, ..summary }, list, chart)
 }
 
-fn apply_to_ui(ui: &MainWindow, s: &SummaryRaw, movements: &[MovementRaw]) {
+fn empty_summary() -> SummaryRaw {
+    SummaryRaw {
+        has_account: false,
+        balance: Decimal::ZERO,
+        initial: Decimal::ZERO,
+        inflow: Decimal::ZERO,
+        outflow: Decimal::ZERO,
+        orders_in: Decimal::ZERO,
+        deposits_in: Decimal::ZERO,
+        finance_in: Decimal::ZERO,
+        finance_out: Decimal::ZERO,
+        withdrawals_out: Decimal::ZERO,
+        manual_in: Decimal::ZERO,
+        manual_out: Decimal::ZERO,
+        movements_count: 0,
+        goal: Decimal::ZERO,
+        reserved: Decimal::ZERO,
+        period_label: period_label("today").to_string(),
+    }
+}
+
+/// Mini-gráfico do card de saldo: 14 buckets com o movimento líquido
+/// (entradas − saídas) de cada um. Hoje = por hora; semana/mês = por
+/// dia. Os 3 buckets mais recentes ficam destacados.
+fn build_chart(
+    movements: &[MovementRaw],
+    period: &str,
+    today: NaiveDate,
+) -> Vec<TreasuryChartBar> {
+    const SLOTS: usize = 14;
+    let mut totals = vec![0.0_f64; SLOTS];
+    use rust_decimal::prelude::ToPrimitive;
+    for m in movements {
+        let idx = match period {
+            "today" => {
+                if m.at.date() != today {
+                    continue;
+                }
+                // 24h em 14 faixas.
+                (m.at.time().format("%H").to_string().parse::<usize>().unwrap_or(0) * SLOTS / 24)
+                    .min(SLOTS - 1)
+            }
+            _ => {
+                let days_back = (today - m.at.date()).num_days();
+                if !(0..SLOTS as i64).contains(&days_back) {
+                    continue;
+                }
+                SLOTS - 1 - days_back as usize
+            }
+        };
+        let v = m.amount.to_f64().unwrap_or(0.0);
+        totals[idx] += if m.positive { v } else { -v };
+    }
+    let max = totals.iter().copied().fold(0.0_f64, |a, b| a.max(b.abs()));
+    totals
+        .into_iter()
+        .enumerate()
+        .map(|(i, v)| TreasuryChartBar {
+            progress: if max > 0.0 { (v.abs() / max) as f32 } else { 0.0 },
+            highlight: i >= SLOTS - 3,
+        })
+        .collect()
+}
+
+fn apply_to_ui(
+    ui: &MainWindow,
+    s: &SummaryRaw,
+    movements: &[MovementRaw],
+    chart: &[TreasuryChartBar],
+) {
+    // Saldo dividido em "R$ 1.103" + ",50" para o destaque do card.
+    let balance_full = money_br(s.balance);
+    let (main, cents) = match balance_full.rfind(',') {
+        Some(pos) => (balance_full[..pos].to_string(), balance_full[pos..].to_string()),
+        None => (balance_full.clone(), String::new()),
+    };
+    let net = s.inflow - s.outflow;
+    use rust_decimal::prelude::ToPrimitive;
+    let goal_progress = if s.goal > Decimal::ZERO {
+        (s.reserved.max(Decimal::ZERO) / s.goal).to_f64().unwrap_or(0.0).clamp(0.0, 1.0) as f32
+    } else {
+        0.0
+    };
+    let goal_display = if s.goal > Decimal::ZERO {
+        format!(
+            "{} de {} · {:.0}%",
+            money_br(s.reserved.max(Decimal::ZERO)),
+            money_br(s.goal),
+            goal_progress * 100.0
+        )
+    } else {
+        "Sem meta definida — toque no lápis para configurar".to_string()
+    };
+
     ui.set_treasury_summary(TreasurySummary {
         has_account: s.has_account,
-        balance_display: SharedString::from(money_br(s.balance)),
+        balance_main: SharedString::from(main),
+        balance_cents: SharedString::from(cents),
         balance_negative: s.balance < Decimal::ZERO,
+        balance_display: SharedString::from(balance_full),
         initial_display: SharedString::from(money_br(s.initial)),
         inflow_display: SharedString::from(money_br(s.inflow)),
         outflow_display: SharedString::from(money_br(s.outflow)),
+        net_display: SharedString::from(if net < Decimal::ZERO {
+            format!("− {}", money_br(-net))
+        } else {
+            format!("+ {}", money_br(net))
+        }),
+        net_positive: net >= Decimal::ZERO,
+        net_label: SharedString::from(s.period_label.clone()),
         orders_display: SharedString::from(format!("+ {}", money_br(s.orders_in))),
         deposits_display: SharedString::from(format!("+ {}", money_br(s.deposits_in))),
         finance_in_display: SharedString::from(format!("+ {}", money_br(s.finance_in))),
         finance_out_display: SharedString::from(format!("− {}", money_br(s.finance_out))),
         withdrawals_display: SharedString::from(format!("− {}", money_br(s.withdrawals_out))),
+        manual_in_display: SharedString::from(format!("+ {}", money_br(s.manual_in))),
+        manual_out_display: SharedString::from(format!("− {}", money_br(s.manual_out))),
         movements_count: s.movements_count,
+        goal_progress,
+        goal_display: SharedString::from(goal_display),
+        goal_input: SharedString::from(if s.goal > Decimal::ZERO {
+            format!("{:.2}", s.goal).replace('.', ",")
+        } else {
+            String::new()
+        }),
     });
+
     let rows: Vec<TreasuryMovementRow> = movements
         .iter()
         .map(|m| TreasuryMovementRow {
@@ -277,6 +485,41 @@ fn apply_to_ui(ui: &MainWindow, s: &SummaryRaw, movements: &[MovementRaw]) {
         })
         .collect();
     ui.set_treasury_movements(ModelRc::new(VecModel::from(rows)));
+    ui.set_treasury_chart(ModelRc::new(VecModel::from(chart.to_vec())));
+}
+
+// ── Filtros ─────────────────────────────────────────────────────
+
+fn setup_filters(
+    ui: &MainWindow,
+    state: &DesktopState,
+    handle: &tokio::runtime::Handle,
+    filters: FiltersHandle,
+) {
+    let ui_weak = ui.as_weak();
+    let st = state.clone();
+    let hd = handle.clone();
+    let f = filters.clone();
+    ui.on_treasury_set_period(move |p| {
+        let Some(ui) = ui_weak.upgrade() else { return };
+        ui.set_treasury_period(p.clone());
+        if let Ok(mut g) = f.lock() {
+            g.period = p.to_string();
+        }
+        reapply(&ui.as_weak(), &st, &hd, &f);
+    });
+
+    let ui_weak = ui.as_weak();
+    let st = state.clone();
+    let hd = handle.clone();
+    ui.on_treasury_set_kind_filter(move |k| {
+        let Some(ui) = ui_weak.upgrade() else { return };
+        ui.set_treasury_kind_filter(k.clone());
+        if let Ok(mut g) = filters.lock() {
+            g.kind = k.to_string();
+        }
+        reapply(&ui.as_weak(), &st, &hd, &filters);
+    });
 }
 
 // ── Cadastro inicial ────────────────────────────────────────────
@@ -304,6 +547,7 @@ fn setup_open(
     state: &DesktopState,
     handle: &tokio::runtime::Handle,
     sync_notify: Arc<tokio::sync::Notify>,
+    filters: FiltersHandle,
 ) {
     let ui_weak = ui.as_weak();
     let state = state.clone();
@@ -321,22 +565,123 @@ fn setup_open(
         let ui_weak = ui_weak.clone();
         let state = state.clone();
         let notify = sync_notify.clone();
+        let handle_inner = handle.clone();
+        let filters = filters.clone();
         handle.spawn(async move {
             let cid = state.company_id();
             let result = state.treasury_service.open(cid, initial, notes_opt).await;
+            let ui_weak2 = ui_weak.clone();
             let _ = slint::invoke_from_event_loop(move || {
-                let Some(ui) = ui_weak.upgrade() else { return };
+                let Some(ui) = ui_weak2.upgrade() else { return };
                 match result {
                     Ok(_) => {
                         notify.notify_one();
                         show_toast(&ui, "Carteira criada", "success");
-                        ui.invoke_treasury_refresh();
                     }
                     Err(e) => {
                         ui.set_treasury_setup_error(SharedString::from(friendly_error(&e)));
                     }
                 }
             });
+            reapply(&ui_weak, &state, &handle_inner, &filters);
+        });
+    });
+}
+
+// ── Modal: aporte / retirada / meta ─────────────────────────────
+
+fn setup_modal(
+    ui: &MainWindow,
+    state: &DesktopState,
+    handle: &tokio::runtime::Handle,
+    sync_notify: Arc<tokio::sync::Notify>,
+    filters: FiltersHandle,
+) {
+    // Abrir: limpa o formulário (a meta já abre com o valor atual).
+    let ui_weak = ui.as_weak();
+    ui.on_treasury_open_modal(move |kind| {
+        let Some(ui) = ui_weak.upgrade() else { return };
+        let is_goal = kind == "goal";
+        ui.set_treasury_modal_kind(kind);
+        ui.set_treasury_modal_amount(if is_goal {
+            ui.get_treasury_summary().goal_input
+        } else {
+            SharedString::default()
+        });
+        ui.set_treasury_modal_notes(SharedString::default());
+        ui.set_treasury_modal_error(SharedString::default());
+        ui.set_treasury_show_modal(true);
+    });
+
+    let ui_weak = ui.as_weak();
+    ui.on_treasury_close_modal(move || {
+        if let Some(ui) = ui_weak.upgrade() {
+            ui.set_treasury_show_modal(false);
+        }
+    });
+
+    let ui_weak = ui.as_weak();
+    let state = state.clone();
+    let handle = handle.clone();
+    ui.on_treasury_confirm_modal(move || {
+        let Some(ui) = ui_weak.upgrade() else { return };
+        let kind = ui.get_treasury_modal_kind().to_string();
+        let raw = ui.get_treasury_modal_amount().to_string();
+        let notes = ui.get_treasury_modal_notes().to_string();
+        let Some(amount) = parse_money_br(&raw) else {
+            ui.set_treasury_modal_error(SharedString::from("Informe um valor válido"));
+            return;
+        };
+        ui.set_treasury_modal_error(SharedString::default());
+        let notes_opt = if notes.trim().is_empty() { None } else { Some(notes) };
+        let ui_weak = ui_weak.clone();
+        let state = state.clone();
+        let notify = sync_notify.clone();
+        let handle_inner = handle.clone();
+        let filters = filters.clone();
+        handle.spawn(async move {
+            let cid = state.company_id();
+            let (result, msg) = match kind.as_str() {
+                "deposit" => (
+                    state
+                        .treasury_service
+                        .deposit(cid, amount, notes_opt)
+                        .await
+                        .map(|_| ()),
+                    "Depósito registrado",
+                ),
+                "withdraw" => (
+                    state
+                        .treasury_service
+                        .withdraw(cid, amount, notes_opt)
+                        .await
+                        .map(|_| ()),
+                    "Retirada registrada",
+                ),
+                _ => (
+                    state
+                        .treasury_service
+                        .set_reserve_goal(cid, amount)
+                        .await
+                        .map(|_| ()),
+                    "Meta atualizada",
+                ),
+            };
+            let ui_weak2 = ui_weak.clone();
+            let _ = slint::invoke_from_event_loop(move || {
+                let Some(ui) = ui_weak2.upgrade() else { return };
+                match result {
+                    Ok(()) => {
+                        notify.notify_one();
+                        ui.set_treasury_show_modal(false);
+                        show_toast(&ui, msg, "success");
+                    }
+                    Err(e) => {
+                        ui.set_treasury_modal_error(SharedString::from(friendly_error(&e)));
+                    }
+                }
+            });
+            reapply(&ui_weak, &state, &handle_inner, &filters);
         });
     });
 }

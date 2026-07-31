@@ -12,7 +12,7 @@ use letaf_core::subscription::model::{Invoice as SubscriptionInvoice, Subscripti
 use letaf_core::cash::model::{CashMovement, CashSession};
 use letaf_core::finance::model::FinanceEntry;
 use letaf_core::finance_category::model::FinanceCategory;
-use letaf_core::treasury::model::Treasury;
+use letaf_core::treasury::model::{Treasury, TreasuryMovement};
 use letaf_core::wallet::model::{WalletAccount, WalletMovement};
 use letaf_core::coupon::model::Coupon;
 use letaf_core::customer_address::model::CustomerAddress;
@@ -315,6 +315,21 @@ impl SyncWorker {
         for item in items {
             if item.base.updated_at > max_ts { max_ts = item.base.updated_at; }
             self.state.treasury_service.sync_upsert(cid, item).await?;
+        }
+        Ok(max_ts)
+    }
+
+    /// Pull dos movimentos manuais da carteira do estabelecimento
+    /// (volume baixo — `fetch_pull` simples, sem paginação).
+    pub(super) async fn pull_treasury_movements(
+        &self, token: &str, since: NaiveDateTime, mut max_ts: NaiveDateTime,
+    ) -> Result<NaiveDateTime, CoreError> {
+        let items: Vec<TreasuryMovement> =
+            self.fetch_pull(token, "/sync/pull/treasury-movements", since).await?;
+        let cid = self.state.company_id();
+        for item in items {
+            if item.base.updated_at > max_ts { max_ts = item.base.updated_at; }
+            self.state.treasury_service.sync_upsert_movement(cid, item).await?;
         }
         Ok(max_ts)
     }

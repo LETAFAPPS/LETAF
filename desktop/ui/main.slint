@@ -75,10 +75,11 @@ import {
 import { ReportsPage } from "pages/reports_page.slint";
 import { FinanceKpi, FinanceTab, FinanceEntryRow, FinanceCategoryOption, FinanceCashFlowPoint, FinanceCalendarCell, FinanceDayRow } from "types.slint";
 import { WalletSummary, WalletMovementRow } from "types.slint";
-import { TreasurySummary, TreasuryMovementRow } from "types.slint";
+import { TreasurySummary, TreasuryMovementRow, TreasuryChartBar } from "types.slint";
 import { WalletDepositModal, WalletWithdrawModal, WalletAdjustModal, WalletLimitModal } from "modals/wallet_modals.slint";
 import { FinancePage } from "pages/finance_page.slint";
 import { TreasuryPage } from "pages/treasury_page.slint";
+import { TreasuryModal } from "modals/treasury_modal.slint";
 import { FinanceEntryModal } from "modals/finance_entry_modal.slint";
 import { PlanCardData, SubscriptionData, SubscriptionInvoiceRow, PixChargeView, PaymentMethodOption } from "types.slint";
 import { SubscriptionPage } from "pages/subscription_page.slint";
@@ -1305,8 +1306,24 @@ export component MainWindow inherits Window {
     in-out property <string> treasury-initial-input: "";
     in-out property <string> treasury-notes-input: "";
     in-out property <string> treasury-setup-error: "";
+    in-out property <[TreasuryChartBar]> treasury-chart: [];
+    /// Filtros da tela: período ("today"|"week"|"month") e tipo de
+    /// movimento ("all"|"in"|"out").
+    in-out property <string> treasury-period: "today";
+    in-out property <string> treasury-kind-filter: "all";
+    // Modal de aporte/retirada/meta.
+    in-out property <bool> treasury-show-modal: false;
+    in-out property <string> treasury-modal-kind: "deposit";
+    in-out property <string> treasury-modal-amount: "";
+    in-out property <string> treasury-modal-notes: "";
+    in-out property <string> treasury-modal-error: "";
     callback treasury-refresh();
     callback treasury-open();
+    callback treasury-set-period(string);
+    callback treasury-set-kind-filter(string);
+    callback treasury-open-modal(string);
+    callback treasury-close-modal();
+    callback treasury-confirm-modal();
 
     in-out property <bool>   finance-show-modal: false;
     in-out property <string> finance-form-kind: "payable"; // "payable" | "receivable"
@@ -2366,11 +2383,19 @@ export component MainWindow inherits Window {
             if root.active-tab == "treasury": TreasuryPage {
                 summary: root.treasury-summary;
                 movements: root.treasury-movements;
+                chart: root.treasury-chart;
+                period: root.treasury-period;
+                kind-filter: root.treasury-kind-filter;
                 initial-input <=> root.treasury-initial-input;
                 notes-input <=> root.treasury-notes-input;
                 setup-error: root.treasury-setup-error;
                 refresh => { root.treasury-refresh(); }
                 open-treasury => { root.treasury-open(); }
+                set-period(p) => { root.treasury-set-period(p); }
+                set-kind-filter(k) => { root.treasury-set-kind-filter(k); }
+                open-deposit => { root.treasury-open-modal("deposit"); }
+                open-withdraw => { root.treasury-open-modal("withdraw"); }
+                open-goal => { root.treasury-open-modal("goal"); }
             }
             if root.active-tab == "finance": FinancePage {
                 kpis: root.finance-kpis;
@@ -2970,6 +2995,19 @@ export component MainWindow inherits Window {
 
     // ── Caixa: 4 modais ───────────────────────────────────────
     // Modal: nova/editar conta a pagar ou receber (Financeiro).
+    // Modal da carteira do estabelecimento (aporte / retirada / meta).
+    if root.treasury-show-modal: TreasuryModal {
+        x: 0; y: 0;
+        width: parent.width;
+        height: parent.height;
+        kind: root.treasury-modal-kind;
+        amount <=> root.treasury-modal-amount;
+        notes <=> root.treasury-modal-notes;
+        error: root.treasury-modal-error;
+        close => { root.treasury-close-modal(); }
+        confirm => { root.treasury-confirm-modal(); }
+    }
+
     if root.finance-show-modal: FinanceEntryModal {
         kind: root.finance-form-kind;
         editing: root.finance-form-editing-id != "";

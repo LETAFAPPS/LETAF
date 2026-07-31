@@ -22,12 +22,13 @@ const RECONCILE_EVERY_N_CYCLES: u64 = 10;
 /// Entidades puxadas a cada ciclo, na ordem de dependência (pais antes de
 /// filhos por FK lógica). Cada uma tem um cursor de pull PRÓPRIO (§7) — ver
 /// `SyncWorker::cursors`.
-const PULL_ENTITIES: [&str; 24] = [
+const PULL_ENTITIES: [&str; 25] = [
     "companies", "job_roles", "users", "customers", "categories", "subcategories",
     "addon_groups", "addons", "products", "orders", "business_hours", "banners",
     "coupons", "customer_addresses", "cash_sessions", "cash_movements",
     "finance_categories", "finance_entries", "wallet_accounts", "wallet_movements",
-    "treasury_accounts", "subscriptions", "subscription_invoices", "payment_methods",
+    "treasury_accounts", "treasury_movements", "subscriptions",
+    "subscription_invoices", "payment_methods",
 ];
 
 /// Tamanho da página do pull paginado (keyset). Abaixo do teto do servidor
@@ -323,6 +324,10 @@ impl SyncWorker {
         if let Err(e) = self.sync_treasury(token).await {
             tracing::warn!("Treasury sync error: {e}");
         }
+        // Movimentos manuais depois da carteira (FK lógica `treasury_id`).
+        if let Err(e) = self.sync_treasury_movements(token).await {
+            tracing::warn!("TreasuryMovement sync error: {e}");
+        }
         // Assinatura: independente das demais entidades — empurra
         // mudança de plano / forma de pagamento.
         if let Err(e) = self.sync_subscriptions(token).await {
@@ -381,6 +386,7 @@ impl SyncWorker {
         add!(self.state.wallet_service.find_unsynced_accounts(cid),  "wallet_accounts");
         add!(self.state.wallet_service.find_unsynced_movements(cid), "wallet_movements");
         add!(self.state.treasury_service.find_unsynced(cid),         "treasury_accounts");
+        add!(self.state.treasury_service.find_unsynced_movements(cid), "treasury_movements");
         add!(self.state.subscription_service.find_unsynced_subscriptions(cid), "subscriptions");
         add!(self.state.subscription_service.find_unsynced_invoices(cid), "subscription_invoices");
         add!(self.state.payment_method_service.find_unsynced(cid), "payment_methods");
@@ -445,6 +451,7 @@ impl SyncWorker {
         try_pull!(pull_wallet_accounts, "wallet_accounts");
         try_pull!(pull_wallet_movements, "wallet_movements");
         try_pull!(pull_treasury_accounts, "treasury_accounts");
+        try_pull!(pull_treasury_movements, "treasury_movements");
         try_pull!(pull_subscriptions, "subscriptions");
         try_pull!(pull_subscription_invoices, "subscription_invoices");
         try_pull!(pull_payment_methods, "payment_methods");

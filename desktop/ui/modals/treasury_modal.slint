@@ -1,0 +1,186 @@
+import { Theme } from "../theme.slint";
+import { Card } from "../components/cards.slint";
+import { ActionBtn } from "../components/buttons.slint";
+
+// ── Modal: aporte / retirada / meta da carteira do estabelecimento ──
+//
+// Um único esqueleto para as três operações (§8: sem três arquivos
+// quase idênticos) — rótulos e o callback de confirmação vêm do
+// caller. Validação e persistência ficam no Rust (§1/§11).
+
+export component TreasuryModal inherits Rectangle {
+    /// "deposit" | "withdraw" | "goal".
+    in property <string> kind;
+    in-out property <string> amount;
+    in-out property <string> notes;
+    in property <string> error;
+
+    callback close();
+    callback confirm();
+
+    property <string> title: root.kind == "deposit" ? "Depositar no caixa"
+        : (root.kind == "withdraw" ? "Retirar do caixa" : "Meta de reserva do mês");
+    property <string> subtitle: root.kind == "deposit"
+        ? "Aporte manual — entra no saldo da carteira"
+        : (root.kind == "withdraw"
+            ? "Retirada manual — sai do saldo da carteira"
+            : "Quanto o caixa deve reservar por mês");
+    property <string> amount-label: root.kind == "goal" ? "META" : "VALOR";
+    property <string> confirm-label: root.kind == "deposit" ? "Depositar"
+        : (root.kind == "withdraw" ? "Sacar" : "Salvar");
+
+    background: #00000080;
+    TouchArea { clicked => { root.close(); } }
+
+    VerticalLayout {
+        alignment: center;
+        HorizontalLayout {
+            alignment: center;
+            Card {
+                width: 440px;
+                // Altura explícita + clip: as faixas internas cobririam
+                // as pontas arredondadas e o rodapé estouraria o card.
+                height: hdr.preferred-height + body.preferred-height + ftr.preferred-height;
+                clip: true;
+                TouchArea { }
+
+                VerticalLayout {
+                    padding: 0px; spacing: 0px;
+
+                    // Header
+                    Rectangle {
+                        height: hdr.preferred-height;
+                        background: Theme.surface;
+                        hdr := VerticalLayout {
+                            padding-left: 22px; padding-right: 18px;
+                            padding-top: 18px; padding-bottom: 14px;
+                            spacing: 4px;
+                            HorizontalLayout {
+                                spacing: 12px;
+                                VerticalLayout {
+                                    alignment: center;
+                                    Image {
+                                        width: 40px; height: 40px; image-fit: contain;
+                                        source: @image-url("../assets/icons-orange/empty-wallet.svg");
+                                    }
+                                }
+                                VerticalLayout {
+                                    horizontal-stretch: 1; spacing: 2px;
+                                    Text { text: root.title; font-size: 16px; font-weight: 700; color: Theme.text-primary; }
+                                    Text { text: root.subtitle; font-size: 11px; color: Theme.text-secondary; wrap: word-wrap; }
+                                }
+                            }
+                        }
+                    }
+
+                    // Body
+                    Rectangle {
+                        height: body.preferred-height;
+                        background: Theme.bg;
+                        body := VerticalLayout {
+                            padding: 18px; spacing: 14px;
+
+                            VerticalLayout {
+                                spacing: 6px;
+                                Text {
+                                    text: root.amount-label;
+                                    font-size: 11px; font-weight: 700;
+                                    color: Theme.text-secondary; letter-spacing: 0.5px;
+                                }
+                                Rectangle {
+                                    height: 44px;
+                                    border-radius: 8px;
+                                    border-width: 1px;
+                                    border-color: amount-in.has-focus ? Theme.primary : Theme.border;
+                                    background: Theme.surface;
+                                    amount-in := TextInput {
+                                        x: 12px; y: 0; width: parent.width - 24px; height: parent.height;
+                                        text <=> root.amount;
+                                        font-size: 16px; font-weight: 700;
+                                        color: Theme.text-primary;
+                                        vertical-alignment: center; single-line: true;
+                                    }
+                                    if amount-in.text == "" && !amount-in.has-focus: Text {
+                                        x: 12px; y: 0; height: parent.height;
+                                        text: "0,00"; font-size: 16px; color: Theme.text-secondary;
+                                        vertical-alignment: center;
+                                    }
+                                    // Abre com o campo focado e o valor selecionado.
+                                    Timer {
+                                        interval: 1ms; running: true;
+                                        triggered => {
+                                            amount-in.focus();
+                                            amount-in.select-all();
+                                            self.running = false;
+                                        }
+                                    }
+                                }
+                            }
+
+                            if root.kind != "goal": VerticalLayout {
+                                spacing: 6px;
+                                Text {
+                                    text: "OBSERVAÇÃO";
+                                    font-size: 11px; font-weight: 700;
+                                    color: Theme.text-secondary; letter-spacing: 0.5px;
+                                }
+                                Rectangle {
+                                    height: 64px;
+                                    border-radius: 8px;
+                                    border-width: 1px;
+                                    border-color: notes-in.has-focus ? Theme.primary : Theme.border;
+                                    background: Theme.surface;
+                                    notes-in := TextInput {
+                                        x: 12px; y: 8px; width: parent.width - 24px; height: parent.height - 16px;
+                                        text <=> root.notes;
+                                        font-size: 13px; color: Theme.text-primary;
+                                        wrap: word-wrap; single-line: false;
+                                    }
+                                    if notes-in.text == "" && !notes-in.has-focus: Text {
+                                        x: 12px; y: 8px;
+                                        text: "Anotações internas";
+                                        font-size: 13px; color: Theme.text-secondary;
+                                    }
+                                }
+                            }
+
+                            if root.error != "": Rectangle {
+                                background: #FFEBEE;
+                                border-radius: 8px;
+                                height: 36px;
+                                Text {
+                                    x: 12px; y: 0;
+                                    width: parent.width - 24px; height: parent.height;
+                                    text: root.error;
+                                    font-size: 12px; color: #C62828;
+                                    vertical-alignment: center; wrap: word-wrap;
+                                }
+                            }
+                        }
+                    }
+
+                    // Footer
+                    Rectangle {
+                        height: ftr.preferred-height;
+                        background: Theme.surface;
+                        ftr := VerticalLayout {
+                            padding-left: 18px; padding-right: 18px;
+                            padding-top: 14px; padding-bottom: 14px;
+                            HorizontalLayout {
+                                spacing: 10px;
+                                alignment: end;
+                                ActionBtn {
+                                    label: root.confirm-label;
+                                    bg-color: Theme.btn-accent;
+                                    icon: @image-url("../assets/icons/confirmar.svg");
+                                    width: 150px; height: 40px;
+                                    clicked => { root.confirm(); }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

@@ -5,7 +5,7 @@ use serde_json::{json, Value};
 use letaf_core::cash::model::{CashMovement, CashSession};
 use letaf_core::finance::model::FinanceEntry;
 use letaf_core::finance_category::model::FinanceCategory;
-use letaf_core::treasury::model::Treasury;
+use letaf_core::treasury::model::{Treasury, TreasuryMovement};
 use letaf_core::wallet::model::{WalletAccount, WalletMovement};
 
 use crate::context::AppState;
@@ -181,6 +181,38 @@ pub(crate) async fn pull_treasury_accounts(
     let items = state
         .treasury_service
         .find_updated_since(auth.0.company_id, params.since)
+        .await?;
+    Ok(Json(items))
+}
+
+/// POST /sync/treasury-movements — upsert de movimento manual da
+/// carteira do estabelecimento. `company_id` sempre do JWT (§11).
+pub(crate) async fn sync_treasury_movement(
+    State(state): State<AppState>,
+    auth: AuthClaims,
+    Json(movement): Json<TreasuryMovement>,
+) -> Result<Json<Value>, ServerError> {
+    auth.verify_any_role(ROLES_OPERATORS)?;
+    auth.require_permission("finance.edit")?;
+    state
+        .treasury_service
+        .sync_upsert_movement(auth.0.company_id, movement)
+        .await?;
+    Ok(Json(json!({ "synced": true })))
+}
+
+/// GET /sync/pull/treasury-movements?since=<timestamp> — movimentos
+/// manuais do caixa da empresa (volume baixo: pull simples).
+pub(crate) async fn pull_treasury_movements(
+    State(state): State<AppState>,
+    auth: AuthClaims,
+    Query(params): Query<PullQuery>,
+) -> Result<Json<Vec<TreasuryMovement>>, ServerError> {
+    auth.verify_any_role(ROLES_OPERATORS)?;
+    auth.require_permission("finance.view")?;
+    let items = state
+        .treasury_service
+        .find_movements_updated_since(auth.0.company_id, params.since)
         .await?;
     Ok(Json(items))
 }

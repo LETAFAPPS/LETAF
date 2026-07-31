@@ -388,6 +388,22 @@ impl SyncWorker {
         Ok(())
     }
 
+    /// Push dos movimentos manuais da carteira do estabelecimento.
+    pub(super) async fn sync_treasury_movements(&self, token: &str) -> Result<(), CoreError> {
+        let cid = self.state.company_id();
+        let items = self.state.treasury_service.find_unsynced_movements(cid).await?;
+        for item in &items {
+            if self.send_one(token, "/sync/treasury-movements", item.base.id, item).await {
+                if let Err(e) = self.state.treasury_service
+                    .mark_movement_synced(cid, item.base.id, item.base.updated_at).await
+                {
+                    tracing::warn!("mark_synced treasury_movement {}: {e}", item.base.id);
+                }
+            }
+        }
+        Ok(())
+    }
+
     pub(super) async fn sync_subscriptions(&self, token: &str) -> Result<(), CoreError> {
         let items = self
             .state

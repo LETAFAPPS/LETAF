@@ -1,73 +1,88 @@
 import { ScrollView } from "std-widgets.slint";
 import { Theme } from "../theme.slint";
-import { TreasurySummary, TreasuryMovementRow } from "../types.slint";
+import { TreasurySummary, TreasuryMovementRow, TreasuryChartBar } from "../types.slint";
 import { ActionBtn } from "../components/buttons.slint";
 import { AssetIcon } from "../components/icons.slint";
-import { EmptyState } from "../components/empty_state.slint";
 
 // ── Tela: Carteira do estabelecimento (tesouraria) ────────────────
 //
-// Regras (AI_RULES.md §1, §3, §14): a UI só renderiza — o saldo é
-// DERIVADO no Rust (inicial + entradas − saídas, consolidando
-// Pedidos, Carteira de clientes e Financeiro). O cadastro inicial
-// coleta o saldo inicial e delega ao service.
+// Regras (AI_RULES.md §1, §3, §14): a UI só renderiza — saldo, filtros
+// e agregações são DERIVADOS no Rust (inicial + entradas − saídas,
+// consolidando Pedidos, Carteira de clientes, Financeiro e os aportes/
+// retiradas manuais). O cadastro inicial coleta o saldo inicial e
+// delega ao service.
 
-// Card de KPI (mesmo vocabulário visual do Financeiro).
-component TreasuryKpiCard inherits Rectangle {
+// Segmentado (Hoje / Semana / Mês · Todos / Entradas / Saídas).
+component SegBtn inherits TouchArea {
     in property <string> label;
-    in property <string> value;
-    in property <color> value-color: Theme.text-primary;
-    in property <string> sub;
+    in property <bool> selected;
+    in property <length> pad: 16px;
+    height: 30px;
+    width: seg-t.preferred-width + root.pad * 2;
+    Rectangle {
+        border-radius: 7px;
+        background: root.selected ? Theme.text-primary
+            : (root.has-hover ? Theme.row-hover : transparent);
+        seg-t := Text {
+            width: parent.width; height: parent.height;
+            text: root.label;
+            font-size: 12px; font-weight: root.selected ? 700 : 600;
+            color: root.selected ? white : Theme.text-secondary;
+            horizontal-alignment: center; vertical-alignment: center;
+        }
+    }
+}
 
-    border-radius: 12px;
+// Caixa de ícone quadrada (entrada verde / saída vermelha / neutra).
+component MoneyIcon inherits Rectangle {
+    in property <string> tone;  // "pos" | "neg" | "neutral"
+    in property <length> box: 32px;
+    in property <bool> on-dark: false;
+    width: root.box; height: root.box;
+    border-radius: 8px;
+    background: root.on-dark
+        ? (root.tone == "pos" ? #2E7D3233 : (root.tone == "neg" ? #E5393533 : #FFFFFF1A))
+        : (root.tone == "pos" ? #E8F5E9 : (root.tone == "neg" ? #FFEBEE : Theme.row-alt));
+    AssetIcon {
+        width: 100%; height: 100%;
+        icon-size: root.box * 0.46;
+        icon-color: root.tone == "pos" ? #2E7D32
+            : (root.tone == "neg" ? #E53935
+            : (root.on-dark ? #D6D3CA : Theme.text-secondary));
+        source: root.tone == "neg"
+            ? @image-url("../assets/icons/saida-estoque.svg")
+            : @image-url("../assets/icons/recebimento.svg");
+    }
+}
+
+// Card branco padrão da tela.
+component Panel inherits Rectangle {
+    border-radius: 14px;
     border-width: 1px;
     border-color: Theme.card-border;
     drop-shadow-blur: 12px;
     drop-shadow-offset-y: 0px;
     drop-shadow-color: Theme.card-shadow;
     background: Theme.surface;
-    height: 108px;
-
-    VerticalLayout {
-        padding: 18px;
-        spacing: 4px;
-        alignment: start;
-        Text {
-            text: root.label;
-            font-size: 10px; font-weight: 800;
-            letter-spacing: 1px;
-            color: Theme.text-secondary;
-        }
-        Text {
-            text: root.value;
-            font-size: 22px; font-weight: 800;
-            color: root.value-color;
-            overflow: elide;
-        }
-        Text {
-            text: root.sub;
-            font-size: 11px;
-            color: Theme.text-secondary;
-            overflow: elide;
-        }
-    }
 }
 
-// Linha do detalhamento de origem (rótulo + valor).
+// Linha do detalhamento (rótulo → valor).
 component BreakdownLine inherits HorizontalLayout {
     in property <string> label;
     in property <string> value;
     in property <bool> negative: false;
+    spacing: 8px;
     Text {
         text: root.label;
-        font-size: 12px; font-weight: 600;
+        font-size: 12px;
         color: Theme.text-secondary;
         horizontal-stretch: 1;
+        overflow: elide;
         vertical-alignment: center;
     }
     Text {
         text: root.value;
-        font-size: 13px; font-weight: 700;
+        font-size: 12px; font-weight: 700;
         color: root.negative ? #C62828 : #2E7D32;
         vertical-alignment: center;
     }
@@ -76,23 +91,64 @@ component BreakdownLine inherits HorizontalLayout {
 export component TreasuryPage inherits VerticalLayout {
     in property <TreasurySummary> summary;
     in property <[TreasuryMovementRow]> movements;
+    in property <[TreasuryChartBar]> chart;
     in-out property <string> initial-input;
     in-out property <string> notes-input;
     in property <string> setup-error;
+    /// "today" | "week" | "month" e "all" | "in" | "out".
+    in property <string> period: "today";
+    in property <string> kind-filter: "all";
 
     callback refresh();
     callback open-treasury();
+    callback set-period(string);
+    callback set-kind-filter(string);
+    callback open-deposit();
+    callback open-withdraw();
+    callback open-goal();
 
     padding: 24px;
     spacing: 16px;
 
-    // ── Cabeçalho ──
-    VerticalLayout {
-        spacing: 2px;
-        Text { text: "Carteira"; font-size: 22px; font-weight: 700; color: Theme.text-primary; }
-        Text { text: "Gestão do dinheiro do estabelecimento"; font-size: 12px; color: Theme.text-secondary; }
+    // ── Cabeçalho: título + filtro de período ──
+    HorizontalLayout {
+        spacing: 12px;
+        VerticalLayout {
+            horizontal-stretch: 1;
+            spacing: 2px;
+            Text { text: "Carteira"; font-size: 22px; font-weight: 800; color: Theme.text-primary; }
+            Text { text: "Gestão do dinheiro do estabelecimento"; font-size: 12px; color: Theme.text-secondary; }
+        }
+        if root.summary.has-account: VerticalLayout {
+            alignment: center;
+            Rectangle {
+                height: 38px;
+                width: 244px;
+                border-radius: 9px;
+                border-width: 1px;
+                border-color: Theme.card-border;
+                background: Theme.surface;
+                HorizontalLayout {
+                    padding: 4px; spacing: 2px;
+                    SegBtn {
+                        label: "Hoje"; pad: 14px;
+                        selected: root.period == "today";
+                        clicked => { root.set-period("today"); }
+                    }
+                    SegBtn {
+                        label: "Semana"; pad: 14px;
+                        selected: root.period == "week";
+                        clicked => { root.set-period("week"); }
+                    }
+                    SegBtn {
+                        label: "Mês"; pad: 14px;
+                        selected: root.period == "month";
+                        clicked => { root.set-period("month"); }
+                    }
+                }
+            }
+        }
     }
-    Rectangle { height: 1.5px; background: Theme.border; }
 
     // ── Setup inicial (sem carteira cadastrada) ──
     if !root.summary.has-account: HorizontalLayout {
@@ -100,15 +156,8 @@ export component TreasuryPage inherits VerticalLayout {
         VerticalLayout {
             alignment: start;
             padding-top: 32px;
-            Rectangle {
+            Panel {
                 width: 520px;
-                border-radius: 12px;
-                border-width: 1px;
-                border-color: Theme.card-border;
-                drop-shadow-blur: 12px;
-                drop-shadow-offset-y: 0px;
-                drop-shadow-color: Theme.card-shadow;
-                background: Theme.surface;
                 height: setup-l.preferred-height;
                 setup-l := VerticalLayout {
                     padding: 24px;
@@ -189,144 +238,397 @@ export component TreasuryPage inherits VerticalLayout {
         }
     }
 
-    // ── Carteira ativa: KPIs + detalhamento + movimentações ──
-    if root.summary.has-account: kpi-row := HorizontalLayout {
-        spacing: 14px;
-        property <length> col-w: (self.width - 42px) / 4;
-        TreasuryKpiCard {
-            width: kpi-row.col-w;
-            label: "SALDO ATUAL";
-            value: root.summary.balance-display;
-            value-color: root.summary.balance-negative ? #C62828 : #2E7D32;
-            sub: "Inicial + entradas − saídas";
+    // ── HERO: saldo + mini-gráfico + resumo do período ──
+    if root.summary.has-account: Rectangle {
+        height: 196px;
+        border-radius: 16px;
+        background: Theme.sidebar-bg;
+        clip: true;
+
+        // Mini-gráfico de evolução, ocupando a metade direita do card.
+        HorizontalLayout {
+            x: parent.width * 0.42;
+            y: 18px;
+            width: parent.width * 0.58 - 24px;
+            height: 96px;
+            spacing: 6px;
+            for b in root.chart: Rectangle {
+                horizontal-stretch: 1;
+                preferred-width: 0px;
+                Rectangle {
+                    x: 0;
+                    y: parent.height * (1.0 - max(0.06, b.progress));
+                    width: parent.width;
+                    height: parent.height * max(0.06, b.progress);
+                    border-radius: 5px;
+                    background: b.highlight ? Theme.btn-accent : #FFFFFF1F;
+                }
+            }
         }
-        TreasuryKpiCard {
-            width: kpi-row.col-w;
-            label: "ENTRADAS";
-            value: root.summary.inflow-display;
-            value-color: #2E7D32;
-            sub: "Pedidos · Depósitos · Recebimentos";
-        }
-        TreasuryKpiCard {
-            width: kpi-row.col-w;
-            label: "SAÍDAS";
-            value: root.summary.outflow-display;
-            value-color: #C62828;
-            sub: "Pagamentos · Saques";
-        }
-        TreasuryKpiCard {
-            width: kpi-row.col-w;
-            label: "SALDO INICIAL";
-            value: root.summary.initial-display;
-            value-color: Theme.text-primary;
-            sub: "Cadastro da carteira";
+
+        VerticalLayout {
+            padding: 22px;
+            spacing: 0px;
+
+            // Saldo em destaque.
+            Text {
+                text: "SALDO ATUAL";
+                font-size: 10px; font-weight: 800;
+                letter-spacing: 1.4px;
+                color: #A8A29A;
+            }
+            Rectangle { height: 6px; }
+            HorizontalLayout {
+                spacing: 0px;
+                alignment: start;
+                Text {
+                    text: root.summary.balance-main;
+                    font-size: 34px; font-weight: 800;
+                    color: root.summary.balance-negative ? #FF8A80 : white;
+                    vertical-alignment: bottom;
+                }
+                Text {
+                    text: root.summary.balance-cents;
+                    font-size: 18px; font-weight: 800;
+                    color: root.summary.balance-negative ? #FF8A80 : #E6E3DC;
+                    vertical-alignment: bottom;
+                }
+            }
+            Text {
+                text: "Inicial + entradas − saídas";
+                font-size: 11px;
+                color: #8F8A80;
+            }
+
+            Rectangle { vertical-stretch: 1; background: transparent; }
+            Rectangle { height: 1px; background: #FFFFFF14; }
+            Rectangle { height: 14px; }
+
+            // Rodapé: entradas / saídas / saldo inicial + líquido.
+            HorizontalLayout {
+                spacing: 22px;
+                // Entradas
+                HorizontalLayout {
+                    spacing: 8px;
+                    VerticalLayout {
+                        alignment: center;
+                        MoneyIcon { tone: "pos"; box: 30px; on-dark: true; }
+                    }
+                    VerticalLayout {
+                        alignment: center;
+                        spacing: 1px;
+                        Text { text: "ENTRADAS"; font-size: 9px; font-weight: 800; letter-spacing: 1px; color: #A8A29A; }
+                        Text { text: root.summary.inflow-display; font-size: 14px; font-weight: 800; color: white; }
+                    }
+                }
+                // Saídas
+                HorizontalLayout {
+                    spacing: 8px;
+                    VerticalLayout {
+                        alignment: center;
+                        MoneyIcon { tone: "neg"; box: 30px; on-dark: true; }
+                    }
+                    VerticalLayout {
+                        alignment: center;
+                        spacing: 1px;
+                        Text { text: "SAÍDAS"; font-size: 9px; font-weight: 800; letter-spacing: 1px; color: #A8A29A; }
+                        Text { text: root.summary.outflow-display; font-size: 14px; font-weight: 800; color: white; }
+                    }
+                }
+                // Saldo inicial
+                HorizontalLayout {
+                    spacing: 8px;
+                    VerticalLayout {
+                        alignment: center;
+                        MoneyIcon { tone: "neutral"; box: 30px; on-dark: true; }
+                    }
+                    VerticalLayout {
+                        alignment: center;
+                        spacing: 1px;
+                        Text { text: "SALDO INICIAL"; font-size: 9px; font-weight: 800; letter-spacing: 1px; color: #A8A29A; }
+                        Text { text: root.summary.initial-display; font-size: 14px; font-weight: 800; color: white; }
+                    }
+                }
+                Rectangle { horizontal-stretch: 1; background: transparent; }
+                // Resultado do período.
+                VerticalLayout {
+                    alignment: center;
+                    spacing: 1px;
+                    Text {
+                        text: root.summary.net-label;
+                        font-size: 9px; font-weight: 800; letter-spacing: 1px;
+                        color: #A8A29A;
+                        horizontal-alignment: right;
+                    }
+                    Text {
+                        text: root.summary.net-display;
+                        font-size: 15px; font-weight: 800;
+                        color: root.summary.net-positive ? #7BD389 : #FF8A80;
+                        horizontal-alignment: right;
+                    }
+                }
+            }
         }
     }
 
-    if root.summary.has-account: ScrollView {
-        vertical-scrollbar-policy: ScrollBarPolicy.always-off;
-        horizontal-scrollbar-policy: ScrollBarPolicy.always-off;
+    // ── Corpo: movimentações (esq.) + ações/meta/detalhamento (dir.) ──
+    if root.summary.has-account: HorizontalLayout {
+        spacing: 16px;
         vertical-stretch: 1;
-        HorizontalLayout {
-            spacing: 14px;
-            alignment: stretch;
 
-            // Movimentações consolidadas (todas as fontes).
+        // Movimentações
+        Panel {
+            horizontal-stretch: 3;
             VerticalLayout {
-                horizontal-stretch: 3;
-                alignment: start;
-                spacing: 8px;
+                padding: 18px;
+                spacing: 10px;
                 HorizontalLayout {
-                    Text { text: "MOVIMENTAÇÕES"; font-size: 10px; font-weight: 800; letter-spacing: 1px; color: Theme.text-secondary; horizontal-stretch: 1; }
-                    Text { text: root.summary.movements-count + " movimentos"; font-size: 11px; color: Theme.text-secondary; }
-                }
-                if root.movements.length == 0: Rectangle {
-                    border-radius: 12px;
-                    border-width: 1px;
-                    border-color: Theme.card-border;
-                    background: Theme.surface;
-                    height: 256px;
-                    EmptyState {
-                        source: @image-url("../assets/illustrations/financial-data-presentation.svg");
-                        title: "Sem movimentações";
-                        art-size: 200px;
+                    spacing: 10px;
+                    Text {
+                        text: "MOVIMENTAÇÕES";
+                        font-size: 11px; font-weight: 800; letter-spacing: 1px;
+                        color: Theme.text-primary;
+                        horizontal-stretch: 1;
+                        vertical-alignment: center;
+                    }
+                    HorizontalLayout {
+                        spacing: 2px;
+                        SegBtn {
+                            label: "Todos"; pad: 12px;
+                            selected: root.kind-filter == "all";
+                            clicked => { root.set-kind-filter("all"); }
+                        }
+                        SegBtn {
+                            label: "Entradas"; pad: 12px;
+                            selected: root.kind-filter == "in";
+                            clicked => { root.set-kind-filter("in"); }
+                        }
+                        SegBtn {
+                            label: "Saídas"; pad: 12px;
+                            selected: root.kind-filter == "out";
+                            clicked => { root.set-kind-filter("out"); }
+                        }
                     }
                 }
-                for m in root.movements: Rectangle {
-                    height: 56px;
-                    border-radius: 10px;
-                    border-width: 1px;
-                    border-color: Theme.card-border;
-                    background: Theme.surface;
-                    HorizontalLayout {
-                        padding-left: 12px; padding-right: 12px;
-                        spacing: 10px;
-                        Rectangle {
-                            width: 30px; height: 30px;
-                            y: (parent.height - 30px) / 2;
-                            border-radius: 6px;
-                            background: m.tone == "pos" ? #E8F5E9 : #FFEBEE;
-                            Text {
-                                width: parent.width; height: parent.height;
-                                text: m.tone == "pos" ? "↓" : "↑";
-                                font-size: 14px; font-weight: 800;
-                                color: m.tone == "pos" ? #2E7D32 : #E53935;
-                                horizontal-alignment: center; vertical-alignment: center;
+
+                if root.movements.length == 0: Rectangle {
+                    vertical-stretch: 1;
+                    VerticalLayout {
+                        alignment: center;
+                        Text {
+                            text: "Sem movimentações no período";
+                            font-size: 13px; color: Theme.text-secondary;
+                            horizontal-alignment: center;
+                        }
+                    }
+                }
+
+                if root.movements.length > 0: ScrollView {
+                    vertical-scrollbar-policy: ScrollBarPolicy.as-needed;
+                    horizontal-scrollbar-policy: ScrollBarPolicy.always-off;
+                    vertical-stretch: 1;
+                    VerticalLayout {
+                        alignment: start;
+                        spacing: 6px;
+                        for m in root.movements: Rectangle {
+                            height: 54px;
+                            border-radius: 10px;
+                            background: mv-ta.has-hover ? Theme.row-hover : transparent;
+                            mv-ta := TouchArea { }
+                            HorizontalLayout {
+                                padding-left: 8px; padding-right: 10px;
+                                spacing: 10px;
+                                VerticalLayout {
+                                    alignment: center;
+                                    MoneyIcon { tone: m.tone; box: 30px; }
+                                }
+                                VerticalLayout {
+                                    horizontal-stretch: 1;
+                                    min-width: 0;
+                                    alignment: center;
+                                    spacing: 2px;
+                                    Text {
+                                        text: m.title;
+                                        font-size: 12.5px; font-weight: 700;
+                                        color: Theme.text-primary;
+                                        overflow: elide;
+                                    }
+                                    Text {
+                                        text: m.source + " · " + m.time-display;
+                                        font-size: 10.5px;
+                                        color: Theme.text-secondary;
+                                        overflow: elide;
+                                    }
+                                }
+                                VerticalLayout {
+                                    alignment: center;
+                                    Text {
+                                        text: m.amount-display;
+                                        font-size: 13px; font-weight: 800;
+                                        color: m.tone == "pos" ? #2E7D32 : #E53935;
+                                        horizontal-alignment: right;
+                                    }
+                                }
                             }
                         }
-                        VerticalLayout {
-                            horizontal-stretch: 1;
-                            min-width: 0;
-                            alignment: center;
-                            spacing: 2px;
-                            Text { text: m.title; font-size: 12px; font-weight: 700; color: Theme.text-primary; overflow: elide; }
-                            Text { text: m.source + " · " + m.time-display; font-size: 10px; color: Theme.text-secondary; overflow: elide; }
+                    }
+                }
+            }
+        }
+
+        // Coluna direita
+        VerticalLayout {
+            horizontal-stretch: 2;
+            spacing: 16px;
+            alignment: start;
+
+            // Ações: Depositar / Sacar
+            Panel {
+                height: 96px;
+                HorizontalLayout {
+                    padding: 14px;
+                    spacing: 12px;
+                    dep-ta := TouchArea {
+                        horizontal-stretch: 1;
+                        clicked => { root.open-deposit(); }
+                        Rectangle {
+                            border-radius: 10px;
+                            border-width: 1px;
+                            border-color: dep-ta.has-hover ? #2E7D32 : #C8E6C9;
+                            background: dep-ta.has-hover ? #DCEFDC : #EDF7ED;
+                            VerticalLayout {
+                                alignment: center;
+                                spacing: 4px;
+                                HorizontalLayout {
+                                    alignment: center;
+                                    AssetIcon {
+                                        width: 18px; height: 18px; icon-size: 18px;
+                                        icon-color: #2E7D32;
+                                        source: @image-url("../assets/icons/recebimento.svg");
+                                    }
+                                }
+                                Text {
+                                    text: "Depositar";
+                                    font-size: 12.5px; font-weight: 700; color: #2E7D32;
+                                    horizontal-alignment: center;
+                                }
+                            }
                         }
-                        VerticalLayout {
-                            alignment: center;
-                            Text {
-                                text: m.amount-display;
-                                font-size: 12px; font-weight: 800;
-                                color: m.tone == "pos" ? #2E7D32 : #E53935;
-                                horizontal-alignment: right;
+                    }
+                    wit-ta := TouchArea {
+                        horizontal-stretch: 1;
+                        clicked => { root.open-withdraw(); }
+                        Rectangle {
+                            border-radius: 10px;
+                            border-width: 1px;
+                            border-color: wit-ta.has-hover ? #E53935 : #FFCDD2;
+                            background: wit-ta.has-hover ? #FBE0E0 : #FDEFEF;
+                            VerticalLayout {
+                                alignment: center;
+                                spacing: 4px;
+                                HorizontalLayout {
+                                    alignment: center;
+                                    AssetIcon {
+                                        width: 18px; height: 18px; icon-size: 18px;
+                                        icon-color: #E53935;
+                                        source: @image-url("../assets/icons/saida-estoque.svg");
+                                    }
+                                }
+                                Text {
+                                    text: "Sacar";
+                                    font-size: 12.5px; font-weight: 700; color: #E53935;
+                                    horizontal-alignment: center;
+                                }
                             }
                         }
                     }
                 }
             }
 
-            // Detalhamento por origem.
-            VerticalLayout {
-                horizontal-stretch: 2;
-                alignment: start;
-                spacing: 8px;
-                Text { text: "DETALHAMENTO"; font-size: 10px; font-weight: 800; letter-spacing: 1px; color: Theme.text-secondary; }
-                Rectangle {
-                    border-radius: 12px;
-                    border-width: 1px;
-                    border-color: Theme.card-border;
-                    drop-shadow-blur: 12px;
-                    drop-shadow-offset-y: 0px;
-                    drop-shadow-color: Theme.card-shadow;
-                    background: Theme.surface;
-                    height: bd-l.preferred-height;
-                    bd-l := VerticalLayout {
-                        padding: 18px;
-                        spacing: 10px;
-                        BreakdownLine { label: "Pedidos pagos"; value: root.summary.orders-display; }
-                        BreakdownLine { label: "Depósitos na carteira de clientes"; value: root.summary.deposits-display; }
-                        BreakdownLine { label: "Financeiro · recebimentos"; value: root.summary.finance-in-display; }
-                        Rectangle { height: 1px; background: Theme.border; }
-                        BreakdownLine { label: "Financeiro · pagamentos"; value: root.summary.finance-out-display; negative: true; }
-                        BreakdownLine { label: "Saques da carteira de clientes"; value: root.summary.withdrawals-display; negative: true; }
-                        Rectangle { height: 1px; background: Theme.border; }
-                        HorizontalLayout {
-                            Text { text: "SALDO ATUAL"; font-size: 12px; font-weight: 800; color: Theme.text-primary; horizontal-stretch: 1; vertical-alignment: center; }
+            // Meta de reserva do mês
+            Panel {
+                height: goal-l.preferred-height;
+                goal-l := VerticalLayout {
+                    padding: 16px;
+                    spacing: 10px;
+                    HorizontalLayout {
+                        spacing: 8px;
+                        Text {
+                            text: "Meta de reserva do mês";
+                            font-size: 13px; font-weight: 700;
+                            color: Theme.text-primary;
+                            horizontal-stretch: 1;
+                            vertical-alignment: center;
+                        }
+                        goal-ta := TouchArea {
+                            width: 26px; height: 26px;
+                            clicked => { root.open-goal(); }
+                            Rectangle {
+                                border-radius: 6px;
+                                background: goal-ta.has-hover ? Theme.row-hover : transparent;
+                                AssetIcon {
+                                    width: 100%; height: 100%; icon-size: 13px;
+                                    icon-color: goal-ta.has-hover ? Theme.btn-accent : Theme.text-secondary;
+                                    source: @image-url("../assets/icons/editar.svg");
+                                }
+                            }
+                        }
+                    }
+                    Rectangle {
+                        height: 8px;
+                        border-radius: 4px;
+                        background: Theme.border;
+                        Rectangle {
+                            x: 0; y: 0;
+                            width: parent.width * root.summary.goal-progress;
+                            height: parent.height;
+                            border-radius: 4px;
+                            background: Theme.btn-accent;
+                        }
+                    }
+                    Text {
+                        text: root.summary.goal-display;
+                        font-size: 11px; color: Theme.text-secondary;
+                        overflow: elide;
+                    }
+                }
+            }
+
+            // Detalhamento por origem
+            Panel {
+                height: bd-l.preferred-height;
+                bd-l := VerticalLayout {
+                    padding: 16px;
+                    spacing: 10px;
+                    Text {
+                        text: "DETALHAMENTO";
+                        font-size: 11px; font-weight: 800; letter-spacing: 1px;
+                        color: Theme.text-primary;
+                    }
+                    BreakdownLine { label: "Pedidos pagos"; value: root.summary.orders-display; }
+                    BreakdownLine { label: "Depósitos na carteira de clientes"; value: root.summary.deposits-display; }
+                    BreakdownLine { label: "Financeiro · recebimentos"; value: root.summary.finance-in-display; }
+                    BreakdownLine { label: "Aportes no caixa"; value: root.summary.manual-in-display; }
+                    BreakdownLine { label: "Financeiro · pagamentos"; value: root.summary.finance-out-display; negative: true; }
+                    BreakdownLine { label: "Saques da carteira de clientes"; value: root.summary.withdrawals-display; negative: true; }
+                    BreakdownLine { label: "Retiradas do caixa"; value: root.summary.manual-out-display; negative: true; }
+                    Rectangle { height: 4px; }
+                    Rectangle { height: 1px; background: Theme.border; }
+                    Rectangle { height: 4px; }
+                    HorizontalLayout {
+                        VerticalLayout {
+                            horizontal-stretch: 1;
+                            spacing: 0px;
+                            Text { text: "SALDO"; font-size: 11px; font-weight: 800; color: Theme.text-primary; }
+                            Text { text: "ATUAL"; font-size: 11px; font-weight: 800; color: Theme.text-primary; }
+                        }
+                        VerticalLayout {
+                            alignment: center;
                             Text {
                                 text: root.summary.balance-display;
-                                font-size: 18px; font-weight: 800;
+                                font-size: 16px; font-weight: 800;
                                 color: root.summary.balance-negative ? #C62828 : #2E7D32;
-                                vertical-alignment: center;
+                                horizontal-alignment: right;
                             }
                         }
                     }

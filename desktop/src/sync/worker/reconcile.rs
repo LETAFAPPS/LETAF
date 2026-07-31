@@ -71,6 +71,7 @@ impl SyncWorker {
             "wallet_accounts" => self.pull_wallet_accounts(token, epoch, epoch).await?,
             "wallet_movements" => self.pull_wallet_movements(token, epoch, epoch).await?,
             "treasury_accounts" => self.pull_treasury_accounts(token, epoch, epoch).await?,
+            "treasury_movements" => self.pull_treasury_movements(token, epoch, epoch).await?,
             "subscriptions" => self.pull_subscriptions(token, epoch, epoch).await?,
             "subscription_invoices" => self.pull_subscription_invoices(token, epoch, epoch).await?,
             "payment_methods" => self.pull_payment_methods(token, epoch, epoch).await?,

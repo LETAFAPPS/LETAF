@@ -1521,30 +1521,52 @@ export struct SubscriptionInvoiceRow {
 export struct TreasurySummary {
     /// `false` = carteira ainda não cadastrada (mostra o setup).
     has-account: bool,
-    /// Saldo atual (inicial + entradas − saídas), formatado.
-    balance-display: string,
+    /// Saldo atual — separado em parte inteira e centavos para o
+    /// destaque tipográfico do card ("R$ 1.103" + ",50").
+    balance-main: string,
+    balance-cents: string,
     /// `true` quando o saldo atual é negativo (pinta em vermelho).
     balance-negative: bool,
+    /// Saldo atual completo ("R$ 1.103,50") — usado no detalhamento.
+    balance-display: string,
     initial-display: string,
     inflow-display: string,
     outflow-display: string,
+    /// Resultado do período filtrado ("+ R$ 103,50").
+    net-display: string,
+    net-positive: bool,
+    /// Rótulo do período do resultado ("SALDO LÍQUIDO DO DIA").
+    net-label: string,
     // Detalhamento por origem (formatados; entradas com +, saídas com −).
     orders-display: string,
     deposits-display: string,
     finance-in-display: string,
     finance-out-display: string,
     withdrawals-display: string,
+    /// Aportes/retiradas manuais do caixa da empresa.
+    manual-in-display: string,
+    manual-out-display: string,
     movements-count: int,
+    // Meta de reserva do mês.
+    goal-progress: float,
+    goal-display: string,
+    goal-input: string,
 }
 
-/// Linha consolidada de movimentação da tesouraria (todas as fontes
-/// mescladas por data, mais recentes primeiro).
 export struct TreasuryMovementRow {
     title: string,
-    /// Origem: "Pedido" | "Carteira" | "Financeiro".
+    /// Origem: "Pedido" | "Carteira" | "Financeiro" | "Caixa".
     source: string,
     time-display: string,
     amount-display: string,
     /// "pos" | "neg".
     tone: string,
+}
+
+/// Barra do mini-gráfico do card de saldo (evolução do período).
+export struct TreasuryChartBar {
+    /// 0.0–1.0 na escala do maior valor do período.
+    progress: float,
+    /// `true` destaca a barra (dias/horas mais recentes).
+    highlight: bool,
 }

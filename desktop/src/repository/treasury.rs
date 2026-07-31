@@ -6,10 +6,10 @@ use sqlx::SqlitePool;
 use uuid::Uuid;
 
 use letaf_core::error::CoreError;
-use letaf_core::treasury::model::Treasury;
+use letaf_core::treasury::model::{Treasury, TreasuryMovement, TreasuryMovementKind};
 use letaf_core::treasury::repository::TreasuryRepository;
 
-use super::helpers::{map_db, parse_base, ts};
+use super::helpers::{map_db, parse_base, parse_uuid, ts};
 
 // ── Row ──────────────────────────────────────────────────────────
 
@@ -23,6 +23,7 @@ struct TreasuryRow {
     updated_at: String,
     deleted_at: Option<String>,
     synced: bool,
+    reserve_goal: f64,
 }
 
 impl TryFrom<TreasuryRow> for Treasury {
@@ -32,6 +33,34 @@ impl TryFrom<TreasuryRow> for Treasury {
             base: parse_base(&r.id, &r.company_id, &r.created_at, &r.updated_at, r.deleted_at.as_deref(), r.synced)?,
             // Dinheiro no SQLite é REAL — round-trip via from_db_f64 (§13).
             initial_balance: letaf_core::money::from_db_f64(r.initial_balance),
+            notes: r.notes,
+            reserve_goal: letaf_core::money::from_db_f64(r.reserve_goal),
+        })
+    }
+}
+
+#[derive(FromRow)]
+struct TreasuryMovementRow {
+    id: String,
+    company_id: String,
+    treasury_id: String,
+    kind: String,
+    amount: f64,
+    notes: Option<String>,
+    created_at: String,
+    updated_at: String,
+    deleted_at: Option<String>,
+    synced: bool,
+}
+
+impl TryFrom<TreasuryMovementRow> for TreasuryMovement {
+    type Error = CoreError;
+    fn try_from(r: TreasuryMovementRow) -> Result<Self, Self::Error> {
+        Ok(Self {
+            base: parse_base(&r.id, &r.company_id, &r.created_at, &r.updated_at, r.deleted_at.as_deref(), r.synced)?,
+            treasury_id: parse_uuid(&r.treasury_id)?,
+            kind: TreasuryMovementKind::from_str(&r.kind),
+            amount: letaf_core::money::from_db_f64(r.amount),
             notes: r.notes,
         })
     }
@@ -72,14 +101,15 @@ impl TreasuryRepository for SqliteTreasuryRepository {
     async fn create(&self, t: &Treasury) -> Result<(), CoreError> {
         sqlx::query(
             "INSERT INTO treasury_accounts
-             (id, company_id, initial_balance, notes,
+             (id, company_id, initial_balance, notes, reserve_goal,
               created_at, updated_at, deleted_at, synced)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
         )
         .bind(t.base.id.to_string())
         .bind(t.base.company_id.to_string())
         .bind(t.initial_balance.to_f64().unwrap_or(0.0))
         .bind(&t.notes)
+        .bind(t.reserve_goal.to_f64().unwrap_or(0.0))
         .bind(ts(t.base.created_at))
         .bind(ts(t.base.updated_at))
         .bind(t.base.deleted_at.map(ts))
@@ -88,6 +118,70 @@ impl TreasuryRepository for SqliteTreasuryRepository {
         .await
         .map_err(map_db)?;
         Ok(())
+    }
+
+    async fn update(&self, t: &Treasury) -> Result<(), CoreError> {
+        sqlx::query(
+            "UPDATE treasury_accounts SET
+               initial_balance = ?, notes = ?, reserve_goal = ?,
+               updated_at = ?, deleted_at = ?, synced = ?
+             WHERE company_id = ? AND id = ?",
+        )
+        .bind(t.initial_balance.to_f64().unwrap_or(0.0))
+        .bind(&t.notes)
+        .bind(t.reserve_goal.to_f64().unwrap_or(0.0))
+        .bind(ts(t.base.updated_at))
+        .bind(t.base.deleted_at.map(ts))
+        .bind(t.base.synced)
+        .bind(t.base.company_id.to_string())
+        .bind(t.base.id.to_string())
+        .execute(&self.pool)
+        .await
+        .map_err(map_db)?;
+        Ok(())
+    }
+
+    // ── Movimentos manuais ──
+
+    async fn create_movement(&self, m: &TreasuryMovement) -> Result<(), CoreError> {
+        sqlx::query(
+            "INSERT INTO treasury_movements
+             (id, company_id, treasury_id, kind, amount, notes,
+              created_at, updated_at, deleted_at, synced)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        )
+        .bind(m.base.id.to_string())
+        .bind(m.base.company_id.to_string())
+        .bind(m.treasury_id.to_string())
+        .bind(m.kind.to_string())
+        .bind(m.amount.to_f64().unwrap_or(0.0))
+        .bind(&m.notes)
+        .bind(ts(m.base.created_at))
+        .bind(ts(m.base.updated_at))
+        .bind(m.base.deleted_at.map(ts))
+        .bind(m.base.synced)
+        .execute(&self.pool)
+        .await
+        .map_err(map_db)?;
+        Ok(())
+    }
+
+    async fn find_movements(
+        &self,
+        company_id: Uuid,
+        limit: i64,
+    ) -> Result<Vec<TreasuryMovement>, CoreError> {
+        let rows = sqlx::query_as::<_, TreasuryMovementRow>(
+            "SELECT * FROM treasury_movements
+             WHERE company_id = ? AND deleted_at IS NULL
+             ORDER BY created_at DESC LIMIT ?",
+        )
+        .bind(company_id.to_string())
+        .bind(limit)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(map_db)?;
+        rows.into_iter().map(TreasuryMovement::try_from).collect()
     }
 
     // ── Sync ──
@@ -142,12 +236,13 @@ impl TreasuryRepository for SqliteTreasuryRepository {
         // entidades sincronizadas.
         sqlx::query(
             "INSERT INTO treasury_accounts
-             (id, company_id, initial_balance, notes,
+             (id, company_id, initial_balance, notes, reserve_goal,
               created_at, updated_at, deleted_at, synced)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
              ON CONFLICT(id) DO UPDATE SET
                initial_balance = excluded.initial_balance,
                notes = excluded.notes,
+               reserve_goal = excluded.reserve_goal,
                updated_at = excluded.updated_at,
                deleted_at = excluded.deleted_at,
                synced = excluded.synced
@@ -157,10 +252,95 @@ impl TreasuryRepository for SqliteTreasuryRepository {
         .bind(t.base.company_id.to_string())
         .bind(t.initial_balance.to_f64().unwrap_or(0.0))
         .bind(&t.notes)
+        .bind(t.reserve_goal.to_f64().unwrap_or(0.0))
         .bind(ts(t.base.created_at))
         .bind(ts(t.base.updated_at))
         .bind(t.base.deleted_at.map(ts))
         .bind(t.base.synced)
+        .execute(&self.pool)
+        .await
+        .map_err(map_db)?;
+        Ok(())
+    }
+
+    // ── Sync — movimentos ──
+
+    async fn find_unsynced_movements(
+        &self,
+        company_id: Uuid,
+    ) -> Result<Vec<TreasuryMovement>, CoreError> {
+        let rows = sqlx::query_as::<_, TreasuryMovementRow>(
+            "SELECT * FROM treasury_movements WHERE company_id = ? AND synced = 0",
+        )
+        .bind(company_id.to_string())
+        .fetch_all(&self.pool)
+        .await
+        .map_err(map_db)?;
+        rows.into_iter().map(TreasuryMovement::try_from).collect()
+    }
+
+    async fn mark_movement_synced(
+        &self,
+        company_id: Uuid,
+        id: Uuid,
+        updated_at: NaiveDateTime,
+    ) -> Result<(), CoreError> {
+        // Condicional ao `updated_at` enviado (§7.6): se o registro mudou
+        // durante o push, 0 linhas afetadas → reenvia no próximo ciclo.
+        sqlx::query("UPDATE treasury_movements SET synced = 1 WHERE company_id = ? AND id = ? AND updated_at = ?")
+            .bind(company_id.to_string())
+            .bind(id.to_string())
+            .bind(ts(updated_at))
+            .execute(&self.pool)
+            .await
+            .map_err(map_db)?;
+        Ok(())
+    }
+
+    async fn find_movements_updated_since(
+        &self,
+        company_id: Uuid,
+        since: NaiveDateTime,
+    ) -> Result<Vec<TreasuryMovement>, CoreError> {
+        let rows = sqlx::query_as::<_, TreasuryMovementRow>(
+            "SELECT * FROM treasury_movements WHERE company_id = ? AND updated_at > ?",
+        )
+        .bind(company_id.to_string())
+        .bind(ts(since))
+        .fetch_all(&self.pool)
+        .await
+        .map_err(map_db)?;
+        rows.into_iter().map(TreasuryMovement::try_from).collect()
+    }
+
+    async fn sync_upsert_movement(&self, m: &TreasuryMovement) -> Result<(), CoreError> {
+        // Movimento é append-only, mas `synced`/`deleted_at` mudam:
+        // last-write-wins por `updated_at` (§7.7).
+        sqlx::query(
+            "INSERT INTO treasury_movements
+             (id, company_id, treasury_id, kind, amount, notes,
+              created_at, updated_at, deleted_at, synced)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+             ON CONFLICT(id) DO UPDATE SET
+               treasury_id = excluded.treasury_id,
+               kind = excluded.kind,
+               amount = excluded.amount,
+               notes = excluded.notes,
+               updated_at = excluded.updated_at,
+               deleted_at = excluded.deleted_at,
+               synced = excluded.synced
+             WHERE excluded.updated_at > treasury_movements.updated_at",
+        )
+        .bind(m.base.id.to_string())
+        .bind(m.base.company_id.to_string())
+        .bind(m.treasury_id.to_string())
+        .bind(m.kind.to_string())
+        .bind(m.amount.to_f64().unwrap_or(0.0))
+        .bind(&m.notes)
+        .bind(ts(m.base.created_at))
+        .bind(ts(m.base.updated_at))
+        .bind(m.base.deleted_at.map(ts))
+        .bind(m.base.synced)
         .execute(&self.pool)
         .await
         .map_err(map_db)?;

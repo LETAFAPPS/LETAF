@@ -5,8 +5,10 @@
 //! - Entidade com `BaseFields` (UUID, company_id, soft delete, sync).
 //! - SINGLETON por empresa: no máximo UMA carteira por `company_id`
 //!   (unique na migration; service valida na criação).
-//! - `initial_balance >= 0` — validado no service (§11: nunca confiar
-//!   no frontend).
+//! - `initial_balance >= 0` e `reserve_goal >= 0` (meta de reserva
+//!   mensal) — validados no service (§11: nunca confiar no frontend).
+//! - Movimentos manuais (`TreasuryMovement`: aporte/retirada) são
+//!   append-only, com `amount > 0` e direção pelo `kind`.
 
 pub mod model;
 pub mod repository;
