@@ -15,6 +15,7 @@ use crate::{
 };
 
 use super::state::{Granularity, ReportState};
+use super::helpers::ChartWindow;
 use super::sections::{fill_customers, fill_financial, fill_orders, fill_products};
 use super::helpers::opt;
 use super::super::image::decode_pixel_buffer;
@@ -73,9 +74,9 @@ pub(crate) struct Snapshot {
     pub(crate) new_vs_ret: ReportNewVsReturning,
 }
 
-pub(crate) fn build_snapshot(
+pub(crate) fn build_snapshot<'a>(
     s: &ReportState,
-    orders: &[Order],
+    orders: &'a [Order],
     products: &[Product],
     categories: &[Category],
     customers: &[Customer],
@@ -115,19 +116,50 @@ pub(crate) fn build_snapshot(
         }
     };
 
-    let in_window: Vec<&Order> = orders
+    // Período ANTERIOR equivalente (comparativo dos gráficos): mesmo
+    // recorte deslocado — ontem / semana passada / mês passado / ano
+    // passado. `prev_end` fecha a janela para o filtro dos pedidos.
+    let (prev_start, prev_end) = match s.period.as_str() {
+        "daily" => {
+            let y = today - Duration::days(1);
+            (y, y)
+        }
+        "monthly" => {
+            let prev_first = prev_month_first(start);
+            (prev_first, start - Duration::days(1))
+        }
+        "yearly" => (
+            NaiveDate::from_ymd_opt(today.year() - 1, 1, 1).unwrap_or(start),
+            NaiveDate::from_ymd_opt(today.year() - 1, 12, 31).unwrap_or(start),
+        ),
+        _ => (start - Duration::days(7), end - Duration::days(7)),
+    };
+    let chart_window = ChartWindow { start, end, today, prev_start, granularity };
+
+    let alive: Vec<&Order> = orders
         .iter()
         .filter(|o| o.base.deleted_at.is_none())
-        .filter(|o| {
-            let d = o.base.created_at.date();
-            d >= start && d <= end
-        })
         .collect();
-    let valid: Vec<&Order> = in_window
-        .iter()
-        .copied()
-        .filter(|o| o.status != OrderStatus::Cancelled)
-        .collect();
+    let in_range = |from: NaiveDate, to: NaiveDate| -> Vec<&Order> {
+        alive
+            .iter()
+            .copied()
+            .filter(|o| {
+                let d = o.base.created_at.date();
+                d >= from && d <= to
+            })
+            .collect()
+    };
+    let not_cancelled = |list: &[&'a Order]| -> Vec<&'a Order> {
+        list.iter()
+            .copied()
+            .filter(|o| o.status != OrderStatus::Cancelled)
+            .collect()
+    };
+    let in_window = in_range(start, end);
+    let valid = not_cancelled(&in_window);
+    let prev_in_window = in_range(prev_start, prev_end);
+    let prev_valid = not_cancelled(&prev_in_window);
 
     let product_by_id: HashMap<Uuid, &Product> = products.iter().map(|p| (p.base.id, p)).collect();
     let category_by_id: HashMap<Uuid, &Category> = categories.iter().map(|c| (c.base.id, c)).collect();
@@ -214,9 +246,9 @@ pub(crate) fn build_snapshot(
                 })
                 .map(|o| o.total.to_f64().unwrap_or(0.0))
                 .sum();
-            fill_financial(&mut snap, &in_window, &valid, &product_by_id, start, end, period_days, today, granularity, fiado_total)
+            fill_financial(&mut snap, &valid, &prev_valid, &product_by_id, chart_window, period_days, fiado_total)
         }
-        "orders" => fill_orders(&mut snap, &in_window, &valid, start, end, today, granularity),
+        "orders" => fill_orders(&mut snap, &in_window, &valid, &prev_in_window, &prev_valid, chart_window),
         "products" => fill_products(&mut snap, &valid, &product_by_id, &category_by_id),
         "customers" => fill_customers(&mut snap, &valid, orders, &customer_by_id, start, end),
         _ => {}
@@ -296,3 +328,13 @@ pub(crate) fn apply_to_ui(ui: &MainWindow, s: &Snapshot) {
     ui.set_report_new_vs_ret(s.new_vs_ret.clone());
 }
 
+
+/// Primeiro dia do mês anterior ao de `d`.
+fn prev_month_first(d: NaiveDate) -> NaiveDate {
+    let (y, m) = if d.month() == 1 {
+        (d.year() - 1, 12)
+    } else {
+        (d.year(), d.month() - 1)
+    };
+    NaiveDate::from_ymd_opt(y, m, 1).unwrap_or(d)
+}

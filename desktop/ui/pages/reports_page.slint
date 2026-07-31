@@ -128,6 +128,10 @@ component VertBar inherits Rectangle {
     in property <float> progress;
     in property <color> bar-color;
     in property <string> value-display;
+    // Par de comparação: mesma posição no período ANTERIOR (semana/mês/
+    // ano passados), na MESMA escala — barra clara atrás da atual.
+    in property <float> previous-progress;
+    in property <string> previous-display;
     // Override para gráficos sem tooltip (ex.: pedidos por horário):
     // caller passa tooltip-h: 0 e a barra ocupa a altura inteira.
     in property <length> tooltip-h: 22px;
@@ -137,6 +141,11 @@ component VertBar inherits Rectangle {
 
     property <length> tooltip-w: 56px;
     property <length> bar-area-h: max(0px, root.height - root.tooltip-h);
+    // Barras SOBREPOSTAS e centradas: anterior larga e clara atrás,
+    // atual mais fina na frente — mesma técnica do comparativo do
+    // Dashboard, que não depende da largura do slot para alinhar.
+    property <length> prev-w: min(20px, root.width * 0.72);
+    property <length> cur-w: min(12px, root.width * 0.42);
 
     ta := TouchArea { }
     // Base do candle — linha fininha no rodapé do slot, sempre visível
@@ -150,15 +159,27 @@ component VertBar inherits Rectangle {
         border-radius: 2px;
         background: Theme.border;
     }
+    // Período ANTERIOR (cinza claro, atrás).
     Rectangle {
-        x: 0;
+        x: (parent.width - root.prev-w) / 2;
+        y: root.tooltip-h + root.bar-area-h * (1.0 - root.previous-progress);
+        width: root.prev-w;
+        height: root.bar-area-h * root.previous-progress;
+        border-radius: 4px;
+        background: ta.has-hover ? #B3B0A4 : #C9C7BD;
+    }
+    // Período ATUAL (cor do gráfico, na frente).
+    Rectangle {
+        x: (parent.width - root.cur-w) / 2;
         y: root.tooltip-h + root.bar-area-h * (1.0 - root.progress);
-        width: parent.width;
+        width: root.cur-w;
         height: root.bar-area-h * root.progress;
-        border-radius: 5px;
+        border-radius: 4px;
         background: ta.has-hover ? root.bar-color.darker(0.1) : root.bar-color;
     }
-    if (root.show-label || ta.has-hover) && root.value-display != "": Rectangle {
+    // Rótulo do valor atual (sempre com poucas barras) e, no hover, o
+    // par completo Atual/Anterior.
+    if root.show-label && !ta.has-hover && root.value-display != "": Rectangle {
         x: (parent.width - root.tooltip-w) / 2;
         y: root.bar-area-h * (1.0 - root.progress);
         width: root.tooltip-w;
@@ -169,6 +190,31 @@ component VertBar inherits Rectangle {
             font-size: 11px; font-weight: 700;
             color: Theme.text-primary;
             horizontal-alignment: center; vertical-alignment: center;
+        }
+    }
+    if ta.has-hover && (root.value-display != "" || root.previous-display != ""): Rectangle {
+        x: parent.width / 2 - self.width / 2;
+        y: 0;
+        width: 96px;
+        height: tt-col.preferred-height;
+        border-radius: 8px;
+        background: Theme.surface;
+        drop-shadow-blur: 8px;
+        drop-shadow-color: #00000033;
+        tt-col := VerticalLayout {
+            padding: 4px;
+            Text {
+                text: "Atual: " + (root.value-display != "" ? root.value-display : "0");
+                font-size: 10px; font-weight: 700;
+                color: root.bar-color.darker(0.25);
+                horizontal-alignment: center;
+            }
+            Text {
+                text: "Ant.: " + (root.previous-display != "" ? root.previous-display : "0");
+                font-size: 10px; font-weight: 600;
+                color: #8A8A8A;
+                horizontal-alignment: center;
+            }
         }
     }
 }
@@ -587,11 +633,33 @@ export component ReportsPage inherits HorizontalLayout {
                     if root.active-type == "financial": PanelCard {
                         VerticalLayout {
                             padding: 18px; spacing: 8px;
-                            VerticalLayout {
-                                spacing: 0px;
-                                Text { text: root.chart-title; font-size: 14px; font-weight: 700; color: Theme.text-primary; overflow: elide; }
-                                Text { text: root.chart-subtitle; font-size: 11px; color: Theme.text-secondary; overflow: elide; }
+                            HorizontalLayout {
+                                spacing: 12px;
+                                VerticalLayout {
+                                    horizontal-stretch: 1;
+                                    spacing: 0px;
+                                    Text { text: root.chart-title; font-size: 14px; font-weight: 700; color: Theme.text-primary; overflow: elide; }
+                                    Text { text: root.chart-subtitle; font-size: 11px; color: Theme.text-secondary; overflow: elide; }
+                                }
+                                VerticalLayout {
+                                    alignment: center;
+                                    HorizontalLayout {
+                                        spacing: 14px;
+                                        alignment: end;
+                                        HorizontalLayout {
+                                            spacing: 6px;
+                                            VerticalLayout { alignment: center; Rectangle { width: 12px; height: 12px; border-radius: 3px; background: Theme.sidebar-sel-bg; } }
+                                            Text { text: "Atual"; font-size: 11px; color: Theme.text-secondary; vertical-alignment: center; }
+                                        }
+                                        HorizontalLayout {
+                                            spacing: 6px;
+                                            VerticalLayout { alignment: center; Rectangle { width: 12px; height: 12px; border-radius: 3px; background: #C9C7BD; } }
+                                            Text { text: "Anterior"; font-size: 11px; color: Theme.text-secondary; vertical-alignment: center; }
+                                        }
+                                    }
+                                }
                             }
+
                             Rectangle { height: 220px;
                                 HorizontalLayout {
                                     spacing: root.daily-bars.length <= 14 ? 8px
@@ -602,6 +670,8 @@ export component ReportsPage inherits HorizontalLayout {
                                         progress: b.progress;
                                         bar-color: Theme.sidebar-sel-bg;
                                         value-display: b.value-display;
+                                        previous-progress: b.previous-progress;
+                                        previous-display: b.previous-display;
                                         show-label: root.daily-bars.length <= 14;
                                     }
                                 }
@@ -786,11 +856,33 @@ export component ReportsPage inherits HorizontalLayout {
                     if root.active-type == "orders": PanelCard {
                         VerticalLayout {
                             padding: 18px; spacing: 8px;
-                            VerticalLayout {
-                                spacing: 0px;
-                                Text { text: root.chart-title; font-size: 14px; font-weight: 700; color: Theme.text-primary; overflow: elide; }
-                                Text { text: root.chart-subtitle; font-size: 11px; color: Theme.text-secondary; overflow: elide; }
+                            HorizontalLayout {
+                                spacing: 12px;
+                                VerticalLayout {
+                                    horizontal-stretch: 1;
+                                    spacing: 0px;
+                                    Text { text: root.chart-title; font-size: 14px; font-weight: 700; color: Theme.text-primary; overflow: elide; }
+                                    Text { text: root.chart-subtitle; font-size: 11px; color: Theme.text-secondary; overflow: elide; }
+                                }
+                                VerticalLayout {
+                                    alignment: center;
+                                    HorizontalLayout {
+                                        spacing: 14px;
+                                        alignment: end;
+                                        HorizontalLayout {
+                                            spacing: 6px;
+                                            VerticalLayout { alignment: center; Rectangle { width: 12px; height: 12px; border-radius: 3px; background: Theme.sidebar-sel-bg; } }
+                                            Text { text: "Atual"; font-size: 11px; color: Theme.text-secondary; vertical-alignment: center; }
+                                        }
+                                        HorizontalLayout {
+                                            spacing: 6px;
+                                            VerticalLayout { alignment: center; Rectangle { width: 12px; height: 12px; border-radius: 3px; background: #C9C7BD; } }
+                                            Text { text: "Anterior"; font-size: 11px; color: Theme.text-secondary; vertical-alignment: center; }
+                                        }
+                                    }
+                                }
                             }
+
                             Rectangle { height: 220px;
                                 HorizontalLayout {
                                     spacing: root.orders-bars.length <= 14 ? 8px
@@ -801,6 +893,8 @@ export component ReportsPage inherits HorizontalLayout {
                                         progress: b.progress;
                                         bar-color: Theme.sidebar-sel-bg;
                                         value-display: b.value-display;
+                                        previous-progress: b.previous-progress;
+                                        previous-display: b.previous-display;
                                         show-label: root.orders-bars.length <= 14;
                                     }
                                 }
@@ -888,11 +982,33 @@ export component ReportsPage inherits HorizontalLayout {
                         horizontal-stretch: 1;
                         VerticalLayout {
                             padding: 18px; spacing: 8px;
-                            VerticalLayout {
-                                spacing: 0px;
-                                Text { text: "Pedidos por Horário"; font-size: 14px; font-weight: 700; color: Theme.text-primary; }
-                                Text { text: "Concentração ao longo do dia"; font-size: 11px; color: Theme.text-secondary; }
+                            HorizontalLayout {
+                                spacing: 12px;
+                                VerticalLayout {
+                                    horizontal-stretch: 1;
+                                    spacing: 0px;
+                                    Text { text: "Pedidos por Horário"; font-size: 14px; font-weight: 700; color: Theme.text-primary; }
+                                    Text { text: "Concentração ao longo do dia"; font-size: 11px; color: Theme.text-secondary; }
+                                }
+                                VerticalLayout {
+                                    alignment: center;
+                                    HorizontalLayout {
+                                        spacing: 14px;
+                                        alignment: end;
+                                        HorizontalLayout {
+                                            spacing: 6px;
+                                            VerticalLayout { alignment: center; Rectangle { width: 12px; height: 12px; border-radius: 3px; background: Theme.sidebar-sel-bg; } }
+                                            Text { text: "Atual"; font-size: 11px; color: Theme.text-secondary; vertical-alignment: center; }
+                                        }
+                                        HorizontalLayout {
+                                            spacing: 6px;
+                                            VerticalLayout { alignment: center; Rectangle { width: 12px; height: 12px; border-radius: 3px; background: #C9C7BD; } }
+                                            Text { text: "Anterior"; font-size: 11px; color: Theme.text-secondary; vertical-alignment: center; }
+                                        }
+                                    }
+                                }
                             }
+
                             Rectangle { height: 200px;
                                 HorizontalLayout {
                                     spacing: 6px;
@@ -903,6 +1019,8 @@ export component ReportsPage inherits HorizontalLayout {
                                         progress: h.progress;
                                         bar-color: Theme.sidebar-sel-bg;
                                         value-display: h.value-display;
+                                        previous-progress: h.previous-progress;
+                                        previous-display: h.previous-display;
                                     }
                                 }
                             }

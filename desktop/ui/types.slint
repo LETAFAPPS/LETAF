@@ -1058,6 +1058,10 @@ export struct ReportDailyBar {
     bar-color: color,
     /// True destaca a barra do dia atual.
     highlight: bool,
+    /// Mesma posição no período ANTERIOR (semana/mês/ano passados),
+    /// na MESMA escala do atual — barra clara de comparação.
+    previous-progress: float,
+    previous-display: string,
 }
 
 /// Linha colorida de "Por canal" / "Por método".
@@ -1125,6 +1129,9 @@ export struct ReportHourlyBar {
     progress: float,
     /// Quantidade de pedidos na hora (tooltip no hover); vazio = 0.
     value-display: string,
+    /// Mesma hora no período anterior (barra clara de comparação).
+    previous-progress: float,
+    previous-display: string,
 }
 
 /// Par (atual, anterior) do comparativo semanal — uma entrada por dia

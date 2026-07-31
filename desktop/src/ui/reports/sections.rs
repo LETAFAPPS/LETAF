@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use chrono::{Duration, NaiveDate, Timelike};
+use chrono::{NaiveDate, Timelike};
 use slint::{Color, SharedString};
 use uuid::Uuid;
 
@@ -18,11 +18,11 @@ use crate::{
     ReportHBar, ReportHourlyBar, ReportNewVsReturning,
 };
 
-use super::state::Granularity;
 use super::snapshot::{Snapshot, TopCustomerRaw, TopProductRaw};
 use super::super::helpers::half_donut_arc;
 use super::helpers::{
-    avg_prep_sub, avg_prep_value, build_daily, color_for, dre, kpi, money_plain,
+    avg_prep_sub, avg_prep_value, build_daily, color_for, dre, kpi, money_plain, progress_of,
+    series_max, ChartWindow,
 };
 
 // ── Builders por sub-relatório ───────────────────────────────────
@@ -30,14 +30,11 @@ use super::helpers::{
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn fill_financial(
     snap: &mut Snapshot,
-    in_window: &[&Order],
     valid: &[&Order],
+    prev_valid: &[&Order],
     product_by_id: &HashMap<Uuid, &Product>,
-    start: NaiveDate,
-    end: NaiveDate,
+    win: ChartWindow,
     period_days: i64,
-    today: NaiveDate,
-    granularity: Granularity,
     fiado_total: f64,
 ) {
     let revenue: f64 = valid.iter().map(|o| o.total.to_f64().unwrap_or(0.0)).sum();
@@ -55,16 +52,6 @@ pub(crate) fn fill_financial(
     let net = revenue - cost;
     let orders_count = valid.len();
     let avg_ticket = if orders_count > 0 { revenue / orders_count as f64 } else { 0.0 };
-
-    // Comparativo período anterior
-    let prev_start = start - Duration::days(period_days);
-    let prev_end = start - Duration::days(1);
-    let prev_revenue: f64 = in_window // ← in_window é só do período atual; preciso filtrar `all` orders.
-        .iter()
-        .filter(|_| false) // placeholder: usaremos comparação simples sem prev abaixo
-.map(|o| o.total.to_f64().unwrap_or(0.0))
-        .sum();
-    let _ = (prev_start, prev_end, prev_revenue);
 
     // KPIs
     snap.kpis = vec![
@@ -121,9 +108,14 @@ pub(crate) fn fill_financial(
 
     // Receita diária (gráfico) — tooltip sem prefixo "R$ " (estava
     // cortando dentro da pílula do candle).
-    snap.daily_bars = build_daily(start, end, today, valid, granularity,
-        |o| o.total.to_f64().unwrap_or(0.0), money_plain,
-        Color::from_rgb_u8(0x66, 0xBB, 0x6A));
+    snap.daily_bars = build_daily(
+        win,
+        valid,
+        prev_valid,
+        |o| o.total.to_f64().unwrap_or(0.0),
+        money_plain,
+        Color::from_rgb_u8(0x66, 0xBB, 0x6A),
+    );
 
     // DRE simplificada — somente linhas com dados disponíveis no
     // domínio. Despesas/Taxas/Impostos serão adicionadas quando
@@ -188,10 +180,9 @@ pub(crate) fn fill_orders(
     snap: &mut Snapshot,
     in_window: &[&Order],
     valid: &[&Order],
-    start: NaiveDate,
-    end: NaiveDate,
-    today: NaiveDate,
-    granularity: Granularity,
+    prev_in_window: &[&Order],
+    prev_valid: &[&Order],
+    win: ChartWindow,
 ) {
     let total = in_window.len();
     let cancel = in_window
@@ -245,7 +236,9 @@ pub(crate) fn fill_orders(
 
     // Pedidos por dia
     snap.orders_bars = build_daily(
-        start, end, today, in_window, granularity,
+        win,
+        in_window,
+        prev_in_window,
         |_| 1.0,
         |v| format!("{}", v.round() as i64),
         Color::from_rgb_u8(0xFB, 0x8C, 0x00),
@@ -296,20 +289,30 @@ pub(crate) fn fill_orders(
         },
     ];
 
-    // Pedidos por horário (08h..22h)
-    let mut by_hour = [0u32; 24];
-    for o in valid {
-        let h = o.base.created_at.hour() as usize;
-        if h < 24 { by_hour[h] += 1; }
-    }
-    let max_h = by_hour.iter().copied().max().unwrap_or(0).max(1) as f64;
+    // Pedidos por horário (08h..22h) — atual × período anterior, na
+    // mesma escala (o máximo considera as duas séries).
+    let by_hour = hour_counts(valid);
+    let prev_by_hour = hour_counts(prev_valid);
+    let max_h = series_max(&by_hour, &prev_by_hour);
     let mut hourly = Vec::with_capacity(15);
-    for (h, count) in by_hour.iter().enumerate().skip(8).take(15) {
+    for h in 8..23_usize {
         let label = if h % 2 == 0 { format!("{:02}h", h) } else { String::new() };
+        let count = by_hour[h];
+        let prev = prev_by_hour[h];
         hourly.push(ReportHourlyBar {
             label: SharedString::from(label),
-            progress: (*count as f64 / max_h) as f32,
-            value_display: SharedString::from(if *count > 0 { count.to_string() } else { String::new() }),
+            progress: progress_of(count, max_h),
+            value_display: SharedString::from(if count > 0.0 {
+                format!("{}", count as i64)
+            } else {
+                String::new()
+            }),
+            previous_progress: progress_of(prev, max_h),
+            previous_display: SharedString::from(if prev > 0.0 {
+                format!("{}", prev as i64)
+            } else {
+                String::new()
+            }),
         });
     }
     snap.hourly_bars = hourly;
@@ -574,3 +577,15 @@ pub(crate) fn fill_customers(
     };
 }
 
+
+/// Pedidos por hora (0..23) — base dos gráficos "por horário".
+fn hour_counts(orders: &[&Order]) -> Vec<f64> {
+    let mut totals = vec![0.0_f64; 24];
+    for o in orders {
+        let h = o.base.created_at.hour() as usize;
+        if h < 24 {
+            totals[h] += 1.0;
+        }
+    }
+    totals
+}
