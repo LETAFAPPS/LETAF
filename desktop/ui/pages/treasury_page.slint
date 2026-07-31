@@ -45,12 +45,20 @@ component Panel inherits Rectangle {
     background: Theme.surface;
 }
 
-// Linha do detalhamento: rótulo → valor + barra proporcional. Origens
-// sem movimento no dia ficam apagadas e sem barra.
-component BreakdownRow inherits VerticalLayout {
+// Linha do detalhamento: um card por origem (rótulo → valor).
+// Origens sem movimento no dia ficam apagadas.
+component BreakdownRow inherits Rectangle {
     in property <TreasuryBreakdownRow> data;
-    spacing: 5px;
+    height: 42px;
+    border-radius: 10px;
+    border-width: 1px;
+    border-color: Theme.card-border;
+    drop-shadow-blur: 8px;
+    drop-shadow-offset-y: 0px;
+    drop-shadow-color: Theme.card-shadow;
+    background: Theme.surface;
     HorizontalLayout {
+        padding-left: 12px; padding-right: 12px;
         spacing: 8px;
         Text {
             text: root.data.label;
@@ -67,18 +75,6 @@ component BreakdownRow inherits VerticalLayout {
                 ? Theme.text-secondary.transparentize(0.4)
                 : (root.data.negative ? #C62828 : #2E7D32);
             vertical-alignment: center;
-        }
-    }
-    if !root.data.muted: Rectangle {
-        height: 5px;
-        border-radius: 3px;
-        background: Theme.border;
-        Rectangle {
-            x: 0; y: 0;
-            width: max(6px, parent.width * root.data.share);
-            height: parent.height;
-            border-radius: 3px;
-            background: root.data.negative ? #E53935 : #2E7D32;
         }
     }
 }
@@ -624,7 +620,7 @@ export component TreasuryPage inherits VerticalLayout {
                         total: "+ " + root.summary.inflow-display;
                     }
                     VerticalLayout {
-                        spacing: 10px;
+                        spacing: 8px;
                         for r in root.breakdown-in: BreakdownRow { data: r; }
                     }
 
@@ -637,7 +633,7 @@ export component TreasuryPage inherits VerticalLayout {
                         negative: true;
                     }
                     VerticalLayout {
-                        spacing: 10px;
+                        spacing: 8px;
                         for r in root.breakdown-out: BreakdownRow { data: r; }
                     }
 

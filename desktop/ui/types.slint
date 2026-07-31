@@ -1543,15 +1543,12 @@ export struct TreasuryMovementRow {
 }
 
 /// Linha do card "Detalhamento" — uma origem de entrada ou de saída.
-/// Tudo já formatado no Rust (§1/§14): a UI só desenha rótulo, valor e
-/// a barra proporcional.
+/// Tudo já formatado no Rust (§1/§14): a UI só desenha rótulo e valor.
 export struct TreasuryBreakdownRow {
     /// "Pedidos pagos", "Saques da carteira de clientes"…
     label: string,
     /// Valor formatado com sinal ("+ R$ 12,50").
     value: string,
-    /// 0.0–1.0 na escala da maior origem do grupo (largura da barra).
-    share: float,
     /// `true` = saída (pinta em vermelho).
     negative: bool,
     /// `true` quando a origem não teve movimento no dia (linha apagada).

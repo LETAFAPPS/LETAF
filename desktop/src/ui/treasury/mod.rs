@@ -459,28 +459,16 @@ fn apply_to_ui(
     ui.set_treasury_chart(ModelRc::new(VecModel::from(chart.to_vec())));
 }
 
-/// Monta o modelo de um dos grupos do detalhamento. A barra de cada
-/// linha é proporcional à MAIOR origem do grupo; origens zeradas ficam
-/// apagadas e sem barra.
+/// Monta o modelo de um dos grupos do detalhamento (um card por
+/// origem). Origens sem movimento no dia ficam apagadas.
 fn breakdown_model(rows: &[BreakdownRaw], negative: bool) -> ModelRc<TreasuryBreakdownRow> {
-    use rust_decimal::prelude::ToPrimitive;
-    let group: Vec<&BreakdownRaw> = rows.iter().filter(|r| r.negative == negative).collect();
-    let max = group
-        .iter()
-        .map(|r| r.amount)
-        .max()
-        .unwrap_or(Decimal::ZERO);
     let sign = if negative { "−" } else { "+" };
-    let out: Vec<TreasuryBreakdownRow> = group
+    let out: Vec<TreasuryBreakdownRow> = rows
         .iter()
+        .filter(|r| r.negative == negative)
         .map(|r| TreasuryBreakdownRow {
             label: SharedString::from(r.label),
             value: SharedString::from(format!("{sign} {}", money_br(r.amount))),
-            share: if max > Decimal::ZERO {
-                (r.amount / max).to_f64().unwrap_or(0.0) as f32
-            } else {
-                0.0
-            },
             negative,
             muted: r.amount <= Decimal::ZERO,
         })
