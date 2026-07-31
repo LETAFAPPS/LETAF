@@ -243,7 +243,11 @@ impl PaymentMethodRepository for PgPaymentMethodRepository {
         since: NaiveDateTime,
     ) -> Result<Vec<PaymentMethod>, CoreError> {
         let rows = sqlx::query_as::<_, PaymentMethodRow>(
-            "SELECT * FROM payment_methods WHERE company_id = $1 AND updated_at > $2",
+            // ORDER BY determinístico: o índice parcial só admite UM
+            // `is_default`; entregar a linha nova antes da antiga fazia o
+            // SQLite do desktop violar a restrição e congelar o pull.
+            "SELECT * FROM payment_methods WHERE company_id = $1 AND updated_at > $2
+             ORDER BY is_default ASC, updated_at ASC, id ASC",
         )
         .bind(company_id)
         .bind(since)

@@ -64,7 +64,7 @@ use crate::repository::subcategory::SqliteSubcategoryRepository;
 use crate::session::SessionStore;
 use crate::sync::health::HealthChecker;
 use crate::sync::status::SyncStatusHandle;
-use crate::sync::worker::SyncWorker;
+use crate::sync::worker::{SyncBootstrap, SyncWorker};
 
 /// Instala um panic hook que imprime mensagem + backtrace sempre.
 ///
@@ -136,8 +136,10 @@ fn main() {
         }
     }
 
-    let initial_last_pull_at = rt.block_on(state.session.load_last_pull_at());
-    let worker = SyncWorker::new(state.clone(), server_url.clone(), auth_token.clone(), sync_notify.clone(), sync_cycle_done, badges_dirty.clone(), initial_last_pull_at);
+    // Cursores POR ENTIDADE da empresa atual (ver `load_pull_cursors`).
+    let initial_cursors = rt.block_on(state.session.load_pull_cursors(state.company_id()));
+    let worker = SyncWorker::new(state.clone(), server_url.clone(), auth_token.clone(), sync_notify.clone(), sync_cycle_done, badges_dirty.clone(),
+        SyncBootstrap { cursors: initial_cursors, company_id: state.company_id() });
     rt.spawn(async move { worker.start().await });
     tracing::info!("SyncWorker spawned");
 
@@ -477,12 +479,14 @@ async fn init_state() -> DesktopState {
     let session = Arc::new(SessionStore::new(pool.clone()));
     let company_id = resolve_company_id(&company_service, &session).await;
 
-    // Seed de assinatura padrão (plano Mensal + 5 faturas históricas)
-    // na primeira execução offline. Idempotente em boots subsequentes.
-    let today_seed = letaf_core::tz::today();
-    if let Err(e) = subscription_service.ensure_seed(company_id, today_seed).await {
-        tracing::warn!("Subscription seed falhou: {e}");
-    }
+    // NÃO semeia assinatura aqui. `ensure_seed` fabricava uma assinatura
+    // "Ativa" e CINCO faturas PAGAS (NFS-0080..0084, cartão "•••• 4242")
+    // com ids novos; elas nasciam `synced=false` e subiam para o
+    // PostgreSQL como se fossem reais. Como `find_current` é
+    // `ORDER BY created_at DESC`, a assinatura falsa (criada na
+    // instalação) passava à frente da verdadeira e a cobrança recorrente
+    // do tenant deixava de ser processada. Assinatura e faturas nascem no
+    // servidor/gateway; aqui só se PUXA.
 
     // Seed de categorias financeiras padrão na primeira execução.
     // Idempotente: não duplica em boots subsequentes.

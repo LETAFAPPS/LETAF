@@ -150,8 +150,12 @@ impl CompanyService {
     }
 
     /// Marca empresa como sincronizada (§7).
-    pub async fn mark_synced(&self, id: Uuid) -> Result<(), CoreError> {
-        self.repo.mark_synced(id).await
+    pub async fn mark_synced(
+        &self,
+        id: Uuid,
+        updated_at: chrono::NaiveDateTime,
+    ) -> Result<(), CoreError> {
+        self.repo.mark_synced(id, updated_at).await
     }
 
     /// Atualiza informações do estabelecimento (todos os campos da tela

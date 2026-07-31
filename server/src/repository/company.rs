@@ -251,9 +251,14 @@ impl CompanyRepository for PgCompanyRepository {
         Ok(rows.into_iter().map(Company::from).collect())
     }
 
-    async fn mark_synced(&self, id: Uuid) -> Result<(), CoreError> {
-        sqlx::query("UPDATE companies SET synced = true WHERE id = $1")
+    async fn mark_synced(
+        &self,
+        id: Uuid,
+        updated_at: NaiveDateTime,
+    ) -> Result<(), CoreError> {
+        sqlx::query("UPDATE companies SET synced = true WHERE id = $1 AND updated_at = $2")
             .bind(id)
+            .bind(updated_at)
             .execute(&self.pool)
             .await
             .map_err(map_db)?;
@@ -280,9 +285,10 @@ impl CompanyRepository for PgCompanyRepository {
                 address, phone, whatsapp, email, instagram, document,
                 neighborhood, zip_code, city, uf, latitude, longitude,
                 logo_data, cover_data, products_per_page, orders_per_page,
-                created_at, updated_at, deleted_at, synced, delivery_fee)
+                created_at, updated_at, deleted_at, synced, delivery_fee,
+                utc_offset_minutes)
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12,
-                $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25)
+                $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26)
              ON CONFLICT (id) DO UPDATE SET
                  name = EXCLUDED.name,
                  -- subdomain NÃO é atualizado no conflito: é a CHAVE de
@@ -307,6 +313,9 @@ impl CompanyRepository for PgCompanyRepository {
                  products_per_page = EXCLUDED.products_per_page,
                  orders_per_page = EXCLUDED.orders_per_page,
                  delivery_fee = EXCLUDED.delivery_fee,
+                 -- Fuso da loja: ficava fora do upsert nos dois lados, então
+                 -- alterá-lo nunca chegava ao outro banco.
+                 utc_offset_minutes = EXCLUDED.utc_offset_minutes,
                  updated_at = EXCLUDED.updated_at,
                  -- deleted_at NÃO é atualizado no conflito: excluir a empresa é
                  -- operação de plataforma/admin, nunca algo que um cliente de
@@ -342,6 +351,7 @@ impl CompanyRepository for PgCompanyRepository {
         .bind(company.deleted_at)
         .bind(company.synced)
         .bind(company.delivery_fee)
+        .bind(company.utc_offset_minutes)
         .execute(&self.pool)
         .await
         .map_err(map_db)?;

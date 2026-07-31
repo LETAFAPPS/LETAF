@@ -314,7 +314,15 @@ pub(crate) async fn apply_login(
             tracing::error!("Failed to register remote company: {e}");
         }
 
-        let _ = state.company_service.mark_synced(old_id).await;
+        // Empresa local de bootstrap: some da fila de push ao adotar a
+        // empresa do servidor. Sem `updated_at` conhecido aqui, usa o da
+        // própria linha.
+        if let Ok(Some(local)) = state.company_service.find_by_id(old_id).await {
+            let _ = state
+                .company_service
+                .mark_synced(old_id, local.updated_at)
+                .await;
+        }
         state.set_company_id(server_company_id);
         tracing::info!("company_id updated to {server_company_id}");
     }

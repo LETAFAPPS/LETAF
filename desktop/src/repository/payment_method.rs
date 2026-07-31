@@ -197,6 +197,21 @@ impl PaymentMethodRepository for SqlitePaymentMethodRepository {
     }
 
     async fn sync_upsert(&self, m: &PaymentMethod) -> Result<(), CoreError> {
+        // Só pode haver UM `is_default` por empresa (índice parcial). Se a
+        // linha que chega é a nova padrão, tira o flag das outras ANTES —
+        // senão o upsert viola a restrição, devolve erro e congela o pull
+        // de `payment_methods` para sempre.
+        if m.is_default {
+            sqlx::query(
+                "UPDATE payment_methods SET is_default = 0
+                 WHERE company_id = ?1 AND id <> ?2 AND is_default = 1",
+            )
+            .bind(m.base.company_id.to_string())
+            .bind(m.base.id.to_string())
+            .execute(&self.pool)
+            .await
+            .map_err(map_db)?;
+        }
         sqlx::query(
             "INSERT INTO payment_methods
              (id, company_id, kind, label, masked, expiry, is_default,

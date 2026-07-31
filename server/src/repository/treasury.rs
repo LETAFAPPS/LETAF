@@ -254,7 +254,12 @@ impl TreasuryRepository for PgTreasuryRepository {
              (id, company_id, initial_balance, notes, reserve_goal,
               created_at, updated_at, deleted_at, synced)
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-             ON CONFLICT (id) DO UPDATE SET
+             -- Conflito pela CHAVE NATURAL, não pelo `id`: dois terminais
+             -- offline criam a mesma entidade com ids diferentes e o
+             -- `ON CONFLICT (id)` batia no índice único natural →
+             -- 23505/SQLITE_CONSTRAINT → 500 no push, reenviado a cada 30 s
+             -- para sempre, e o pull da entidade congelado do outro lado.
+             ON CONFLICT (company_id) DO UPDATE SET
                initial_balance = EXCLUDED.initial_balance,
                notes = EXCLUDED.notes,
                reserve_goal = EXCLUDED.reserve_goal,

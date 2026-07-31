@@ -34,7 +34,15 @@ pub trait CompanyRepository: Send + Sync {
     async fn update(&self, company: &Company) -> Result<(), CoreError>;
     async fn soft_delete(&self, id: Uuid) -> Result<(), CoreError>;
     async fn find_unsynced(&self) -> Result<Vec<Company>, CoreError>;
-    async fn mark_synced(&self, id: Uuid) -> Result<(), CoreError>;
+    /// Marca a empresa como sincronizada SÓ se ela não mudou desde o
+    /// envio (`updated_at` igual ao que foi enviado). Sem essa guarda,
+    /// uma edição feita durante o push era marcada como enviada e nunca
+    /// subia — perda silenciosa da versão nova (§7.3).
+    async fn mark_synced(
+        &self,
+        id: Uuid,
+        updated_at: chrono::NaiveDateTime,
+    ) -> Result<(), CoreError>;
 
     /// Upsert de sincronização (§7.7 — last-write-wins via updated_at).
     async fn sync_upsert(&self, company: &Company) -> Result<(), CoreError>;

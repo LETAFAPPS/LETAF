@@ -66,6 +66,7 @@ pub(super) fn user_error(e: &CoreError) -> String {
         CoreError::Validation(m) => m.clone(),
         CoreError::NotFound(_) => "Registro não encontrado.".to_string(),
         CoreError::Unauthorized(_) => "Acesso não autorizado.".to_string(),
+        CoreError::Forbidden(m) => m.clone(),
         CoreError::Repository(_) => "Erro ao acessar os dados. Tente novamente.".to_string(),
     }
 }

@@ -475,7 +475,7 @@ impl AuthService {
                 // (nome/senha) — nunca o de terceiros (§11: senão sobrescreveria
                 // o password_hash de um Admin e faria takeover de conta).
                 if !caller_is_admin && user.base.id != caller_id {
-                    return Err(CoreError::Unauthorized(
+                    return Err(CoreError::Forbidden(
                         "Apenas Admin pode alterar credenciais de outro usuário".into(),
                     ));
                 }
@@ -496,7 +496,7 @@ impl AuthService {
             // senha conhecida — escalada de privilégio, §11).
             None => {
                 if !caller_is_admin {
-                    return Err(CoreError::Unauthorized(
+                    return Err(CoreError::Forbidden(
                         "Apenas Admin pode criar usuário".into(),
                     ));
                 }

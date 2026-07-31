@@ -698,7 +698,12 @@ async fn upsert_order(tx: &mut Transaction<'_, Sqlite>, order: &Order) -> Result
              -- o novo número e ele passa a valer localmente (§7). Sem isto o
              -- desktop ficaria com o número antigo para sempre.
              number = excluded.number,
-             status = excluded.status,
+                 -- Vincular o cliente a um pedido de balcao ja criado
+                 -- (fidelidade/carteira) mudava `updated_at` e vencia o
+                 -- LWW, mas o `customer_id` ficava fora do UPDATE: o
+                 -- pedido continuava anonimo do outro lado.
+                 customer_id = excluded.customer_id,
+                 status = excluded.status,
              total = excluded.total,
              delivery_type = excluded.delivery_type,
              notes = excluded.notes,

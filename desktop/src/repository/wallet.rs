@@ -308,7 +308,12 @@ impl WalletRepository for SqliteWalletRepository {
              (id, company_id, customer_id, balance, credit_limit,
               created_at, updated_at, deleted_at, synced)
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-             ON CONFLICT(id) DO UPDATE SET
+             -- Conflito pela CHAVE NATURAL, não pelo `id`: dois terminais
+             -- offline criam a mesma entidade com ids diferentes e o
+             -- `ON CONFLICT (id)` esbarrava no índice único natural →
+             -- 500 no push (reenviado a cada 30 s para sempre) e pull da
+             -- entidade congelado do outro lado. §7.6.
+             ON CONFLICT(company_id, customer_id) WHERE deleted_at IS NULL DO UPDATE SET
                customer_id = excluded.customer_id,
                balance = excluded.balance,
                credit_limit = excluded.credit_limit,

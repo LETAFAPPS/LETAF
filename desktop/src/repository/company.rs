@@ -221,9 +221,14 @@ impl CompanyRepository for SqliteCompanyRepository {
         rows.into_iter().map(Company::try_from).collect()
     }
 
-    async fn mark_synced(&self, id: Uuid) -> Result<(), CoreError> {
-        sqlx::query("UPDATE companies SET synced = true WHERE id = ?1")
+    async fn mark_synced(
+        &self,
+        id: Uuid,
+        updated_at: chrono::NaiveDateTime,
+    ) -> Result<(), CoreError> {
+        sqlx::query("UPDATE companies SET synced = true WHERE id = ?1 AND updated_at = ?2")
             .bind(id.to_string())
+            .bind(ts(updated_at))
             .execute(&self.pool)
             .await
             .map_err(map_db)?;
@@ -250,9 +255,10 @@ impl CompanyRepository for SqliteCompanyRepository {
                 address, phone, whatsapp, email, instagram, document,
                 neighborhood, zip_code, city, uf, latitude, longitude,
                 logo_data, cover_data, products_per_page, orders_per_page,
-                created_at, updated_at, deleted_at, synced, delivery_fee)
+                created_at, updated_at, deleted_at, synced, delivery_fee,
+                utc_offset_minutes)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12,
-                ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25)
+                ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26)
              ON CONFLICT (id) DO UPDATE SET
                  name = excluded.name,
                  subdomain = excluded.subdomain,
@@ -274,6 +280,10 @@ impl CompanyRepository for SqliteCompanyRepository {
                  products_per_page = excluded.products_per_page,
                  orders_per_page = excluded.orders_per_page,
                  delivery_fee = excluded.delivery_fee,
+                 -- Fuso da loja: decide a janela de funcionamento e a dos
+                 -- gráficos. Ficava fora do upsert nos DOIS lados, então
+                 -- alterá-lo nunca chegava ao outro banco.
+                 utc_offset_minutes = excluded.utc_offset_minutes,
                  updated_at = excluded.updated_at,
                  deleted_at = excluded.deleted_at,
                  synced = excluded.synced
@@ -304,6 +314,7 @@ impl CompanyRepository for SqliteCompanyRepository {
         .bind(company.deleted_at.map(ts))
         .bind(company.synced)
         .bind(company.delivery_fee.to_f64().unwrap_or(0.0))
+        .bind(company.utc_offset_minutes as i64)
         .execute(&self.pool)
         .await
         .map_err(map_db)?;

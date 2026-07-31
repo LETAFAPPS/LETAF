@@ -18,7 +18,7 @@ pub struct SessionStore {
 const KEY_TOKEN: &str = "auth_token";
 const KEY_COMPANY_ID: &str = "company_id";
 const KEY_SUBDOMAIN: &str = "subdomain";
-const KEY_LAST_PULL_AT: &str = "last_pull_at";
+const KEY_PULL_CURSORS_PREFIX: &str = "pull_cursors:";
 const KEY_DARK_MODE: &str = "dark_mode";
 const KEY_REMEMBER_EMAIL: &str = "remember_email";
 const KEY_REMEMBER_PASSWORD: &str = "remember_password";
@@ -67,14 +67,35 @@ impl SessionStore {
     }
 
     /// Carrega o timestamp do último pull bem-sucedido.
-    pub async fn load_last_pull_at(&self) -> Option<NaiveDateTime> {
-        self.get(KEY_LAST_PULL_AT).await
-            .and_then(|s| NaiveDateTime::parse_from_str(&s, TS_FMT).ok())
+    /// Cursores de pull POR ENTIDADE da empresa (`entidade=timestamp`,
+    /// um por linha).
+    ///
+    /// Antes persistia-se só o MENOR cursor entre todas as entidades:
+    /// bastava UMA entidade sem novidades (ou com pull negado por
+    /// permissão) para o mínimo ficar preso em 1970 e todo reinício
+    /// re-baixar a base inteira. A chave inclui o `company_id` porque o
+    /// cursor de uma empresa não vale para outra — trocar de loja com o
+    /// cursor antigo fazia o pull incremental não trazer nada.
+    pub async fn load_pull_cursors(&self, company_id: Uuid) -> Vec<(String, NaiveDateTime)> {
+        let Some(raw) = self.get(&cursors_key(company_id)).await else {
+            return Vec::new();
+        };
+        raw.lines()
+            .filter_map(|line| {
+                let (entity, ts) = line.split_once('=')?;
+                let ts = NaiveDateTime::parse_from_str(ts, TS_FMT).ok()?;
+                Some((entity.to_string(), ts))
+            })
+            .collect()
     }
 
-    /// Persiste o timestamp do último pull bem-sucedido.
-    pub async fn save_last_pull_at(&self, ts: NaiveDateTime) {
-        self.set(KEY_LAST_PULL_AT, &ts.format(TS_FMT).to_string()).await;
+    pub async fn save_pull_cursors(&self, company_id: Uuid, cursors: &[(&str, NaiveDateTime)]) {
+        let body = cursors
+            .iter()
+            .map(|(e, ts)| format!("{e}={}", ts.format(TS_FMT)))
+            .collect::<Vec<_>>()
+            .join("\n");
+        self.set(&cursors_key(company_id), &body).await;
     }
 
     /// Carrega a preferência de tema escuro (false = claro por padrão).
@@ -217,4 +238,9 @@ impl SessionStore {
             tracing::error!("Failed to save session key '{key}': {e}");
         }
     }
+}
+
+/// Chave dos cursores de pull de uma empresa.
+fn cursors_key(company_id: Uuid) -> String {
+    format!("{KEY_PULL_CURSORS_PREFIX}{company_id}")
 }

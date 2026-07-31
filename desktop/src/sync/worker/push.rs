@@ -13,8 +13,10 @@
 //! categorias, subcategorias, adicionais, grupos, banners, cupons, financeiro,
 //! categorias financeiras, cargos, usuários, formas de pagamento, endereços,
 //! horários), caixa (sessões+movimentos), carteira (contas+movimentos) e
-//! assinaturas (assinaturas+faturas). `company` fica de fora de propósito
-//! (registro único do tenant, race negligenciável).
+//! assinaturas (assinaturas+faturas) — e também `company`, que era a
+//! única exceção: editar as informações da loja durante o envio marcava
+//! a linha como sincronizada e a versão nova só subia no reconcile (até
+//! 5 min depois).
 
 use letaf_core::auth::model::SyncUserPayload;
 use letaf_core::error::CoreError;
@@ -105,7 +107,12 @@ impl SyncWorker {
 
         for item in items.iter().filter(|c| c.id == cid) {
             if self.send_one(token, "/sync/companies", item.id, item).await {
-                if let Err(e) = self.state.company_service.mark_synced(item.id).await {
+                if let Err(e) = self
+                    .state
+                    .company_service
+                    .mark_synced(item.id, item.updated_at)
+                    .await
+                {
                     tracing::warn!("mark_synced company {}: {e}", item.id);
                 }
             }

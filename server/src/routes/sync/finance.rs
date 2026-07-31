@@ -22,7 +22,11 @@ pub(crate) async fn sync_cash_session(
     Json(session): Json<CashSession>,
 ) -> Result<Json<Value>, ServerError> {
     auth.verify_any_role(ROLES_OPERATORS)?;
-    auth.require_permission("cash.view")?;
+    // `finance.edit` também: dar baixa num recebimento no Financeiro
+    // lança o movimento na sessão de caixa. Sem isso, quem opera o
+    // Financeiro sem acesso ao Caixa levava 403 eterno e o fechamento no
+    // servidor nunca batia com o do desktop.
+    auth.require_any_permission(&["cash.view", "finance.edit"])?;
     state.cash_service
         .sync_upsert_session(auth.0.company_id, session)
         .await?;

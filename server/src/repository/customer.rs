@@ -253,7 +253,15 @@ impl CustomerRepository for PgCustomerRepository {
                  email = EXCLUDED.email,
                  phone = EXCLUDED.phone,
                  document = EXCLUDED.document,
-                 password_hash = EXCLUDED.password_hash,
+                 -- Senha do cliente final é do SERVIDOR: ela é criada e
+                 -- trocada no cardápio web. Um desktop que estava offline
+                 -- com o registro antigo empurrava depois e RESTAURAVA o
+                 -- hash velho — o cliente perdia o acesso à conta. Hash
+                 -- vazio também não apaga o gravado (§11).
+                 password_hash = CASE
+                     WHEN EXCLUDED.password_hash IS NULL OR EXCLUDED.password_hash = ''
+                     THEN customers.password_hash
+                     ELSE COALESCE(customers.password_hash, EXCLUDED.password_hash) END,
                  profile_picture = EXCLUDED.profile_picture,
                  updated_at = EXCLUDED.updated_at,
                  deleted_at = EXCLUDED.deleted_at,

@@ -344,7 +344,12 @@ impl WalletRepository for PgWalletRepository {
              (id, company_id, customer_id, balance, credit_limit,
               created_at, updated_at, deleted_at, synced)
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-             ON CONFLICT (id) DO UPDATE SET
+             -- Conflito pela CHAVE NATURAL, não pelo `id`: dois terminais
+             -- offline criam a mesma entidade com ids diferentes e o
+             -- `ON CONFLICT (id)` esbarrava no índice único natural →
+             -- 500 no push (reenviado a cada 30 s para sempre) e pull da
+             -- entidade congelado do outro lado. §7.6.
+             ON CONFLICT (company_id, customer_id) WHERE deleted_at IS NULL DO UPDATE SET
                customer_id = EXCLUDED.customer_id,
                -- balance NÃO é sobrescrito no conflito: o saldo evolui só pelo
                -- ledger (sync_upsert_movement aplica o delta), evitando LWW

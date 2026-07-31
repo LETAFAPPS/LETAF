@@ -50,7 +50,7 @@ pub(crate) async fn sync_subscription(
     auth.require_permission("subscription.edit")?;
     state
         .subscription_service
-        .sync_upsert_subscription(auth.0.company_id, s)
+        .sync_upsert_subscription_from_client(auth.0.company_id, s)
         .await?;
     Ok(Json(json!({ "synced": true })))
 }
@@ -81,7 +81,7 @@ pub(crate) async fn sync_subscription_invoice(
     auth.require_permission("subscription.edit")?;
     state
         .subscription_service
-        .sync_upsert_invoice(auth.0.company_id, inv)
+        .sync_upsert_invoice_from_client(auth.0.company_id, inv)
         .await?;
     Ok(Json(json!({ "synced": true })))
 }

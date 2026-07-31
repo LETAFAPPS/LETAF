@@ -85,6 +85,15 @@ pub struct SyncWorker {
     /// de rede (timeout, DNS, conexão recusada) — diferenciando de erros de
     /// status HTTP (4xx/5xx) que indicam servidor acessível mas com problema.
     network_failed: Mutex<bool>,
+    /// Entidades cujo PULL falhou neste ciclo (403 de permissão, 500,
+    /// decode). Sem isto, a UI mostrava "Sincronizado" com uma entidade
+    /// congelada há horas — a falha só existia no log.
+    pull_failed: std::sync::atomic::AtomicU32,
+    /// Registros pulados por não serem legíveis por este binário.
+    poison_count: std::sync::atomic::AtomicU32,
+    /// Empresa a que os cursores em memória pertencem (ver
+    /// `sync_cursors_with_tenant`).
+    cursor_company: Mutex<uuid::Uuid>,
     /// Nº de registros rejeitados com erro de cliente (4xx, exceto 401) no
     /// ciclo corrente — dado preso que não sobe sem intervenção. Reiniciado a
     /// cada ciclo; publicado no `SyncStatus` para a UI mostrar o estado de erro.
@@ -95,6 +104,13 @@ mod push;
 mod pull;
 mod reconcile;
 
+/// Ponto de partida do worker: cursores gravados e a empresa a que eles
+/// pertencem (§7 — cursor é por tenant).
+pub(crate) struct SyncBootstrap {
+    pub(crate) cursors: Vec<(String, NaiveDateTime)>,
+    pub(crate) company_id: uuid::Uuid,
+}
+
 impl SyncWorker {
     pub fn new(
         state: DesktopState,
@@ -103,8 +119,9 @@ impl SyncWorker {
         notify: Arc<Notify>,
         cycle_done: watch::Sender<u64>,
         badges_dirty: Arc<Notify>,
-        initial_last_pull_at: Option<NaiveDateTime>,
+        bootstrap: SyncBootstrap,
     ) -> Self {
+        let SyncBootstrap { cursors: initial_cursors, company_id: initial_company } = bootstrap;
         let http = Client::builder()
             .timeout(Duration::from_secs(10))
             .build()
@@ -117,16 +134,35 @@ impl SyncWorker {
             notify,
             cycle_done,
             badges_dirty,
+            // Cada entidade retoma do PRÓPRIO cursor gravado; as que nunca
+            // sincronizaram começam na época.
             cursors: Mutex::new(
                 PULL_ENTITIES
                     .iter()
-                    .map(|&e| (e, initial_last_pull_at.unwrap_or_default()))
+                    .map(|&e| {
+                        let saved = initial_cursors
+                            .iter()
+                            .find(|(k, _)| k == e)
+                            .map(|(_, ts)| *ts)
+                            .unwrap_or_default();
+                        (e, saved)
+                    })
                     .collect(),
             ),
             reconcile_tick: std::sync::atomic::AtomicU64::new(0),
             network_failed: Mutex::new(false),
             push_rejected: std::sync::atomic::AtomicU32::new(0),
+            pull_failed: std::sync::atomic::AtomicU32::new(0),
+            poison_count: std::sync::atomic::AtomicU32::new(0),
+            cursor_company: Mutex::new(initial_company),
         }
+    }
+
+    /// Marca que um registro veio ilegível no pull (versão nova do
+    /// servidor, dado corrompido) e foi pulado.
+    fn flag_poison(&self) {
+        self.poison_count
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     }
 
     /// Marca que houve falha de rede neste ciclo (timeout/DNS/conexão).
@@ -167,6 +203,10 @@ impl SyncWorker {
             return;
         }
         let Some(token) = self.read_token_or_skip().await else { return };
+
+        // Trocou de empresa? Recarrega os cursores dela antes de qualquer
+        // push/pull.
+        self.sync_cursors_with_tenant().await;
 
         // Início do ciclo
         if let Ok(mut g) = self.network_failed.lock() { *g = false; }
@@ -420,11 +460,21 @@ impl SyncWorker {
                         // máximo, gravado logo após o snapshot, seria excluído
                         // por `updated_at > since` no próximo ciclo. O recuo o
                         // re-inclui — idempotente (upsert LWW), §7.6.
-                        self.advance_cursor($label, ts - chrono::Duration::microseconds(1));
+                        //
+                        // E limita ao AGORA: `updated_at` é carimbado pelo
+                        // relógio de quem originou o registro. Um terminal
+                        // com o relógio adiantado empurrava o cursor para o
+                        // futuro e congelava a entidade até o relógio
+                        // alcançar — nenhuma alteração legítima passava no
+                        // `updated_at > since`.
+                        let capped = ts.min(chrono::Utc::now().naive_utc());
+                        self.advance_cursor($label, capped - chrono::Duration::microseconds(1));
                     }
                     Ok(_) => {}
                     Err(e) => {
                         any_failed = true;
+                        self.pull_failed
+                            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
                         tracing::warn!("pull {} falhou (será re-tentado): {e}", $label);
                     }
                 }
@@ -456,12 +506,17 @@ impl SyncWorker {
         try_pull!(pull_subscription_invoices, "subscription_invoices");
         try_pull!(pull_payment_methods, "payment_methods");
 
-        // Persiste o MÍNIMO dos cursores: no restart, re-puxa desde o mais
-        // atrasado (conservador; upsert idempotente). Em memória, cada entidade
-        // mantém o próprio cursor avançado.
-        if let Some(min) = self.min_cursor() {
-            self.state.session.save_last_pull_at(min).await;
-        }
+        // Persiste o cursor de CADA entidade. Antes salvava-se só o menor
+        // de todos: uma entidade sem novidades (ou com pull negado por
+        // permissão) mantinha o mínimo em 1970 e todo reinício re-baixava
+        // a base inteira desde a época.
+        let snapshot = self.cursor_snapshot();
+        let pairs: Vec<(&str, chrono::NaiveDateTime)> =
+            snapshot.iter().map(|(k, v)| (*k, *v)).collect();
+        self.state
+            .session
+            .save_pull_cursors(self.state.company_id(), &pairs)
+            .await;
         if any_failed {
             tracing::debug!("Pull com falhas parciais; cursores das que falharam preservados");
         }
@@ -485,12 +540,53 @@ impl SyncWorker {
         }
     }
 
-    /// Menor cursor entre todas as entidades (o que persistimos).
-    fn min_cursor(&self) -> Option<NaiveDateTime> {
+    /// Cópia do mapa de cursores (o que persistimos a cada ciclo).
+    fn cursor_snapshot(&self) -> Vec<(&'static str, NaiveDateTime)> {
         match self.cursors.lock() {
-            Ok(g) => g.values().min().copied(),
-            Err(p) => p.into_inner().values().min().copied(),
+            Ok(g) => g.iter().map(|(k, v)| (*k, *v)).collect(),
+            Err(p) => p.into_inner().iter().map(|(k, v)| (*k, *v)).collect(),
         }
+    }
+
+    /// Detecta troca de EMPRESA e recarrega os cursores da nova.
+    ///
+    /// Os cursores são por tenant. Manter os da empresa anterior fazia o
+    /// pull incremental da nova (`updated_at > agora`) não trazer NADA —
+    /// a loja aparecia vazia e só a reconciliação, 5 min depois, trazia
+    /// os dados (e em seguida repetia o repull integral para sempre,
+    /// porque o cursor continuava no futuro).
+    ///
+    /// O worker detecta sozinho, no início do ciclo: não depende de o
+    /// login/impersonation lembrar de avisar.
+    async fn sync_cursors_with_tenant(&self) {
+        let current = self.state.company_id();
+        let previous = match self.cursor_company.lock() {
+            Ok(g) => *g,
+            Err(p) => *p.into_inner(),
+        };
+        if previous == current {
+            return;
+        }
+        let saved = self.state.session.load_pull_cursors(current).await;
+        let epoch = NaiveDateTime::default();
+        let apply = |g: &mut std::collections::HashMap<&'static str, NaiveDateTime>| {
+            for (label, ts) in g.iter_mut() {
+                *ts = saved
+                    .iter()
+                    .find(|(k, _)| k == label)
+                    .map(|(_, v)| *v)
+                    .unwrap_or(epoch);
+            }
+        };
+        match self.cursors.lock() {
+            Ok(mut g) => apply(&mut g),
+            Err(p) => apply(&mut p.into_inner()),
+        }
+        match self.cursor_company.lock() {
+            Ok(mut g) => *g = current,
+            Err(p) => *p.into_inner() = current,
+        }
+        tracing::info!("SyncWorker: empresa mudou ({previous} → {current}); cursores recarregados");
     }
 
     /// GET genérico para pull de entidades do servidor.
@@ -574,8 +670,29 @@ impl SyncWorker {
             return Err(CoreError::Repository(format!("Pull {endpoint}: status {}", resp.status())));
         }
 
-        resp.json::<Vec<T>>().await
-            .map_err(|e| CoreError::Repository(format!("Pull {endpoint} decode: {e}")))
+        // Decodifica item a item. Antes era `json::<Vec<T>>()`: UM registro
+        // com um valor que este binário não conhece (status novo, enum
+        // novo — releases são por SO e independentes) invalidava a PÁGINA
+        // INTEIRA, o cursor não avançava e a entidade congelava para
+        // sempre, em silêncio. Agora o registro-veneno é pulado com log e
+        // o resto da página entra.
+        let raw = resp
+            .json::<Vec<serde_json::Value>>()
+            .await
+            .map_err(|e| CoreError::Repository(format!("Pull {endpoint} decode: {e}")))?;
+        let total = raw.len();
+        let mut out = Vec::with_capacity(total);
+        for value in raw {
+            let id = value.get("id").and_then(|v| v.as_str()).unwrap_or("?").to_string();
+            match serde_json::from_value::<T>(value) {
+                Ok(item) => out.push(item),
+                Err(e) => {
+                    self.flag_poison();
+                    tracing::warn!("Pull {endpoint}: registro {id} ignorado (decode): {e}");
+                }
+            }
+        }
+        Ok(out)
     }
 
     // ── Push (desktop → servidor) ──────────────────────────

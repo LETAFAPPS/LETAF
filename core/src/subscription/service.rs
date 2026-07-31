@@ -1071,6 +1071,35 @@ impl SubscriptionService {
         self.repo.mark_invoice_synced(company_id, id, updated_at).await
     }
 
+    /// Upsert de assinatura vindo do PULL (servidor → desktop): grava o
+    /// payload inteiro. O servidor é a autoridade da cobrança, então aqui
+    /// não há nada a proteger — foi o caminho `_from_client` que ganhou a
+    /// guarda.
+    pub async fn sync_upsert_subscription(
+        &self,
+        company_id: Uuid,
+        mut s: Subscription,
+    ) -> Result<(), CoreError> {
+        if s.base.company_id != company_id {
+            return Err(CoreError::Validation("Operação não permitida para esta empresa".into()));
+        }
+        s.base.synced = true;
+        self.repo.sync_upsert_subscription(&s).await
+    }
+
+    /// Idem para faturas no caminho do PULL.
+    pub async fn sync_upsert_invoice(
+        &self,
+        company_id: Uuid,
+        mut inv: Invoice,
+    ) -> Result<(), CoreError> {
+        if inv.base.company_id != company_id {
+            return Err(CoreError::Validation("Operação não permitida para esta empresa".into()));
+        }
+        inv.base.synced = true;
+        self.repo.sync_upsert_invoice(&inv).await
+    }
+
     /// Upsert de assinatura vindo do DESKTOP (cliente não-confiável, §11).
     ///
     /// O desktop origina legitimamente a ESCOLHA do plano (troca feita
@@ -1082,7 +1111,7 @@ impl SubscriptionService {
     ///
     /// Por isso, quando a assinatura já existe aqui, os campos de
     /// cobrança são restaurados a partir do que está gravado.
-    pub async fn sync_upsert_subscription(
+    pub async fn sync_upsert_subscription_from_client(
         &self,
         company_id: Uuid,
         mut s: Subscription,
@@ -1117,7 +1146,7 @@ impl SubscriptionService {
     /// Upsert de FATURA vinda do desktop — mesma regra: `status`,
     /// `paid_at`, `amount` e os campos do gateway são do servidor. Sem
     /// isso, o lojista marcava toda fatura como paga pelo push.
-    pub async fn sync_upsert_invoice(
+    pub async fn sync_upsert_invoice_from_client(
         &self,
         company_id: Uuid,
         mut inv: Invoice,

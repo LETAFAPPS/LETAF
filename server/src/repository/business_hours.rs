@@ -170,7 +170,12 @@ impl BusinessHoursRepository for PgBusinessHoursRepository {
                 (id, company_id, day_of_week, open_time, close_time, is_open,
                  created_at, updated_at, deleted_at, synced)
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-             ON CONFLICT(id) DO UPDATE SET
+             -- Conflito pela CHAVE NATURAL, não pelo `id`: dois terminais
+             -- offline criam a mesma entidade com ids diferentes e o
+             -- `ON CONFLICT (id)` esbarrava no índice único natural →
+             -- 500 no push (reenviado a cada 30 s para sempre) e pull da
+             -- entidade congelado do outro lado. §7.6.
+             ON CONFLICT(company_id, day_of_week) DO UPDATE SET
                  open_time  = EXCLUDED.open_time,
                  close_time = EXCLUDED.close_time,
                  is_open    = EXCLUDED.is_open,

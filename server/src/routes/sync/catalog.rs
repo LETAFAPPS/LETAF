@@ -111,7 +111,10 @@ pub(crate) async fn sync_stock_movement(
     // ledger. Sem isso o operador de caixa levava 403 a cada ciclo, o
     // movimento ficava preso para sempre e o estoque do servidor nunca
     // era decrementado (a vitrine web vendia produto inexistente). §7.6.
-    auth.require_any_permission(&["stock.edit", "products.edit", "pdv.view"])?;
+    // `orders.edit` também: cancelar ou editar um pedido devolve estoque
+    // pelo mesmo ledger. Sem isso o gerente de pedidos levava 403 eterno e
+    // o estoque do servidor ficava permanentemente menor que o real.
+    auth.require_any_permission(&["stock.edit", "products.edit", "pdv.view", "orders.edit"])?;
     state
         .product_service
         .apply_stock_movement(auth.0.company_id, movement)

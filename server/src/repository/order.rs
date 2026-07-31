@@ -879,7 +879,12 @@ async fn upsert_order_row(
         "INSERT INTO orders (id, company_id, customer_id, number, status, total, delivery_type, notes, cancellation_reason, created_at, updated_at, deleted_at, synced, coupon_code, discount_amount, additional_amount, payment_method, paid)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
          ON CONFLICT (id) DO UPDATE SET
-             status = EXCLUDED.status,
+                 -- Vincular o cliente a um pedido de balcao ja criado
+                 -- (fidelidade/carteira) mudava `updated_at` e vencia o
+                 -- LWW, mas o `customer_id` ficava fora do UPDATE: o
+                 -- pedido continuava anonimo do outro lado.
+                 customer_id = EXCLUDED.customer_id,
+                 status = EXCLUDED.status,
              total = EXCLUDED.total,
              delivery_type = EXCLUDED.delivery_type,
              notes = EXCLUDED.notes,

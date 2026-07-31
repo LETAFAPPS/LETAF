@@ -55,6 +55,9 @@ impl IntoResponse for ServerError {
             ServerError::Core(CoreError::Unauthorized(msg)) => {
                 (StatusCode::UNAUTHORIZED, msg.clone())
             }
+            ServerError::Core(CoreError::Forbidden(msg)) => {
+                (StatusCode::FORBIDDEN, msg.clone())
+            }
             ServerError::Core(CoreError::Repository(msg)) => {
                 tracing::error!("Repository error: {msg}");
                 (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error".into())
