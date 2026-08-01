@@ -38,13 +38,23 @@ pub fn treasury_account(company_id: Uuid) -> Uuid {
 
 /// Id da conta a receber AUTOMÁTICA do fiado — `(company_id, customer_id)`.
 ///
-/// A conta é o ESPELHO do saldo negativo da carteira: existe no máximo uma
-/// por cliente, para sempre. Com id aleatório, dois terminais vendendo fiado
-/// para o mesmo cliente antes de se enxergarem criavam DUAS contas abertas
-/// para a mesma dívida — o "a receber" dobrava e a segunda ficava aberta
-/// indefinidamente, porque a busca por chave natural só encontra a primeira.
-pub fn fiado_auto_entry(company_id: Uuid, customer_id: Uuid) -> Uuid {
-    Uuid::new_v5(&NS_LETAF, format!("fiado_auto_entry:{company_id}:{customer_id}").as_bytes())
+/// A conta espelha o saldo negativo da carteira. Vale UMA ABERTA por cliente
+/// de cada vez, mas as encerradas ficam como histórico financeiro (cada uma é
+/// um fiado que foi efetivamente recebido) — por isso o id não pode ser fixo
+/// por cliente, senão um novo ciclo de dívida sobrescreveria o recebimento
+/// anterior.
+///
+/// O discriminador é quantas contas automáticas o cliente já acumulou. Dois
+/// terminais que ainda não se enxergaram partem do mesmo histórico (dado já
+/// sincronizado), derivam o MESMO id e o upsert dedupa — em vez de criarem
+/// duas contas abertas para a mesma dívida, dobrando o "a receber" e deixando
+/// a segunda aberta para sempre (a busca por chave natural só acha a
+/// primeira). Se os históricos já divergirem, cai no comportamento antigo.
+pub fn fiado_auto_entry(company_id: Uuid, customer_id: Uuid, sequencial: usize) -> Uuid {
+    Uuid::new_v5(
+        &NS_LETAF,
+        format!("fiado_auto_entry:{company_id}:{customer_id}:{sequencial}").as_bytes(),
+    )
 }
 
 /// Id de uma CATEGORIA FINANCEIRA SEMENTE — `(company_id, nome)`.

@@ -168,31 +168,30 @@ impl FinanceService {
         debt: Decimal,
     ) -> Result<(), CoreError> {
         let debt = round2(debt.max(Decimal::ZERO));
-        // Id DETERMINÍSTICO: a conta automática é o espelho do saldo negativo
-        // da carteira — existe no máximo UMA por cliente, para sempre. Com id
-        // aleatório, dois terminais vendendo fiado para o mesmo cliente antes
-        // de se enxergarem criavam DUAS contas abertas para a mesma dívida: o
-        // "a receber" dobrava e a segunda ficava aberta indefinidamente,
-        // porque a busca por chave natural só encontra a primeira.
-        let id = crate::deterministic_id::fiado_auto_entry(company_id, customer_id);
-        let existente = self.repo.find_by_id(company_id, id).await?;
+        // Todas as contas automáticas deste cliente, encerradas ou não. As
+        // encerradas são HISTÓRICO (cada uma é um fiado recebido) e não podem
+        // ser reaproveitadas — só a aberta é o espelho da dívida atual.
+        let automaticas: Vec<FinanceEntry> = self
+            .repo
+            .find_by_kind(company_id, FinanceKind::Receivable)
+            .await?
+            .into_iter()
+            .filter(|e| {
+                e.party_id == Some(customer_id) && e.notes.as_deref() == Some(FIADO_AUTO_TAG)
+            })
+            .collect();
+        let aberta = automaticas.iter().find(|e| {
+            !e.status.is_settled() && e.status != FinanceStatus::Cancelled
+        });
         let description = format!("Fiado * {customer_name}");
 
-        match existente {
-            Some(mut entry) if debt > Decimal::ZERO => {
-                // Reabre se estava quitada: é a MESMA conta ao longo do tempo,
-                // não uma nova a cada ciclo de dívida.
-                let precisa = entry.amount != debt
-                    || entry.description != description
-                    || entry.status.is_settled()
-                    || entry.status == FinanceStatus::Cancelled;
-                if precisa {
+        match aberta {
+            Some(entry) if debt > Decimal::ZERO => {
+                let mut entry = entry.clone();
+                if entry.amount != debt || entry.description != description {
                     entry.amount = debt;
                     entry.party_name = customer_name.to_string();
                     entry.description = description;
-                    entry.status = FinanceStatus::Pending;
-                    entry.paid_at = None;
-                    entry.base.deleted_at = None;
                     entry.base.updated_at = Utc::now().naive_utc();
                     entry.base.synced = false;
                     self.repo.update(&entry).await?;
@@ -200,12 +199,18 @@ impl FinanceService {
             }
             Some(entry) => {
                 // Dívida zerada pela carteira → recebido.
-                if !entry.status.is_settled() && entry.status != FinanceStatus::Cancelled {
-                    self.mark_settled(company_id, entry.base.id, Some("wallet".into()))
-                        .await?;
-                }
+                self.mark_settled(company_id, entry.base.id, Some("wallet".into()))
+                    .await?;
             }
             None if debt > Decimal::ZERO => {
+                // Id DETERMINÍSTICO pelo histórico: dois terminais que ainda
+                // não se enxergaram derivam o mesmo id e o upsert dedupa, em
+                // vez de abrirem duas contas para a mesma dívida.
+                let id = crate::deterministic_id::fiado_auto_entry(
+                    company_id,
+                    customer_id,
+                    automaticas.len(),
+                );
                 let mut entry = FinanceEntry::new(
                     company_id,
                     FinanceKind::Receivable,
