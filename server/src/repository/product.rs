@@ -235,8 +235,8 @@ impl ProductRepository for PgProductRepository {
 
     async fn create(&self, product: &Product) -> Result<(), CoreError> {
         sqlx::query(
-            "INSERT INTO products (id, company_id, name, description, category_id, subcategory_id, price, cost_price, stock_quantity, unlimited_stock, barcode, unit, created_at, updated_at, deleted_at, synced, active, web_visible, balance_mode, image_data, cover_color, availability_schedule, discount_kind, discount_value, discount_min_qty, discount_tiers, variations, min_stock)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28)",
+            "INSERT INTO products (id, company_id, name, description, category_id, subcategory_id, price, cost_price, stock_quantity, unlimited_stock, barcode, unit, created_at, updated_at, deleted_at, synced, active, web_visible, balance_mode, image_data, cover_color, availability_schedule, discount_kind, discount_value, discount_min_qty, discount_tiers, variations, min_stock, content_updated_at)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $14)",
         )
         .bind(product.base.id)
         .bind(product.base.company_id)
@@ -673,8 +673,8 @@ impl ProductRepository for PgProductRepository {
 
     async fn sync_upsert(&self, product: &Product) -> Result<(), CoreError> {
         sqlx::query(
-            "INSERT INTO products (id, company_id, name, description, category_id, subcategory_id, price, cost_price, stock_quantity, unlimited_stock, barcode, unit, created_at, updated_at, deleted_at, synced, active, web_visible, balance_mode, image_data, cover_color, availability_schedule, discount_kind, discount_value, discount_min_qty, discount_tiers, variations, min_stock)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28)
+            "INSERT INTO products (id, company_id, name, description, category_id, subcategory_id, price, cost_price, stock_quantity, unlimited_stock, barcode, unit, created_at, updated_at, deleted_at, synced, active, web_visible, balance_mode, image_data, cover_color, availability_schedule, discount_kind, discount_value, discount_min_qty, discount_tiers, variations, min_stock, content_updated_at)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $14)
              ON CONFLICT (id) DO UPDATE SET
                  name = EXCLUDED.name,
                  description = EXCLUDED.description,
@@ -702,8 +702,20 @@ impl ProductRepository for PgProductRepository {
                  discount_min_qty = EXCLUDED.discount_min_qty,
                  discount_tiers = EXCLUDED.discount_tiers,
                  variations = EXCLUDED.variations,
-                 min_stock = EXCLUDED.min_stock
-             WHERE EXCLUDED.updated_at > products.updated_at AND products.company_id = EXCLUDED.company_id",
+                 min_stock = EXCLUDED.min_stock,
+                 -- Versão do CADASTRO: só o upsert a move.
+                 content_updated_at = EXCLUDED.content_updated_at,
+                 -- Marcador de mudança: nunca anda para trás, senão uma
+                 -- edição com timestamp menor que o bump do ledger deixaria o
+                 -- registro ABAIXO do cursor dos outros terminais e a
+                 -- alteração não chegaria a ninguém.
+                 updated_at = GREATEST(EXCLUDED.updated_at, products.updated_at)
+             -- Compara com `content_updated_at`, NÃO com `updated_at`: este
+             -- último é bumpado por `apply_stock_movement` com o relógio do
+             -- servidor, e passava a barrar toda edição de cadastro que
+             -- viesse depois de um movimento de estoque do mesmo produto.
+             WHERE EXCLUDED.content_updated_at > products.content_updated_at
+               AND products.company_id = EXCLUDED.company_id",
         )
         .bind(product.base.id)
         .bind(product.base.company_id)
