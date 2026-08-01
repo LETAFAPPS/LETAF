@@ -942,14 +942,27 @@ impl SubscriptionService {
     ) -> Result<Invoice, CoreError> {
         let mut sub = self.find_subscription_by_id(subscription_id).await?;
         let terms = self.terms(&sub);
-        // Idempotência: já existe invoice nesse mês?
-        if let Some(existing) = self
+
+        // Idempotência por CICLO (não por mês): a fatura tem id derivado
+        // de (assinatura, data do ciclo). Por mês, um plano de 7 dias
+        // nunca faturava o 2º ciclo — e o retorno antecipado NÃO avançava
+        // o vencimento, então o tick horário reemitia cobrança PIX para a
+        // mesma fatura o dia inteiro.
+        let ciclo = sub.next_charge_date.unwrap_or(today);
+        let invoice_id = crate::deterministic_id::subscription_invoice(subscription_id, ciclo);
+        let ja_faturado = self
             .repo
-            .find_invoice_in_month(subscription_id, today.year(), today.month())
+            .find_invoices(sub.base.company_id)
             .await?
-        {
+            .into_iter()
+            .find(|i| i.base.id == invoice_id);
+        if let Some(existing) = ja_faturado {
+            // Já faturado: avança o ponteiro mesmo assim, senão o ciclo
+            // fica preso e a cobrança se repete a cada tick.
+            self.avancar_ciclo(&mut sub, &terms, ciclo).await?;
             return Ok(existing);
         }
+
         let number = generate_invoice_number(today, &self.repo, sub.base.company_id).await?;
         let description = format!(
             "Assinatura · Plano {} ({}–{})",
@@ -972,18 +985,36 @@ impl SubscriptionService {
             today,
             None,
         );
+        let mut invoice = invoice;
+        invoice.base.id = invoice_id;
         self.repo.create_invoice(&invoice).await?;
-        // Atualiza next_charge_date para o próximo ciclo (período do plano):
-        // catálogo em DIAS exatos; legado por meses.
+        self.avancar_ciclo(&mut sub, &terms, ciclo).await?;
+        Ok(invoice)
+    }
+
+    /// Move `next_charge_date` para o ciclo seguinte a `ciclo`.
+    ///
+    /// Idempotente: se o ponteiro já passou de `ciclo`, não mexe — assim
+    /// pode ser chamado tanto no caminho que cria a fatura quanto no que
+    /// a encontra já criada, sem pular um ciclo.
+    async fn avancar_ciclo(
+        &self,
+        sub: &mut Subscription,
+        terms: &PlanTerms,
+        ciclo: chrono::NaiveDate,
+    ) -> Result<(), CoreError> {
+        if sub.next_charge_date.is_some_and(|d| d > ciclo) {
+            return Ok(());
+        }
+        // Catálogo em DIAS exatos; legado por meses.
         sub.next_charge_date = Some(if sub.is_catalog_plan() {
-            add_days(today, sub.plan_period_days.max(1))
+            add_days(ciclo, sub.plan_period_days.max(1))
         } else {
-            add_months(today, terms.months as i32)
+            add_months(ciclo, terms.months as i32)
         });
         sub.base.updated_at = chrono::Utc::now().naive_utc();
         sub.base.synced = false;
-        self.repo.update_subscription(&sub).await?;
-        Ok(invoice)
+        self.repo.update_subscription(sub).await
     }
 
     /// Marca a assinatura como `Overdue`. Idempotente.

@@ -26,6 +26,12 @@ pub async fn insert_stock_movement(
     delta: f64,
     reason: &str,
     order_id: Option<Uuid>,
+    // Id do movimento: `None` gera um novo (eventos que podem repetir,
+    // como ajuste e edição). Eventos ÚNICOS por pedido — o cancelamento —
+    // passam um id DERIVADO (`deterministic_id::stock_movement_once`)
+    // para que dois terminais cancelando o mesmo pedido não restituam o
+    // estoque em dobro (§7.6).
+    movement_id: Option<Uuid>,
     now: NaiveDateTime,
 ) -> Result<(), CoreError> {
     sqlx::query(
@@ -33,7 +39,7 @@ pub async fn insert_stock_movement(
             (id, company_id, product_id, delta, reason, order_id, created_at, updated_at, deleted_at, synced)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $7, NULL, true)",
     )
-    .bind(Uuid::new_v4())
+    .bind(movement_id.unwrap_or_else(Uuid::new_v4))
     .bind(company_id)
     .bind(product_id)
     .bind(delta)

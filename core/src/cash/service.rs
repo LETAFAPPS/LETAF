@@ -252,7 +252,7 @@ impl CashService {
         let Some(session) = self.sessions.find_active(company_id).await? else {
             return Ok(None);
         };
-        let mv = CashMovement::new(
+        let mut mv = CashMovement::new(
             company_id,
             session.base.id,
             MovementKind::SaleReversal,
@@ -262,6 +262,10 @@ impl CashService {
             None,
             Some(order_id),
         );
+        // Id DERIVADO do evento: dois terminais cancelando o mesmo pedido
+        // geram o MESMO movimento e o caixa é estornado uma vez só
+        // (`ON CONFLICT DO NOTHING` no servidor). §7.6.
+        mv.base.id = crate::deterministic_id::cash_movement_once(order_id, "sale_reversal");
         self.movements.create(&mv).await?;
         Ok(Some(mv))
     }
@@ -347,6 +351,21 @@ impl CashService {
     ) -> Result<(), CoreError> {
         if session.base.company_id != company_id {
             return Err(CoreError::Validation("Operação não permitida para esta empresa".into()));
+        }
+        // Uma sessão ABERTA por empresa (§7): dois terminais offline
+        // abriam o caixa sem se enxergar e, quando a sessão do outro
+        // chegava, o `find_active` passava a apontar para a alheia — as
+        // vendas seguintes caíam no caixa do outro operador. O índice
+        // único cobre a corrida no banco; aqui a mensagem é clara em vez
+        // de um erro de constraint cru.
+        if session.status == SessionStatus::Open && session.base.deleted_at.is_none() {
+            if let Some(atual) = self.sessions.find_active(company_id).await? {
+                if atual.base.id != session.base.id {
+                    return Err(CoreError::Validation(
+                        "Já existe um caixa aberto para esta empresa".into(),
+                    ));
+                }
+            }
         }
         session.base.synced = true;
         self.sessions.sync_upsert(&session).await

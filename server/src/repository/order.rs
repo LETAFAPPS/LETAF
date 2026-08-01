@@ -266,6 +266,9 @@ impl OrderRepository for PgOrderRepository {
                     -*qty,
                     "sale",
                     Some(order.base.id),
+                    // A venda nasce em UM terminal só (o pedido é criado lá),
+                    // então não há evento duplicado a deduplicar.
+                    None,
                     now,
                 )
                 .await?;
@@ -591,7 +594,7 @@ impl OrderRepository for PgOrderRepository {
                     }
                 }
             } else {
-                insert_stock_movement(&mut tx, order.base.company_id, *product_id, *delta, "edit", Some(order.base.id), now)
+                insert_stock_movement(&mut tx, order.base.company_id, *product_id, *delta, "edit", Some(order.base.id), None, now)
                     .await?;
             }
         }
@@ -686,7 +689,16 @@ impl OrderRepository for PgOrderRepository {
             .map_err(map_db)?
             .rows_affected();
             if rows > 0 {
-                insert_stock_movement(&mut tx, company_id, *product_id, *qty, "cancel", Some(id), now)
+                insert_stock_movement(
+                    &mut tx,
+                    company_id,
+                    *product_id,
+                    *qty,
+                    "cancel",
+                    Some(id),
+                    Some(letaf_core::deterministic_id::stock_movement_once(id, "cancel", *product_id)),
+                    now,
+                )
                     .await?;
             }
         }

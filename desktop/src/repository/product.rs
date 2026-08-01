@@ -380,6 +380,7 @@ impl ProductRepository for SqliteProductRepository {
                 stock_delta,
                 "edit",
                 None,
+                None,
                 &updated,
             )
             .await?;
@@ -608,7 +609,7 @@ impl ProductRepository for SqliteProductRepository {
         if result.rows_affected() == 1 {
             // Ledger append-only: registra o delta na MESMA transação (§7),
             // base do sync idempotente que substitui o LWW sobre o absoluto.
-            insert_stock_movement(&mut tx, company_id, product_id, delta, "adjust", None, &now)
+            insert_stock_movement(&mut tx, company_id, product_id, delta, "adjust", None, None, &now)
                 .await?;
             tx.commit().await.map_err(map_db)?;
             return Ok(StockAdjustResult::Adjusted);

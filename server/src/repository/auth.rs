@@ -308,6 +308,13 @@ impl UserRepository for PgUserRepository {
         sqlx::query(
             "INSERT INTO users (id, company_id, email, password_hash, name, role, job_role_id, avatar, phone, created_at, updated_at, deleted_at, synced)
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+             -- Conflita por `id`. Arbitrar por (company_id, email)
+             -- resolveria o caso RARO de o mesmo funcionário ser criado em
+             -- dois terminais offline, mas quebraria o ROTINEIRO: trocar o
+             -- e-mail de um usuário existente não casa com esse arbiter e
+             -- o INSERT estoura na PRIMARY KEY (verificado em teste). O
+             -- caso raro continua sendo um conflito real de dado — dois
+             -- cadastros distintos com o mesmo login.
              ON CONFLICT (id) DO UPDATE SET
                  email = EXCLUDED.email,
                  -- Hash vazio = redigido pelo pull (§11) ou cliente sem o

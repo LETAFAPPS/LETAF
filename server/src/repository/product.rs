@@ -378,6 +378,7 @@ impl ProductRepository for PgProductRepository {
                 stock_delta,
                 "edit",
                 None,
+                None,
                 product.base.updated_at,
             )
             .await?;
@@ -646,7 +647,7 @@ impl ProductRepository for PgProductRepository {
         if rows_affected == 1 {
             // Ledger append-only na MESMA transação (§7): propaga o delta
             // aos desktops via pull idempotente.
-            insert_stock_movement(&mut tx, company_id, product_id, delta, "adjust", None, now)
+            insert_stock_movement(&mut tx, company_id, product_id, delta, "adjust", None, None, now)
                 .await?;
             tx.commit().await.map_err(map_db)?;
             return Ok(StockAdjustResult::Adjusted);

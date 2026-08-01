@@ -94,6 +94,8 @@ pub struct SyncWorker {
     /// Empresa a que os cursores em memória pertencem (ver
     /// `sync_cursors_with_tenant`).
     cursor_company: Mutex<uuid::Uuid>,
+    /// Registros recusados pelo servidor e seu backoff (ver `send_one`).
+    quarantine: Mutex<std::collections::HashMap<uuid::Uuid, Quarentena>>,
     /// Nº de registros rejeitados com erro de cliente (4xx, exceto 401) no
     /// ciclo corrente — dado preso que não sobe sem intervenção. Reiniciado a
     /// cada ciclo; publicado no `SyncStatus` para a UI mostrar o estado de erro.
@@ -155,6 +157,7 @@ impl SyncWorker {
             pull_failed: std::sync::atomic::AtomicU32::new(0),
             poison_count: std::sync::atomic::AtomicU32::new(0),
             cursor_company: Mutex::new(initial_company),
+            quarantine: Mutex::new(std::collections::HashMap::new()),
         }
     }
 
@@ -726,10 +729,21 @@ impl SyncWorker {
         id: Uuid,
         entity: &T,
     ) -> bool {
+        // Quarentena: um registro que o servidor recusa por motivo
+        // PERMANENTE (dado inválido, permissão, violação de restrição)
+        // era reenviado a cada 30 s indefinidamente — banda e log
+        // infinitos, e a fila mascarava qualquer registro novo preso.
+        // Agora cada falha adia a próxima tentativa (backoff), sem
+        // nunca desistir do dado: ele continua `synced=0` e volta a ser
+        // tentado, só que com espaçamento crescente.
+        if self.em_quarentena(id) {
+            return false;
+        }
         let url = format!("{}{}", self.server_url, endpoint);
         match self.http.post(&url).bearer_auth(token).json(entity).send().await {
             Ok(resp) if resp.status().is_success() => {
                 tracing::debug!("Synced {endpoint} {id}");
+                self.limpar_quarentena(id);
                 true
             }
             Ok(resp) if resp.status() == reqwest::StatusCode::UNAUTHORIZED => {
@@ -743,18 +757,71 @@ impl SyncWorker {
                 // permissão insuficiente. Reenviar a cada ciclo não resolve —
                 // conta como rejeitado para a UI sinalizar "há dado preso"
                 // (§7.6), em vez de mascarar como pendente/sincronizado.
-                if status.is_client_error() {
+                // 5xx também conta: violação de restrição no servidor é
+                // dado preso do mesmo jeito, e antes era invisível — a UI
+                // mostrava só "pendente", indistinguível de "ainda não
+                // enviei".
+                if status.is_client_error() || status.is_server_error() {
                     self.push_rejected.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                    self.registrar_falha(id);
                 }
                 tracing::warn!("Sync {endpoint} {id}: status {status}");
                 false
             }
             Err(e) => {
+                // Falha de REDE não entra em quarentena: o dado está bom,
+                // o problema é a conexão.
                 tracing::warn!("Sync {endpoint} {id}: {e}");
                 self.flag_network_failure();
                 false
             }
         }
     }
+
+    /// `true` enquanto o registro estiver aguardando o backoff.
+    fn em_quarentena(&self, id: Uuid) -> bool {
+        let agora = chrono::Utc::now().naive_utc();
+        match self.quarantine.lock() {
+            Ok(g) => g.get(&id).is_some_and(|q| q.proxima_tentativa > agora),
+            Err(p) => p
+                .into_inner()
+                .get(&id)
+                .is_some_and(|q| q.proxima_tentativa > agora),
+        }
+    }
+
+    /// Conta a falha e agenda a próxima tentativa com backoff
+    /// exponencial (1, 2, 4, 8… ciclos), com teto de 1 hora.
+    fn registrar_falha(&self, id: Uuid) {
+        let agora = chrono::Utc::now().naive_utc();
+        let aplicar = |g: &mut std::collections::HashMap<Uuid, Quarentena>| {
+            let q = g.entry(id).or_insert(Quarentena {
+                tentativas: 0,
+                proxima_tentativa: agora,
+            });
+            q.tentativas = q.tentativas.saturating_add(1);
+            let ciclos = 1u32 << q.tentativas.min(7); // 2..128 ciclos
+            let espera = (SYNC_INTERVAL_SECS as i64) * (ciclos as i64);
+            q.proxima_tentativa = agora + chrono::Duration::seconds(espera.min(3600));
+        };
+        match self.quarantine.lock() {
+            Ok(mut g) => aplicar(&mut g),
+            Err(p) => aplicar(&mut p.into_inner()),
+        }
+    }
+
+    /// Registro aceito: sai da quarentena.
+    fn limpar_quarentena(&self, id: Uuid) {
+        match self.quarantine.lock() {
+            Ok(mut g) => { g.remove(&id); }
+            Err(p) => { p.into_inner().remove(&id); }
+        }
+    }
+}
+
+/// Estado de backoff de um registro que o servidor recusou.
+struct Quarentena {
+    tentativas: u32,
+    proxima_tentativa: NaiveDateTime,
 }
 

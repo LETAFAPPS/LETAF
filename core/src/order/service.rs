@@ -601,11 +601,16 @@ impl OrderService {
         // janela de estoque-fantasma se o processo cair no meio. Produtos
         // ilimitados/excluídos são pulados pelo repo (o cancel não falha por
         // estoque). O ledger idempotente propaga a devolução via sync.
-        let restitutions: Vec<(Uuid, f64)> = order
-            .items
-            .iter()
-            .map(|item| (item.product_id, item.quantity))
-            .collect();
+        // AGREGA por produto: o pedido pode ter duas linhas do mesmo
+        // item, e o id do movimento de cancelamento é derivado de
+        // (pedido, produto) — duas linhas separadas colapsariam no mesmo
+        // id e uma das devoluções seria perdida.
+        let mut por_produto: std::collections::HashMap<Uuid, f64> =
+            std::collections::HashMap::new();
+        for item in &order.items {
+            *por_produto.entry(item.product_id).or_insert(0.0) += item.quantity;
+        }
+        let restitutions: Vec<(Uuid, f64)> = por_produto.into_iter().collect();
         self.repo.cancel_atomic(company_id, id, trimmed, &restitutions).await?;
 
         // Estorna a VENDA na sessão de caixa: sem isso a gaveta seguia

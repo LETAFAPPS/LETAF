@@ -41,6 +41,45 @@ pub fn business_hours(company_id: Uuid, day_of_week: i32) -> Uuid {
     Uuid::new_v5(&NS_LETAF, format!("business_hours:{company_id}:{day_of_week}").as_bytes())
 }
 
+/// Id do movimento de estoque de um evento ÚNICO do pedido.
+///
+/// Só para eventos que acontecem UMA vez por pedido/produto — hoje o
+/// cancelamento. Dois terminais cancelando o mesmo pedido geram o MESMO
+/// id, e o `ON CONFLICT DO NOTHING` do servidor aplica o delta uma vez
+/// só; com id aleatório, o estoque era restituído EM DOBRO.
+///
+/// NÃO use para `edit`: uma edição legítima pode acontecer várias vezes
+/// no mesmo pedido/produto, e um id fixo colapsaria os deltas.
+pub fn stock_movement_once(order_id: Uuid, reason: &str, product_id: Uuid) -> Uuid {
+    Uuid::new_v5(
+        &NS_LETAF,
+        format!("stock_movement:{order_id}:{reason}:{product_id}").as_bytes(),
+    )
+}
+
+/// Id do movimento de caixa de um evento ÚNICO do pedido (estorno de
+/// venda cancelada). Mesma razão do `stock_movement_once`.
+pub fn cash_movement_once(order_id: Uuid, kind: &str) -> Uuid {
+    Uuid::new_v5(
+        &NS_LETAF,
+        format!("cash_movement:{order_id}:{kind}").as_bytes(),
+    )
+}
+
+/// Id da fatura de um CICLO de assinatura.
+///
+/// A idempotência da cobrança era "existe fatura neste MÊS?", o que
+/// quebrava em plano de 7 dias (o 2º ciclo do mês nunca era faturado) e,
+/// pior, o retorno antecipado não avançava o vencimento — o tick horário
+/// reemitia cobrança PIX para a MESMA fatura, dezenas de vezes por dia.
+/// Derivando o id do ciclo, a fatura é única por ciclo por construção.
+pub fn subscription_invoice(subscription_id: Uuid, ciclo: chrono::NaiveDate) -> Uuid {
+    Uuid::new_v5(
+        &NS_LETAF,
+        format!("subscription_invoice:{subscription_id}:{ciclo}").as_bytes(),
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -56,6 +95,29 @@ mod tests {
         );
         assert_eq!(treasury_account(empresa), treasury_account(empresa));
         assert_eq!(business_hours(empresa, 3), business_hours(empresa, 3));
+    }
+
+    #[test]
+    fn cancelamento_em_dois_terminais_gera_o_mesmo_movimento() {
+        let pedido = Uuid::new_v4();
+        let produto = Uuid::new_v4();
+        assert_eq!(
+            stock_movement_once(pedido, "cancel", produto),
+            stock_movement_once(pedido, "cancel", produto)
+        );
+        assert_eq!(
+            cash_movement_once(pedido, "sale_reversal"),
+            cash_movement_once(pedido, "sale_reversal")
+        );
+        // Produtos e motivos diferentes não colidem.
+        assert_ne!(
+            stock_movement_once(pedido, "cancel", produto),
+            stock_movement_once(pedido, "cancel", Uuid::new_v4())
+        );
+        assert_ne!(
+            stock_movement_once(pedido, "cancel", produto),
+            stock_movement_once(pedido, "edit", produto)
+        );
     }
 
     #[test]
