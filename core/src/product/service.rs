@@ -556,6 +556,19 @@ impl ProductService {
         self.repo.apply_stock_movement(&movement).await
     }
 
+    /// Grava um movimento vindo do pull (só histórico — o estoque chega pela
+    /// linha do produto). Valida o tenant (§11).
+    pub async fn sync_insert_stock_movement(
+        &self,
+        company_id: Uuid,
+        movement: StockMovement,
+    ) -> Result<(), CoreError> {
+        if movement.base.company_id != company_id {
+            return Err(CoreError::Validation("Operação não permitida para esta empresa".into()));
+        }
+        self.repo.insert_synced_stock_movement(&movement).await
+    }
+
     /// Movimentos alterados após `since` (pull servidor→desktop).
     pub async fn find_stock_movements_updated_since(
         &self,

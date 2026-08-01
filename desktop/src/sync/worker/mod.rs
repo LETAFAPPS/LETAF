@@ -22,13 +22,13 @@ const RECONCILE_EVERY_N_CYCLES: u64 = 10;
 /// Entidades puxadas a cada ciclo, na ordem de dependência (pais antes de
 /// filhos por FK lógica). Cada uma tem um cursor de pull PRÓPRIO (§7) — ver
 /// `SyncWorker::cursors`.
-const PULL_ENTITIES: [&str; 25] = [
+const PULL_ENTITIES: [&str; 26] = [
     "companies", "job_roles", "users", "customers", "categories", "subcategories",
     "addon_groups", "addons", "products", "orders", "business_hours", "banners",
     "coupons", "customer_addresses", "cash_sessions", "cash_movements",
     "finance_categories", "finance_entries", "wallet_accounts", "wallet_movements",
     "treasury_accounts", "treasury_movements", "subscriptions",
-    "subscription_invoices", "payment_methods",
+    "subscription_invoices", "payment_methods", "stock_movements",
 ];
 
 /// Tamanho da página do pull paginado (keyset). Abaixo do teto do servidor
@@ -515,6 +515,7 @@ impl SyncWorker {
         try_pull!(pull_addon_groups, "addon_groups");
         try_pull!(pull_addons, "addons");
         try_pull!(pull_products, "products");
+        try_pull!(pull_stock_movements, "stock_movements");
         try_pull!(pull_orders, "orders");
         try_pull!(pull_business_hours, "business_hours");
         try_pull!(pull_banners, "banners");

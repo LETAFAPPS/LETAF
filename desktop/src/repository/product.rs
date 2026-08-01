@@ -789,6 +789,30 @@ impl ProductRepository for SqliteProductRepository {
         Ok(())
     }
 
+    async fn insert_synced_stock_movement(&self, m: &StockMovement) -> Result<(), CoreError> {
+        // Só o histórico: NENHUM UPDATE em `products`. A quantidade vem da
+        // linha do produto, também puxada — somar o delta aqui contaria a
+        // mesma baixa duas vezes neste terminal.
+        sqlx::query(
+            "INSERT OR IGNORE INTO stock_movements
+                (id, company_id, product_id, delta, reason, order_id, created_at, updated_at, deleted_at, synced)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, 1)",
+        )
+        .bind(m.base.id.to_string())
+        .bind(m.base.company_id.to_string())
+        .bind(m.product_id.to_string())
+        .bind(m.delta)
+        .bind(&m.reason)
+        .bind(m.order_id.map(|o| o.to_string()))
+        .bind(ts(m.base.created_at))
+        .bind(ts(m.base.updated_at))
+        .bind(m.base.deleted_at.map(ts))
+        .execute(&self.pool)
+        .await
+        .map_err(map_db)?;
+        Ok(())
+    }
+
     async fn find_stock_movements_updated_since(
         &self,
         company_id: Uuid,
@@ -942,5 +966,61 @@ mod tests {
         .await
         .unwrap();
         assert_eq!(mv_pending, 1, "o movimento (ledger) é que fica pendente");
+    }
+
+    /// CRÍTICO: o pull do ledger grava só o HISTÓRICO. A quantidade chega
+    /// pela linha do produto (o servidor bumpa `products.updated_at` ao
+    /// aplicar o delta), então somar o delta aqui contaria a mesma baixa duas
+    /// vezes no terminal que apenas assiste ao movimento.
+    #[tokio::test]
+    async fn pull_do_ledger_grava_historico_sem_mexer_no_estoque() {
+        let (cid, id) = (Uuid::new_v4(), Uuid::new_v4());
+        let pool = mem_pool().await;
+        let repo = SqliteProductRepository::new(pool.clone());
+        repo.sync_upsert(&product_at(cid, id, 10.0, "2026-01-05 12:00:00.000000", true))
+            .await
+            .unwrap();
+
+        let mut mv = StockMovement::new(cid, id, -3.0, "sale", None);
+        mv.base.id = Uuid::new_v4();
+        repo.insert_synced_stock_movement(&mv).await.unwrap();
+
+        assert_eq!(stock_of(&pool, id).await, 10.0, "o pull não pode baixar estoque");
+        let n: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM stock_movements WHERE id = ?1")
+            .bind(mv.base.id.to_string())
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+        assert_eq!(n, 1, "o histórico tem que aparecer");
+
+        // Idempotente: repuxar (reconcile re-puxa desde a época) não duplica
+        // nem começa a mexer no estoque.
+        repo.insert_synced_stock_movement(&mv).await.unwrap();
+        let n: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM stock_movements WHERE id = ?1")
+            .bind(mv.base.id.to_string())
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+        assert_eq!(n, 1, "id repetido não pode duplicar o histórico");
+        assert_eq!(stock_of(&pool, id).await, 10.0);
+    }
+
+    /// O `apply` (push recebido/venda local) CONTINUA baixando o estoque —
+    /// os dois caminhos não podem se confundir.
+    #[tokio::test]
+    async fn apply_continua_aplicando_o_delta() {
+        let (cid, id) = (Uuid::new_v4(), Uuid::new_v4());
+        let pool = mem_pool().await;
+        let repo = SqliteProductRepository::new(pool.clone());
+        repo.sync_upsert(&product_at(cid, id, 10.0, "2026-01-05 12:00:00.000000", true))
+            .await
+            .unwrap();
+
+        let mv = StockMovement::new(cid, id, -3.0, "sale", None);
+        repo.apply_stock_movement(&mv).await.unwrap();
+        assert_eq!(stock_of(&pool, id).await, 7.0);
+        // E segue idempotente por id.
+        repo.apply_stock_movement(&mv).await.unwrap();
+        assert_eq!(stock_of(&pool, id).await, 7.0);
     }
 }

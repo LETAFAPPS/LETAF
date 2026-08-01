@@ -39,8 +39,7 @@ pub struct ManifestEntry {
 /// `company_id` — ver [`tenant_key_column`]). Exclusões intencionais: `plans`
 /// (catálogo global, não sincroniza por tenant), `order_items` (filho do
 /// agregado Order — reconcilia junto do pedido), `payment_charges` (criadas no
-/// servidor), tabelas de junção, `stock_movements` (ledger append-only com
-/// sync próprio, sem pull incremental — o reparo servidor→local não se aplica)
+/// servidor), tabelas de junção
 /// e `business_hours`: o manifesto compara por `id`, mas o upsert de horários
 /// resolve conflito pela chave NATURAL `(company_id, day_of_week)` mantendo o
 /// `id` local. Ids distintos para o mesmo dia (criado em origens diferentes)
@@ -49,6 +48,11 @@ pub struct ManifestEntry {
 pub const RECONCILE_TABLES: &[&str] = &[
     "companies",
     "products",
+    // Ledger append-only: os ids nunca mudam, então a comparação por `id` é
+    // exata. O reparo local→servidor reenvia o movimento (o `apply` do
+    // servidor é idempotente por id) e o servidor→local traz só o histórico —
+    // a quantidade continua vindo da linha do produto.
+    "stock_movements",
     "categories",
     "subcategories",
     "customers",

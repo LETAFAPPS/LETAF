@@ -24,12 +24,16 @@ use letaf_core::company::model::Company;
 use letaf_core::customer::model::Customer;
 use letaf_core::order::model::Order;
 use letaf_core::product::model::Product;
+use letaf_core::product::stock_movement::StockMovement;
 use letaf_core::error::CoreError;
 
 use super::{PullCursor, SyncWorker};
 
 // Cursor keyset para as entidades grandes (pull paginado, §7/§13).
 impl PullCursor for Product {
+    fn pull_cursor(&self) -> (NaiveDateTime, uuid::Uuid) { (self.base.updated_at, self.base.id) }
+}
+impl PullCursor for StockMovement {
     fn pull_cursor(&self) -> (NaiveDateTime, uuid::Uuid) { (self.base.updated_at, self.base.id) }
 }
 impl PullCursor for Customer {
@@ -83,6 +87,22 @@ impl SyncWorker {
         for item in items {
             if item.base.updated_at > max_ts { max_ts = item.base.updated_at; }
             self.state.product_service.sync_upsert(cid, item).await?;
+        }
+        Ok(max_ts)
+    }
+
+    /// Pull do LEDGER de estoque — só o histórico.
+    ///
+    /// A quantidade materializada chega pela linha do produto (o servidor
+    /// bumpa `products.updated_at` ao aplicar o delta), então aqui NÃO se
+    /// reaplica nada: o terminal que apenas assiste ao movimento passa a ver
+    /// a movimentação na tela de estoque sem contar a baixa duas vezes.
+    pub(super) async fn pull_stock_movements(&self, token: &str, since: NaiveDateTime, mut max_ts: NaiveDateTime) -> Result<NaiveDateTime, CoreError> {
+        let items: Vec<StockMovement> = self.fetch_pull_paged(token, "/sync/pull/stock-movements", since).await?;
+        let cid = self.state.company_id();
+        for item in items {
+            if item.base.updated_at > max_ts { max_ts = item.base.updated_at; }
+            self.state.product_service.sync_insert_stock_movement(cid, item).await?;
         }
         Ok(max_ts)
     }

@@ -62,6 +62,7 @@ impl SyncWorker {
             "addon_groups" => self.pull_addon_groups(token, epoch, epoch).await?,
             "addons" => self.pull_addons(token, epoch, epoch).await?,
             "products" => self.pull_products(token, epoch, epoch).await?,
+            "stock_movements" => self.pull_stock_movements(token, epoch, epoch).await?,
             "orders" => self.pull_orders(token, epoch, epoch).await?,
             "banners" => self.pull_banners(token, epoch, epoch).await?,
             "coupons" => self.pull_coupons(token, epoch, epoch).await?,

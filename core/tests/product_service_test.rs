@@ -192,6 +192,10 @@ impl ProductRepository for MockProductRepo {
         }
         Ok(())
     }
+    async fn insert_synced_stock_movement(&self, _movement: &StockMovement) -> Result<(), CoreError> {
+        // Só histórico: de propósito NÃO mexe no estoque do produto.
+        Ok(())
+    }
     async fn find_stock_movements_updated_since(&self, _company_id: Uuid, _since: NaiveDateTime) -> Result<Vec<StockMovement>, CoreError> {
         Ok(Vec::new())
     }

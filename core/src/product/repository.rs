@@ -160,6 +160,17 @@ pub trait ProductRepository: Send + Sync {
     /// estoque converge sem overselling — ao contrário do LWW sobre o absoluto.
     async fn apply_stock_movement(&self, movement: &StockMovement) -> Result<(), CoreError>;
 
+    /// Grava um movimento vindo do PULL sem tocar em `stock_quantity`.
+    ///
+    /// O ledger é histórico; a quantidade materializada já viaja na linha do
+    /// produto (que também é puxada). Reaplicar o delta aqui contaria a mesma
+    /// baixa duas vezes no terminal que só ASSISTE ao movimento. Idempotente
+    /// por `id` — reexecutar o pull não duplica nada.
+    async fn insert_synced_stock_movement(
+        &self,
+        movement: &StockMovement,
+    ) -> Result<(), CoreError>;
+
     /// Movimentos alterados após `since` (pull servidor→desktop).
     async fn find_stock_movements_updated_since(
         &self,

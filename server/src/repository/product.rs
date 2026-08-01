@@ -829,6 +829,31 @@ impl ProductRepository for PgProductRepository {
         Ok(())
     }
 
+    /// No servidor todo movimento chega pelo push e passa por
+    /// `apply_stock_movement` (que aplica o delta). Este caminho existe para
+    /// honrar o trait; grava só o histórico, sem tocar em `products`.
+    async fn insert_synced_stock_movement(&self, m: &StockMovement) -> Result<(), CoreError> {
+        sqlx::query(
+            "INSERT INTO stock_movements
+                (id, company_id, product_id, delta, reason, order_id, created_at, updated_at, deleted_at, synced)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, true)
+             ON CONFLICT (id) DO NOTHING",
+        )
+        .bind(m.base.id)
+        .bind(m.base.company_id)
+        .bind(m.product_id)
+        .bind(m.delta)
+        .bind(&m.reason)
+        .bind(m.order_id)
+        .bind(m.base.created_at)
+        .bind(m.base.updated_at)
+        .bind(m.base.deleted_at)
+        .execute(&self.pool)
+        .await
+        .map_err(map_db)?;
+        Ok(())
+    }
+
     async fn find_stock_movements_updated_since(
         &self,
         company_id: Uuid,
