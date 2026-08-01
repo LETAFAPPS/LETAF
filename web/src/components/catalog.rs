@@ -60,6 +60,10 @@ pub fn CatalogPage() -> impl IntoView {
     }
 }
 
+/// Taxa de entrega da loja, disponível para o carrinho via contexto.
+#[derive(Clone, Copy)]
+pub struct DeliveryFee(pub f64);
+
 /// Render do catálogo: meta por tenant (SEO) + header + nav de categorias
 /// + grid. Após a hidratação, clicar num chip filtra o grid reativamente
 /// (estado puro de UI — sem lógica de negócio, §11). No SSR, `sel=""`
@@ -78,6 +82,9 @@ fn CatalogView(data: CatalogData) -> impl IntoView {
         .clone()
         .or_else(|| logo.clone())
         .map(|u| if u.starts_with("http") { u } else { format!("{origin}{u}") });
+    // Taxa de entrega da loja no contexto: o carrinho a exibe antes do
+    // checkout. O total oficial continua sendo do servidor (§11).
+    provide_context(DeliveryFee(data.info.delivery_fee));
     let cats = data.categories;
     let banners = data.banners;
     let business_hours = data.business_hours;

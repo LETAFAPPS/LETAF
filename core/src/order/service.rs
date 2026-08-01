@@ -50,11 +50,20 @@ pub struct OrderService {
     /// `addons_json` enviado pelo cliente. Ausente no desktop (PDV é
     /// operado por usuário autenticado e confiável, offline).
     addon_service: Option<Arc<AddonService>>,
+    /// Opcional (servidor): grupos de adicionais, para resolver preço por
+    /// grupo e validar os limites de seleção.
+    addon_group_service: Option<Arc<crate::addon_group::service::AddonGroupService>>,
 }
 
 impl OrderService {
     pub fn new(repo: Arc<dyn OrderRepository>, product_service: Arc<ProductService>) -> Self {
-        Self { repo, product_service, cash_service: None, addon_service: None }
+        Self {
+            repo,
+            product_service,
+            cash_service: None,
+            addon_service: None,
+            addon_group_service: None,
+        }
     }
 
     /// Builder fluente para injetar o `CashService` quando o PDV
@@ -68,6 +77,16 @@ impl OrderService {
     /// revalidar o preço dos adicionais contra o catálogo (§11).
     pub fn with_addon_service(mut self, addons: Arc<AddonService>) -> Self {
         self.addon_service = Some(addons);
+        self
+    }
+
+    /// Builder fluente para injetar o `AddonGroupService` (servidor).
+    ///
+    /// Necessário para resolver o preço DENTRO do grupo declarado e para
+    /// validar `min_select`/`max_select`, que antes só existiam no
+    /// cliente (§11).
+    pub fn with_addon_group_service(mut self, groups: Arc<crate::addon_group::service::AddonGroupService>) -> Self {
+        self.addon_group_service = Some(groups);
         self
     }
 
@@ -94,6 +113,11 @@ impl OrderService {
         notes: Option<String>,
         coupon_code: Option<String>,
         discount_amount: Decimal,
+        // Taxa de entrega, resolvida pelo CALLER a partir do cadastro da
+        // empresa (§11 — nunca vem da requisição). O PDV já cobrava; o
+        // checkout do cardápio web saía sem a taxa, e a loja perdia o
+        // frete de todo pedido online.
+        additional_amount: Decimal,
     ) -> Result<Order, CoreError> {
         validate_items(&items)?;
         let list_prices = self.verify_item_prices(company_id, &items).await?;
@@ -103,7 +127,7 @@ impl OrderService {
         // Desconto vem JÁ calculado/validado pelo caller (server),
         // que recomputa via CouponService — nunca confiamos no valor
         // do frontend (§11). Aqui só garantimos que não fica negativo.
-        let (discount, total) = order_total(items_total, discount_amount, Decimal::ZERO);
+        let (discount, total) = order_total(items_total, discount_amount, additional_amount);
         // Quantidade a decrementar por item (§4: aplicada na MESMA
         // transação do insert do pedido, dentro de `create_atomic`).
         let stock_deltas: Vec<(Uuid, f64)> =
@@ -121,6 +145,7 @@ impl OrderService {
             order.base.id = order_id;
             order.coupon_code = coupon_code.clone();
             order.discount_amount = discount;
+            order.additional_amount = additional_amount;
             order.number = self.repo.next_number(company_id).await?;
             order.items = final_items.clone();
             // Colisão de número sequencial reverte a tx (estoque incluso)
@@ -773,9 +798,30 @@ impl OrderService {
         // então guardamos TODOS os preços válidos daquele nome — sem "o último
         // sobrescreve" (que causava preço errado / rejeição de seleção válida).
         let mut legit: std::collections::HashMap<String, Vec<Decimal>> = std::collections::HashMap::new();
+        // Por GRUPO também: o snapshot carrega o grupo de origem e o
+        // preço é resolvido DENTRO dele. Sem isso, "Grande" do grupo
+        // Refrigerante (R$ 5) era aceito como preço de "Grande" da
+        // variação Tamanho (R$ 20) — dava para pagar a opção cara pelo
+        // preço da barata (§11).
+        let mut por_grupo: std::collections::HashMap<(String, String), Vec<Decimal>> =
+            std::collections::HashMap::new();
+        // Quantos itens de cada grupo o cliente selecionou, para conferir
+        // `min_select`/`max_select` — que só existiam no cliente.
+        let mut grupos: Vec<crate::addon_group::model::AddonGroup> = Vec::new();
         for gid in &product.addon_group_ids {
-            for addon in svc.find_by_group(company_id, *gid).await? {
-                legit.entry(addon.name).or_default().push(addon.price);
+            let grupo = match self.addon_group_service.as_ref() {
+                Some(gs) => gs.find_by_id(company_id, *gid).await?,
+                None => None,
+            };
+            if let Some(g) = grupo {
+                for addon in svc.find_by_group(company_id, *gid).await? {
+                    legit.entry(addon.name.clone()).or_default().push(addon.price);
+                    por_grupo
+                        .entry((g.name.clone(), addon.name))
+                        .or_default()
+                        .push(addon.price);
+                }
+                grupos.push(g);
             }
         }
         if let Some(vs) = product.variations.as_deref() {
@@ -790,6 +836,12 @@ impl OrderService {
                             o.get("price").and_then(money::price_from_json),
                         ) {
                             legit.entry(name.to_string()).or_default().push(price);
+                            if let Some(titulo) = g.get("title").and_then(|t| t.as_str()) {
+                                por_grupo
+                                    .entry((titulo.to_string(), name.to_string()))
+                                    .or_default()
+                                    .push(price);
+                            }
                         }
                     }
                 }
@@ -797,14 +849,28 @@ impl OrderService {
         }
 
         let mut total = Decimal::ZERO;
+        let mut por_grupo_selecionados: std::collections::HashMap<String, i32> =
+            std::collections::HashMap::new();
         for v in arr {
             let name = v
                 .get("name")
                 .and_then(|n| n.as_str())
                 .ok_or_else(|| CoreError::Validation("Adicional sem nome".into()))?;
-            let candidates = legit.get(name).filter(|c| !c.is_empty()).ok_or_else(|| {
-                CoreError::Validation(format!("Adicional '{name}' não pertence a este produto"))
-            })?;
+            let grupo = v.get("group").and_then(|g| g.as_str()).unwrap_or("");
+            if !grupo.is_empty() {
+                *por_grupo_selecionados.entry(grupo.to_string()).or_insert(0) += 1;
+            }
+            // Com o grupo declarado, os preços legítimos são só os DAQUELE
+            // grupo. Sem ele (snapshot legado), cai no conjunto por nome.
+            let candidates = por_grupo
+                .get(&(grupo.to_string(), name.to_string()))
+                .filter(|c| !c.is_empty())
+                .or_else(|| legit.get(name).filter(|c| !c.is_empty()))
+                .ok_or_else(|| {
+                    CoreError::Validation(format!(
+                        "Adicional '{name}' não pertence a este produto"
+                    ))
+                })?;
             let claimed = v.get("price").and_then(money::price_from_json);
             // Usa o preço do CATÁLOGO (nunca o do cliente). Com preço
             // reivindicado, exige que case com algum preço legítimo do nome;
@@ -819,6 +885,29 @@ impl OrderService {
                 None => candidates[0],
             };
             total += chosen;
+        }
+
+        // §11: `min_select`/`max_select` viviam só no cliente — uma
+        // requisição forjada ignorava grupo obrigatório e teto de escolha.
+        for g in &grupos {
+            let n = por_grupo_selecionados.get(&g.name).copied().unwrap_or(0);
+            // Sem nenhum item daquele grupo no snapshot pode ser um
+            // snapshot legado (sem `group`): só cobra o mínimo quando o
+            // cliente declarou os grupos.
+            let declarou_grupos = !por_grupo_selecionados.is_empty();
+            if declarou_grupos && g.min_select > 0 && n < g.min_select {
+                return Err(CoreError::Validation(format!(
+                    "Escolha ao menos {} opção(ões) em '{}'",
+                    g.min_select, g.name
+                )));
+            }
+            let teto = if g.selection == "single" { 1 } else { g.max_select };
+            if teto > 0 && n > teto {
+                return Err(CoreError::Validation(format!(
+                    "No máximo {} opção(ões) em '{}'",
+                    teto, g.name
+                )));
+            }
         }
         Ok(total)
     }

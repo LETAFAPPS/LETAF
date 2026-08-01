@@ -116,7 +116,8 @@ pub fn build_state(pool: PgPool, config: AppConfig) -> AppState {
             Arc::new(PgOrderRepository::new(pool.clone())),
             product_service.clone(),
         )
-        .with_addon_service(addon_service.clone()),
+        .with_addon_service(addon_service.clone())
+        .with_addon_group_service(addon_group_service.clone()),
     );
     let banner_service = Arc::new(BannerService::new(
         Arc::new(PgBannerRepository::new(pool.clone())),

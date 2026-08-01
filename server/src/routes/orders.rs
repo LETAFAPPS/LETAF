@@ -212,10 +212,25 @@ async fn create_order(
         }
     };
 
+    // Taxa de entrega: só em pedido de ENTREGA e sempre do cadastro da
+    // empresa (§11 — o valor nunca vem da requisição). Vai no
+    // `additional_amount`, que o core soma ao total; a nota registra o
+    // valor para o operador e para o cliente, igual ao PDV.
+    let delivery_fee = if delivery_type == DeliveryType::Delivery {
+        company.delivery_fee.max(Decimal::ZERO)
+    } else {
+        Decimal::ZERO
+    };
+    let notes = match (&req.notes, delivery_fee > Decimal::ZERO) {
+        (Some(n), true) => Some(format!("{n} [Taxa de entrega: R$ {delivery_fee:.2}]")),
+        (None, true) => Some(format!("[Taxa de entrega: R$ {delivery_fee:.2}]")),
+        (n, false) => n.clone(),
+    };
+
     let order = state
         .order_service
-        .create(tenant.company_id, customer_id, items, delivery_type, req.notes,
-                coupon_code, discount_amount)
+        .create(tenant.company_id, customer_id, items, delivery_type, notes,
+                coupon_code, discount_amount, delivery_fee)
         .await?;
 
     Ok((StatusCode::CREATED, Json(to_response(&order))))

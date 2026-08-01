@@ -16,6 +16,13 @@ use crate::discount;
 pub struct SelectedAddon {
     pub name: String,
     pub price: f64,
+    /// Grupo/variação de origem. Vai no snapshot para o backend resolver
+    /// o preço DENTRO do grupo declarado: o mesmo nome pode existir em
+    /// grupos diferentes com preços diferentes (ex.: "Grande" em Tamanho
+    /// a R$ 20 e em Refrigerante a R$ 5), e sem o grupo dava para
+    /// reivindicar o preço barato para a opção cara (§11).
+    #[serde(default)]
+    pub group: String,
 }
 
 /// Item do carrinho. `addons` é a foto da escolha; linhas com produto +
@@ -59,7 +66,11 @@ impl CartItem {
             .addons
             .iter()
             // Preço como string decimal (2 casas) — sem f64 no JSON gravado.
-            .map(|a| serde_json::json!({ "name": a.name, "price": format!("{:.2}", a.price) }))
+            .map(|a| serde_json::json!({
+                "group": a.group,
+                "name": a.name,
+                "price": format!("{:.2}", a.price),
+            }))
             .collect();
         serde_json::to_string(&serde_json::Value::Array(arr)).ok()
     }

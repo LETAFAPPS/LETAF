@@ -114,6 +114,7 @@ pub fn build_snapshot(
                 out.push(SelectedAddon {
                     name: a.name.clone(),
                     price: a.price,
+                    group: g.name.clone(),
                 });
             }
         }
@@ -209,6 +210,7 @@ pub fn build_variations_snapshot(
                 out.push(SelectedAddon {
                     name: o.name.clone(),
                     price: o.price,
+                    group: v.title.clone(),
                 });
             }
             continue;
@@ -218,6 +220,7 @@ pub fn build_variations_snapshot(
                 out.push(SelectedAddon {
                     name: opt.name.clone(),
                     price: opt.price,
+                    group: v.title.clone(),
                 });
             }
         }

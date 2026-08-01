@@ -19,6 +19,10 @@ pub struct CatalogInfo {
     pub address: Option<String>,
     #[serde(default)]
     pub phone: Option<String>,
+    /// Taxa de entrega da loja (exibição no carrinho; o total oficial é
+    /// recomputado pelo servidor).
+    #[serde(default)]
+    pub delivery_fee: f64,
 }
 
 /// `/catalog/categories`.

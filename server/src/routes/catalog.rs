@@ -207,6 +207,10 @@ struct CatalogInfo {
     cover_url: Option<String>,
     address: Option<String>,
     phone: Option<String>,
+    /// Taxa de entrega da loja, para o carrinho MOSTRAR o valor antes do
+    /// checkout. O total continua sendo recomputado no servidor (§11) —
+    /// isto é exibição.
+    delivery_fee: f64,
 }
 
 #[derive(Serialize)]
@@ -348,6 +352,7 @@ async fn get_info(
         cover_url: company.cover_data.as_ref().map(|_| media_url("cover", v)),
         address: company.address,
         phone: company.phone,
+        delivery_fee: company.delivery_fee.to_f64().unwrap_or(0.0),
     }))
 }
 

@@ -22,6 +22,11 @@ pub fn CartDrawer() -> impl IntoView {
     let (submitting, set_submitting) = signal(false);
     let (error, set_error) = signal(String::new());
     let (confirmation, set_confirmation) = signal(None::<checkout::OrderConfirmation>);
+    // Taxa de entrega da loja (0 quando não há cadastro ou fora do
+    // catálogo). Só exibição — o total oficial vem do servidor.
+    let fee = use_context::<crate::components::catalog::DeliveryFee>()
+        .map(|d| d.0)
+        .unwrap_or(0.0);
 
     // Decide no clique: deslogado abre o login; logado envia o pedido.
     let on_checkout = move |_| {
@@ -148,9 +153,22 @@ pub fn CartDrawer() -> impl IntoView {
                                 prop:value=move || coupon.get()
                                 on:input=move |e| set_coupon.set(event_target_value(&e))
                             />
+                            // Com taxa de entrega, o cliente vê a composição
+                            // (subtotal + taxa) em vez de um total que não
+                            // bate com a soma dos itens.
+                            {move || (fee > 0.0).then(|| view! {
+                                <div class="cart-total-row">
+                                    <span>"Subtotal"</span>
+                                    <span>{format::money(cart.total())}</span>
+                                </div>
+                                <div class="cart-total-row">
+                                    <span>"Taxa de entrega"</span>
+                                    <span>{format::money(fee)}</span>
+                                </div>
+                            })}
                             <div class="cart-total-row">
                                 <span>"Total"</span>
-                                <strong>{move || format::money(cart.total())}</strong>
+                                <strong>{move || format::money(cart.total() + fee)}</strong>
                             </div>
                             {move || (!error.get().is_empty())
                                 .then(|| view! { <p class="auth-error">{error.get()}</p> })}
