@@ -49,8 +49,15 @@ pub(crate) async fn reconcile_manifest(
     // financeiro sem `cash.view`/`finance.view`). Espelha exatamente a permissão
     // do pull de cada entidade sensível; catálogo/pedidos seguem só por role,
     // como seus pulls.
+    // `cash_sessions` e `users` NÃO entram aqui de propósito: o pull deles é
+    // mais permissivo (o de sessões aceita `cash.view` OU `finance.edit`; o de
+    // usuários não tem gate — `collaborators.view` ali só decide se o
+    // `password_hash` vem redigido). Um gate MAIS restrito no manifesto não
+    // protege nada — o dado desce pelo pull de qualquer jeito — e mata a
+    // anti-entropia daquela entidade em silêncio: `reconcile_entity` leva 403,
+    // vira `warn!` e a tabela nunca mais é reconferida naquele terminal.
     if let Some(perm) = match q.entity.as_str() {
-        "cash_sessions" | "cash_movements" => Some("cash.view"),
+        "cash_movements" => Some("cash.view"),
         "finance_entries" | "finance_categories" => Some("finance.view"),
         "treasury_accounts" | "treasury_movements" => Some("finance.view"),
         "wallet_accounts" | "wallet_movements" => Some("customers.view"),
@@ -59,7 +66,7 @@ pub(crate) async fn reconcile_manifest(
         // enumerava Funções e usuários da loja — contornando o gate que o
         // PULL dessas entidades já exige (§11) — e o `server_drift`
         // resultante disparava um repull que levava 403 a cada 5 min.
-        "job_roles" | "users" => Some("collaborators.view"),
+        "job_roles" => Some("collaborators.view"),
         _ => None,
     } {
         auth.require_permission(perm)?;

@@ -35,11 +35,28 @@ impl FinanceCategoryService {
         icon: String,
         scope: FinanceCategoryScope,
     ) -> Result<FinanceCategory, CoreError> {
+        self.create_com_id(company_id, name, color, icon, scope, None).await
+    }
+
+    /// `create` com id opcionalmente FIXADO — usado pelas seeds, que precisam
+    /// do mesmo id em todo terminal (ver [`crate::deterministic_id`]).
+    async fn create_com_id(
+        &self,
+        company_id: Uuid,
+        name: String,
+        color: String,
+        icon: String,
+        scope: FinanceCategoryScope,
+        id_fixo: Option<Uuid>,
+    ) -> Result<FinanceCategory, CoreError> {
         let name = name.trim().to_string();
         validate_name(&name)?;
         let color = validate_color(color)?;
 
         let mut entry = FinanceCategory::new(company_id, name);
+        if let Some(id) = id_fixo {
+            entry.base.id = id;
+        }
         entry.color = color;
         entry.icon = icon;
         entry.scope = scope;
@@ -148,12 +165,16 @@ impl FinanceCategoryService {
             // Re-uso do `create` para passar pelas mesmas validações
             // de nome/cor — qualquer mudança futura nas regras pega
             // a seed também.
-            self.create(
+            // Id derivado de `(company_id, nome)`: o 2º terminal chega ao
+            // MESMO id e o upsert de sync reconhece a categoria em vez de
+            // criar uma duplicata.
+            self.create_com_id(
                 company_id,
                 name.to_string(),
                 color.to_string(),
                 icon.to_string(),
                 scope,
+                Some(crate::deterministic_id::finance_category_seed(company_id, name)),
             )
             .await?;
             count += 1;

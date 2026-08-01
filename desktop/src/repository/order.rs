@@ -655,7 +655,7 @@ async fn insert_order(tx: &mut Transaction<'_, Sqlite>, order: &Order) -> Result
     )
     .bind(order.base.id.to_string())
     .bind(order.base.company_id.to_string())
-    .bind(order.customer_id.to_string())
+    .bind(opt_customer_txt(order.customer_id))
     .bind(order.number)
     .bind(order.status.to_string())
     .bind(order.total.to_f64().unwrap_or(0.0))
@@ -738,7 +738,7 @@ async fn upsert_order(tx: &mut Transaction<'_, Sqlite>, order: &Order) -> Result
     )
     .bind(order.base.id.to_string())
     .bind(order.base.company_id.to_string())
-    .bind(order.customer_id.to_string())
+    .bind(opt_customer_txt(order.customer_id))
     .bind(order.number)
     .bind(order.status.to_string())
     .bind(order.total.to_f64().unwrap_or(0.0))
@@ -761,6 +761,19 @@ async fn upsert_order(tx: &mut Transaction<'_, Sqlite>, order: &Order) -> Result
 }
 
 // ── Mapeamento de linhas SQLite → entidades core ─────────────────────
+
+
+/// UUID nil → `None`, para o bind gravar NULL de verdade.
+///
+/// O `COALESCE(excluded.customer_id, orders.customer_id)` do upsert existe
+/// para o vínculo com o cliente ser MONOTÔNICO: uma cópia defasada nunca
+/// desvincula um pedido que a web (ou outro terminal) já associou. Só que
+/// `to_string()` de um UUID nil gera o TEXTO "00000000-…", nunca NULL — o
+/// `COALESCE` nunca disparava e o desvínculo acontecia mesmo. O Postgres já
+/// fazia certo (`opt_customer`); faltava a outra metade.
+fn opt_customer_txt(id: Uuid) -> Option<String> {
+    if id.is_nil() { None } else { Some(id.to_string()) }
+}
 
 #[derive(FromRow)]
 struct OrderRow {

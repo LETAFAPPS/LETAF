@@ -23,6 +23,10 @@ use letaf_core::reconcile::{
 
 use super::SyncWorker;
 
+/// Teto de páginas do manifesto REMOTO (2.000 × MANIFEST_PAGE = 4 milhões de
+/// linhas). Espelha o teto do laço local em `core::reconcile::full_manifest`.
+const MANIFEST_MAX_PAGES_REMOTO: usize = 2_000;
+
 impl SyncWorker {
     /// Reconcilia todas as entidades. Para cada uma com divergência
     /// servidor→local, re-puxa APENAS aquela entidade (desde a época; upsert
@@ -121,15 +125,27 @@ impl SyncWorker {
     ) -> Result<Vec<ManifestEntry>, CoreError> {
         let mut todos: Vec<ManifestEntry> = Vec::new();
         let mut after: Option<Uuid> = None;
-        loop {
+        // Teto de páginas: o laço depende de uma resposta HTTP de OUTRO
+        // processo (possivelmente de outra versão). Sem trava, um servidor que
+        // parasse de avançar o keyset travaria o ciclo INTEIRO do worker —
+        // push e pull de tudo — porque a task é única.
+        for _ in 0..MANIFEST_MAX_PAGES_REMOTO {
             let page = self.fetch_manifest_page(token, table, after).await?;
-            let curta = (page.len() as i64) < MANIFEST_PAGE;
-            after = page.last().map(|e| e.id);
-            todos.extend(page);
-            if curta {
+            // Fim = página VAZIA, nunca "página menor que a constante": o
+            // servidor recorta o `limit` em silêncio, então comparar com a
+            // constante local faria um cliente que pede mais que o teto do
+            // servidor tomar a 1ª página como o manifesto inteiro — e tratar
+            // o resto da tabela como "falta no servidor", reenviando tudo a
+            // cada reconcile.
+            if page.is_empty() {
                 return Ok(todos);
             }
+            after = page.last().map(|e| e.id);
+            todos.extend(page);
         }
+        Err(CoreError::Repository(format!(
+            "Manifesto remoto {table}: excedeu {MANIFEST_MAX_PAGES_REMOTO} páginas"
+        )))
     }
 
     /// Uma página do manifesto no servidor (GET autenticado).

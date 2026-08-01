@@ -40,11 +40,15 @@ pub struct ManifestEntry {
 /// (catálogo global, não sincroniza por tenant), `order_items` (filho do
 /// agregado Order — reconcilia junto do pedido), `payment_charges` (criadas no
 /// servidor), tabelas de junção
-/// e `business_hours`: o manifesto compara por `id`, mas o upsert de horários
-/// resolve conflito pela chave NATURAL `(company_id, day_of_week)` mantendo o
-/// `id` local. Ids distintos para o mesmo dia (criado em origens diferentes)
-/// fariam a anti-entropia por `id` acusar divergência a cada ciclo (ping-pong).
-/// Horários convergem pelo sync incremental + LWW sobre a chave natural.
+/// `treasury_accounts` e `business_hours`: o manifesto compara por `id`, mas o
+/// upsert dessas duas resolve pela chave NATURAL (`company_id` e
+/// `(company_id, day_of_week)`), mantendo o `id` que já existe em cada banco.
+/// Numa base com id LEGADO (anterior aos ids determinísticos) os dois lados
+/// guardam ids diferentes para a MESMA linha: a anti-entropia acusa "falta dos
+/// dois lados" a cada ciclo, empurra e re-puxa, e os ids continuam divergentes
+/// porque nenhum dos upserts troca o id — ping-pong perpétuo, com repull
+/// integral a cada 5 min. As duas convergem pelo sync incremental + LWW sobre
+/// a chave natural, que é o mecanismo correto para elas.
 pub const RECONCILE_TABLES: &[&str] = &[
     "companies",
     "products",
@@ -68,7 +72,6 @@ pub const RECONCILE_TABLES: &[&str] = &[
     "finance_entries",
     "wallet_accounts",
     "wallet_movements",
-    "treasury_accounts",
     "treasury_movements",
     "subscriptions",
     "subscription_invoices",
@@ -155,14 +158,18 @@ pub async fn full_manifest(
         let page = repo
             .manifest_page(company_id, table, after, MANIFEST_PAGE)
             .await?;
-        let curta = (page.len() as i64) < MANIFEST_PAGE;
-        after = page.last().map(|e| e.id);
-        todos.extend(page);
-        // Página incompleta = fim. `after == None` só acontece com página
-        // vazia, que já é curta — a checagem cobre os dois casos.
-        if curta {
+        // Fim = página VAZIA. Antes o fim era inferido de `page.len() <
+        // MANIFEST_PAGE`, o que amarra o protocolo a uma constante que os
+        // dois lados precisam ter IGUAL: o servidor recorta o `limit` em
+        // silêncio (sem eco, sem `has_more`), então um cliente pedindo mais
+        // do que o teto do servidor tomaria a 1ª página como o manifesto
+        // inteiro e trataria o resto da tabela como "falta no servidor" —
+        // reenviando a tabela toda a cada reconcile.
+        if page.is_empty() {
             return Ok(todos);
         }
+        after = page.last().map(|e| e.id);
+        todos.extend(page);
     }
     Err(CoreError::Repository(format!(
         "Manifesto {table}: excedeu {MANIFEST_MAX_PAGES} páginas"

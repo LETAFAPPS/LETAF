@@ -75,7 +75,8 @@ impl SyncWorker {
         let cid = self.state.company_id();
         for item in items {
             if item.base.updated_at > max_ts { max_ts = item.base.updated_at; }
-            self.state.business_hours_service.sync_upsert(cid, item).await?;
+            let id = item.base.id;
+            self.tolera_registro("business_hours", id, self.state.business_hours_service.sync_upsert(cid, item).await);
         }
         Ok(max_ts)
     }
@@ -86,7 +87,8 @@ impl SyncWorker {
         let cid = self.state.company_id();
         for item in items {
             if item.base.updated_at > max_ts { max_ts = item.base.updated_at; }
-            self.state.product_service.sync_upsert(cid, item).await?;
+            let id = item.base.id;
+            self.tolera_registro("products", id, self.state.product_service.sync_upsert(cid, item).await);
         }
         Ok(max_ts)
     }
@@ -102,7 +104,8 @@ impl SyncWorker {
         let cid = self.state.company_id();
         for item in items {
             if item.base.updated_at > max_ts { max_ts = item.base.updated_at; }
-            self.state.product_service.sync_insert_stock_movement(cid, item).await?;
+            let id = item.base.id;
+            self.tolera_registro("stock_movements", id, self.state.product_service.sync_insert_stock_movement(cid, item).await);
         }
         Ok(max_ts)
     }
@@ -113,7 +116,8 @@ impl SyncWorker {
         let cid = self.state.company_id();
         for item in items {
             if item.updated_at > max_ts { max_ts = item.updated_at; }
-            self.state.auth_service.sync_upsert(cid, item).await?;
+            let id = item.id;
+            self.tolera_registro("users", id, self.state.auth_service.sync_upsert(cid, item).await);
         }
         Ok(max_ts)
     }
@@ -124,7 +128,8 @@ impl SyncWorker {
         let cid = self.state.company_id();
         for item in items {
             if item.base.updated_at > max_ts { max_ts = item.base.updated_at; }
-            self.state.customer_service.sync_upsert(cid, item).await?;
+            let id = item.base.id;
+            self.tolera_registro("customers", id, self.state.customer_service.sync_upsert(cid, item).await);
         }
         Ok(max_ts)
     }
@@ -135,7 +140,8 @@ impl SyncWorker {
         let cid = self.state.company_id();
         for item in items {
             if item.base.updated_at > max_ts { max_ts = item.base.updated_at; }
-            self.state.category_service.sync_upsert(cid, item).await?;
+            let id = item.base.id;
+            self.tolera_registro("categories", id, self.state.category_service.sync_upsert(cid, item).await);
         }
         Ok(max_ts)
     }
@@ -145,7 +151,8 @@ impl SyncWorker {
         let cid = self.state.company_id();
         for item in items {
             if item.base.updated_at > max_ts { max_ts = item.base.updated_at; }
-            self.state.job_role_service.sync_upsert(cid, item).await?;
+            let id = item.base.id;
+            self.tolera_registro("job_roles", id, self.state.job_role_service.sync_upsert(cid, item).await);
         }
         Ok(max_ts)
     }
@@ -156,7 +163,8 @@ impl SyncWorker {
         let cid = self.state.company_id();
         for item in items {
             if item.base.updated_at > max_ts { max_ts = item.base.updated_at; }
-            self.state.subcategory_service.sync_upsert(cid, item).await?;
+            let id = item.base.id;
+            self.tolera_registro("subcategories", id, self.state.subcategory_service.sync_upsert(cid, item).await);
         }
         Ok(max_ts)
     }
@@ -167,7 +175,8 @@ impl SyncWorker {
         let cid = self.state.company_id();
         for item in items {
             if item.updated_at > max_ts { max_ts = item.updated_at; }
-            self.state.company_service.sync_upsert(cid, item).await?;
+            let id = item.id;
+            self.tolera_registro("companies", id, self.state.company_service.sync_upsert(cid, item).await);
         }
         Ok(max_ts)
     }
@@ -196,7 +205,8 @@ impl SyncWorker {
             if self.state.alarm_watcher.note(&item) {
                 any_new = true;
             }
-            self.state.order_service.sync_upsert(cid, item).await?;
+            let id = item.base.id;
+            self.tolera_registro("orders", id, self.state.order_service.sync_upsert(cid, item).await);
         }
         if any_new {
             self.state.alarm_player.start();
@@ -210,7 +220,8 @@ impl SyncWorker {
         let cid = self.state.company_id();
         for item in items {
             if item.base.updated_at > max_ts { max_ts = item.base.updated_at; }
-            self.state.addon_group_service.sync_upsert(cid, item).await?;
+            let id = item.base.id;
+            self.tolera_registro("addon_groups", id, self.state.addon_group_service.sync_upsert(cid, item).await);
         }
         Ok(max_ts)
     }
@@ -220,7 +231,8 @@ impl SyncWorker {
         let cid = self.state.company_id();
         for item in items {
             if item.base.updated_at > max_ts { max_ts = item.base.updated_at; }
-            self.state.addon_service.sync_upsert(cid, item).await?;
+            let id = item.base.id;
+            self.tolera_registro("addons", id, self.state.addon_service.sync_upsert(cid, item).await);
         }
         Ok(max_ts)
     }
@@ -230,7 +242,8 @@ impl SyncWorker {
         let cid = self.state.company_id();
         for item in items {
             if item.base.updated_at > max_ts { max_ts = item.base.updated_at; }
-            self.state.banner_service.sync_upsert(cid, item).await?;
+            let id = item.base.id;
+            self.tolera_registro("banners", id, self.state.banner_service.sync_upsert(cid, item).await);
         }
         Ok(max_ts)
     }
@@ -240,7 +253,8 @@ impl SyncWorker {
         let cid = self.state.company_id();
         for item in items {
             if item.base.updated_at > max_ts { max_ts = item.base.updated_at; }
-            self.state.coupon_service.sync_upsert(cid, item).await?;
+            let id = item.base.id;
+            self.tolera_registro("coupons", id, self.state.coupon_service.sync_upsert(cid, item).await);
         }
         Ok(max_ts)
     }
@@ -250,7 +264,8 @@ impl SyncWorker {
         let cid = self.state.company_id();
         for item in items {
             if item.base.updated_at > max_ts { max_ts = item.base.updated_at; }
-            self.state.customer_address_service.sync_upsert(cid, item).await?;
+            let id = item.base.id;
+            self.tolera_registro("customer_addresses", id, self.state.customer_address_service.sync_upsert(cid, item).await);
         }
         Ok(max_ts)
     }
@@ -260,7 +275,8 @@ impl SyncWorker {
         let cid = self.state.company_id();
         for item in items {
             if item.base.updated_at > max_ts { max_ts = item.base.updated_at; }
-            self.state.cash_service.sync_upsert_session(cid, item).await?;
+            let id = item.base.id;
+            self.tolera_registro("cash_sessions", id, self.state.cash_service.sync_upsert_session(cid, item).await);
         }
         Ok(max_ts)
     }
@@ -270,7 +286,8 @@ impl SyncWorker {
         let cid = self.state.company_id();
         for item in items {
             if item.base.updated_at > max_ts { max_ts = item.base.updated_at; }
-            self.state.cash_service.sync_upsert_movement(cid, item).await?;
+            let id = item.base.id;
+            self.tolera_registro("cash_movements", id, self.state.cash_service.sync_upsert_movement(cid, item).await);
         }
         Ok(max_ts)
     }
@@ -283,7 +300,8 @@ impl SyncWorker {
         let cid = self.state.company_id();
         for item in items {
             if item.base.updated_at > max_ts { max_ts = item.base.updated_at; }
-            self.state.finance_category_service.sync_upsert(cid, item).await?;
+            let id = item.base.id;
+            self.tolera_registro("finance_categories", id, self.state.finance_category_service.sync_upsert(cid, item).await);
         }
         Ok(max_ts)
     }
@@ -296,7 +314,8 @@ impl SyncWorker {
         let cid = self.state.company_id();
         for item in items {
             if item.base.updated_at > max_ts { max_ts = item.base.updated_at; }
-            self.state.finance_service.sync_upsert(cid, item).await?;
+            let id = item.base.id;
+            self.tolera_registro("finance_entries", id, self.state.finance_service.sync_upsert(cid, item).await);
         }
         Ok(max_ts)
     }
@@ -309,7 +328,8 @@ impl SyncWorker {
         let cid = self.state.company_id();
         for item in items {
             if item.base.updated_at > max_ts { max_ts = item.base.updated_at; }
-            self.state.wallet_service.sync_upsert_account(cid, item).await?;
+            let id = item.base.id;
+            self.tolera_registro("wallet_accounts", id, self.state.wallet_service.sync_upsert_account(cid, item).await);
         }
         Ok(max_ts)
     }
@@ -322,7 +342,8 @@ impl SyncWorker {
         let cid = self.state.company_id();
         for item in items {
             if item.base.updated_at > max_ts { max_ts = item.base.updated_at; }
-            self.state.wallet_service.sync_upsert_movement(cid, item).await?;
+            let id = item.base.id;
+            self.tolera_registro("wallet_movements", id, self.state.wallet_service.sync_upsert_movement(cid, item).await);
         }
         Ok(max_ts)
     }
@@ -337,7 +358,8 @@ impl SyncWorker {
         let cid = self.state.company_id();
         for item in items {
             if item.base.updated_at > max_ts { max_ts = item.base.updated_at; }
-            self.state.treasury_service.sync_upsert(cid, item).await?;
+            let id = item.base.id;
+            self.tolera_registro("treasury_accounts", id, self.state.treasury_service.sync_upsert(cid, item).await);
         }
         Ok(max_ts)
     }
@@ -353,7 +375,8 @@ impl SyncWorker {
         let cid = self.state.company_id();
         for item in items {
             if item.base.updated_at > max_ts { max_ts = item.base.updated_at; }
-            self.state.treasury_service.sync_upsert_movement(cid, item).await?;
+            let id = item.base.id;
+            self.tolera_registro("treasury_movements", id, self.state.treasury_service.sync_upsert_movement(cid, item).await);
         }
         Ok(max_ts)
     }

@@ -180,6 +180,32 @@ impl SyncWorker {
             .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     }
 
+    /// Grava um registro vindo do pull tolerando falha INDIVIDUAL.
+    ///
+    /// Antes, o `?` de um upsert derrubava a entidade INTEIRA e o cursor não
+    /// avançava. Um único registro problemático — tipicamente uma colisão de
+    /// chave natural com algo que já existe no local (dois terminais criando
+    /// offline o mesmo cupom, o mesmo e-mail, o mesmo caixa aberto) — deixava
+    /// a entidade congelada naquele terminal PARA SEMPRE: o ciclo seguinte
+    /// rebaixava o mesmo registro e falhava igual, e a reconciliação também.
+    /// Nada mais daquela entidade chegava, sem forma de destravar sem mexer
+    /// no SQLite na mão.
+    ///
+    /// Agora o registro é pulado, contado em `poison_count` (a UI acende
+    /// estado de erro, §7.6) e o resto da página entra. É o mesmo tratamento
+    /// que já existia para registro ILEGÍVEL; a diferença é que aqui o
+    /// registro foi lido e recusado pelo banco local.
+    fn tolera_registro<T>(&self, entidade: &str, id: Uuid, r: Result<T, CoreError>) -> bool {
+        match r {
+            Ok(_) => true,
+            Err(e) => {
+                tracing::warn!("Pull {entidade}: registro {id} recusado pelo banco local (pulado): {e}");
+                self.flag_poison();
+                false
+            }
+        }
+    }
+
     /// Marca que houve falha de rede neste ciclo (timeout/DNS/conexão).
     fn flag_network_failure(&self) {
         if let Ok(mut g) = self.network_failed.lock() {

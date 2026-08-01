@@ -36,6 +36,21 @@ pub fn treasury_account(company_id: Uuid) -> Uuid {
     Uuid::new_v5(&NS_LETAF, format!("treasury_account:{company_id}").as_bytes())
 }
 
+/// Id de uma CATEGORIA FINANCEIRA SEMENTE — `(company_id, nome)`.
+///
+/// Vale só para as seeds fixas do sistema ("Aluguel", "Insumos", …), não para
+/// categorias que o usuário cria: essas não têm chave natural (o usuário pode
+/// apagar e recriar com o mesmo nome) e seguem com id aleatório.
+///
+/// Sem isto, o 2º terminal instalado semeava OUTRAS 12 categorias com ids
+/// novos — `seed_defaults` só olha o SQLite local, que está vazio antes do
+/// primeiro pull — e a empresa ficava permanentemente com 24 categorias, cada
+/// nome duplicado, em todos os terminais. Não era corrida: acontecia em 100%
+/// das instalações seguintes.
+pub fn finance_category_seed(company_id: Uuid, nome: &str) -> Uuid {
+    Uuid::new_v5(&NS_LETAF, format!("finance_category_seed:{company_id}:{nome}").as_bytes())
+}
+
 /// Id do horário de funcionamento de um dia — `(company_id, day_of_week)`.
 pub fn business_hours(company_id: Uuid, day_of_week: i32) -> Uuid {
     Uuid::new_v5(&NS_LETAF, format!("business_hours:{company_id}:{day_of_week}").as_bytes())
