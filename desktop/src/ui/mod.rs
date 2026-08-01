@@ -24,7 +24,7 @@ mod dashboard;
 mod customers;
 mod finance;
 mod helpers;
-mod image;
+pub(crate) mod image;
 mod inventory;
 pub(crate) mod orders;
 mod pdv;

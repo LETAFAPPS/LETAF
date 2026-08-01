@@ -192,6 +192,12 @@ impl ProductRepository for MockProductRepo {
         }
         Ok(())
     }
+    async fn set_thumbnail(&self, _company_id: Uuid, _id: Uuid, _thumb: Option<&str>) -> Result<(), CoreError> {
+        Ok(())
+    }
+    async fn find_sem_miniatura(&self, _company_id: Uuid) -> Result<Vec<Product>, CoreError> {
+        Ok(Vec::new())
+    }
     async fn insert_synced_stock_movement(&self, _movement: &StockMovement) -> Result<(), CoreError> {
         // Só histórico: de propósito NÃO mexe no estoque do produto.
         Ok(())

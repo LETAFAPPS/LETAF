@@ -65,6 +65,13 @@ pub(crate) fn setup_add(
 
             if result.is_ok() { notify.notify_one(); }
 
+            // Miniatura da lista: derivada da imagem recém-salva, gravada
+            // sem tocar em `updated_at` (não é alteração de dado, e marcá-la
+            // faria o produto reempurrar no sync a cada terminal).
+            if let Ok(p) = result.as_ref() {
+                gerar_miniatura(&state, p).await;
+            }
+
             match result {
                 Ok(p) => {
                     let pixel_buf = decode_single_product_image(p.image_data.clone()).await;
@@ -149,6 +156,13 @@ pub(crate) fn setup_update_product(
                 .await;
 
             if result.is_ok() { notify.notify_one(); }
+
+            // Miniatura da lista: derivada da imagem recém-salva, gravada
+            // sem tocar em `updated_at` (não é alteração de dado, e marcá-la
+            // faria o produto reempurrar no sync a cada terminal).
+            if let Ok(p) = result.as_ref() {
+                gerar_miniatura(&state, p).await;
+            }
 
             match result {
                 Ok(p) => {
@@ -239,3 +253,27 @@ pub(crate) fn setup_delete(
     });
 }
 
+/// Gera e grava a miniatura do produto a partir da imagem salva.
+///
+/// Falha só loga: a miniatura é otimização de leitura da lista, não dado do
+/// negócio — não pode derrubar o salvamento do produto.
+async fn gerar_miniatura(state: &DesktopState, p: &letaf_core::product::model::Product) {
+    let Some(img) = p.image_data.clone() else { return };
+    if img.is_empty() {
+        return;
+    }
+    // Decodificar e reescalar é CPU-bound: fora do executor do Tokio.
+    let thumb = tokio::task::spawn_blocking(move || {
+        crate::ui::image::make_thumbnail(&img)
+    })
+    .await
+    .ok()
+    .flatten();
+    if let Err(e) = state
+        .product_service
+        .set_thumbnail(p.base.company_id, p.base.id, thumb.as_deref())
+        .await
+    {
+        tracing::warn!("miniatura do produto {}: {e}", p.base.id);
+    }
+}

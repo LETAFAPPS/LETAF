@@ -75,6 +75,7 @@ struct ProductRow {
     web_visible: bool,
     balance_mode: String,
     image_data: Option<String>,
+    thumb_data: Option<String>,
     cover_color: Option<String>,
     availability_schedule: Option<String>,
     discount_kind: Option<String>,
@@ -114,6 +115,7 @@ impl From<ProductRow> for Product {
             web_visible: r.web_visible,
             balance_mode,
             image_data: r.image_data,
+            thumb_data: r.thumb_data,
             cover_color: r.cover_color,
             availability_schedule: r.availability_schedule,
             discount_kind: r.discount_kind,
@@ -235,8 +237,8 @@ impl ProductRepository for PgProductRepository {
 
     async fn create(&self, product: &Product) -> Result<(), CoreError> {
         sqlx::query(
-            "INSERT INTO products (id, company_id, name, description, category_id, subcategory_id, price, cost_price, stock_quantity, unlimited_stock, barcode, unit, created_at, updated_at, deleted_at, synced, active, web_visible, balance_mode, image_data, cover_color, availability_schedule, discount_kind, discount_value, discount_min_qty, discount_tiers, variations, min_stock, content_updated_at)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $14)",
+            "INSERT INTO products (id, company_id, name, description, category_id, subcategory_id, price, cost_price, stock_quantity, unlimited_stock, barcode, unit, created_at, updated_at, deleted_at, synced, active, web_visible, balance_mode, image_data, cover_color, availability_schedule, discount_kind, discount_value, discount_min_qty, discount_tiers, variations, min_stock, content_updated_at, thumb_data)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $14, $29)",
         )
         .bind(product.base.id)
         .bind(product.base.company_id)
@@ -266,6 +268,7 @@ impl ProductRepository for PgProductRepository {
         .bind(&product.discount_tiers)
         .bind(&product.variations)
         .bind(product.min_stock)
+        .bind(&product.thumb_data)
         .execute(&self.pool)
         .await
         .map_err(map_db)?;
@@ -673,8 +676,8 @@ impl ProductRepository for PgProductRepository {
 
     async fn sync_upsert(&self, product: &Product) -> Result<(), CoreError> {
         sqlx::query(
-            "INSERT INTO products (id, company_id, name, description, category_id, subcategory_id, price, cost_price, stock_quantity, unlimited_stock, barcode, unit, created_at, updated_at, deleted_at, synced, active, web_visible, balance_mode, image_data, cover_color, availability_schedule, discount_kind, discount_value, discount_min_qty, discount_tiers, variations, min_stock, content_updated_at)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $14)
+            "INSERT INTO products (id, company_id, name, description, category_id, subcategory_id, price, cost_price, stock_quantity, unlimited_stock, barcode, unit, created_at, updated_at, deleted_at, synced, active, web_visible, balance_mode, image_data, cover_color, availability_schedule, discount_kind, discount_value, discount_min_qty, discount_tiers, variations, min_stock, content_updated_at, thumb_data)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $14, $29)
              ON CONFLICT (id) DO UPDATE SET
                  name = EXCLUDED.name,
                  description = EXCLUDED.description,
@@ -695,6 +698,7 @@ impl ProductRepository for PgProductRepository {
                  web_visible = EXCLUDED.web_visible,
                  balance_mode = EXCLUDED.balance_mode,
                  image_data = EXCLUDED.image_data,
+                 thumb_data = EXCLUDED.thumb_data,
                  cover_color = EXCLUDED.cover_color,
                  availability_schedule = EXCLUDED.availability_schedule,
                  discount_kind = EXCLUDED.discount_kind,
@@ -745,6 +749,7 @@ impl ProductRepository for PgProductRepository {
         .bind(&product.discount_tiers)
         .bind(&product.variations)
         .bind(product.min_stock)
+        .bind(&product.thumb_data)
         .execute(&self.pool)
         .await
         .map_err(map_db)?;
@@ -784,6 +789,23 @@ impl ProductRepository for PgProductRepository {
         .await
         .map_err(map_db)?;
         Ok(())
+    }
+
+    async fn set_thumbnail(&self, company_id: Uuid, id: Uuid, thumb: Option<&str>) -> Result<(), CoreError> {
+        sqlx::query("UPDATE products SET thumb_data = $1 WHERE company_id = $2 AND id = $3")
+            .bind(thumb)
+            .bind(company_id)
+            .bind(id)
+            .execute(&self.pool)
+            .await
+            .map_err(map_db)?;
+        Ok(())
+    }
+
+    /// O servidor não gera miniatura — ela chega pronta pelo sync do desktop,
+    /// que é quem tem o pipeline de imagem.
+    async fn find_sem_miniatura(&self, _company_id: Uuid) -> Result<Vec<Product>, CoreError> {
+        Ok(Vec::new())
     }
 
     async fn apply_stock_movement(&self, m: &StockMovement) -> Result<(), CoreError> {

@@ -101,6 +101,18 @@ pub struct Product {
     pub balance_mode: BalanceMode,
     #[serde(default)]
     pub image_data: Option<String>,
+    /// Miniatura (~64px) da imagem, em base64 — derivada de `image_data`.
+    ///
+    /// A LISTA de produtos desenha um quadradinho por linha, mas carregava a
+    /// imagem de DETALHE (PNG 400×400, 77 a 106 KB) e decodificava cada uma:
+    /// com 3.334 produtos eram 301 MB e 482 ms só para abrir a tela. A
+    /// miniatura pesa ~2 KB — 31× menos — e a lista deixa de trafegar
+    /// `image_data`, que só é lido ao abrir o produto.
+    ///
+    /// Derivada, não fonte: se estiver ausente, é regerada a partir de
+    /// `image_data` (ver o preenchimento no boot do desktop).
+    #[serde(default)]
+    pub thumb_data: Option<String>,
     /// Cor de fundo detectada nas bordas da imagem do produto, em hex
     /// `#RRGGBB`. Populada pela heurística no upload:
     /// - `None`: imagem transparente (PNG sem fundo) ou indetectável →
@@ -219,6 +231,8 @@ impl Product {
             web_visible: true,
             balance_mode,
             image_data,
+            // Derivada da imagem; preenchida pela camada que trata upload.
+            thumb_data: None,
             cover_color,
             availability_schedule,
             discount_kind,

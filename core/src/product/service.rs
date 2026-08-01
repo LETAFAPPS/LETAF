@@ -544,6 +544,22 @@ impl ProductService {
         self.repo.mark_stock_movement_synced(company_id, id, updated_at).await
     }
 
+    /// Grava a miniatura derivada da imagem (ver o trait).
+    pub async fn set_thumbnail(
+        &self,
+        company_id: Uuid,
+        id: Uuid,
+        thumb: Option<&str>,
+    ) -> Result<(), CoreError> {
+        self.repo.set_thumbnail(company_id, id, thumb).await
+    }
+
+    /// Produtos com imagem mas SEM miniatura — insumo do preenchimento em
+    /// segundo plano no boot (produtos cadastrados antes da coluna existir).
+    pub async fn find_sem_miniatura(&self, company_id: Uuid) -> Result<Vec<Product>, CoreError> {
+        self.repo.find_sem_miniatura(company_id).await
+    }
+
     /// Aplica um movimento recebido de forma idempotente (valida o tenant).
     pub async fn apply_stock_movement(
         &self,

@@ -32,6 +32,7 @@ fn make_product(price: rust_decimal::Decimal) -> Product {
         web_visible: true,
         balance_mode: BalanceMode::Weight,
         image_data: None,
+        thumb_data: None,
         cover_color: None,
         availability_schedule: None,
         discount_kind: None,

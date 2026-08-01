@@ -35,6 +35,7 @@ struct ProductRow {
     web_visible: bool,
     balance_mode: String,
     image_data: Option<String>,
+    thumb_data: Option<String>,
     cover_color: Option<String>,
     availability_schedule: Option<String>,
     discount_kind: Option<String>,
@@ -77,6 +78,7 @@ impl TryFrom<ProductRow> for Product {
             web_visible: r.web_visible,
             balance_mode,
             image_data: r.image_data,
+            thumb_data: r.thumb_data,
             cover_color: r.cover_color,
             availability_schedule: r.availability_schedule,
             discount_kind: r.discount_kind,
@@ -179,9 +181,18 @@ impl ProductRepository for SqliteProductRepository {
         Ok(Some(product))
     }
 
+    /// Listagem: NÃO lê `image_data`.
+    ///
+    /// A tela mostra uma miniatura por linha, mas a imagem guardada é a de
+    /// DETALHE (PNG 400×400, 77 a 106 KB). Ler a coluna para 3.334 produtos
+    /// custava 301 MB e 482 ms — e a linha do produto tem 36 bytes de texto
+    /// útil. `NULL AS image_data` mantém o mesmo `ProductRow` sem tocar nas
+    /// páginas de dados grandes; quem precisa da imagem inteira usa
+    /// `find_by_id`, que abre um produto por vez.
     async fn find_all(&self, company_id: Uuid) -> Result<Vec<Product>, CoreError> {
         let rows = sqlx::query_as::<_, ProductRow>(
-            "SELECT * FROM products WHERE company_id = ?1 AND deleted_at IS NULL ORDER BY created_at DESC",
+            "SELECT id, company_id, name, description, category_id, subcategory_id, price, cost_price, stock_quantity, min_stock, unlimited_stock, barcode, unit, created_at, updated_at, deleted_at, synced, active, web_visible, balance_mode, NULL AS image_data, thumb_data, cover_color, availability_schedule, discount_kind, discount_value, discount_min_qty, discount_tiers, variations FROM products \
+             WHERE company_id = ?1 AND deleted_at IS NULL ORDER BY created_at DESC",
         )
         .bind(company_id.to_string())
         .fetch_all(&self.pool)
@@ -233,8 +244,8 @@ impl ProductRepository for SqliteProductRepository {
 
     async fn create(&self, product: &Product) -> Result<(), CoreError> {
         sqlx::query(
-            "INSERT INTO products (id, company_id, name, description, category_id, subcategory_id, price, cost_price, stock_quantity, unlimited_stock, barcode, unit, created_at, updated_at, deleted_at, synced, active, web_visible, balance_mode, image_data, cover_color, availability_schedule, discount_kind, discount_value, discount_min_qty, discount_tiers, variations, min_stock)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?28)"
+            "INSERT INTO products (id, company_id, name, description, category_id, subcategory_id, price, cost_price, stock_quantity, unlimited_stock, barcode, unit, created_at, updated_at, deleted_at, synced, active, web_visible, balance_mode, image_data, cover_color, availability_schedule, discount_kind, discount_value, discount_min_qty, discount_tiers, variations, min_stock, thumb_data)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?28, ?29)"
         )
         .bind(product.base.id.to_string())
         .bind(product.base.company_id.to_string())
@@ -264,6 +275,7 @@ impl ProductRepository for SqliteProductRepository {
         .bind(&product.discount_tiers)
         .bind(&product.variations)
         .bind(product.min_stock)
+        .bind(&product.thumb_data)
         .execute(&self.pool)
         .await
         .map_err(map_db)?;
@@ -273,8 +285,8 @@ impl ProductRepository for SqliteProductRepository {
 
     async fn update(&self, product: &Product) -> Result<(), CoreError> {
         sqlx::query(
-            "UPDATE products SET name = ?1, description = ?2, category_id = ?3, subcategory_id = ?4, price = ?5, cost_price = ?6, stock_quantity = ?7, unlimited_stock = ?8, barcode = ?9, unit = ?10, balance_mode = ?11, updated_at = ?12, synced = ?13, image_data = ?14, cover_color = ?15, availability_schedule = ?16, discount_kind = ?17, discount_value = ?18, discount_min_qty = ?19, discount_tiers = ?20, variations = ?21, min_stock = ?22
-             WHERE company_id = ?23 AND id = ?24 AND deleted_at IS NULL",
+            "UPDATE products SET name = ?1, description = ?2, category_id = ?3, subcategory_id = ?4, price = ?5, cost_price = ?6, stock_quantity = ?7, unlimited_stock = ?8, barcode = ?9, unit = ?10, balance_mode = ?11, updated_at = ?12, synced = ?13, image_data = ?14, cover_color = ?15, availability_schedule = ?16, discount_kind = ?17, discount_value = ?18, discount_min_qty = ?19, discount_tiers = ?20, variations = ?21, min_stock = ?22, thumb_data = ?23
+             WHERE company_id = ?24 AND id = ?25 AND deleted_at IS NULL",
             // Nota: active e web_visible são alterados via toggle_* (AI_RULES.md §8)
         )
         .bind(&product.name)
@@ -299,6 +311,7 @@ impl ProductRepository for SqliteProductRepository {
         .bind(&product.discount_tiers)
         .bind(&product.variations)
         .bind(product.min_stock)
+        .bind(&product.thumb_data)
         .bind(product.base.company_id.to_string())
         .bind(product.base.id.to_string())
         .execute(&self.pool)
@@ -320,8 +333,8 @@ impl ProductRepository for SqliteProductRepository {
         let mut tx = self.pool.begin().await.map_err(map_db)?;
         // 1. Metadados (mantém `stock_quantity` atual; o delta vem no passo 2).
         sqlx::query(
-            "UPDATE products SET name = ?1, description = ?2, category_id = ?3, subcategory_id = ?4, price = ?5, cost_price = ?6, stock_quantity = ?7, unlimited_stock = ?8, barcode = ?9, unit = ?10, balance_mode = ?11, updated_at = ?12, synced = ?13, image_data = ?14, cover_color = ?15, availability_schedule = ?16, discount_kind = ?17, discount_value = ?18, discount_min_qty = ?19, discount_tiers = ?20, variations = ?21, min_stock = ?22
-             WHERE company_id = ?23 AND id = ?24 AND deleted_at IS NULL",
+            "UPDATE products SET name = ?1, description = ?2, category_id = ?3, subcategory_id = ?4, price = ?5, cost_price = ?6, stock_quantity = ?7, unlimited_stock = ?8, barcode = ?9, unit = ?10, balance_mode = ?11, updated_at = ?12, synced = ?13, image_data = ?14, cover_color = ?15, availability_schedule = ?16, discount_kind = ?17, discount_value = ?18, discount_min_qty = ?19, discount_tiers = ?20, variations = ?21, min_stock = ?22, thumb_data = ?23
+             WHERE company_id = ?24 AND id = ?25 AND deleted_at IS NULL",
         )
         .bind(&product.name)
         .bind(&product.description)
@@ -345,6 +358,7 @@ impl ProductRepository for SqliteProductRepository {
         .bind(&product.discount_tiers)
         .bind(&product.variations)
         .bind(product.min_stock)
+        .bind(&product.thumb_data)
         .bind(&cid)
         .bind(&pid)
         .execute(&mut *tx)
@@ -634,8 +648,8 @@ impl ProductRepository for SqliteProductRepository {
 
     async fn sync_upsert(&self, product: &Product) -> Result<(), CoreError> {
         sqlx::query(
-            "INSERT INTO products (id, company_id, name, description, category_id, subcategory_id, price, cost_price, stock_quantity, unlimited_stock, barcode, unit, created_at, updated_at, deleted_at, synced, active, web_visible, balance_mode, image_data, cover_color, availability_schedule, discount_kind, discount_value, discount_min_qty, discount_tiers, variations, min_stock)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?28)
+            "INSERT INTO products (id, company_id, name, description, category_id, subcategory_id, price, cost_price, stock_quantity, unlimited_stock, barcode, unit, created_at, updated_at, deleted_at, synced, active, web_visible, balance_mode, image_data, cover_color, availability_schedule, discount_kind, discount_value, discount_min_qty, discount_tiers, variations, min_stock, thumb_data)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?28, ?29)
              ON CONFLICT (id) DO UPDATE SET
                  name = excluded.name,
                  description = excluded.description,
@@ -669,6 +683,7 @@ impl ProductRepository for SqliteProductRepository {
                  web_visible = excluded.web_visible,
                  balance_mode = excluded.balance_mode,
                  image_data = excluded.image_data,
+                 thumb_data = excluded.thumb_data,
                  cover_color = excluded.cover_color,
                  availability_schedule = excluded.availability_schedule,
                  discount_kind = excluded.discount_kind,
@@ -707,6 +722,7 @@ impl ProductRepository for SqliteProductRepository {
         .bind(&product.discount_tiers)
         .bind(&product.variations)
         .bind(product.min_stock)
+        .bind(&product.thumb_data)
         .execute(&self.pool)
         .await
         .map_err(map_db)?;
@@ -746,6 +762,34 @@ impl ProductRepository for SqliteProductRepository {
         .await
         .map_err(map_db)?;
         Ok(())
+    }
+
+    async fn set_thumbnail(&self, company_id: Uuid, id: Uuid, thumb: Option<&str>) -> Result<(), CoreError> {
+        // De propósito NÃO mexe em `updated_at`/`synced`: a miniatura é
+        // derivada, e marcá-la como alteração faria cada terminal reempurrar
+        // o produto só por ter gerado o próprio thumb.
+        sqlx::query("UPDATE products SET thumb_data = ?1 WHERE company_id = ?2 AND id = ?3")
+            .bind(thumb)
+            .bind(company_id.to_string())
+            .bind(id.to_string())
+            .execute(&self.pool)
+            .await
+            .map_err(map_db)?;
+        Ok(())
+    }
+
+    async fn find_sem_miniatura(&self, company_id: Uuid) -> Result<Vec<Product>, CoreError> {
+        let rows = sqlx::query_as::<_, ProductRow>(
+            "SELECT id, company_id, name, description, category_id, subcategory_id, price, cost_price, stock_quantity, min_stock, unlimited_stock, barcode, unit, created_at, updated_at, deleted_at, synced, active, web_visible, balance_mode, image_data, thumb_data, cover_color, availability_schedule, discount_kind, discount_value, discount_min_qty, discount_tiers, variations FROM products \
+             WHERE company_id = ?1 AND deleted_at IS NULL \
+               AND image_data IS NOT NULL AND image_data <> '' \
+               AND (thumb_data IS NULL OR thumb_data = '')",
+        )
+        .bind(company_id.to_string())
+        .fetch_all(&self.pool)
+        .await
+        .map_err(map_db)?;
+        rows.into_iter().map(Product::try_from).collect()
     }
 
     async fn apply_stock_movement(&self, m: &StockMovement) -> Result<(), CoreError> {

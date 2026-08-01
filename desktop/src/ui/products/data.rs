@@ -179,7 +179,13 @@ pub(crate) fn to_decoded_product(
         discount_tiers: SharedString::from(p.discount_tiers.as_deref().unwrap_or("")),
         addon_group_ids: SharedString::from(addon_group_ids_to_csv(&p.addon_group_ids)),
         variations: SharedString::from(p.variations.as_deref().unwrap_or("")),
-        pixel_buffer: p.image_data.as_deref()
+        // Miniatura primeiro: a LISTA não lê `image_data` (o `find_all` do
+        // repositório devolve NULL nessa coluna), então o thumb de ~2 KB é a
+        // fonte do quadradinho. O fallback cobre a janela até o
+        // preenchimento em segundo plano terminar e as telas que carregam o
+        // produto inteiro (detalhe/edição).
+        pixel_buffer: p.thumb_data.as_deref()
+            .or(p.image_data.as_deref())
             .filter(|s| !s.is_empty())
             .and_then(decode_pixel_buffer),
     }

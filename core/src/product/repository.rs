@@ -158,6 +158,23 @@ pub trait ProductRepository: Send + Sync {
     /// o `id` já existe) e, apenas na primeira vez, aplica `stock_quantity +=
     /// delta` ao produto na MESMA transação. Como deltas são comutativos, o
     /// estoque converge sem overselling — ao contrário do LWW sobre o absoluto.
+    /// Grava só a MINIATURA do produto.
+    ///
+    /// Não toca em `updated_at` nem em `synced`: a miniatura é DERIVADA da
+    /// imagem, e marcá-la como alteração faria cada terminal reempurrar o
+    /// produto só por ter gerado o próprio thumb — churn de sync sem
+    /// mudança real de dado. Ela viaja junto quando o produto é salvo de
+    /// verdade; quem não tiver, regenera localmente.
+    async fn set_thumbnail(
+        &self,
+        company_id: Uuid,
+        id: Uuid,
+        thumb: Option<&str>,
+    ) -> Result<(), CoreError>;
+
+    /// Produtos com `image_data` preenchido e `thumb_data` vazio.
+    async fn find_sem_miniatura(&self, company_id: Uuid) -> Result<Vec<Product>, CoreError>;
+
     async fn apply_stock_movement(&self, movement: &StockMovement) -> Result<(), CoreError>;
 
     /// Grava um movimento vindo do PULL sem tocar em `stock_quantity`.

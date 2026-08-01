@@ -40,6 +40,28 @@ pub(super) fn pick_image_file() -> Option<PathBuf> {
 /// Lê o arquivo, redimensiona e retorna a imagem como JPEG base64.
 ///
 /// Regras aplicadas (AI_RULES.md §8): responsabilidade única — I/O + encode.
+/// Miniatura (64px) em base64, derivada da imagem já guardada.
+///
+/// A lista de produtos desenha um quadradinho por linha; carregar e
+/// decodificar a imagem de DETALHE para isso custava 301 MB e 482 ms em 3.334
+/// produtos. A miniatura pesa ~2 KB — 31× menos. JPEG sempre: a miniatura é
+/// desenhada sobre o card, então alpha não faz falta e o JPEG é bem menor.
+pub(crate) fn make_thumbnail(image_b64: &str) -> Option<String> {
+    use base64::Engine;
+    if image_b64.is_empty() {
+        return None;
+    }
+    let bytes = base64::engine::general_purpose::STANDARD.decode(image_b64).ok()?;
+    let img = image::load_from_memory(&bytes).ok()?;
+    let saida = resize_decoded_to_jpeg(img, THUMB_PX, THUMB_QUALITY)?;
+    Some(base64::engine::general_purpose::STANDARD.encode(saida))
+}
+
+/// Lado maior da miniatura. A lista desenha em ~48px; 64 dá folga para telas
+/// com escala 1.25/1.5 sem serrilhar.
+const THUMB_PX: u32 = 64;
+const THUMB_QUALITY: u8 = 78;
+
 pub(super) fn process_image_file(path: &Path) -> Option<String> {
     use base64::Engine;
     let bytes = std::fs::read(path).ok()?;

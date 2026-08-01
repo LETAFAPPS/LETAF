@@ -5,6 +5,7 @@ mod nav_perms;
 mod print;
 mod repository;
 mod session;
+mod thumbs;
 mod sync;
 mod ui;
 mod update;
@@ -148,6 +149,14 @@ fn main() {
     let health = HealthChecker::new(server_url.clone(), state.sync_status.clone());
     rt.spawn(async move { health.start().await });
     tracing::info!("HealthChecker spawned");
+
+    // Miniaturas que faltam (produtos anteriores à coluna, ou vindos de um
+    // terminal sem o campo). Sem elas a lista cai no fallback e volta a
+    // carregar a imagem inteira.
+    {
+        let _guard = rt.enter();
+        thumbs::spawn_backfill(state.clone());
+    }
 
     let window = MainWindow::new().expect("Failed to create UI");
     if rt.block_on(state.session.load_dark_mode()) {

@@ -376,7 +376,6 @@ Regras:
 ## 13. Desempenho
 
 - Priorizar legibilidade e manutenibilidade
-- Otimização deve ser baseada em medição real (profiling)
 
 ---
 
