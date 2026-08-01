@@ -118,8 +118,6 @@ conflitarem com conveniência, prevalecem os princípios.
 ### Prioridade: segurança e desempenho
 - Segurança (§11) e desempenho (§13) são prioridades de primeira classe,
   não pensamentos posteriores.
-- Desempenho guiado por medição (sem otimização prematura), mas sem
-  introduzir custos óbvios e evitáveis.
 
 ### UX e UI moderna e bonita
 - Interface moderna, limpa e agradável: hierarquia visual clara,
@@ -379,7 +377,6 @@ Regras:
 
 - Priorizar legibilidade e manutenibilidade
 - Otimização deve ser baseada em medição real (profiling)
-- Evitar otimizações prematuras
 
 ---
 
