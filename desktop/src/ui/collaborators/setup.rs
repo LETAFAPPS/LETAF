@@ -17,6 +17,7 @@ use crate::MainWindow;
 
 use super::super::helpers::{friendly_error, show_toast};
 use super::render::{apply_lists, apply_perm_rows, CollabCache};
+use crate::CollaboratorsState;
 
 /// Registra todos os callbacks da tela de Colaboradores.
 pub(crate) fn setup_collaborators(
@@ -40,7 +41,7 @@ pub(crate) fn setup_collaborators(
 fn setup_list_search(ui: &MainWindow, cache: &Arc<Mutex<CollabCache>>) {
     let ui_weak = ui.as_weak();
     let c = cache.clone();
-    ui.on_collab_role_search_changed(move |q| {
+    ui.global::<CollaboratorsState>().on_collab_role_search_changed(move |q| {
         let Some(ui) = ui_weak.upgrade() else { return };
         if let Ok(mut g) = c.lock() {
             g.role_query = q.to_string();
@@ -49,7 +50,7 @@ fn setup_list_search(ui: &MainWindow, cache: &Arc<Mutex<CollabCache>>) {
     });
     let ui_weak = ui.as_weak();
     let c = cache.clone();
-    ui.on_collab_emp_search_changed(move |q| {
+    ui.global::<CollaboratorsState>().on_collab_emp_search_changed(move |q| {
         let Some(ui) = ui_weak.upgrade() else { return };
         if let Ok(mut g) = c.lock() {
             g.emp_query = q.to_string();
@@ -69,7 +70,7 @@ fn setup_refresh(
     let state = state.clone();
     let handle = handle.clone();
     let cache = cache.clone();
-    ui.on_refresh_collaborators(move || {
+    ui.global::<CollaboratorsState>().on_refresh_collaborators(move || {
         let ui_weak = ui_weak.clone();
         let state = state.clone();
         let cache = cache.clone();
@@ -108,12 +109,12 @@ fn setup_role_form(ui: &MainWindow, cache: &Arc<Mutex<CollabCache>>) {
     {
         let ui_weak = ui.as_weak();
         let cache = cache.clone();
-        ui.on_collab_new_role(move || {
+        ui.global::<CollaboratorsState>().on_collab_new_role(move || {
             let Some(ui) = ui_weak.upgrade() else { return };
             if let Ok(mut g) = cache.lock() {
                 g.editing_perms.clear();
-                ui.set_collab_editing_role_id(SharedString::from(""));
-                ui.set_collab_role_name(SharedString::from(""));
+                ui.global::<CollaboratorsState>().set_collab_editing_role_id(SharedString::from(""));
+                ui.global::<CollaboratorsState>().set_collab_role_name(SharedString::from(""));
                 apply_perm_rows(&ui, &g.editing_perms);
             }
         });
@@ -122,7 +123,7 @@ fn setup_role_form(ui: &MainWindow, cache: &Arc<Mutex<CollabCache>>) {
     {
         let ui_weak = ui.as_weak();
         let cache = cache.clone();
-        ui.on_collab_edit_role(move |id_str| {
+        ui.global::<CollaboratorsState>().on_collab_edit_role(move |id_str| {
             let Some(ui) = ui_weak.upgrade() else { return };
             let Ok(id) = Uuid::parse_str(id_str.as_str()) else { return };
             if let Ok(mut g) = cache.lock() {
@@ -130,8 +131,8 @@ fn setup_role_form(ui: &MainWindow, cache: &Arc<Mutex<CollabCache>>) {
                     let perms: HashSet<String> = role.permissions.iter().cloned().collect();
                     let name = role.name.clone();
                     g.editing_perms = perms;
-                    ui.set_collab_editing_role_id(id_str);
-                    ui.set_collab_role_name(SharedString::from(name));
+                    ui.global::<CollaboratorsState>().set_collab_editing_role_id(id_str);
+                    ui.global::<CollaboratorsState>().set_collab_role_name(SharedString::from(name));
                     apply_perm_rows(&ui, &g.editing_perms);
                 }
             }
@@ -142,7 +143,7 @@ fn setup_role_form(ui: &MainWindow, cache: &Arc<Mutex<CollabCache>>) {
     {
         let ui_weak = ui.as_weak();
         let cache = cache.clone();
-        ui.on_collab_mark_all_perms(move || {
+        ui.global::<CollaboratorsState>().on_collab_mark_all_perms(move || {
             let Some(ui) = ui_weak.upgrade() else { return };
             if let Ok(mut g) = cache.lock() {
                 let all_on = letaf_core::permission::FEATURES
@@ -166,7 +167,7 @@ fn setup_role_form(ui: &MainWindow, cache: &Arc<Mutex<CollabCache>>) {
     {
         let ui_weak = ui.as_weak();
         let cache = cache.clone();
-        ui.on_collab_toggle_perm(move |key, is_edit, on| {
+        ui.global::<CollaboratorsState>().on_collab_toggle_perm(move |key, is_edit, on| {
             let Some(ui) = ui_weak.upgrade() else { return };
             let view = format!("{key}.view");
             let edit = format!("{key}.edit");
@@ -210,7 +211,7 @@ fn setup_role_persist(
         let handle = handle.clone();
         let cache = cache.clone();
         let sync_notify = sync_notify.clone();
-        ui.on_collab_save_role(move |id_str, name| {
+        ui.global::<CollaboratorsState>().on_collab_save_role(move |id_str, name| {
             let name = name.trim().to_string();
             if name.is_empty() {
                 if let Some(ui) = ui_weak.upgrade() {
@@ -253,20 +254,20 @@ fn setup_employee_form(ui: &MainWindow, cache: &Arc<Mutex<CollabCache>>) {
     // Novo funcionário: limpa o formulário.
     {
         let ui_weak = ui.as_weak();
-        ui.on_collab_new_employee(move || {
+        ui.global::<CollaboratorsState>().on_collab_new_employee(move || {
             let Some(ui) = ui_weak.upgrade() else { return };
-            ui.set_collab_emp_id(SharedString::from(""));
-            ui.set_collab_emp_name(SharedString::from(""));
-            ui.set_collab_emp_email(SharedString::from(""));
-            ui.set_collab_emp_password(SharedString::from(""));
-            ui.set_collab_emp_role_index(0);
+            ui.global::<CollaboratorsState>().set_collab_emp_id(SharedString::from(""));
+            ui.global::<CollaboratorsState>().set_collab_emp_name(SharedString::from(""));
+            ui.global::<CollaboratorsState>().set_collab_emp_email(SharedString::from(""));
+            ui.global::<CollaboratorsState>().set_collab_emp_password(SharedString::from(""));
+            ui.global::<CollaboratorsState>().set_collab_emp_role_index(0);
         });
     }
     // Editar funcionário: preenche o formulário (senha em branco).
     {
         let ui_weak = ui.as_weak();
         let cache = cache.clone();
-        ui.on_collab_edit_employee(move |id_str| {
+        ui.global::<CollaboratorsState>().on_collab_edit_employee(move |id_str| {
             let Some(ui) = ui_weak.upgrade() else { return };
             let Ok(id) = Uuid::parse_str(id_str.as_str()) else { return };
             if let Ok(g) = cache.lock() {
@@ -277,11 +278,11 @@ fn setup_employee_form(ui: &MainWindow, cache: &Arc<Mutex<CollabCache>>) {
                         .and_then(|jid| g.role_options.iter().position(|(rid, _)| *rid == jid))
                         .map(|p| (p + 1) as i32)
                         .unwrap_or(0);
-                    ui.set_collab_emp_id(id_str);
-                    ui.set_collab_emp_name(SharedString::from(u.name.clone()));
-                    ui.set_collab_emp_email(SharedString::from(u.email.clone()));
-                    ui.set_collab_emp_password(SharedString::from(""));
-                    ui.set_collab_emp_role_index(idx);
+                    ui.global::<CollaboratorsState>().set_collab_emp_id(id_str);
+                    ui.global::<CollaboratorsState>().set_collab_emp_name(SharedString::from(u.name.clone()));
+                    ui.global::<CollaboratorsState>().set_collab_emp_email(SharedString::from(u.email.clone()));
+                    ui.global::<CollaboratorsState>().set_collab_emp_password(SharedString::from(""));
+                    ui.global::<CollaboratorsState>().set_collab_emp_role_index(idx);
                 }
             }
         });
@@ -303,7 +304,7 @@ fn setup_employee_persist(
         let handle = handle.clone();
         let cache = cache.clone();
         let sync_notify = sync_notify.clone();
-        ui.on_collab_save_employee(move |id_str, name, email, password, role_idx| {
+        ui.global::<CollaboratorsState>().on_collab_save_employee(move |id_str, name, email, password, role_idx| {
             let name = name.trim().to_string();
             let email = email.trim().to_string();
             if name.is_empty() || (id_str.is_empty() && email.is_empty()) {
@@ -366,7 +367,7 @@ fn report_and_refresh(
             Ok(()) => {
                 show_toast(&ui, ok_msg, "success");
                 ui.set_status_message(SharedString::from(ok_msg));
-                ui.invoke_refresh_collaborators();
+                ui.global::<CollaboratorsState>().invoke_refresh_collaborators();
             }
             Err(e) => {
                 let msg = friendly_error(&e);

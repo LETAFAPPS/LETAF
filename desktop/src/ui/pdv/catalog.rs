@@ -14,6 +14,7 @@ use super::cart::{setup_clear_cart, setup_dec_line, setup_inc_line, setup_remove
 use super::finalize::setup_finalize;
 use super::customer::{setup_clear_customer, setup_customer_picker, setup_customer_search, setup_pick_customer, setup_use_address};
 use super::view::apply_state_to_ui;
+use crate::{PdvUiState, ProductConfigState};
 
 pub(crate) fn setup_pdv(
     ui: &MainWindow,
@@ -49,7 +50,7 @@ pub(crate) fn setup_pdv(
 
 pub(crate) fn setup_recalc(ui: &MainWindow, pdv: Arc<Mutex<PdvState>>) {
     let ui_weak = ui.as_weak();
-    ui.on_pdv_recalc(move || {
+    ui.global::<PdvUiState>().on_pdv_recalc(move || {
         if let Some(ui) = ui_weak.upgrade() {
             apply_state_to_ui(&ui, &pdv);
         }
@@ -58,7 +59,7 @@ pub(crate) fn setup_recalc(ui: &MainWindow, pdv: Arc<Mutex<PdvState>>) {
 
 pub(crate) fn setup_discount_changed(ui: &MainWindow, pdv: Arc<Mutex<PdvState>>) {
     let ui_weak = ui.as_weak();
-    ui.on_pdv_discount_changed(move |raw| {
+    ui.global::<PdvUiState>().on_pdv_discount_changed(move |raw| {
         if let Ok(mut g) = pdv.lock() {
             g.discount_value = parse_amount(raw.as_str());
         }
@@ -70,7 +71,7 @@ pub(crate) fn setup_discount_changed(ui: &MainWindow, pdv: Arc<Mutex<PdvState>>)
 
 pub(crate) fn setup_additional_changed(ui: &MainWindow, pdv: Arc<Mutex<PdvState>>) {
     let ui_weak = ui.as_weak();
-    ui.on_pdv_additional_changed(move |raw| {
+    ui.global::<PdvUiState>().on_pdv_additional_changed(move |raw| {
         if let Ok(mut g) = pdv.lock() {
             g.additional_value = parse_amount(raw.as_str());
         }
@@ -82,7 +83,7 @@ pub(crate) fn setup_additional_changed(ui: &MainWindow, pdv: Arc<Mutex<PdvState>
 
 pub(crate) fn setup_amount_paid_changed(ui: &MainWindow, pdv: Arc<Mutex<PdvState>>) {
     let ui_weak = ui.as_weak();
-    ui.on_pdv_amount_paid_changed(move |raw| {
+    ui.global::<PdvUiState>().on_pdv_amount_paid_changed(move |raw| {
         if let Ok(mut g) = pdv.lock() {
             g.amount_paid = parse_amount(raw.as_str());
         }
@@ -98,13 +99,13 @@ pub(crate) fn setup_amount_paid_changed(ui: &MainWindow, pdv: Arc<Mutex<PdvState
 /// a revelação progressiva das próximas linhas é reativa no Slint.
 pub(crate) fn setup_split_amount_changed(ui: &MainWindow, pdv: Arc<Mutex<PdvState>>) {
     let ui_weak = ui.as_weak();
-    ui.on_pdv_split_amount_changed(move |line, raw| {
+    ui.global::<PdvUiState>().on_pdv_split_amount_changed(move |line, raw| {
         let Some(ui) = ui_weak.upgrade() else { return };
         let value = parse_amount(raw.as_str()) as f32;
         match line {
-            0 => ui.set_pdv_split_v1(value),
-            1 => ui.set_pdv_split_v2(value),
-            2 => ui.set_pdv_split_v3(value),
+            0 => ui.global::<PdvUiState>().set_pdv_split_v1(value),
+            1 => ui.global::<PdvUiState>().set_pdv_split_v2(value),
+            2 => ui.global::<PdvUiState>().set_pdv_split_v3(value),
             _ => {}
         }
         apply_state_to_ui(&ui, &pdv);
@@ -120,7 +121,7 @@ pub(crate) fn setup_refresh(
     let ui_weak = ui.as_weak();
     let state = state.clone();
     let handle = handle.clone();
-    ui.on_pdv_refresh(move || {
+    ui.global::<PdvUiState>().on_pdv_refresh(move || {
         let ui_weak = ui_weak.clone();
         let state = state.clone();
         let pdv = pdv.clone();
@@ -188,7 +189,7 @@ pub(crate) fn setup_search(
     let _state = state.clone();
     let _handle = handle.clone();
     let ui_weak = ui.as_weak();
-    ui.on_pdv_search_changed(move |q| {
+    ui.global::<PdvUiState>().on_pdv_search_changed(move |q| {
         let trimmed = q.trim().to_string();
         // Auto-add por barcode. Duas formas:
         // 1) match EXATO do `barcode` cadastrado (produto unitário);
@@ -227,7 +228,7 @@ pub(crate) fn setup_search(
                 None => add_to_cart_simple(&pdv, pid),
             }
             if let Some(ui) = ui_weak.upgrade() {
-                ui.set_pdv_search_text(SharedString::default());
+                ui.global::<PdvUiState>().set_pdv_search_text(SharedString::default());
                 if let Ok(mut g) = pdv.lock() { g.search_query.clear(); }
                 apply_state_to_ui(&ui, &pdv);
             }
@@ -243,9 +244,9 @@ pub(crate) fn setup_search(
 
 pub(crate) fn setup_submit_search(ui: &MainWindow, pdv: Arc<Mutex<PdvState>>) {
     let ui_weak = ui.as_weak();
-    ui.on_pdv_submit_search(move || {
+    ui.global::<PdvUiState>().on_pdv_submit_search(move || {
         let Some(ui_ref) = ui_weak.upgrade() else { return };
-        let q = ui_ref.get_pdv_search_text().to_string();
+        let q = ui_ref.global::<PdvUiState>().get_pdv_search_text().to_string();
         let trimmed = q.trim().to_string();
         if trimmed.is_empty() { return; }
         let matched = pdv.lock().ok().and_then(|g| {
@@ -255,7 +256,7 @@ pub(crate) fn setup_submit_search(ui: &MainWindow, pdv: Arc<Mutex<PdvState>>) {
         });
         if let Some(pid) = matched {
             add_to_cart_simple(&pdv, pid);
-            ui_ref.set_pdv_search_text(SharedString::default());
+            ui_ref.global::<PdvUiState>().set_pdv_search_text(SharedString::default());
             if let Ok(mut g) = pdv.lock() { g.search_query.clear(); }
             apply_state_to_ui(&ui_ref, &pdv);
         }
@@ -264,7 +265,7 @@ pub(crate) fn setup_submit_search(ui: &MainWindow, pdv: Arc<Mutex<PdvState>>) {
 
 pub(crate) fn setup_toggle_category(ui: &MainWindow, pdv: Arc<Mutex<PdvState>>) {
     let ui_weak = ui.as_weak();
-    ui.on_pdv_toggle_category(move |id| {
+    ui.global::<PdvUiState>().on_pdv_toggle_category(move |id| {
         let Ok(uuid) = Uuid::parse_str(id.as_str()) else { return };
         if let Ok(mut g) = pdv.lock() {
             if let Some(pos) = g.active_category_ids.iter().position(|x| *x == uuid) {
@@ -281,7 +282,7 @@ pub(crate) fn setup_toggle_category(ui: &MainWindow, pdv: Arc<Mutex<PdvState>>) 
 
 pub(crate) fn setup_clear_categories(ui: &MainWindow, pdv: Arc<Mutex<PdvState>>) {
     let ui_weak = ui.as_weak();
-    ui.on_pdv_clear_categories(move || {
+    ui.global::<PdvUiState>().on_pdv_clear_categories(move || {
         if let Ok(mut g) = pdv.lock() { g.active_category_ids.clear(); }
         if let Some(ui) = ui_weak.upgrade() {
             apply_state_to_ui(&ui, &pdv);
@@ -295,7 +296,7 @@ pub(crate) fn setup_clear_categories(ui: &MainWindow, pdv: Arc<Mutex<PdvState>>)
 /// evitar churn em pixels triviais, só renderiza quando muda >= 4 px.
 pub(crate) fn setup_cats_width_changed(ui: &MainWindow, pdv: Arc<Mutex<PdvState>>) {
     let ui_weak = ui.as_weak();
-    ui.on_pdv_cats_width_changed(move |w| {
+    ui.global::<PdvUiState>().on_pdv_cats_width_changed(move |w| {
         let prev = pdv.lock().ok().map(|g| g.cats_width).unwrap_or(0.0);
         if (prev - w).abs() < 4.0 { return; }
         if let Ok(mut g) = pdv.lock() { g.cats_width = w; }
@@ -325,7 +326,7 @@ pub(crate) fn setup_add_product(
     let ui_weak = ui.as_weak();
     let state = state.clone();
     let handle = handle.clone();
-    ui.on_pdv_add_product(move |id| {
+    ui.global::<PdvUiState>().on_pdv_add_product(move |id| {
         let Ok(uuid) = Uuid::parse_str(id.as_str()) else { return };
         // Checa se tem config (variações/adicionais) lendo do snapshot.
         let (has_config, _name) = {
@@ -346,10 +347,10 @@ pub(crate) fn setup_add_product(
         }
         // Abre o ProductConfiguratorModal no contexto PDV.
         if let Some(ui) = ui_weak.upgrade() {
-            ui.set_config_context(SharedString::from("pdv"));
+            ui.global::<ProductConfigState>().set_config_context(SharedString::from("pdv"));
             // Reaproveita o `start-product-config` que carrega
             // variações/adicionais e popula `config-*` no MainWindow.
-            ui.invoke_start_product_config(SharedString::from(uuid.to_string()));
+            ui.global::<ProductConfigState>().invoke_start_product_config(SharedString::from(uuid.to_string()));
         }
         let _ = (state.clone(), handle.clone());
     });
@@ -447,16 +448,16 @@ pub(crate) fn add_balance_item(
 /// e empurra um `CartItem` com `addons_json` montado.
 pub(crate) fn setup_pdv_config_confirm(ui: &MainWindow, pdv: Arc<Mutex<PdvState>>) {
     let ui_weak = ui.as_weak();
-    ui.on_pdv_config_confirm(move || {
+    ui.global::<PdvUiState>().on_pdv_config_confirm(move || {
         let Some(ui_ref) = ui_weak.upgrade() else { return };
-        let product_id_str = ui_ref.get_config_product_id().to_string();
-        let product_name = ui_ref.get_config_product_name().to_string();
-        let qty = ui_ref.get_config_qty().max(1) as f64;
-        let base_price = ui_ref.get_config_base_price() as f64;
+        let product_id_str = ui_ref.global::<ProductConfigState>().get_config_product_id().to_string();
+        let product_name = ui_ref.global::<ProductConfigState>().get_config_product_name().to_string();
+        let qty = ui_ref.global::<ProductConfigState>().get_config_qty().max(1) as f64;
+        let base_price = ui_ref.global::<ProductConfigState>().get_config_base_price() as f64;
         // Monta snapshot dos addons selecionados — replica a lógica
         // do `setup_config_confirm` mas para o destino PDV.
-        let variations = ui_ref.get_config_variations();
-        let groups = ui_ref.get_config_addon_groups();
+        let variations = ui_ref.global::<ProductConfigState>().get_config_variations();
+        let groups = ui_ref.global::<ProductConfigState>().get_config_addon_groups();
         let mut snapshot: Vec<serde_json::Value> = Vec::new();
         let mut extras = 0.0_f64;
         for vi in 0..slint_row_count(&variations) {
@@ -546,8 +547,8 @@ pub(crate) fn setup_pdv_config_confirm(ui: &MainWindow, pdv: Arc<Mutex<PdvState>
             g.cart.push(line);
         }
         // Reseta o configurador (cancel limpa tudo + edit_idx=-1).
-        ui_ref.invoke_config_cancel();
-        ui_ref.set_config_context(SharedString::from("edit_order"));
+        ui_ref.global::<ProductConfigState>().invoke_config_cancel();
+        ui_ref.global::<ProductConfigState>().set_config_context(SharedString::from("edit_order"));
         apply_state_to_ui(&ui_ref, &pdv);
     });
 }

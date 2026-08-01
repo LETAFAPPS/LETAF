@@ -1,0 +1,76 @@
+// Estado da feature CAIXA (abertura, sangria, suprimento e fechamento), isolado do MainWindow.
+//
+// Por que um `global` (AI_RULES §8 / "Modularidade real"): em Slint as
+// propriedades de um componente vivem todas no mesmo arquivo — o
+// `main.slint` concentrava ~830 declaracoes de ~30 features. `global` e
+// o unico mecanismo da linguagem para separar estado por dominio sem
+// prop drilling, e o projeto ja o usa em `Theme`, `IconGlyph` e
+// `AdminState`.
+//
+// Acesso: no Slint, `CashState.<prop>`; no Rust,
+// `ui.global::<CashState>().set_<prop>()` / `.on_<callback>()`.
+// Logica em desktop/src/ui/cash.
+import { CashMethodTotalRow, CashMovementRow, CashSessionRow, CashSummaryData } from "../types.slint";
+
+export global CashState {
+    // ── Gestão de Caixa ─────────────────────────────────────────
+    in-out property <CashSummaryData>  cash-summary;
+    // Property bool dedicada para o `if` do PdvNoCashModal. Slint
+    // pode disparar "Recursion detected" quando uma condição lê um
+    // campo de struct (cash-summary.open) e o struct inteiro é
+    // re-escrito a cada cash-refresh. Property bool isolada quebra
+    // a dependência da struct.
+    in-out property <bool>             cash-blocked: true;
+    in-out property <[CashSessionRow]> cash-sessions: [];
+    in-out property <[CashMovementRow]> cash-movements: [];
+    in-out property <[CashMethodTotalRow]> cash-method-totals: [];
+    // Modais
+    in-out property <bool>             cash-show-open: false;
+    in-out property <bool>             cash-show-sangria: false;
+    in-out property <bool>             cash-show-suprimento: false;
+    in-out property <bool>             cash-show-close: false;
+    // Inputs do modal abrir
+    in-out property <string>           cash-open-operator: "";
+    in-out property <string>           cash-open-suggested: "";
+    in-out property <string>           cash-open-amount: "";
+    in-out property <string>           cash-open-notes: "";
+    // Inputs do modal sangria
+    in-out property <string>           cash-sangria-amount: "";
+    in-out property <string>           cash-sangria-reason: "Depósito Bancário";
+    in-out property <string>           cash-sangria-detail: "";
+    // Inputs do modal suprimento
+    in-out property <string>           cash-suprimento-amount: "";
+    in-out property <string>           cash-suprimento-origin: "Cofre Troco";
+    in-out property <string>           cash-suprimento-detail: "";
+    // Modal fechar — sistema (Rust calcula), informado (operador), diferenças (Rust recalc)
+    in-out property <string>           cash-close-opened-at: "";
+    in-out property <string>           cash-close-duration: "";
+    in-out property <string>           cash-close-operator: "";
+    in-out property <string>           cash-close-sys-cash: "R$ 0,00";
+    in-out property <string>           cash-close-sys-pix: "R$ 0,00";
+    in-out property <string>           cash-close-sys-credit: "R$ 0,00";
+    in-out property <string>           cash-close-sys-debit: "R$ 0,00";
+    in-out property <string>           cash-close-sys-total: "R$ 0,00";
+    in-out property <int>              cash-close-cash-count: 0;
+    in-out property <int>              cash-close-pix-count: 0;
+    in-out property <int>              cash-close-credit-count: 0;
+    in-out property <int>              cash-close-debit-count: 0;
+    in-out property <string>           cash-close-in-cash: "";
+    in-out property <string>           cash-close-in-pix: "";
+    in-out property <string>           cash-close-in-credit: "";
+    in-out property <string>           cash-close-in-debit: "";
+    in-out property <string>           cash-close-in-total: "R$ 0,00";
+    in-out property <string>           cash-close-diff-cash: "R$ 0,00";
+    in-out property <string>           cash-close-diff-pix: "R$ 0,00";
+    in-out property <string>           cash-close-diff-credit: "R$ 0,00";
+    in-out property <string>           cash-close-diff-debit: "R$ 0,00";
+    in-out property <string>           cash-close-diff-total: "R$ 0,00";
+    in-out property <bool>             cash-close-has-diff: false;
+    in-out property <string>           cash-close-notes: "";
+    callback cash-refresh();
+    callback cash-open-confirm();
+    callback cash-sangria-confirm();
+    callback cash-suprimento-confirm();
+    callback cash-close-recalc();
+    callback cash-close-confirm();
+}

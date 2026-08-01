@@ -1,0 +1,55 @@
+// Estado da feature CLIENTES (lista master-detail + modal de cadastro), isolado do MainWindow.
+//
+// Por que um `global` (AI_RULES §8 / "Modularidade real"): em Slint as
+// propriedades de um componente vivem todas no mesmo arquivo — o
+// `main.slint` concentrava ~830 declaracoes de ~30 features. `global` e
+// o unico mecanismo da linguagem para separar estado por dominio sem
+// prop drilling, e o projeto ja o usa em `Theme`, `IconGlyph` e
+// `AdminState`.
+//
+// Acesso: no Slint, `CustomersState.<prop>`; no Rust,
+// `ui.global::<CustomersState>().set_<prop>()` / `.on_<callback>()`.
+// Logica em desktop/src/ui/customers.
+import { CustomerAddressRow, CustomerData, CustomerOrderRow } from "../types.slint";
+
+export global CustomersState {
+    // ── Clientes ────────────────────────────────────
+    in-out property <[CustomerData]> customers: [];
+    in-out property <string> customer-name: "";
+    in-out property <string> customer-email: "";
+    in-out property <string> customer-phone: "";
+    in-out property <string> customer-document: "";
+    in-out property <image> customer-profile-picture;
+    in-out property <string> customer-avatar-initial: "?";
+    in-out property <string> customer-error-name: "";
+    in-out property <string> customer-error-email: "";
+    in-out property <string> customer-error-phone: "";
+    in-out property <string> customer-error-document: "";
+    /// Observação interna editável no modal de cliente.
+    in-out property <string> customer-notes: "";
+    /// Cliente selecionado no master-detail (vazio = nenhum).
+    in-out property <string> selected-customer-id: "";
+    /// Dados do cliente em foco no painel de detalhe.
+    in-out property <CustomerData> detail-customer;
+    /// Pedidos recentes do cliente em foco.
+    in-out property <[CustomerOrderRow]> detail-recent-orders: [];
+    in-out property <[CustomerAddressRow]> detail-addresses: [];
+    /// Campos do form de novo endereço no modal de cliente.
+    in-out property <string> customer-addr-label: "Casa";
+    in-out property <string> customer-addr-custom-label: "";
+    in-out property <string> customer-addr-street: "";
+    in-out property <string> customer-addr-number: "";
+    in-out property <string> customer-addr-neighborhood: "";
+    in-out property <string> customer-addr-apartment: "";
+    callback add-customer();
+    callback update-customer();
+    callback add-customer-address();
+    callback delete-customer-address(string);
+    callback delete-customer(string);
+    callback refresh-customers();
+    callback filter-customers(string);
+    callback select-customer(string);
+    callback new-customer-order(string);
+    callback format-customer-phone(string) -> string;
+    callback format-customer-document(string) -> string;
+}

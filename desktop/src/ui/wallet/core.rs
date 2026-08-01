@@ -11,6 +11,8 @@ use crate::MainWindow;
 
 use super::ops::{setup_confirm_adjust, setup_confirm_deposit, setup_confirm_limit, setup_confirm_open, setup_confirm_withdraw, setup_sync_listener};
 use super::view::{apply_movements, apply_summary, setup_close_modals, setup_open_modals, setup_select_listener};
+use slint::ComponentHandle;
+use crate::CustomersState;
 
 /// Espelha a dívida da carteira no Financeiro — conta a receber
 /// AUTOMÁTICA do fiado (regra em `FinanceService::sync_fiado_receivable`).
@@ -99,7 +101,7 @@ pub(crate) fn refresh_for_selected(
             let _ = slint::invoke_from_event_loop(move || {
                 let id = ui_weak2
                     .upgrade()
-                    .map(|u| u.get_selected_customer_id().to_string())
+                    .map(|u| u.global::<CustomersState>().get_selected_customer_id().to_string())
                     .unwrap_or_default();
                 let _ = tx.send(id);
             });

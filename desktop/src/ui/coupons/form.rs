@@ -8,6 +8,8 @@ use letaf_core::coupon::model::Coupon;
 use crate::MainWindow;
 
 use super::super::helpers::{friendly_error, show_toast};
+use slint::ComponentHandle;
+use crate::CouponsState;
 
 // ── Helpers ───────────────────────────────────────────────────────
 
@@ -37,26 +39,26 @@ pub(crate) fn report_error(ui_weak: slint::Weak<MainWindow>, e: letaf_core::erro
 /// Lê e converte o form. Aterra os erros básicos (formato) inline e
 /// devolve `None` — a validação de regra fica no service do core.
 pub(crate) fn read_and_validate(ui: &MainWindow) -> Option<CouponForm> {
-    ui.set_coupon_error_title(SharedString::default());
-    ui.set_coupon_error_code(SharedString::default());
-    ui.set_coupon_error_discount(SharedString::default());
-    ui.set_coupon_error_min(SharedString::default());
-    ui.set_coupon_error_per_user(SharedString::default());
-    ui.set_coupon_error_usage(SharedString::default());
-    ui.set_coupon_error_validity(SharedString::default());
+    ui.global::<CouponsState>().set_coupon_error_title(SharedString::default());
+    ui.global::<CouponsState>().set_coupon_error_code(SharedString::default());
+    ui.global::<CouponsState>().set_coupon_error_discount(SharedString::default());
+    ui.global::<CouponsState>().set_coupon_error_min(SharedString::default());
+    ui.global::<CouponsState>().set_coupon_error_per_user(SharedString::default());
+    ui.global::<CouponsState>().set_coupon_error_usage(SharedString::default());
+    ui.global::<CouponsState>().set_coupon_error_validity(SharedString::default());
 
-    let title = ui.get_coupon_title().to_string();
-    let code = ui.get_coupon_code().to_string();
-    let coupon_type = ui.get_coupon_type().to_string();
-    let discount_kind = ui.get_coupon_discount_kind().to_string();
+    let title = ui.global::<CouponsState>().get_coupon_title().to_string();
+    let code = ui.global::<CouponsState>().get_coupon_code().to_string();
+    let coupon_type = ui.global::<CouponsState>().get_coupon_type().to_string();
+    let discount_kind = ui.global::<CouponsState>().get_coupon_discount_kind().to_string();
 
     let mut ok = true;
     if title.trim().is_empty() {
-        ui.set_coupon_error_title(SharedString::from("Informe o título"));
+        ui.global::<CouponsState>().set_coupon_error_title(SharedString::from("Informe o título"));
         ok = false;
     }
     if code.trim().is_empty() {
-        ui.set_coupon_error_code(SharedString::from("Informe o código"));
+        ui.global::<CouponsState>().set_coupon_error_code(SharedString::from("Informe o código"));
         ok = false;
     }
 
@@ -77,47 +79,47 @@ pub(crate) fn read_and_validate(ui: &MainWindow) -> Option<CouponForm> {
     let (discount_value, max_discount) = if coupon_type == "free_shipping" {
         (0.0, 0.0)
     } else {
-        let dv = match req_money(&ui.get_coupon_discount_value()) {
+        let dv = match req_money(&ui.global::<CouponsState>().get_coupon_discount_value()) {
             Ok(v) if v > 0.0 => v,
             Ok(_) => {
-                ui.set_coupon_error_discount(SharedString::from("Valor deve ser maior que zero"));
+                ui.global::<CouponsState>().set_coupon_error_discount(SharedString::from("Valor deve ser maior que zero"));
                 ok = false; 0.0
             }
             Err(m) => {
-                ui.set_coupon_error_discount(SharedString::from(m));
+                ui.global::<CouponsState>().set_coupon_error_discount(SharedString::from(m));
                 ok = false; 0.0
             }
         };
-        let md = match req_money(&ui.get_coupon_max_discount()) {
+        let md = match req_money(&ui.global::<CouponsState>().get_coupon_max_discount()) {
             Ok(v) => v,
             Err(m) => {
-                ui.set_coupon_error_discount(SharedString::from(format!("Desconto máximo: {m}")));
+                ui.global::<CouponsState>().set_coupon_error_discount(SharedString::from(format!("Desconto máximo: {m}")));
                 ok = false; 0.0
             }
         };
         (dv, md)
     };
 
-    let min_order_value = match req_money(&ui.get_coupon_min_order()) {
+    let min_order_value = match req_money(&ui.global::<CouponsState>().get_coupon_min_order()) {
         Ok(v) => v,
-        Err(m) => { ui.set_coupon_error_min(SharedString::from(m)); ok = false; 0.0 }
+        Err(m) => { ui.global::<CouponsState>().set_coupon_error_min(SharedString::from(m)); ok = false; 0.0 }
     };
-    let per_user_limit = match req_int(&ui.get_coupon_per_user_limit()) {
+    let per_user_limit = match req_int(&ui.global::<CouponsState>().get_coupon_per_user_limit()) {
         Ok(v) => v,
-        Err(m) => { ui.set_coupon_error_per_user(SharedString::from(m)); ok = false; 0 }
+        Err(m) => { ui.global::<CouponsState>().set_coupon_error_per_user(SharedString::from(m)); ok = false; 0 }
     };
-    let usage_limit = match req_int(&ui.get_coupon_usage_limit()) {
+    let usage_limit = match req_int(&ui.global::<CouponsState>().get_coupon_usage_limit()) {
         Ok(v) => v,
-        Err(m) => { ui.set_coupon_error_usage(SharedString::from(m)); ok = false; 0 }
+        Err(m) => { ui.global::<CouponsState>().set_coupon_error_usage(SharedString::from(m)); ok = false; 0 }
     };
 
-    let valid_from = match parse_date(&ui.get_coupon_valid_from(), false) {
+    let valid_from = match parse_date(&ui.global::<CouponsState>().get_coupon_valid_from(), false) {
         Ok(v) => v,
-        Err(m) => { ui.set_coupon_error_validity(SharedString::from(m)); ok = false; None }
+        Err(m) => { ui.global::<CouponsState>().set_coupon_error_validity(SharedString::from(m)); ok = false; None }
     };
-    let valid_until = match parse_date(&ui.get_coupon_valid_until(), true) {
+    let valid_until = match parse_date(&ui.global::<CouponsState>().get_coupon_valid_until(), true) {
         Ok(v) => v,
-        Err(m) => { ui.set_coupon_error_validity(SharedString::from(m)); ok = false; None }
+        Err(m) => { ui.global::<CouponsState>().set_coupon_error_validity(SharedString::from(m)); ok = false; None }
     };
 
     if !ok { return None; }
@@ -131,24 +133,24 @@ pub(crate) fn read_and_validate(ui: &MainWindow) -> Option<CouponForm> {
 
 pub(crate) fn clear_form(ui: &MainWindow) {
     ui.set_editing_id(SharedString::default());
-    ui.set_coupon_title(SharedString::default());
-    ui.set_coupon_code(SharedString::default());
-    ui.set_coupon_type(SharedString::from("standard"));
-    ui.set_coupon_discount_kind(SharedString::from("fixed"));
-    ui.set_coupon_discount_value(SharedString::default());
-    ui.set_coupon_min_order(SharedString::default());
-    ui.set_coupon_max_discount(SharedString::default());
-    ui.set_coupon_per_user_limit(SharedString::default());
-    ui.set_coupon_usage_limit(SharedString::default());
-    ui.set_coupon_valid_from(SharedString::default());
-    ui.set_coupon_valid_until(SharedString::default());
-    ui.set_coupon_error_title(SharedString::default());
-    ui.set_coupon_error_code(SharedString::default());
-    ui.set_coupon_error_discount(SharedString::default());
-    ui.set_coupon_error_min(SharedString::default());
-    ui.set_coupon_error_per_user(SharedString::default());
-    ui.set_coupon_error_usage(SharedString::default());
-    ui.set_coupon_error_validity(SharedString::default());
+    ui.global::<CouponsState>().set_coupon_title(SharedString::default());
+    ui.global::<CouponsState>().set_coupon_code(SharedString::default());
+    ui.global::<CouponsState>().set_coupon_type(SharedString::from("standard"));
+    ui.global::<CouponsState>().set_coupon_discount_kind(SharedString::from("fixed"));
+    ui.global::<CouponsState>().set_coupon_discount_value(SharedString::default());
+    ui.global::<CouponsState>().set_coupon_min_order(SharedString::default());
+    ui.global::<CouponsState>().set_coupon_max_discount(SharedString::default());
+    ui.global::<CouponsState>().set_coupon_per_user_limit(SharedString::default());
+    ui.global::<CouponsState>().set_coupon_usage_limit(SharedString::default());
+    ui.global::<CouponsState>().set_coupon_valid_from(SharedString::default());
+    ui.global::<CouponsState>().set_coupon_valid_until(SharedString::default());
+    ui.global::<CouponsState>().set_coupon_error_title(SharedString::default());
+    ui.global::<CouponsState>().set_coupon_error_code(SharedString::default());
+    ui.global::<CouponsState>().set_coupon_error_discount(SharedString::default());
+    ui.global::<CouponsState>().set_coupon_error_min(SharedString::default());
+    ui.global::<CouponsState>().set_coupon_error_per_user(SharedString::default());
+    ui.global::<CouponsState>().set_coupon_error_usage(SharedString::default());
+    ui.global::<CouponsState>().set_coupon_error_validity(SharedString::default());
 }
 
 /// "1.234,56" / "1234.56" / "" → f64. Vazio = 0.

@@ -22,6 +22,8 @@ use crate::{
     DashboardBarPoint, DashboardComparePoint, DashboardKpi, DashboardLinePoint,
     DashboardPaymentSlice, DashboardTopProduct, MainWindow,
 };
+use slint::ComponentHandle;
+use crate::DashboardState;
 
 // ── Snapshot agregado (Send para invocar do event loop) ──────────
 
@@ -278,25 +280,25 @@ pub(crate) fn build_snapshot(
 }
 
 pub(crate) fn apply_to_ui(ui: &MainWindow, s: &Snapshot) {
-    ui.set_dashboard_kpis(ModelRc::new(VecModel::from(s.kpis.clone())));
-    ui.set_dashboard_sales_bars(ModelRc::new(VecModel::from(s.sales_bars.clone())));
-    ui.set_dashboard_compare_points(ModelRc::new(VecModel::from(s.compare_points.clone())));
-    ui.set_dashboard_compare_label(SharedString::from(s.compare_label.as_str()));
-    ui.set_dashboard_week_revenue(SharedString::from(s.week_revenue.as_str()));
-    ui.set_dashboard_week_revenue_label(SharedString::from(s.week_revenue_label.as_str()));
-    ui.set_dashboard_week_delta(SharedString::from(s.week_delta.as_str()));
-    ui.set_dashboard_week_delta_tone(SharedString::from(s.week_delta_tone.as_str()));
-    ui.set_dashboard_week_has_chart(s.week_has_chart);
-    ui.set_dashboard_week_orders(SharedString::from(s.week_orders.as_str()));
-    ui.set_dashboard_week_ticket(SharedString::from(s.week_ticket.as_str()));
-    ui.set_dashboard_week_best_day(SharedString::from(s.week_best_day.as_str()));
-    ui.set_dashboard_week_line_path(SharedString::from(s.week_line_path.as_str()));
-    ui.set_dashboard_week_area_path(SharedString::from(s.week_area_path.as_str()));
-    ui.set_dashboard_line_points(ModelRc::new(VecModel::from(s.line_points.clone())));
-    ui.set_dashboard_subtitle(SharedString::from(s.subtitle.as_str()));
-    ui.set_dashboard_top_products(ModelRc::new(VecModel::from(s.top_products.clone())));
-    ui.set_dashboard_payment_slices(ModelRc::new(VecModel::from(s.payment_slices.clone())));
-    ui.set_dashboard_payment_total(SharedString::from(s.payment_total.as_str()));
+    ui.global::<DashboardState>().set_dashboard_kpis(ModelRc::new(VecModel::from(s.kpis.clone())));
+    ui.global::<DashboardState>().set_dashboard_sales_bars(ModelRc::new(VecModel::from(s.sales_bars.clone())));
+    ui.global::<DashboardState>().set_dashboard_compare_points(ModelRc::new(VecModel::from(s.compare_points.clone())));
+    ui.global::<DashboardState>().set_dashboard_compare_label(SharedString::from(s.compare_label.as_str()));
+    ui.global::<DashboardState>().set_dashboard_week_revenue(SharedString::from(s.week_revenue.as_str()));
+    ui.global::<DashboardState>().set_dashboard_week_revenue_label(SharedString::from(s.week_revenue_label.as_str()));
+    ui.global::<DashboardState>().set_dashboard_week_delta(SharedString::from(s.week_delta.as_str()));
+    ui.global::<DashboardState>().set_dashboard_week_delta_tone(SharedString::from(s.week_delta_tone.as_str()));
+    ui.global::<DashboardState>().set_dashboard_week_has_chart(s.week_has_chart);
+    ui.global::<DashboardState>().set_dashboard_week_orders(SharedString::from(s.week_orders.as_str()));
+    ui.global::<DashboardState>().set_dashboard_week_ticket(SharedString::from(s.week_ticket.as_str()));
+    ui.global::<DashboardState>().set_dashboard_week_best_day(SharedString::from(s.week_best_day.as_str()));
+    ui.global::<DashboardState>().set_dashboard_week_line_path(SharedString::from(s.week_line_path.as_str()));
+    ui.global::<DashboardState>().set_dashboard_week_area_path(SharedString::from(s.week_area_path.as_str()));
+    ui.global::<DashboardState>().set_dashboard_line_points(ModelRc::new(VecModel::from(s.line_points.clone())));
+    ui.global::<DashboardState>().set_dashboard_subtitle(SharedString::from(s.subtitle.as_str()));
+    ui.global::<DashboardState>().set_dashboard_top_products(ModelRc::new(VecModel::from(s.top_products.clone())));
+    ui.global::<DashboardState>().set_dashboard_payment_slices(ModelRc::new(VecModel::from(s.payment_slices.clone())));
+    ui.global::<DashboardState>().set_dashboard_payment_total(SharedString::from(s.payment_total.as_str()));
 }
 
 // ── Helpers de apresentação ──────────────────────────────────────

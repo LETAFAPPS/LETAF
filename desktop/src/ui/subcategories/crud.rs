@@ -12,6 +12,7 @@ use crate::{MainWindow, SubcategoryData};
 
 use super::super::helpers::{friendly_error, show_toast};
 use super::list::{clear_subcategory_form, validate_subcategory_form};
+use crate::CategoriesState;
 
 /// Callback: cria subcategoria e dispara sync.
 pub(crate) fn setup_add_subcategory(
@@ -24,17 +25,17 @@ pub(crate) fn setup_add_subcategory(
     let state = state.clone();
     let handle = handle.clone();
 
-    ui.on_add_subcategory(move || {
+    ui.global::<CategoriesState>().on_add_subcategory(move || {
         let Some(ui_ref) = ui_weak.upgrade() else { return };
 
         if !validate_subcategory_form(&ui_ref) {
             return;
         }
 
-        let name = ui_ref.get_subcategory_name().to_string();
-        let cat_id_str = ui_ref.get_subcategory_category_id().to_string();
+        let name = ui_ref.global::<CategoriesState>().get_subcategory_name().to_string();
+        let cat_id_str = ui_ref.global::<CategoriesState>().get_subcategory_category_id().to_string();
         let Ok(category_id) = Uuid::parse_str(&cat_id_str) else {
-            ui_ref.set_subcategory_error_category(SharedString::from("Categoria inválida"));
+            ui_ref.global::<CategoriesState>().set_subcategory_error_category(SharedString::from("Categoria inválida"));
             return;
         };
 
@@ -53,8 +54,8 @@ pub(crate) fn setup_add_subcategory(
                         clear_subcategory_form(&ui);
                         ui.set_show_modal(false);
                         ui.set_status_message(SharedString::from("Subcategoria Criada"));
-                        ui.invoke_refresh_subcategories();
-                        ui.invoke_refresh_categories();
+                        ui.global::<CategoriesState>().invoke_refresh_subcategories();
+                        ui.global::<CategoriesState>().invoke_refresh_categories();
                     });
                 }
                 Err(e) => {
@@ -81,7 +82,7 @@ pub(crate) fn setup_update_subcategory(
     let state = state.clone();
     let handle = handle.clone();
 
-    ui.on_update_subcategory(move || {
+    ui.global::<CategoriesState>().on_update_subcategory(move || {
         let Some(ui_ref) = ui_weak.upgrade() else { return };
 
         if !validate_subcategory_form(&ui_ref) {
@@ -90,10 +91,10 @@ pub(crate) fn setup_update_subcategory(
 
         let id_str = ui_ref.get_editing_id().to_string();
         let Ok(id) = Uuid::parse_str(&id_str) else { return };
-        let name = ui_ref.get_subcategory_name().to_string();
-        let cat_id_str = ui_ref.get_subcategory_category_id().to_string();
+        let name = ui_ref.global::<CategoriesState>().get_subcategory_name().to_string();
+        let cat_id_str = ui_ref.global::<CategoriesState>().get_subcategory_category_id().to_string();
         let Ok(category_id) = Uuid::parse_str(&cat_id_str) else {
-            ui_ref.set_subcategory_error_category(SharedString::from("Categoria inválida"));
+            ui_ref.global::<CategoriesState>().set_subcategory_error_category(SharedString::from("Categoria inválida"));
             return;
         };
 
@@ -113,8 +114,8 @@ pub(crate) fn setup_update_subcategory(
                         ui.set_editing_id(SharedString::default());
                         ui.set_show_modal(false);
                         ui.set_status_message(SharedString::from(format!("Subcategoria '{}' Atualizada", s.name)));
-                        ui.invoke_refresh_subcategories();
-                        ui.invoke_refresh_categories();
+                        ui.global::<CategoriesState>().invoke_refresh_subcategories();
+                        ui.global::<CategoriesState>().invoke_refresh_categories();
                     });
                 }
                 Err(e) => {
@@ -141,7 +142,7 @@ pub(crate) fn setup_delete_subcategory(
     let state = state.clone();
     let handle = handle.clone();
 
-    ui.on_delete_subcategory(move |id_str| {
+    ui.global::<CategoriesState>().on_delete_subcategory(move |id_str| {
         let Ok(id) = Uuid::parse_str(id_str.as_str()) else { return };
 
         let ui_weak = ui_weak.clone();
@@ -157,8 +158,8 @@ pub(crate) fn setup_delete_subcategory(
                         let Some(ui) = ui_weak.upgrade() else { return };
                         show_toast(&ui, "Subcategoria Excluída", "success");
                         ui.set_status_message(SharedString::from("Subcategoria Excluída"));
-                        ui.invoke_refresh_subcategories();
-                        ui.invoke_refresh_categories();
+                        ui.global::<CategoriesState>().invoke_refresh_subcategories();
+                        ui.global::<CategoriesState>().invoke_refresh_categories();
                     });
                 }
                 Err(e) => {
@@ -185,7 +186,7 @@ pub(crate) fn setup_reorder_subcategory(
     let state = state.clone();
     let handle = handle.clone();
 
-    ui.on_reorder_subcategory(move |id_str, is_up| {
+    ui.global::<CategoriesState>().on_reorder_subcategory(move |id_str, is_up| {
         let ui_weak = ui_weak.clone();
         let state = state.clone();
         let notify = sync_notify.clone();
@@ -222,8 +223,8 @@ pub(crate) fn setup_reorder_subcategory(
             notify.notify_one();
             let _ = slint::invoke_from_event_loop(move || {
                 let Some(ui) = ui_weak.upgrade() else { return };
-                ui.invoke_refresh_categories();
-                ui.invoke_refresh_subcategories();
+                ui.global::<CategoriesState>().invoke_refresh_categories();
+                ui.global::<CategoriesState>().invoke_refresh_subcategories();
             });
         });
     });

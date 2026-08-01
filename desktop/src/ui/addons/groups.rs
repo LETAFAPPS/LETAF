@@ -12,6 +12,7 @@ use crate::context::DesktopState;
 use crate::{AddonData, AddonGroupData, MainWindow};
 
 use super::super::helpers::{friendly_error, show_toast};
+use crate::{AddonsState, ProductsState};
 
 /// Refresh: carrega grupos + (em paralelo) todos os addons para já saber
 /// quantos itens cada grupo tem (`addons-count`). Mantemos a contagem
@@ -25,7 +26,7 @@ pub(crate) fn setup_refresh_addon_groups(
     let state = state.clone();
     let handle = handle.clone();
 
-    ui.on_refresh_addon_groups(move || {
+    ui.global::<AddonsState>().on_refresh_addon_groups(move || {
         let ui_weak = ui_weak.clone();
         let state = state.clone();
         handle.spawn(async move {
@@ -47,8 +48,8 @@ pub(crate) fn setup_refresh_addon_groups(
 
             let _ = slint::invoke_from_event_loop(move || {
                 let Some(ui) = ui_weak.upgrade() else { return };
-                ui.set_addon_groups(ModelRc::new(VecModel::from(group_data)));
-                ui.set_product_addon_groups(ModelRc::new(VecModel::from(product_chips)));
+                ui.global::<AddonsState>().set_addon_groups(ModelRc::new(VecModel::from(group_data)));
+                ui.global::<ProductsState>().set_product_addon_groups(ModelRc::new(VecModel::from(product_chips)));
             });
         });
     });
@@ -102,7 +103,7 @@ pub(crate) fn setup_select_addon_group(
     let state = state.clone();
     let handle = handle.clone();
 
-    ui.on_select_addon_group(move |id| {
+    ui.global::<AddonsState>().on_select_addon_group(move |id| {
         let id_str = id.to_string();
         let Ok(gid) = Uuid::parse_str(&id_str) else { return };
         let ui_weak = ui_weak.clone();
@@ -119,9 +120,9 @@ pub(crate) fn setup_select_addon_group(
             let name_ss = SharedString::from(name);
             let _ = slint::invoke_from_event_loop(move || {
                 let Some(ui) = ui_weak.upgrade() else { return };
-                ui.set_selected_addon_group_id(id_ss);
-                ui.set_selected_addon_group_name(name_ss);
-                ui.set_current_group_addons(ModelRc::new(VecModel::from(data)));
+                ui.global::<AddonsState>().set_selected_addon_group_id(id_ss);
+                ui.global::<AddonsState>().set_selected_addon_group_name(name_ss);
+                ui.global::<AddonsState>().set_current_group_addons(ModelRc::new(VecModel::from(data)));
             });
         });
     });
@@ -166,18 +167,18 @@ pub(crate) fn setup_save_addon_group(
     let state = state.clone();
     let handle = handle.clone();
 
-    ui.on_save_addon_group(move || {
+    ui.global::<AddonsState>().on_save_addon_group(move || {
         let Some(ui_ref) = ui_weak.upgrade() else { return };
-        let id_str = ui_ref.get_addon_group_form_id().to_string();
-        let name = ui_ref.get_addon_group_form_name().trim().to_string();
+        let id_str = ui_ref.global::<AddonsState>().get_addon_group_form_id().to_string();
+        let name = ui_ref.global::<AddonsState>().get_addon_group_form_name().trim().to_string();
         if name.is_empty() {
-            ui_ref.set_addon_group_form_error(SharedString::from("Preencha o nome do grupo"));
+            ui_ref.global::<AddonsState>().set_addon_group_form_error(SharedString::from("Preencha o nome do grupo"));
             return;
         }
-        let selection = ui_ref.get_addon_group_form_selection().to_string();
-        let min = parse_int(&ui_ref.get_addon_group_form_min()).unwrap_or(0);
-        let max = parse_int(&ui_ref.get_addon_group_form_max()).unwrap_or(0);
-        ui_ref.set_addon_group_form_error(SharedString::default());
+        let selection = ui_ref.global::<AddonsState>().get_addon_group_form_selection().to_string();
+        let min = parse_int(&ui_ref.global::<AddonsState>().get_addon_group_form_min()).unwrap_or(0);
+        let max = parse_int(&ui_ref.global::<AddonsState>().get_addon_group_form_max()).unwrap_or(0);
+        ui_ref.global::<AddonsState>().set_addon_group_form_error(SharedString::default());
 
         let ui_weak = ui_ref.as_weak();
         let state = state.clone();
@@ -203,12 +204,12 @@ pub(crate) fn setup_save_addon_group(
                     Ok(()) => {
                         show_toast(&ui, "Grupo salvo", "success");
                         ui.set_show_modal(false);
-                        ui.invoke_refresh_addon_groups();
+                        ui.global::<AddonsState>().invoke_refresh_addon_groups();
                     }
                     Err(e) => {
                         let msg = friendly_error(&e);
                         show_toast(&ui, &msg, "error");
-                        ui.set_addon_group_form_error(SharedString::from(msg));
+                        ui.global::<AddonsState>().set_addon_group_form_error(SharedString::from(msg));
                     }
                 }
             });
@@ -227,7 +228,7 @@ pub(crate) fn setup_delete_addon_group(
     let state = state.clone();
     let handle = handle.clone();
 
-    ui.on_delete_addon_group(move |id_str| {
+    ui.global::<AddonsState>().on_delete_addon_group(move |id_str| {
         let Ok(id) = Uuid::parse_str(id_str.as_str()) else { return };
         let ui_weak = ui_weak.clone();
         let state = state.clone();
@@ -241,12 +242,12 @@ pub(crate) fn setup_delete_addon_group(
                     Ok(()) => {
                         show_toast(&ui, "Grupo excluído", "success");
                         // Se era o grupo focado, limpa a coluna direita.
-                        if ui.get_selected_addon_group_id() == id.to_string() {
-                            ui.set_selected_addon_group_id(SharedString::default());
-                            ui.set_selected_addon_group_name(SharedString::default());
-                            ui.set_current_group_addons(ModelRc::new(VecModel::<AddonData>::from(Vec::new())));
+                        if ui.global::<AddonsState>().get_selected_addon_group_id() == id.to_string() {
+                            ui.global::<AddonsState>().set_selected_addon_group_id(SharedString::default());
+                            ui.global::<AddonsState>().set_selected_addon_group_name(SharedString::default());
+                            ui.global::<AddonsState>().set_current_group_addons(ModelRc::new(VecModel::<AddonData>::from(Vec::new())));
                         }
-                        ui.invoke_refresh_addon_groups();
+                        ui.global::<AddonsState>().invoke_refresh_addon_groups();
                     }
                     Err(e) => {
                         let msg = friendly_error(&e);

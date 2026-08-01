@@ -27,6 +27,7 @@ use crate::{
 };
 
 use super::helpers::{friendly_error, show_toast};
+use crate::TreasuryState;
 
 /// Quantas movimentações a lista mostra (o rótulo "Últimas N" do card
 /// em `treasury_page.slint` acompanha este número).
@@ -78,7 +79,7 @@ fn setup_refresh(ui: &MainWindow, state: &DesktopState, handle: &tokio::runtime:
     let ui_weak = ui.as_weak();
     let state = state.clone();
     let handle = handle.clone();
-    ui.on_treasury_refresh(move || {
+    ui.global::<TreasuryState>().on_treasury_refresh(move || {
         reapply(&ui_weak, &state, &handle);
     });
 }
@@ -328,7 +329,7 @@ fn apply_to_ui(
         "Sem meta definida — toque no lápis para configurar".to_string()
     };
 
-    ui.set_treasury_summary(TreasurySummary {
+    ui.global::<TreasuryState>().set_treasury_summary(TreasurySummary {
         has_account: s.has_account,
         balance_main: SharedString::from(main),
         balance_cents: SharedString::from(cents),
@@ -372,11 +373,11 @@ fn apply_to_ui(
             tone: SharedString::from(if m.positive { "pos" } else { "neg" }),
         })
         .collect();
-    ui.set_treasury_movements(ModelRc::new(VecModel::from(rows)));
+    ui.global::<TreasuryState>().set_treasury_movements(ModelRc::new(VecModel::from(rows)));
 
-    ui.set_treasury_breakdown_in(breakdown_model(&s.breakdown, false));
-    ui.set_treasury_breakdown_out(breakdown_model(&s.breakdown, true));
-    ui.set_treasury_chart(ModelRc::new(VecModel::from(chart.to_vec())));
+    ui.global::<TreasuryState>().set_treasury_breakdown_in(breakdown_model(&s.breakdown, false));
+    ui.global::<TreasuryState>().set_treasury_breakdown_out(breakdown_model(&s.breakdown, true));
+    ui.global::<TreasuryState>().set_treasury_chart(ModelRc::new(VecModel::from(chart.to_vec())));
 }
 
 /// Monta o modelo de um dos grupos do detalhamento (um card por
@@ -412,15 +413,15 @@ fn setup_open(
     let ui_weak = ui.as_weak();
     let state = state.clone();
     let handle = handle.clone();
-    ui.on_treasury_open(move || {
+    ui.global::<TreasuryState>().on_treasury_open(move || {
         let Some(ui) = ui_weak.upgrade() else { return };
-        let raw = ui.get_treasury_initial_input().to_string();
-        let notes = ui.get_treasury_notes_input().to_string();
+        let raw = ui.global::<TreasuryState>().get_treasury_initial_input().to_string();
+        let notes = ui.global::<TreasuryState>().get_treasury_notes_input().to_string();
         let Some(initial) = parse_money_br(&raw) else {
-            ui.set_treasury_setup_error(SharedString::from("Informe um saldo inicial válido"));
+            ui.global::<TreasuryState>().set_treasury_setup_error(SharedString::from("Informe um saldo inicial válido"));
             return;
         };
-        ui.set_treasury_setup_error(SharedString::default());
+        ui.global::<TreasuryState>().set_treasury_setup_error(SharedString::default());
         let notes_opt = if notes.trim().is_empty() { None } else { Some(notes) };
         let ui_weak = ui_weak.clone();
         let state = state.clone();
@@ -438,7 +439,7 @@ fn setup_open(
                         show_toast(&ui, "Carteira criada", "success");
                     }
                     Err(e) => {
-                        ui.set_treasury_setup_error(SharedString::from(friendly_error(&e)));
+                        ui.global::<TreasuryState>().set_treasury_setup_error(SharedString::from(friendly_error(&e)));
                     }
                 }
             });
@@ -457,40 +458,40 @@ fn setup_modal(
 ) {
     // Abrir: limpa o formulário (a meta já abre com o valor atual).
     let ui_weak = ui.as_weak();
-    ui.on_treasury_open_modal(move |kind| {
+    ui.global::<TreasuryState>().on_treasury_open_modal(move |kind| {
         let Some(ui) = ui_weak.upgrade() else { return };
         let is_goal = kind == "goal";
-        ui.set_treasury_modal_kind(kind);
-        ui.set_treasury_modal_amount(if is_goal {
-            ui.get_treasury_summary().goal_input
+        ui.global::<TreasuryState>().set_treasury_modal_kind(kind);
+        ui.global::<TreasuryState>().set_treasury_modal_amount(if is_goal {
+            ui.global::<TreasuryState>().get_treasury_summary().goal_input
         } else {
             SharedString::default()
         });
-        ui.set_treasury_modal_notes(SharedString::default());
-        ui.set_treasury_modal_error(SharedString::default());
-        ui.set_treasury_show_modal(true);
+        ui.global::<TreasuryState>().set_treasury_modal_notes(SharedString::default());
+        ui.global::<TreasuryState>().set_treasury_modal_error(SharedString::default());
+        ui.global::<TreasuryState>().set_treasury_show_modal(true);
     });
 
     let ui_weak = ui.as_weak();
-    ui.on_treasury_close_modal(move || {
+    ui.global::<TreasuryState>().on_treasury_close_modal(move || {
         if let Some(ui) = ui_weak.upgrade() {
-            ui.set_treasury_show_modal(false);
+            ui.global::<TreasuryState>().set_treasury_show_modal(false);
         }
     });
 
     let ui_weak = ui.as_weak();
     let state = state.clone();
     let handle = handle.clone();
-    ui.on_treasury_confirm_modal(move || {
+    ui.global::<TreasuryState>().on_treasury_confirm_modal(move || {
         let Some(ui) = ui_weak.upgrade() else { return };
-        let kind = ui.get_treasury_modal_kind().to_string();
-        let raw = ui.get_treasury_modal_amount().to_string();
-        let notes = ui.get_treasury_modal_notes().to_string();
+        let kind = ui.global::<TreasuryState>().get_treasury_modal_kind().to_string();
+        let raw = ui.global::<TreasuryState>().get_treasury_modal_amount().to_string();
+        let notes = ui.global::<TreasuryState>().get_treasury_modal_notes().to_string();
         let Some(amount) = parse_money_br(&raw) else {
-            ui.set_treasury_modal_error(SharedString::from("Informe um valor válido"));
+            ui.global::<TreasuryState>().set_treasury_modal_error(SharedString::from("Informe um valor válido"));
             return;
         };
-        ui.set_treasury_modal_error(SharedString::default());
+        ui.global::<TreasuryState>().set_treasury_modal_error(SharedString::default());
         let notes_opt = if notes.trim().is_empty() { None } else { Some(notes) };
         let ui_weak = ui_weak.clone();
         let state = state.clone();
@@ -530,11 +531,11 @@ fn setup_modal(
                 match result {
                     Ok(()) => {
                         notify.notify_one();
-                        ui.set_treasury_show_modal(false);
+                        ui.global::<TreasuryState>().set_treasury_show_modal(false);
                         show_toast(&ui, msg, "success");
                     }
                     Err(e) => {
-                        ui.set_treasury_modal_error(SharedString::from(friendly_error(&e)));
+                        ui.global::<TreasuryState>().set_treasury_modal_error(SharedString::from(friendly_error(&e)));
                     }
                 }
             });

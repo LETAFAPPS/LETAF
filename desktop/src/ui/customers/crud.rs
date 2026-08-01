@@ -11,6 +11,7 @@ use crate::{CustomerData, MainWindow};
 
 use super::super::helpers::{friendly_error, show_toast};
 use super::data::DecodedCustomer;
+use crate::{CustomersState, SettingsState};
 
 /// Valida formato de telefone: (XX) XXXX-XXXX ou (XX) XXXXX-XXXX.
 pub(crate) fn is_valid_phone(phone: &str) -> bool {
@@ -27,20 +28,20 @@ pub(crate) fn is_valid_phone(phone: &str) -> bool {
 }
 
 pub(crate) fn clear_customer_errors(ui: &MainWindow) {
-    ui.set_customer_error_name(SharedString::default());
-    ui.set_customer_error_email(SharedString::default());
-    ui.set_customer_error_phone(SharedString::default());
-    ui.set_customer_error_document(SharedString::default());
+    ui.global::<CustomersState>().set_customer_error_name(SharedString::default());
+    ui.global::<CustomersState>().set_customer_error_email(SharedString::default());
+    ui.global::<CustomersState>().set_customer_error_phone(SharedString::default());
+    ui.global::<CustomersState>().set_customer_error_document(SharedString::default());
 }
 
 pub(crate) fn clear_customer_form(ui: &MainWindow) {
-    ui.set_customer_name(SharedString::default());
-    ui.set_customer_email(SharedString::default());
-    ui.set_customer_phone(SharedString::default());
-    ui.set_customer_document(SharedString::default());
-    ui.set_customer_notes(SharedString::default());
-    ui.set_customer_profile_picture(slint::Image::default());
-    ui.set_customer_avatar_initial(SharedString::from("?"));
+    ui.global::<CustomersState>().set_customer_name(SharedString::default());
+    ui.global::<CustomersState>().set_customer_email(SharedString::default());
+    ui.global::<CustomersState>().set_customer_phone(SharedString::default());
+    ui.global::<CustomersState>().set_customer_document(SharedString::default());
+    ui.global::<CustomersState>().set_customer_notes(SharedString::default());
+    ui.global::<CustomersState>().set_customer_profile_picture(slint::Image::default());
+    ui.global::<CustomersState>().set_customer_avatar_initial(SharedString::from("?"));
     clear_customer_errors(ui);
 }
 
@@ -48,31 +49,31 @@ pub(crate) fn validate_customer_form(ui: &MainWindow) -> bool {
     let mut valid = true;
     clear_customer_errors(ui);
 
-    if ui.get_customer_name().trim().is_empty() {
-        ui.set_customer_error_name(SharedString::from("Preencha o nome do cliente"));
+    if ui.global::<CustomersState>().get_customer_name().trim().is_empty() {
+        ui.global::<CustomersState>().set_customer_error_name(SharedString::from("Preencha o nome do cliente"));
         valid = false;
     }
-    let email = ui.get_customer_email().trim().to_string();
+    let email = ui.global::<CustomersState>().get_customer_email().trim().to_string();
     if email.is_empty() {
-        ui.set_customer_error_email(SharedString::from("Preencha o email"));
+        ui.global::<CustomersState>().set_customer_error_email(SharedString::from("Preencha o email"));
         valid = false;
     } else if !email.contains('@') || !email.contains('.') {
-        ui.set_customer_error_email(SharedString::from("Email inválido"));
+        ui.global::<CustomersState>().set_customer_error_email(SharedString::from("Email inválido"));
         valid = false;
     }
-    let phone = ui.get_customer_phone().trim().to_string();
+    let phone = ui.global::<CustomersState>().get_customer_phone().trim().to_string();
     if phone.is_empty() {
-        ui.set_customer_error_phone(SharedString::from("Preencha o telefone"));
+        ui.global::<CustomersState>().set_customer_error_phone(SharedString::from("Preencha o telefone"));
         valid = false;
     } else if !is_valid_phone(&phone) {
-        ui.set_customer_error_phone(SharedString::from("Telefone inválido"));
+        ui.global::<CustomersState>().set_customer_error_phone(SharedString::from("Telefone inválido"));
         valid = false;
     }
-    let document = ui.get_customer_document().trim().to_string();
+    let document = ui.global::<CustomersState>().get_customer_document().trim().to_string();
     if !document.is_empty() {
         let digits: String = document.chars().filter(|c| c.is_ascii_digit()).collect();
         if digits.len() != 11 && digits.len() != 14 {
-            ui.set_customer_error_document(SharedString::from(
+            ui.global::<CustomersState>().set_customer_error_document(SharedString::from(
                 "CPF (11 dígitos) ou CNPJ (14 dígitos) incompleto",
             ));
             valid = false;
@@ -92,15 +93,15 @@ pub(crate) fn setup_add_customer(
     let state = state.clone();
     let handle = handle.clone();
 
-    ui.on_add_customer(move || {
+    ui.global::<CustomersState>().on_add_customer(move || {
         let Some(ui_ref) = ui_weak.upgrade() else { return };
         if !validate_customer_form(&ui_ref) { return; }
 
-        let name = ui_ref.get_customer_name().to_string();
-        let email = ui_ref.get_customer_email().to_string();
-        let phone = ui_ref.get_customer_phone().to_string();
-        let document = ui_ref.get_customer_document().to_string();
-        let notes = ui_ref.get_customer_notes().to_string();
+        let name = ui_ref.global::<CustomersState>().get_customer_name().to_string();
+        let email = ui_ref.global::<CustomersState>().get_customer_email().to_string();
+        let phone = ui_ref.global::<CustomersState>().get_customer_phone().to_string();
+        let document = ui_ref.global::<CustomersState>().get_customer_document().to_string();
+        let notes = ui_ref.global::<CustomersState>().get_customer_notes().to_string();
 
         let ui_weak = ui_ref.as_weak();
         let state = state.clone();
@@ -122,7 +123,7 @@ pub(crate) fn setup_add_customer(
                         ui.set_show_modal(false);
                         ui.set_status_message(SharedString::from("Cliente Criado!"));
                         show_toast(&ui, "Cliente Criado!", "success");
-                        ui.invoke_refresh_customers();
+                        ui.global::<CustomersState>().invoke_refresh_customers();
                     });
                 }
                 Err(e) => {
@@ -149,17 +150,17 @@ pub(crate) fn setup_update_customer(
     let state = state.clone();
     let handle = handle.clone();
 
-    ui.on_update_customer(move || {
+    ui.global::<CustomersState>().on_update_customer(move || {
         let Some(ui_ref) = ui_weak.upgrade() else { return };
         if !validate_customer_form(&ui_ref) { return; }
 
         let id_str = ui_ref.get_editing_id().to_string();
         let Ok(id) = Uuid::parse_str(&id_str) else { return };
-        let name = ui_ref.get_customer_name().to_string();
-        let email = ui_ref.get_customer_email().to_string();
-        let phone = ui_ref.get_customer_phone().to_string();
-        let document = ui_ref.get_customer_document().to_string();
-        let notes = ui_ref.get_customer_notes().to_string();
+        let name = ui_ref.global::<CustomersState>().get_customer_name().to_string();
+        let email = ui_ref.global::<CustomersState>().get_customer_email().to_string();
+        let phone = ui_ref.global::<CustomersState>().get_customer_phone().to_string();
+        let document = ui_ref.global::<CustomersState>().get_customer_document().to_string();
+        let notes = ui_ref.global::<CustomersState>().get_customer_notes().to_string();
 
         let ui_weak = ui_ref.as_weak();
         let state = state.clone();
@@ -184,7 +185,7 @@ pub(crate) fn setup_update_customer(
                         ui.set_show_modal(false);
                         ui.set_status_message(SharedString::from(format!("Cliente '{}' Atualizado", c.name)));
                         show_toast(&ui, &format!("Cliente '{}' Atualizado", c.name), "success");
-                        ui.invoke_refresh_customers();
+                        ui.global::<CustomersState>().invoke_refresh_customers();
                     });
                 }
                 Err(e) => {
@@ -211,7 +212,7 @@ pub(crate) fn setup_delete_customer(
     let state = state.clone();
     let handle = handle.clone();
 
-    ui.on_delete_customer(move |id_str| {
+    ui.global::<CustomersState>().on_delete_customer(move |id_str| {
         let Ok(id) = uuid::Uuid::parse_str(id_str.as_str()) else { return };
         let ui_weak = ui_weak.clone();
         let state = state.clone();
@@ -226,8 +227,8 @@ pub(crate) fn setup_delete_customer(
                         let Some(ui) = ui_weak.upgrade() else { return };
                         show_toast(&ui, "Cliente Excluído", "success");
                         ui.set_status_message(SharedString::from("Cliente Excluído"));
-                        ui.set_selected_customer_id(SharedString::default());
-                        ui.invoke_refresh_customers();
+                        ui.global::<CustomersState>().set_selected_customer_id(SharedString::default());
+                        ui.global::<CustomersState>().invoke_refresh_customers();
                     });
                 }
                 Err(e) => {
@@ -258,18 +259,18 @@ pub(crate) fn setup_customer_address_ops(
         let state = state.clone();
         let handle = handle.clone();
         let notify = sync_notify.clone();
-        ui.on_add_customer_address(move || {
+        ui.global::<CustomersState>().on_add_customer_address(move || {
             let Some(uic) = ui_weak.upgrade() else { return };
             let Ok(customer_id) = Uuid::parse_str(uic.get_editing_id().as_str()) else { return };
-            let label = uic.get_customer_addr_label().to_string();
-            let custom = uic.get_customer_addr_custom_label().to_string();
+            let label = uic.global::<CustomersState>().get_customer_addr_label().to_string();
+            let custom = uic.global::<CustomersState>().get_customer_addr_custom_label().to_string();
             let custom_label = if label == "Outros" && !custom.trim().is_empty() {
                 Some(custom)
             } else { None };
-            let street = uic.get_customer_addr_street().to_string();
-            let number = uic.get_customer_addr_number().to_string();
-            let neighborhood = uic.get_customer_addr_neighborhood().to_string();
-            let apt = uic.get_customer_addr_apartment().to_string();
+            let street = uic.global::<CustomersState>().get_customer_addr_street().to_string();
+            let number = uic.global::<CustomersState>().get_customer_addr_number().to_string();
+            let neighborhood = uic.global::<CustomersState>().get_customer_addr_neighborhood().to_string();
+            let apt = uic.global::<CustomersState>().get_customer_addr_apartment().to_string();
             let apartment = if apt.trim().is_empty() { None } else { Some(apt) };
             let ui_weak = uic.as_weak();
             let state = state.clone();
@@ -284,13 +285,13 @@ pub(crate) fn setup_customer_address_ops(
                         notify.notify_one();
                         let _ = slint::invoke_from_event_loop(move || {
                             let Some(ui) = ui_weak.upgrade() else { return };
-                            ui.set_customer_addr_custom_label(SharedString::default());
-                            ui.set_customer_addr_street(SharedString::default());
-                            ui.set_customer_addr_number(SharedString::default());
-                            ui.set_customer_addr_neighborhood(SharedString::default());
-                            ui.set_customer_addr_apartment(SharedString::default());
+                            ui.global::<CustomersState>().set_customer_addr_custom_label(SharedString::default());
+                            ui.global::<CustomersState>().set_customer_addr_street(SharedString::default());
+                            ui.global::<CustomersState>().set_customer_addr_number(SharedString::default());
+                            ui.global::<CustomersState>().set_customer_addr_neighborhood(SharedString::default());
+                            ui.global::<CustomersState>().set_customer_addr_apartment(SharedString::default());
                             show_toast(&ui, "Endereço adicionado", "success");
-                            ui.invoke_refresh_customers();
+                            ui.global::<CustomersState>().invoke_refresh_customers();
                         });
                     }
                     Err(e) => {
@@ -308,7 +309,7 @@ pub(crate) fn setup_customer_address_ops(
         let ui_weak = ui.as_weak();
         let state = state.clone();
         let handle = handle.clone();
-        ui.on_delete_customer_address(move |addr_id| {
+        ui.global::<CustomersState>().on_delete_customer_address(move |addr_id| {
             let Some(uic) = ui_weak.upgrade() else { return };
             let Ok(customer_id) = Uuid::parse_str(uic.get_editing_id().as_str()) else { return };
             let Ok(aid) = Uuid::parse_str(addr_id.as_str()) else { return };
@@ -323,7 +324,7 @@ pub(crate) fn setup_customer_address_ops(
                         let _ = slint::invoke_from_event_loop(move || {
                             let Some(ui) = ui_weak.upgrade() else { return };
                             show_toast(&ui, "Endereço removido", "success");
-                            ui.invoke_refresh_customers();
+                            ui.global::<CustomersState>().invoke_refresh_customers();
                         });
                     }
                     Err(e) => {
@@ -382,15 +383,15 @@ pub(crate) fn setup_format_customer_fields(ui: &MainWindow) {
     // Placeholder para a futura criação de pedido no balcão.
     {
         let uw = ui.as_weak();
-        ui.on_new_customer_order(move |_id| {
+        ui.global::<CustomersState>().on_new_customer_order(move |_id| {
             if let Some(ui) = uw.upgrade() {
                 show_toast(&ui, "Criar pedido no balcão estará disponível em breve.", "info");
             }
         });
     }
-    ui.on_format_customer_phone(|raw| SharedString::from(format_phone(raw.as_str())));
-    ui.on_format_customer_document(|raw| SharedString::from(format_document(raw.as_str())));
-    ui.on_format_store_phone(|raw| SharedString::from(format_phone(raw.as_str())));
-    ui.on_format_store_document(|raw| SharedString::from(format_document(raw.as_str())));
-    ui.on_format_store_zip(|raw| SharedString::from(crate::format::format_zip_code(raw.as_str())));
+    ui.global::<CustomersState>().on_format_customer_phone(|raw| SharedString::from(format_phone(raw.as_str())));
+    ui.global::<CustomersState>().on_format_customer_document(|raw| SharedString::from(format_document(raw.as_str())));
+    ui.global::<SettingsState>().on_format_store_phone(|raw| SharedString::from(format_phone(raw.as_str())));
+    ui.global::<SettingsState>().on_format_store_document(|raw| SharedString::from(format_document(raw.as_str())));
+    ui.global::<SettingsState>().on_format_store_zip(|raw| SharedString::from(crate::format::format_zip_code(raw.as_str())));
 }

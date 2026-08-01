@@ -9,6 +9,7 @@ use crate::MainWindow;
 
 use super::super::helpers::{friendly_error, show_toast};
 use super::super::image::{decode_pixel_buffer, pick_image_file, process_image_file, process_image_file_large};
+use crate::SettingsState;
 
 /// Faz o parse de um valor monetário digitado (ex.: "5", "5,00", "R$ 5,00",
 /// "1.234,56") para `Decimal`, sempre >= 0. Vírgula é o separador decimal
@@ -30,24 +31,24 @@ pub(crate) fn setup_save_store_info(
     let state = state.clone();
     let handle = handle.clone();
 
-    ui.on_save_store_info(move || {
+    ui.global::<SettingsState>().on_save_store_info(move || {
         let Some(ui_ref) = ui_weak.upgrade() else { return };
-        let name         = ui_ref.get_store_name().to_string();
-        let address      = ui_ref.get_store_address().to_string();
-        let phone_raw    = ui_ref.get_store_phone().to_string();
-        let whatsapp_raw = ui_ref.get_store_whatsapp().to_string();
-        let email        = ui_ref.get_store_email().to_string();
-        let instagram    = ui_ref.get_store_instagram().to_string();
-        let document_raw = ui_ref.get_store_document().to_string();
-        let neighborhood = ui_ref.get_store_neighborhood().to_string();
-        let zip_raw      = ui_ref.get_store_zip_code().to_string();
-        let city         = ui_ref.get_store_city().to_string();
-        let uf           = ui_ref.get_store_uf().to_string();
-        let logo         = ui_ref.get_store_logo_data().to_string();
-        let cover        = ui_ref.get_store_cover_data().to_string();
-        let products_per_page = ui_ref.get_products_per_page();
-        let orders_per_page   = ui_ref.get_orders_per_page();
-        let delivery_fee_raw  = ui_ref.get_store_delivery_fee().to_string();
+        let name         = ui_ref.global::<SettingsState>().get_store_name().to_string();
+        let address      = ui_ref.global::<SettingsState>().get_store_address().to_string();
+        let phone_raw    = ui_ref.global::<SettingsState>().get_store_phone().to_string();
+        let whatsapp_raw = ui_ref.global::<SettingsState>().get_store_whatsapp().to_string();
+        let email        = ui_ref.global::<SettingsState>().get_store_email().to_string();
+        let instagram    = ui_ref.global::<SettingsState>().get_store_instagram().to_string();
+        let document_raw = ui_ref.global::<SettingsState>().get_store_document().to_string();
+        let neighborhood = ui_ref.global::<SettingsState>().get_store_neighborhood().to_string();
+        let zip_raw      = ui_ref.global::<SettingsState>().get_store_zip_code().to_string();
+        let city         = ui_ref.global::<SettingsState>().get_store_city().to_string();
+        let uf           = ui_ref.global::<SettingsState>().get_store_uf().to_string();
+        let logo         = ui_ref.global::<SettingsState>().get_store_logo_data().to_string();
+        let cover        = ui_ref.global::<SettingsState>().get_store_cover_data().to_string();
+        let products_per_page = ui_ref.global::<SettingsState>().get_products_per_page();
+        let orders_per_page   = ui_ref.global::<SettingsState>().get_orders_per_page();
+        let delivery_fee_raw  = ui_ref.global::<SettingsState>().get_store_delivery_fee().to_string();
 
         // Normalização defensiva: telefones/documentos/CEP guardados só
         // com dígitos no banco (formatação acontece na UI). Isso evita
@@ -117,29 +118,29 @@ pub(crate) fn setup_pick_store_logo(
     let ui_weak = ui.as_weak();
     let handle = handle.clone();
 
-    ui.on_pick_store_logo(move || {
+    ui.global::<SettingsState>().on_pick_store_logo(move || {
         let ui_weak = ui_weak.clone();
         handle.spawn_blocking(move || {
             let Some(path) = pick_image_file() else { return };
             let uw = ui_weak.clone();
             let _ = slint::invoke_from_event_loop(move || {
-                if let Some(ui) = uw.upgrade() { ui.set_store_logo_loading(true); }
+                if let Some(ui) = uw.upgrade() { ui.global::<SettingsState>().set_store_logo_loading(true); }
             });
             match process_image_file(&path) {
                 Some(encoded) => {
                     let pixel_buf = decode_pixel_buffer(&encoded);
                     let _ = slint::invoke_from_event_loop(move || {
                         if let Some(ui) = ui_weak.upgrade() {
-                            ui.set_store_logo_image(pixel_buf.map(slint::Image::from_rgba8).unwrap_or_default());
-                            ui.set_store_logo_data(SharedString::from(encoded));
-                            ui.set_store_logo_loading(false);
+                            ui.global::<SettingsState>().set_store_logo_image(pixel_buf.map(slint::Image::from_rgba8).unwrap_or_default());
+                            ui.global::<SettingsState>().set_store_logo_data(SharedString::from(encoded));
+                            ui.global::<SettingsState>().set_store_logo_loading(false);
                         }
                     });
                 }
                 None => {
                     tracing::error!("Failed to process logo: {}", path.display());
                     let _ = slint::invoke_from_event_loop(move || {
-                        if let Some(ui) = ui_weak.upgrade() { ui.set_store_logo_loading(false); }
+                        if let Some(ui) = ui_weak.upgrade() { ui.global::<SettingsState>().set_store_logo_loading(false); }
                     });
                 }
             }
@@ -155,29 +156,29 @@ pub(crate) fn setup_pick_store_cover(
     let ui_weak = ui.as_weak();
     let handle = handle.clone();
 
-    ui.on_pick_store_cover(move || {
+    ui.global::<SettingsState>().on_pick_store_cover(move || {
         let ui_weak = ui_weak.clone();
         handle.spawn_blocking(move || {
             let Some(path) = pick_image_file() else { return };
             let uw = ui_weak.clone();
             let _ = slint::invoke_from_event_loop(move || {
-                if let Some(ui) = uw.upgrade() { ui.set_store_cover_loading(true); }
+                if let Some(ui) = uw.upgrade() { ui.global::<SettingsState>().set_store_cover_loading(true); }
             });
             match process_image_file_large(&path) {
                 Some(encoded) => {
                     let pixel_buf = decode_pixel_buffer(&encoded);
                     let _ = slint::invoke_from_event_loop(move || {
                         if let Some(ui) = ui_weak.upgrade() {
-                            ui.set_store_cover_image(pixel_buf.map(slint::Image::from_rgba8).unwrap_or_default());
-                            ui.set_store_cover_data(SharedString::from(encoded));
-                            ui.set_store_cover_loading(false);
+                            ui.global::<SettingsState>().set_store_cover_image(pixel_buf.map(slint::Image::from_rgba8).unwrap_or_default());
+                            ui.global::<SettingsState>().set_store_cover_data(SharedString::from(encoded));
+                            ui.global::<SettingsState>().set_store_cover_loading(false);
                         }
                     });
                 }
                 None => {
                     tracing::error!("Failed to process cover: {}", path.display());
                     let _ = slint::invoke_from_event_loop(move || {
-                        if let Some(ui) = ui_weak.upgrade() { ui.set_store_cover_loading(false); }
+                        if let Some(ui) = ui_weak.upgrade() { ui.global::<SettingsState>().set_store_cover_loading(false); }
                     });
                 }
             }

@@ -14,6 +14,7 @@ use super::state::DecodedProduct;
 use super::list::{decoded_from_components, upsert_decoded_in_cache};
 use super::form::{read_product_form, validate_product_form};
 use super::data::{build_product_data_from_product, push_product_to_model, replace_product_in_model};
+use crate::ProductsState;
 
 /// Callback: cria um novo produto e atualiza a lista.
 ///
@@ -31,7 +32,7 @@ pub(crate) fn setup_add(
     let state = state.clone();
     let handle = handle.clone();
 
-    ui.on_add_product(move || {
+    ui.global::<ProductsState>().on_add_product(move || {
         let Some(ui_ref) = ui_weak.upgrade() else { return };
 
         if !validate_product_form(&ui_ref) {
@@ -39,8 +40,8 @@ pub(crate) fn setup_add(
         }
 
         let form = read_product_form(&ui_ref);
-        let cat_name = ui_ref.get_product_category_name().to_string();
-        let sub_name = ui_ref.get_product_subcategory_name().to_string();
+        let cat_name = ui_ref.global::<ProductsState>().get_product_category_name().to_string();
+        let sub_name = ui_ref.global::<ProductsState>().get_product_subcategory_name().to_string();
 
         let ui_weak = ui_ref.as_weak();
         let state = state.clone();
@@ -79,9 +80,9 @@ pub(crate) fn setup_add(
                         let p_data = build_product_data_from_product(&p, &cat_name, &sub_name, pixel_buf);
                         push_product_to_model(&ui, p_data.clone());
                         ui.set_editing_id(new_id.clone());
-                        ui.set_selected_product_id(new_id);
-                        ui.set_detail_product(p_data);
-                        ui.set_product_save_error(SharedString::default());
+                        ui.global::<ProductsState>().set_selected_product_id(new_id);
+                        ui.global::<ProductsState>().set_detail_product(p_data);
+                        ui.global::<ProductsState>().set_product_save_error(SharedString::default());
                         show_toast(&ui, &format!("Produto '{}' Criado", p_name), "success");
                         ui.set_status_message(SharedString::from(format!("Produto '{}' Criado", p_name)));
                     });
@@ -92,7 +93,7 @@ pub(crate) fn setup_add(
                         let msg = SharedString::from(friendly_error(&e));
                         show_toast(&ui, msg.as_str(), "error");
                         ui.set_status_message(msg.clone());
-                        ui.set_product_save_error(msg);
+                        ui.global::<ProductsState>().set_product_save_error(msg);
                     });
                 }
             }
@@ -112,7 +113,7 @@ pub(crate) fn setup_update_product(
     let state = state.clone();
     let handle = handle.clone();
 
-    ui.on_update_product(move || {
+    ui.global::<ProductsState>().on_update_product(move || {
         let Some(ui_ref) = ui_weak.upgrade() else { return };
 
         if !validate_product_form(&ui_ref) {
@@ -122,8 +123,8 @@ pub(crate) fn setup_update_product(
         let id_str = ui_ref.get_editing_id().to_string();
         let Ok(id) = Uuid::parse_str(&id_str) else { return };
         let form = read_product_form(&ui_ref);
-        let cat_name = ui_ref.get_product_category_name().to_string();
-        let sub_name = ui_ref.get_product_subcategory_name().to_string();
+        let cat_name = ui_ref.global::<ProductsState>().get_product_category_name().to_string();
+        let sub_name = ui_ref.global::<ProductsState>().get_product_subcategory_name().to_string();
         let id_ss = SharedString::from(id_str.as_str());
 
         let ui_weak = ui_ref.as_weak();
@@ -162,11 +163,11 @@ pub(crate) fn setup_update_product(
                         let Some(ui) = ui_weak.upgrade() else { return };
                         let p_data = build_product_data_from_product(&p, &cat_name, &sub_name, pixel_buf);
                         replace_product_in_model(&ui, &id_ss, p_data.clone());
-                        ui.set_detail_product(p_data);
-                        ui.set_product_margin_display(
-                            ui.get_detail_product().margin_pct_display
+                        ui.global::<ProductsState>().set_detail_product(p_data);
+                        ui.global::<ProductsState>().set_product_margin_display(
+                            ui.global::<ProductsState>().get_detail_product().margin_pct_display
                         );
-                        ui.set_product_save_error(SharedString::default());
+                        ui.global::<ProductsState>().set_product_save_error(SharedString::default());
                         show_toast(&ui, &format!("Produto '{}' Atualizado", p_name), "success");
                         ui.set_status_message(SharedString::from(format!("Produto '{}' Atualizado", p_name)));
                     });
@@ -177,7 +178,7 @@ pub(crate) fn setup_update_product(
                         let msg = SharedString::from(friendly_error(&e));
                         show_toast(&ui, msg.as_str(), "error");
                         ui.set_status_message(msg.clone());
-                        ui.set_product_save_error(msg);
+                        ui.global::<ProductsState>().set_product_save_error(msg);
                     });
                 }
             }
@@ -199,7 +200,7 @@ pub(crate) fn setup_delete(
     let state = state.clone();
     let handle = handle.clone();
 
-    ui.on_delete_product(move |id_str| {
+    ui.global::<ProductsState>().on_delete_product(move |id_str| {
         let id = match Uuid::parse_str(id_str.as_str()) {
             Ok(id) => id,
             Err(e) => {
@@ -225,7 +226,7 @@ pub(crate) fn setup_delete(
                     Ok(()) => {
                         show_toast(&ui, "Produto exclu\u{ed}do", "success");
                         ui.set_status_message("Produto exclu\u{ed}do".into());
-                        ui.invoke_refresh_products();
+                        ui.global::<ProductsState>().invoke_refresh_products();
                     }
                     Err(e) => {
                         let msg = friendly_error(&e);

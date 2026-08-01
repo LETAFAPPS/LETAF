@@ -1,0 +1,102 @@
+// Estado da feature ASSINATURA (plano, faturas, PIX, cartao recorrente e Pix Automatico), isolado do MainWindow.
+//
+// Por que um `global` (AI_RULES §8 / "Modularidade real"): em Slint as
+// propriedades de um componente vivem todas no mesmo arquivo — o
+// `main.slint` concentrava ~830 declaracoes de ~30 features. `global` e
+// o unico mecanismo da linguagem para separar estado por dominio sem
+// prop drilling, e o projeto ja o usa em `Theme`, `IconGlyph` e
+// `AdminState`.
+//
+// Acesso: no Slint, `SubscriptionState.<prop>`; no Rust,
+// `ui.global::<SubscriptionState>().set_<prop>()` / `.on_<callback>()`.
+// Logica em desktop/src/ui/subscription. O badge
+// `subscription-pending-count` fica no MainWindow (sidebar/navegacao).
+import { PaymentMethodOption, PixChargeView, PlanCardData, SubscriptionData, SubscriptionInvoiceRow } from "../types.slint";
+
+export global SubscriptionState {
+    // ── Assinatura (Fase 13) ─────────────────────────────────────
+    in-out property <SubscriptionData> subscription-data;
+    in-out property <[PlanCardData]>   subscription-plans: [];
+    in-out property <[SubscriptionInvoiceRow]> subscription-invoices: [];
+    callback subscription-refresh();
+    callback subscription-choose-plan(string);
+    callback subscription-download-invoice(string);
+    callback subscription-download-all();
+    /// Fatura em aberto (pendente/vencida) em destaque no topo da tela.
+    in-out property <string> subscription-open-invoice-id: "";
+    in-out property <string> subscription-open-invoice-amount: "";
+    in-out property <string> subscription-open-invoice-label: "";
+    in-out property <bool>   subscription-open-invoice-overdue: false;
+    /// Toggle do painel inline "trocar forma de pagamento".
+    callback subscription-toggle-payment-picker();
+    /// Escolhe uma forma cadastrada como ativa (id da option).
+    callback subscription-pick-payment-method(string);
+    /// Lista de formas de pagamento cadastradas.
+    in-out property <[PaymentMethodOption]> payment-methods: [];
+    in-out property <bool> payment-picker-open: false;
+    // ── Cartão recorrente (cobrança automática via gateway) ─────────
+    in-out property <bool>   card-modal-open: false;
+    in-out property <bool>   card-modal-loading: false;
+    in-out property <string> card-form-number;
+    in-out property <string> card-form-holder;
+    in-out property <string> card-form-expiry;
+    in-out property <string> card-form-cvv;
+    in-out property <string> card-form-cpf;
+    in-out property <string> card-form-email;
+    in-out property <string> card-form-phone;
+    in-out property <string> card-form-birth;
+    in-out property <string> card-form-error;
+    // Erros por campo (validação no Rust).
+    in-out property <string> card-error-number;
+    in-out property <string> card-error-holder;
+    in-out property <string> card-error-expiry;
+    in-out property <string> card-error-cvv;
+    in-out property <string> card-error-cpf;
+    in-out property <string> card-error-birth;
+    in-out property <string> card-error-email;
+    in-out property <string> card-error-phone;
+    /// Abre o modal de cadastro de cartão recorrente.
+    callback subscription-open-card-modal();
+    /// Cancela o cartão recorrente atual (volta para PIX).
+    callback subscription-cancel-card();
+    callback card-modal-close();
+    callback card-modal-submit();
+    // Máscaras de input (implementadas no Rust).
+    callback card-fmt-number(string) -> string;
+    callback card-fmt-expiry(string) -> string;
+    callback card-fmt-cvv(string) -> string;
+    callback card-fmt-cpf-cnpj(string) -> string;
+    callback card-fmt-birth(string) -> string;
+    callback card-fmt-phone(string) -> string;
+    // ── Pix Automático (mandato de débito recorrente) ───────────────
+    in-out property <bool>   pix-auto-modal-open: false;
+    in-out property <bool>   pix-auto-loading: false;
+    in-out property <string> pix-auto-name;
+    in-out property <string> pix-auto-cpf;
+    in-out property <string> pix-auto-error;
+    /// Abre o modal de ativação do Pix Automático.
+    callback subscription-open-pix-auto();
+    /// Cancela o mandato de Pix Automático atual.
+    callback subscription-cancel-pix-auto();
+    callback pix-auto-close();
+    callback pix-auto-submit();
+    callback pix-auto-fmt-cpf-cnpj(string) -> string;
+    // ── Troca de plano com recorrência ativa (confirmação) ──────────
+    in-out property <bool>   plan-change-confirm-open: false;
+    in-out property <bool>   plan-change-confirm-loading: false;
+    in-out property <string> plan-change-confirm-message;
+    in-out property <string> plan-change-confirm-target;   // "monthly"|"semestral"|"annual"
+    callback plan-change-confirm-yes();
+    callback plan-change-confirm-close();
+    /// Abre o modal PIX para pagar a fatura agora.
+    callback subscription-pay-invoice(string);
+    /// Copia o copia-cola para a área de transferência.
+    callback subscription-copy-pix-code();
+    callback subscription-close-pix-modal();
+    // Estado do modal PIX (controlado pelo Rust).
+    in-out property <bool> pix-modal-open: false;
+    in-out property <PixChargeView> pix-charge-view;
+    /// Imagem do QR Code (decodificada do base64 no Rust). Vazia
+    /// enquanto a cobrança está em loading/error.
+    in-out property <image> pix-qr-image;
+}

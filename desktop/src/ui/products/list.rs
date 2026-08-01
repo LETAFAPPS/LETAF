@@ -14,6 +14,7 @@ use super::super::helpers::{friendly_error, show_toast};
 use super::super::image::decode_single_product_image;
 use super::state::{DecodedProduct, ProductFilterState, SharedFilter};
 use super::data::{addon_group_ids_to_csv, build_product_data_from_product, decoded_to_product_data_ref, make_product_display, parse_hex_color, push_product_to_model, to_decoded_product};
+use crate::ProductsState;
 
 /// Callback: carrega todos os produtos da empresa.
 pub(crate) fn setup_refresh(
@@ -27,7 +28,7 @@ pub(crate) fn setup_refresh(
     let state = state.clone();
     let handle = handle.clone();
 
-    ui.on_refresh_products(move || {
+    ui.global::<ProductsState>().on_refresh_products(move || {
         let ui_weak = ui_weak.clone();
         let state = state.clone();
         let cache = cache.clone();
@@ -114,13 +115,13 @@ pub(crate) fn setup_refresh(
                     let i = g.len() as i32 - a;
                     (a, i)
                 }).unwrap_or((0, 0));
-                ui.set_products_active_count(active);
-                ui.set_products_inactive_count(inactive);
+                ui.global::<ProductsState>().set_products_active_count(active);
+                ui.global::<ProductsState>().set_products_inactive_count(inactive);
                 refresh_products_view(&ui, &cache2, &filter2);
                 // Re-aplica a seleção atual (mantém detalhe sincronizado
                 // com a versão recém-carregada; limpa quando o produto
                 // não está mais no cache).
-                let cur_id = ui.get_selected_product_id().to_string();
+                let cur_id = ui.global::<ProductsState>().get_selected_product_id().to_string();
                 apply_selected_product(&ui, &cache2, &cur_id);
                 ui.set_status_message(SharedString::from(
                     format!("{count} produto(s) carregado(s)"),
@@ -176,10 +177,10 @@ pub(crate) fn refresh_products_view(
         if f.stock  != "with"   { badge += 1; }
         (data, cats, subs, badge)
     };
-    ui.set_products(ModelRc::new(VecModel::from(data)));
-    ui.set_filter_cats(ModelRc::new(VecModel::from(cats)));
-    ui.set_filter_subs(ModelRc::new(VecModel::from(subs)));
-    ui.set_filter_active_count(badge_count);
+    ui.global::<ProductsState>().set_products(ModelRc::new(VecModel::from(data)));
+    ui.global::<ProductsState>().set_filter_cats(ModelRc::new(VecModel::from(cats)));
+    ui.global::<ProductsState>().set_filter_subs(ModelRc::new(VecModel::from(subs)));
+    ui.global::<ProductsState>().set_filter_active_count(badge_count);
 }
 
 /// Atualiza apenas `selected-product-id` + `detail-product` no cache.
@@ -200,12 +201,12 @@ pub(crate) fn apply_selected_product(
         g.iter().find(|p| p.id == id).map(decoded_to_product_data_ref)
     });
     if let Some(data) = found {
-        ui.set_selected_product_id(SharedString::from(id));
-        ui.set_detail_product(data);
+        ui.global::<ProductsState>().set_selected_product_id(SharedString::from(id));
+        ui.global::<ProductsState>().set_detail_product(data);
     } else {
         // Produto não existe mais (filtrado/deletado) → solta a seleção.
-        ui.set_selected_product_id(SharedString::default());
-        ui.set_detail_product(ProductData::default());
+        ui.global::<ProductsState>().set_selected_product_id(SharedString::default());
+        ui.global::<ProductsState>().set_detail_product(ProductData::default());
     }
 }
 
@@ -216,43 +217,43 @@ pub(crate) fn apply_selected_product(
 /// `setup_select_product` (clique inline no master-detail).
 fn fill_form_from_decoded(ui: &MainWindow, d: &DecodedProduct) {
     ui.set_editing_id(d.id.clone());
-    ui.set_product_name(d.name.clone());
-    ui.set_product_description(d.description.clone());
-    ui.set_product_price(d.price.clone());
-    ui.set_product_cost_price(d.cost_price.clone());
-    ui.set_product_stock_quantity(d.stock_quantity.clone());
-    ui.set_product_min_stock(d.min_stock.clone());
-    ui.set_product_margin_display(d.margin_pct_display.clone());
-    ui.set_product_unlimited_stock(d.unlimited_stock);
+    ui.global::<ProductsState>().set_product_name(d.name.clone());
+    ui.global::<ProductsState>().set_product_description(d.description.clone());
+    ui.global::<ProductsState>().set_product_price(d.price.clone());
+    ui.global::<ProductsState>().set_product_cost_price(d.cost_price.clone());
+    ui.global::<ProductsState>().set_product_stock_quantity(d.stock_quantity.clone());
+    ui.global::<ProductsState>().set_product_min_stock(d.min_stock.clone());
+    ui.global::<ProductsState>().set_product_margin_display(d.margin_pct_display.clone());
+    ui.global::<ProductsState>().set_product_unlimited_stock(d.unlimited_stock);
     let availability_enabled = !d.availability_schedule.is_empty();
-    ui.set_product_availability_enabled(availability_enabled);
-    ui.invoke_load_product_availability(d.availability_schedule.clone());
+    ui.global::<ProductsState>().set_product_availability_enabled(availability_enabled);
+    ui.global::<ProductsState>().invoke_load_product_availability(d.availability_schedule.clone());
     let kind = if d.discount_kind.is_empty() {
         SharedString::from("none")
     } else {
         d.discount_kind.clone()
     };
-    ui.set_product_discount_kind(kind);
-    ui.set_product_discount_value(d.discount_value.clone());
-    ui.set_product_discount_min_qty(d.discount_min_qty.clone());
-    ui.invoke_load_discount_tiers(d.discount_tiers.clone());
-    ui.invoke_load_product_addon_groups(d.addon_group_ids.clone());
-    ui.invoke_load_product_variations(d.variations.clone());
-    ui.set_product_barcode(d.barcode.clone());
-    ui.set_product_unit(d.unit.clone());
-    ui.set_product_balance_mode(d.balance_mode.clone());
-    ui.set_product_image_data(d.image_data.clone());
-    ui.set_product_cover_color(d.cover_color.clone());
-    ui.set_product_category_id(d.category_id.clone());
-    ui.set_product_category_name(d.category_name.clone());
-    ui.set_product_subcategory_id(d.subcategory_id.clone());
-    ui.set_product_subcategory_name(d.subcategory_name.clone());
-    ui.set_product_category_open(false);
-    ui.set_product_subcategory_open(false);
-    ui.set_product_error_name(SharedString::default());
-    ui.set_product_error_price(SharedString::default());
-    ui.set_product_error_stock(SharedString::default());
-    ui.set_product_save_error(SharedString::default());
+    ui.global::<ProductsState>().set_product_discount_kind(kind);
+    ui.global::<ProductsState>().set_product_discount_value(d.discount_value.clone());
+    ui.global::<ProductsState>().set_product_discount_min_qty(d.discount_min_qty.clone());
+    ui.global::<ProductsState>().invoke_load_discount_tiers(d.discount_tiers.clone());
+    ui.global::<ProductsState>().invoke_load_product_addon_groups(d.addon_group_ids.clone());
+    ui.global::<ProductsState>().invoke_load_product_variations(d.variations.clone());
+    ui.global::<ProductsState>().set_product_barcode(d.barcode.clone());
+    ui.global::<ProductsState>().set_product_unit(d.unit.clone());
+    ui.global::<ProductsState>().set_product_balance_mode(d.balance_mode.clone());
+    ui.global::<ProductsState>().set_product_image_data(d.image_data.clone());
+    ui.global::<ProductsState>().set_product_cover_color(d.cover_color.clone());
+    ui.global::<ProductsState>().set_product_category_id(d.category_id.clone());
+    ui.global::<ProductsState>().set_product_category_name(d.category_name.clone());
+    ui.global::<ProductsState>().set_product_subcategory_id(d.subcategory_id.clone());
+    ui.global::<ProductsState>().set_product_subcategory_name(d.subcategory_name.clone());
+    ui.global::<ProductsState>().set_product_category_open(false);
+    ui.global::<ProductsState>().set_product_subcategory_open(false);
+    ui.global::<ProductsState>().set_product_error_name(SharedString::default());
+    ui.global::<ProductsState>().set_product_error_price(SharedString::default());
+    ui.global::<ProductsState>().set_product_error_stock(SharedString::default());
+    ui.global::<ProductsState>().set_product_save_error(SharedString::default());
 }
 
 /// Callback: zera o `detail-product` (snapshot do painel direito).
@@ -264,9 +265,9 @@ fn fill_form_from_decoded(ui: &MainWindow, d: &DecodedProduct) {
 /// a foto do último produto selecionado mesmo em modo "Novo".
 pub(crate) fn setup_clear_detail_product(ui: &MainWindow) {
     let ui_weak = ui.as_weak();
-    ui.on_clear_detail_product(move || {
+    ui.global::<ProductsState>().on_clear_detail_product(move || {
         let Some(ui) = ui_weak.upgrade() else { return };
-        ui.set_detail_product(ProductData::default());
+        ui.global::<ProductsState>().set_detail_product(ProductData::default());
     });
 }
 
@@ -277,11 +278,11 @@ pub(crate) fn setup_select_product(
     cache: Arc<std::sync::Mutex<Vec<DecodedProduct>>>,
 ) {
     let ui_weak = ui.as_weak();
-    ui.on_select_product(move |id| {
+    ui.global::<ProductsState>().on_select_product(move |id| {
         let Some(ui) = ui_weak.upgrade() else { return };
         let id = id.as_str();
         if id.is_empty() || id == "new" {
-            ui.set_selected_product_id(SharedString::from(id));
+            ui.global::<ProductsState>().set_selected_product_id(SharedString::from(id));
             return;
         }
         // Lê DecodedProduct do cache, preenche form e cartão direito.
@@ -292,12 +293,12 @@ pub(crate) fn setup_select_product(
             ))
         });
         if let Some((data, basics)) = snapshot {
-            ui.set_selected_product_id(SharedString::from(id));
-            ui.set_detail_product(data);
+            ui.global::<ProductsState>().set_selected_product_id(SharedString::from(id));
+            ui.global::<ProductsState>().set_detail_product(data);
             fill_form_from_decoded(&ui, &basics);
         } else {
-            ui.set_selected_product_id(SharedString::default());
-            ui.set_detail_product(ProductData::default());
+            ui.global::<ProductsState>().set_selected_product_id(SharedString::default());
+            ui.global::<ProductsState>().set_detail_product(ProductData::default());
         }
     });
 }
@@ -461,7 +462,7 @@ pub(crate) fn setup_duplicate_product(
     let state = state.clone();
     let handle = handle.clone();
 
-    ui.on_duplicate_product(move |id_str| {
+    ui.global::<ProductsState>().on_duplicate_product(move |id_str| {
         let id = match Uuid::parse_str(id_str.as_str()) {
             Ok(id) => id,
             Err(e) => {
@@ -553,8 +554,8 @@ pub(crate) fn setup_duplicate_product(
                         let Some(ui) = ui_weak.upgrade() else { return };
                         let p_data = build_product_data_from_product(&p, &cat_name, &sub_name, pixel_buf);
                         push_product_to_model(&ui, p_data.clone());
-                        ui.set_selected_product_id(new_id.clone());
-                        ui.set_detail_product(p_data);
+                        ui.global::<ProductsState>().set_selected_product_id(new_id.clone());
+                        ui.global::<ProductsState>().set_detail_product(p_data);
                         // Preenche todos os campos do form com a cópia
                         // — sem isso, "Nome" e demais inputs ficavam
                         // presos no original e um Save sobrescreveria.

@@ -18,6 +18,7 @@ use slint::{ComponentHandle, SharedString};
 
 use crate::MainWindow;
 use crate::context::DesktopState;
+use crate::OrdersState;
 
 /// Ponto de entrada chamado pelo `setup_callbacks` em [`super::mod`].
 pub fn setup_alarm(
@@ -109,7 +110,7 @@ fn setup_alarm_acknowledge(ui: &MainWindow, state: &DesktopState) {
             ui.set_alarm_visible(false);
             ui.set_active_tab(SharedString::from("orders"));
             // Força refresh para o operador ver o novo pedido logo.
-            ui.invoke_refresh_orders();
+            ui.global::<OrdersState>().invoke_refresh_orders();
         }
     });
 }

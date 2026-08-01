@@ -10,22 +10,23 @@ use crate::{MainWindow, PdvAddressRow, PdvCustomerRow};
 
 use super::state::PdvState;
 use super::cart::{slint_row_count, slint_row_data};
+use crate::PdvUiState;
 
 // ── Customer picker ───────────────────────────────────────────
 
 pub(crate) fn setup_customer_picker(ui: &MainWindow, pdv: Arc<Mutex<PdvState>>) {
     let ui_weak = ui.as_weak();
-    ui.on_pdv_open_customer_picker(move || {
+    ui.global::<PdvUiState>().on_pdv_open_customer_picker(move || {
         let Some(ui_ref) = ui_weak.upgrade() else { return };
-        ui_ref.set_pdv_customer_search(SharedString::default());
+        ui_ref.global::<PdvUiState>().set_pdv_customer_search(SharedString::default());
         populate_customer_rows(&ui_ref, &pdv, "");
-        ui_ref.set_pdv_show_customer_picker(true);
+        ui_ref.global::<PdvUiState>().set_pdv_show_customer_picker(true);
     });
 }
 
 pub(crate) fn setup_customer_search(ui: &MainWindow, pdv: Arc<Mutex<PdvState>>) {
     let ui_weak = ui.as_weak();
-    ui.on_pdv_customer_search_changed(move |q| {
+    ui.global::<PdvUiState>().on_pdv_customer_search_changed(move |q| {
         if let Some(ui_ref) = ui_weak.upgrade() {
             populate_customer_rows(&ui_ref, &pdv, q.as_str());
         }
@@ -41,17 +42,17 @@ pub(crate) fn setup_pick_customer(
     let ui_weak = ui.as_weak();
     let state = state.clone();
     let handle = handle.clone();
-    ui.on_pdv_pick_customer(move |id| {
+    ui.global::<PdvUiState>().on_pdv_pick_customer(move |id| {
         let Ok(uuid) = Uuid::parse_str(id.as_str()) else { return };
         let name = pdv.lock().ok().and_then(|g| {
             g.customers_all.iter().find(|c| c.0 == uuid).map(|c| c.1.clone())
         });
         if let Some(ui_ref) = ui_weak.upgrade() {
-            ui_ref.set_pdv_customer_id(SharedString::from(uuid.to_string()));
+            ui_ref.global::<PdvUiState>().set_pdv_customer_id(SharedString::from(uuid.to_string()));
             if let Some(n) = name {
-                ui_ref.set_pdv_customer_name(SharedString::from(n));
+                ui_ref.global::<PdvUiState>().set_pdv_customer_name(SharedString::from(n));
             }
-            ui_ref.set_pdv_show_customer_picker(false);
+            ui_ref.global::<PdvUiState>().set_pdv_show_customer_picker(false);
         }
         // Carrega endereços do cliente em background. Quando o
         // operador escolher "Entrega", a lista já está populada
@@ -88,7 +89,7 @@ pub(crate) fn setup_pick_customer(
                             neighborhood: SharedString::from(a.neighborhood.clone()),
                         }
                     }).collect();
-                    ui.set_pdv_customer_addresses(ModelRc::new(VecModel::from(rows)));
+                    ui.global::<PdvUiState>().set_pdv_customer_addresses(ModelRc::new(VecModel::from(rows)));
                     apply_wallet_to_ui(&ui, wallet_info.as_ref());
                 }
             });
@@ -109,31 +110,31 @@ pub(crate) fn apply_wallet_to_ui(
             let tone = if balance < rust_decimal::Decimal::new(-5, 3) { "neg" }
                 else if balance > rust_decimal::Decimal::new(5, 3) { "pos" }
                 else { "neutral" };
-            ui.set_pdv_wallet_has_account(true);
-            ui.set_pdv_wallet_account_id(SharedString::from(a.base.id.to_string()));
-            ui.set_pdv_wallet_balance_display(SharedString::from(wallet_money_signed(balance)));
-            ui.set_pdv_wallet_balance_tone(SharedString::from(tone));
-            ui.set_pdv_wallet_credit_limit_display(
+            ui.global::<PdvUiState>().set_pdv_wallet_has_account(true);
+            ui.global::<PdvUiState>().set_pdv_wallet_account_id(SharedString::from(a.base.id.to_string()));
+            ui.global::<PdvUiState>().set_pdv_wallet_balance_display(SharedString::from(wallet_money_signed(balance)));
+            ui.global::<PdvUiState>().set_pdv_wallet_balance_tone(SharedString::from(tone));
+            ui.global::<PdvUiState>().set_pdv_wallet_credit_limit_display(
                 SharedString::from(crate::format::money_br(a.credit_limit)),
             );
-            ui.set_pdv_wallet_available_display(SharedString::from(format!(
+            ui.global::<PdvUiState>().set_pdv_wallet_available_display(SharedString::from(format!(
                 "Disponível: {}",
                 crate::format::money_br(available),
             )));
-            ui.set_pdv_wallet_available_amount(available.to_f64().unwrap_or(0.0) as f32);
+            ui.global::<PdvUiState>().set_pdv_wallet_available_amount(available.to_f64().unwrap_or(0.0) as f32);
         }
         None => {
-            ui.set_pdv_wallet_has_account(false);
-            ui.set_pdv_wallet_account_id(SharedString::default());
-            ui.set_pdv_wallet_balance_display(SharedString::from(crate::format::money_br(rust_decimal::Decimal::ZERO)));
-            ui.set_pdv_wallet_balance_tone(SharedString::from("neutral"));
-            ui.set_pdv_wallet_credit_limit_display(SharedString::from(crate::format::money_br(rust_decimal::Decimal::ZERO)));
-            ui.set_pdv_wallet_available_display(SharedString::default());
-            ui.set_pdv_wallet_available_amount(0.0);
+            ui.global::<PdvUiState>().set_pdv_wallet_has_account(false);
+            ui.global::<PdvUiState>().set_pdv_wallet_account_id(SharedString::default());
+            ui.global::<PdvUiState>().set_pdv_wallet_balance_display(SharedString::from(crate::format::money_br(rust_decimal::Decimal::ZERO)));
+            ui.global::<PdvUiState>().set_pdv_wallet_balance_tone(SharedString::from("neutral"));
+            ui.global::<PdvUiState>().set_pdv_wallet_credit_limit_display(SharedString::from(crate::format::money_br(rust_decimal::Decimal::ZERO)));
+            ui.global::<PdvUiState>().set_pdv_wallet_available_display(SharedString::default());
+            ui.global::<PdvUiState>().set_pdv_wallet_available_amount(0.0);
             // Se a forma escolhida era "wallet" e o cliente saiu,
             // limpa o método (sem seleção padrão).
-            if ui.get_pdv_payment_method().as_str() == "wallet" {
-                ui.set_pdv_payment_method(SharedString::default());
+            if ui.global::<PdvUiState>().get_pdv_payment_method().as_str() == "wallet" {
+                ui.global::<PdvUiState>().set_pdv_payment_method(SharedString::default());
             }
         }
     }
@@ -149,14 +150,14 @@ pub(crate) fn wallet_money_signed(v: rust_decimal::Decimal) -> String {
 
 pub(crate) fn setup_clear_customer(ui: &MainWindow, pdv: Arc<Mutex<PdvState>>) {
     let ui_weak = ui.as_weak();
-    ui.on_pdv_clear_customer(move || {
+    ui.global::<PdvUiState>().on_pdv_clear_customer(move || {
         if let Ok(mut g) = pdv.lock() {
             g.current_customer_addresses.clear();
         }
         if let Some(ui) = ui_weak.upgrade() {
-            ui.set_pdv_customer_id(SharedString::default());
-            ui.set_pdv_customer_name(SharedString::default());
-            ui.set_pdv_customer_addresses(
+            ui.global::<PdvUiState>().set_pdv_customer_id(SharedString::default());
+            ui.global::<PdvUiState>().set_pdv_customer_name(SharedString::default());
+            ui.global::<PdvUiState>().set_pdv_customer_addresses(
                 ModelRc::new(VecModel::from(Vec::<PdvAddressRow>::new())),
             );
             apply_wallet_to_ui(&ui, None);
@@ -169,15 +170,15 @@ pub(crate) fn setup_clear_customer(ui: &MainWindow, pdv: Arc<Mutex<PdvState>>) {
 /// com street/number/neighborhood do endereço escolhido.
 pub(crate) fn setup_use_address(ui: &MainWindow) {
     let ui_weak = ui.as_weak();
-    ui.on_pdv_use_address(move |id| {
+    ui.global::<PdvUiState>().on_pdv_use_address(move |id| {
         let Some(ui_ref) = ui_weak.upgrade() else { return };
-        let rows = ui_ref.get_pdv_customer_addresses();
+        let rows = ui_ref.global::<PdvUiState>().get_pdv_customer_addresses();
         for i in 0..slint_row_count(&rows) {
             let Some(row) = slint_row_data(&rows, i) else { continue };
             if row.id.as_str() == id.as_str() {
-                ui_ref.set_pdv_delivery_street(row.street);
-                ui_ref.set_pdv_delivery_number(row.number);
-                ui_ref.set_pdv_delivery_neighborhood(row.neighborhood);
+                ui_ref.global::<PdvUiState>().set_pdv_delivery_street(row.street);
+                ui_ref.global::<PdvUiState>().set_pdv_delivery_number(row.number);
+                ui_ref.global::<PdvUiState>().set_pdv_delivery_neighborhood(row.neighborhood);
                 return;
             }
         }
@@ -203,6 +204,6 @@ pub(crate) fn populate_customer_rows(ui: &MainWindow, pdv: &Arc<Mutex<PdvState>>
             })
             .collect()
     }).unwrap_or_default();
-    ui.set_pdv_customer_rows(ModelRc::new(VecModel::from(rows)));
+    ui.global::<PdvUiState>().set_pdv_customer_rows(ModelRc::new(VecModel::from(rows)));
 }
 

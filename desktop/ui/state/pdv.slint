@@ -1,0 +1,150 @@
+// Estado da feature PDV (ponto de venda: catalogo, carrinho, pagamento), isolado do MainWindow.
+//
+// Por que um `global` (AI_RULES §8 / "Modularidade real"): em Slint as
+// propriedades de um componente vivem todas no mesmo arquivo — o
+// `main.slint` concentrava ~830 declaracoes de ~30 features. `global` e
+// o unico mecanismo da linguagem para separar estado por dominio sem
+// prop drilling, e o projeto ja o usa em `Theme`, `IconGlyph` e
+// `AdminState`.
+//
+// Acesso: no Slint, `PdvUiState.<prop>`; no Rust,
+// `ui.global::<PdvUiState>().set_<prop>()` / `.on_<callback>()`.
+// Logica em desktop/src/ui/pdv.
+import { PdvAddressRow, PdvCartRow, PdvCategoryChip, PdvCustomerRow, PdvProductRow } from "../types.slint";
+
+export global PdvUiState {
+    // ── PDV (Ponto de Venda) ──────────────────────────────────
+    // Estado é totalmente compartilhado com Rust (`ui::pdv`):
+    // produtos visíveis (filtrados por categoria + busca), carrinho,
+    // chips de categoria, totais. Slint só renderiza; Rust gerencia
+    // o estado em memória (AI_RULES §1).
+    in-out property <[PdvProductRow]>  pdv-products: [];
+    in-out property <[PdvCartRow]>     pdv-cart: [];
+    /// Linha 1 de chips. A decisão de quebra (tudo na row1 vs
+    /// dividir entre row1 e row2) é feita em Rust ao receber a
+    /// largura disponível do painel via `pdv-cats-width-changed`.
+    /// Quando cabe tudo, row2 fica vazia.
+    in-out property <[PdvCategoryChip]> pdv-categories: [];
+    /// Linha 2. Vazia quando cabe tudo na row1.
+    in-out property <[PdvCategoryChip]> pdv-categories-row2: [];
+    in-out property <string>           pdv-search-text: "";
+    in-out property <string>           pdv-subtotal-display: "R$ 0,00";
+    in-out property <string>           pdv-discount-display: "R$ 0,00";
+    in-out property <string>           pdv-additional-display: "R$ 0,00";
+    in-out property <string>           pdv-total-display: "R$ 0,00";
+    in-out property <string>           pdv-discount-input: "";
+    in-out property <string>           pdv-additional-input: "";
+    in-out property <int>              pdv-cart-count: 0;
+    // Estado integrado ao carrinho (não há mais modal de finalização)
+    in-out property <string>           pdv-sale-type: "counter";
+    /// Forma de pagamento PRINCIPAL: `"cash" | "card" | "pix"`.
+    /// Quando "card", o tipo (crédito/débito) é definido em
+    /// `pdv-payment-card-type`. Quando "cash" com valor pago abaixo
+    /// do total, `pdv-secondary-payment` registra a forma do restante.
+    in-out property <string>           pdv-payment-method: "";
+    in-out property <string>           pdv-payment-card-type: "credit";
+    in-out property <string>           pdv-secondary-payment: "";
+    in-out property <string>           pdv-amount-paid-input: "";
+    in-out property <string>           pdv-change-display: "";
+    in-out property <string>           pdv-remaining-display: "";
+    /// Taxa de entrega formatada; vazia fora de pedido de entrega ou sem taxa.
+    in-out property <string>           pdv-delivery-fee-display: "";
+    // ── Pagamento parcial (rateio) ───────────────────────────
+    /// Toggle do rateio (padrão desativado). Quando ativo, o método
+    /// único é ignorado e o pagamento é montado em até 3 linhas.
+    in-out property <bool>             pdv-split-enabled: false;
+    /// Método escolhido em cada linha: "" | "cash" | "card" | "pix".
+    in-out property <string>           pdv-split-m1: "";
+    in-out property <string>           pdv-split-m2: "";
+    in-out property <string>           pdv-split-m3: "";
+    /// Texto digitado no valor de cada linha (edição).
+    in-out property <string>           pdv-split-v1-input: "";
+    in-out property <string>           pdv-split-v2-input: "";
+    in-out property <string>           pdv-split-v3-input: "";
+    /// Valor parseado (float) de cada linha — Rust escreve, Slint lê
+    /// para revelar progressivamente as próximas formas.
+    in-out property <float>            pdv-split-v1: 0;
+    in-out property <float>            pdv-split-v2: 0;
+    in-out property <float>            pdv-split-v3: 0;
+    in-out property <string>           pdv-customer-id: "";
+    in-out property <string>           pdv-customer-name: "";
+    in-out property <string>           pdv-delivery-street: "";
+    in-out property <string>           pdv-delivery-number: "";
+    in-out property <string>           pdv-delivery-neighborhood: "";
+    in-out property <string>           pdv-finalize-error: "";
+    // Modal pós-venda
+    in-out property <bool>             pdv-show-sold: false;
+    in-out property <string>           pdv-sold-order-id: "";
+    in-out property <string>           pdv-sold-order-number: "";
+    in-out property <string>           pdv-sold-total: "";
+    // Modal de seleção de cliente
+    in-out property <bool>             pdv-show-customer-picker: false;
+    in-out property <[PdvCustomerRow]> pdv-customer-rows: [];
+    in-out property <string>           pdv-customer-search: "";
+    /// Endereços cadastrados do cliente atualmente selecionado.
+    /// Populado pelo Rust após `pdv-pick-customer`. Vazio = sem
+    /// endereços OU cliente não selecionado.
+    in-out property <[PdvAddressRow]>  pdv-customer-addresses: [];
+    // ── Carteira do cliente vinculado (Fase 3) ────────────────
+    /// True quando o cliente tem carteira aberta — habilita o chip
+    /// "Carteira" como forma de pagamento.
+    in-out property <bool>   pdv-wallet-has-account: false;
+    /// UUID da account, ou "" se vazio.
+    in-out property <string> pdv-wallet-account-id: "";
+    /// "R$ 87,50" (saldo atual, com sinal).
+    in-out property <string> pdv-wallet-balance-display: "R$ 0,00";
+    /// "pos" | "neg" | "neutral" — UI escolhe cor.
+    in-out property <string> pdv-wallet-balance-tone: "neutral";
+    /// "R$ 100,00" (limite de fiado configurado).
+    in-out property <string> pdv-wallet-credit-limit-display: "R$ 0,00";
+    /// "R$ 187,50" — saldo + limite (quanto o cliente ainda pode
+    /// gastar nesta venda sem ser rejeitado).
+    in-out property <string> pdv-wallet-available-display: "R$ 0,00";
+    /// Disponível como número (cru) — UI usa pra comparar com total
+    /// e mostrar aviso de fiado.
+    in-out property <float>  pdv-wallet-available-amount: 0;
+    /// Total cru do carrinho (para comparações em ponto flutuante).
+    /// `pdv-total-display` continua sendo a string pt-BR formatada.
+    in-out property <float>  pdv-total-amount: 0;
+    // Callbacks
+    callback pdv-refresh();
+    callback pdv-search-changed(string);
+    callback pdv-submit-search();
+    callback pdv-toggle-category(string);
+    callback pdv-clear-categories();
+    /// Disparado pelo Slint quando a largura do painel de categorias
+    /// muda. Rust decide se quebra os chips em duas linhas (e como
+    /// distribuí-los) com base na largura recebida.
+    callback pdv-cats-width-changed(length);
+    callback pdv-add-product(string);
+    callback pdv-inc-line(string);
+    callback pdv-dec-line(string);
+    callback pdv-remove-line(string);
+    // Modal do carrinho (aberto pelo pill "N itens" ao lado da busca).
+    in-out property <bool> pdv-show-cart-modal: false;
+    callback pdv-clear-cart();
+    callback pdv-finalize();
+    callback pdv-config-confirm();
+    callback pdv-discount-changed(string);
+    callback pdv-additional-changed(string);
+    callback pdv-amount-paid-changed(string);
+    /// Rateio: valor de uma linha mudou (índice 0..2, texto cru).
+    callback pdv-split-amount-changed(int, string);
+    callback pdv-use-address(string);
+    /// Recálculo solicitado pelo Slint quando uma propriedade
+    /// reativa muda (ex.: payment-method). Faz o Rust reescrever
+    /// `change-display` / `remaining-display`.
+    callback pdv-recalc();
+    // Customer picker
+    callback pdv-open-customer-picker();
+    callback pdv-customer-search-changed(string);
+    callback pdv-pick-customer(string);
+    callback pdv-clear-customer();
+
+    // Recalcular ao trocar a forma de pagamento e ao alternar
+    // Balcão↔Entrega (a taxa de entrega entra/sai do total). Ficavam
+    // como `changed` no MainWindow; num `global` o handler mora junto
+    // da propriedade que observa.
+    changed pdv-payment-method => { PdvUiState.pdv-recalc(); }
+    changed pdv-sale-type => { PdvUiState.pdv-recalc(); }
+}

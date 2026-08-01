@@ -1,0 +1,56 @@
+// Estado da feature CONFIGURADOR DE PRODUTO (variacoes + adicionais), isolado do MainWindow.
+//
+// Por que um `global` (AI_RULES §8 / "Modularidade real"): em Slint as
+// propriedades de um componente vivem todas no mesmo arquivo — o
+// `main.slint` concentrava ~830 declaracoes de ~30 features. `global` e
+// o unico mecanismo da linguagem para separar estado por dominio sem
+// prop drilling, e o projeto ja o usa em `Theme`, `IconGlyph` e
+// `AdminState`.
+//
+// Acesso: no Slint, `ProductConfigState.<prop>`; no Rust,
+// `ui.global::<ProductConfigState>().set_<prop>()` / `.on_<callback>()`.
+// Global proprio porque o mesmo modal e usado por DOIS donos: a edicao
+// de pedido (OrdersState) e o PDV (PdvState). `config-context` diz qual
+// deles confirma. Logica em desktop/src/ui/orders/config.rs.
+import { ConfigAddonGroup, ConfigVariation, EditOrderItem } from "../types.slint";
+
+export global ProductConfigState {
+    /// Configurador de produto:
+    /// - `start-product-config(pid)`: carrega adicionais + variações
+    ///   do produto. Se nenhum dos dois existir, adiciona direto.
+    /// - `config-toggle-variation(v, o)` / `config-toggle-addon(g, a)`:
+    ///   alterna seleção respeitando single/multi/max_value.
+    /// - `config-inc-qty` / `config-dec-qty`.
+    /// - `config-confirm-add`: empurra o `EditOrderItem` configurado.
+    /// - `config-cancel`: limpa o estado.
+    callback start-product-config(string);
+    callback config-toggle-variation(int, int);
+    callback config-toggle-addon(int, int);
+    callback config-inc-qty();
+    callback config-dec-qty();
+    callback config-confirm-add();
+    callback config-cancel();
+    /// Estado do configurador de produto (adicionais/variações).
+    /// `config-product-id` vazio = sem configuração em andamento;
+    /// caso contrário, a seção de configuração aparece no EditOrderModal.
+    in-out property <string> config-product-id: "";
+    in-out property <string> config-product-name: "";
+    in-out property <image>  config-product-image;
+    in-out property <float>  config-base-price: 0;
+    in-out property <int>    config-qty: 1;
+    in-out property <[ConfigVariation]> config-variations: [];
+    in-out property <[ConfigAddonGroup]> config-addon-groups: [];
+    /// Total final formatado (`"R$ x,xx"`), recomputado em Rust a
+    /// cada toggle / mudança de qty.
+    in-out property <string> config-final-display: "R$ 0,00";
+    in-out property <string> config-error: "";
+    /// Índice do item em edição via "Editar item" (-1 = adicionando
+    /// produto novo). O Rust seta no `edit-order-edit-item(idx)` e
+    /// volta a -1 no confirm/cancel do configurador.
+    in-out property <int>    config-edit-idx: -1;
+    /// Contexto do ProductConfiguratorModal — quem disparou o
+    /// configurador. `"edit_order"` (default) = pelo EditOrderModal;
+    /// `"pdv"` = pelo PDV. O wireup do botão "Adicionar" no PCM
+    /// despacha o callback certo conforme essa propriedade.
+    in-out property <string>           config-context: "edit_order";
+}

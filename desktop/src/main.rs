@@ -65,6 +65,7 @@ use crate::session::SessionStore;
 use crate::sync::health::HealthChecker;
 use crate::sync::status::SyncStatusHandle;
 use crate::sync::worker::{SyncBootstrap, SyncWorker};
+use slint::ComponentHandle;
 
 /// Instala um panic hook que imprime mensagem + backtrace sempre.
 ///
@@ -229,37 +230,37 @@ fn main() {
     // As demais listas (produtos, categorias, etc.) são carregadas sob demanda
     // quando o usuário navega para a aba correspondente — evita exibir badges
     // de contagem antes que o usuário interaja com a área.
-    window.invoke_refresh_business_hours();
+    window.global::<SettingsState>().invoke_refresh_business_hours();
     // Aba inicial = Dashboard. O carregamento das telas é sob demanda
     // via `navigate` (clique no menu), mas a aba de destino não recebe
     // esse evento na abertura — então a tela vinha vazia até o primeiro
     // ciclo de sync. Dispara o refresh inicial dos cards/séries do
     // Dashboard aqui (equivalente ao navigate("dashboard")).
-    window.invoke_dashboard_refresh();
+    window.global::<DashboardState>().invoke_dashboard_refresh();
     // Pedidos: também pré-populado para o badge da sidebar aparecer
     // logo no boot e para Pedidos abrir cheio se o user navegar.
-    window.invoke_refresh_orders();
+    window.global::<OrdersState>().invoke_refresh_orders();
     // Impressoras: carrega a lista no boot (não depende do operador
     // entrar em Configurações — o resolver de impressão por kind nos
     // pedidos consulta o banco direto, mas a UI já fica populada).
-    window.invoke_refresh_printers();
+    window.global::<PrintersState>().invoke_refresh_printers();
     // PDV: carrega produtos + categorias no boot. Mesma justificativa
     // — quando o operador abre a aba PDV, a grid já está populada.
-    window.invoke_pdv_refresh();
+    window.global::<PdvUiState>().invoke_pdv_refresh();
     // Caixa: status pré-carregado para que o modal de bloqueio do
     // PDV (renderizado quando `cash-summary.open == false`) já reflita
     // a realidade na primeira interação.
-    window.invoke_cash_refresh();
+    window.global::<CashState>().invoke_cash_refresh();
     // Financeiro: KPIs + fluxo de caixa + lista de contas a pagar/receber.
     // Sem pré-carga a tela ficava em branco até o primeiro ciclo de sync.
-    window.invoke_finance_refresh();
+    window.global::<FinanceState>().invoke_finance_refresh();
     // Assinatura: card de plano atual + lista de faturas. Pré-carrega
     // para que ASSINATURA → PLANO & COBRANÇA já reflita o estado real.
-    window.invoke_subscription_refresh();
+    window.global::<SubscriptionState>().invoke_subscription_refresh();
     // Clientes: lista mestre pra que o usuário já veja a base ao
     // navegar — a carteira do cliente selecionado é carregada por
     // listener separado quando ele clicar numa linha.
-    window.invoke_refresh_customers();
+    window.global::<CustomersState>().invoke_refresh_customers();
 
     // Atualiza `live-window-height` (usada pelo PDV pra ancorar
     // cart-bottom no fim da janela) periodicamente. Slint não

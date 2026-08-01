@@ -13,6 +13,7 @@ use super::super::helpers::show_toast;
 use super::state::PdvState;
 use super::customer::apply_wallet_to_ui;
 use super::view::apply_state_to_ui;
+use crate::{CashState, FinanceState, OrdersState, PdvUiState};
 
 /// Meio centavo — tolerância de arredondamento nas comparações de
 /// dinheiro, igual à usada no core.
@@ -55,7 +56,7 @@ pub(crate) fn setup_finalize(
     let ui_weak = ui.as_weak();
     let state = state.clone();
     let handle = handle.clone();
-    ui.on_pdv_finalize(move || {
+    ui.global::<PdvUiState>().on_pdv_finalize(move || {
         let Some(ui_ref) = ui_weak.upgrade() else { return };
 
         // Trava de reentrada: a venda é assíncrona e o carrinho só é
@@ -72,26 +73,26 @@ pub(crate) fn setup_finalize(
         // Caixa aberto é pré-requisito do PDV — o `session_id` vive
         // no `cash_summary` populado pelo `cash_refresh`. Sem ele,
         // a venda nem entra na sessão (movimento não seria atribuído).
-        let session_id_str = ui_ref.get_cash_summary().session_id.to_string();
+        let session_id_str = ui_ref.global::<CashState>().get_cash_summary().session_id.to_string();
         let session_id = Uuid::parse_str(&session_id_str).ok();
         if session_id.is_none() {
-            ui_ref.set_pdv_finalize_error(SharedString::from(
+            ui_ref.global::<PdvUiState>().set_pdv_finalize_error(SharedString::from(
                 "Abra o caixa antes de finalizar a venda.",
             ));
             return;
         }
 
-        let sale_type = ui_ref.get_pdv_sale_type().to_string();
-        let primary = ui_ref.get_pdv_payment_method().to_string();
-        let card_type = ui_ref.get_pdv_payment_card_type().to_string();
-        let secondary = ui_ref.get_pdv_secondary_payment().to_string();
+        let sale_type = ui_ref.global::<PdvUiState>().get_pdv_sale_type().to_string();
+        let primary = ui_ref.global::<PdvUiState>().get_pdv_payment_method().to_string();
+        let card_type = ui_ref.global::<PdvUiState>().get_pdv_payment_card_type().to_string();
+        let secondary = ui_ref.global::<PdvUiState>().get_pdv_secondary_payment().to_string();
         // Pagamento parcial (rateio): quando ativo, o método único é
         // ignorado e o pagamento é montado a partir das linhas do split.
-        let split_enabled = ui_ref.get_pdv_split_enabled();
-        let customer_id_str = ui_ref.get_pdv_customer_id().to_string();
-        let street = ui_ref.get_pdv_delivery_street().to_string();
-        let number = ui_ref.get_pdv_delivery_number().to_string();
-        let neigh = ui_ref.get_pdv_delivery_neighborhood().to_string();
+        let split_enabled = ui_ref.global::<PdvUiState>().get_pdv_split_enabled();
+        let customer_id_str = ui_ref.global::<PdvUiState>().get_pdv_customer_id().to_string();
+        let street = ui_ref.global::<PdvUiState>().get_pdv_delivery_street().to_string();
+        let number = ui_ref.global::<PdvUiState>().get_pdv_delivery_number().to_string();
+        let neigh = ui_ref.global::<PdvUiState>().get_pdv_delivery_neighborhood().to_string();
 
         // Taxa de entrega: aplicada só em pedido de entrega, a partir da
         // config local da empresa (§11 — não é valor vindo da requisição).
@@ -101,7 +102,7 @@ pub(crate) fn setup_finalize(
         let (items, discount, additional, total, amount_paid, delivery_fee) = {
             let Ok(g) = pdv.lock() else { return };
             if g.cart.is_empty() {
-                ui_ref.set_pdv_finalize_error(SharedString::from("Carrinho vazio."));
+                ui_ref.global::<PdvUiState>().set_pdv_finalize_error(SharedString::from("Carrinho vazio."));
                 return;
             }
             let items: Vec<OrderItemInput> = g.cart.iter().map(|line| OrderItemInput {
@@ -125,7 +126,7 @@ pub(crate) fn setup_finalize(
         if sale_type == "delivery"
             && (street.trim().is_empty() || number.trim().is_empty() || neigh.trim().is_empty())
         {
-            ui_ref.set_pdv_finalize_error(SharedString::from(
+            ui_ref.global::<PdvUiState>().set_pdv_finalize_error(SharedString::from(
                 "Para Entrega preencha Rua, Nº e Bairro."
             ));
             return;
@@ -135,7 +136,7 @@ pub(crate) fn setup_finalize(
         // Mensagem em pt-BR — evita o erro técnico do core ("Unknown
         // payment method ''").
         if !split_enabled && primary.trim().is_empty() {
-            ui_ref.set_pdv_finalize_error(SharedString::from(
+            ui_ref.global::<PdvUiState>().set_pdv_finalize_error(SharedString::from(
                 "Selecione uma forma de pagamento."
             ));
             show_toast(&ui_ref, "Selecione uma forma de pagamento.", "warning");
@@ -156,7 +157,7 @@ pub(crate) fn setup_finalize(
             match build_split_payment(&ui_ref) {
                 Ok(pair) => pair,
                 Err(msg) => {
-                    ui_ref.set_pdv_finalize_error(SharedString::from(msg.clone()));
+                    ui_ref.global::<PdvUiState>().set_pdv_finalize_error(SharedString::from(msg.clone()));
                     show_toast(&ui_ref, &msg, "warning");
                     return;
                 }
@@ -171,21 +172,21 @@ pub(crate) fn setup_finalize(
                 // pedido — evita inconsistência onde a venda existiria
                 // sem cobrança.
                 if customer_id_str.trim().is_empty() {
-                    ui_ref.set_pdv_finalize_error(SharedString::from(
+                    ui_ref.global::<PdvUiState>().set_pdv_finalize_error(SharedString::from(
                         "Carteira exige cliente vinculado."
                     ));
                     return;
                 }
-                let account_id_str = ui_ref.get_pdv_wallet_account_id().to_string();
+                let account_id_str = ui_ref.global::<PdvUiState>().get_pdv_wallet_account_id().to_string();
                 if account_id_str.is_empty() {
-                    ui_ref.set_pdv_finalize_error(SharedString::from(
+                    ui_ref.global::<PdvUiState>().set_pdv_finalize_error(SharedString::from(
                         "Cliente sem carteira aberta. Abra a carteira no detalhe do cliente primeiro."
                     ));
                     return;
                 }
-                let available = ui_ref.get_pdv_wallet_available_amount() as f64;
+                let available = ui_ref.global::<PdvUiState>().get_pdv_wallet_available_amount() as f64;
                 if available + 0.005 < total {
-                    ui_ref.set_pdv_finalize_error(SharedString::from(
+                    ui_ref.global::<PdvUiState>().set_pdv_finalize_error(SharedString::from(
                         "Saldo + limite da carteira não cobre o total."
                     ));
                     return;
@@ -212,7 +213,7 @@ pub(crate) fn setup_finalize(
                     // Operador clicou Dinheiro mas não digitou — assume "cash" cheio.
                     ("cash".to_string(), String::new())
                 } else {
-                    ui_ref.set_pdv_finalize_error(SharedString::from(
+                    ui_ref.global::<PdvUiState>().set_pdv_finalize_error(SharedString::from(
                         "Valor pago abaixo do total — selecione a forma do restante."
                     ));
                     return;
@@ -246,7 +247,7 @@ pub(crate) fn setup_finalize(
         // Capturado fora do spawn pra evitar passar a Slint `Weak`
         // dentro do executor antes do invoke_from_event_loop.
         let wallet_account_uuid: Option<Uuid> = if payment_method == "wallet" {
-            Uuid::parse_str(ui_ref.get_pdv_wallet_account_id().as_str()).ok()
+            Uuid::parse_str(ui_ref.global::<PdvUiState>().get_pdv_wallet_account_id().as_str()).ok()
         } else {
             None
         };
@@ -283,7 +284,7 @@ pub(crate) fn setup_finalize(
                     let _ = slint::invoke_from_event_loop(move || {
                         let Some(ui) = ui_weak_block.upgrade() else { return };
                         let msg = "Saldo + limite da carteira não cobre o total.";
-                        ui.set_pdv_finalize_error(SharedString::from(msg));
+                        ui.global::<PdvUiState>().set_pdv_finalize_error(SharedString::from(msg));
                         show_toast(&ui, msg, "error");
                     });
                     return;
@@ -356,38 +357,38 @@ pub(crate) fn setup_finalize(
                             g.current_customer_addresses.clear();
                         }
                         // Limpa campos do carrinho.
-                        ui.set_pdv_finalize_error(SharedString::default());
-                        ui.set_pdv_delivery_street(SharedString::default());
-                        ui.set_pdv_delivery_number(SharedString::default());
-                        ui.set_pdv_delivery_neighborhood(SharedString::default());
-                        ui.set_pdv_customer_id(SharedString::default());
-                        ui.set_pdv_customer_name(SharedString::default());
-                        ui.set_pdv_discount_input(SharedString::default());
-                        ui.set_pdv_additional_input(SharedString::default());
-                        ui.set_pdv_amount_paid_input(SharedString::default());
-                        ui.set_pdv_secondary_payment(SharedString::default());
+                        ui.global::<PdvUiState>().set_pdv_finalize_error(SharedString::default());
+                        ui.global::<PdvUiState>().set_pdv_delivery_street(SharedString::default());
+                        ui.global::<PdvUiState>().set_pdv_delivery_number(SharedString::default());
+                        ui.global::<PdvUiState>().set_pdv_delivery_neighborhood(SharedString::default());
+                        ui.global::<PdvUiState>().set_pdv_customer_id(SharedString::default());
+                        ui.global::<PdvUiState>().set_pdv_customer_name(SharedString::default());
+                        ui.global::<PdvUiState>().set_pdv_discount_input(SharedString::default());
+                        ui.global::<PdvUiState>().set_pdv_additional_input(SharedString::default());
+                        ui.global::<PdvUiState>().set_pdv_amount_paid_input(SharedString::default());
+                        ui.global::<PdvUiState>().set_pdv_secondary_payment(SharedString::default());
                         // Reseta o rateio (pagamento parcial) — próxima venda começa desativado.
                         reset_split(&ui);
                         // Limpa a forma de pagamento — próxima venda começa sem seleção.
-                        ui.set_pdv_payment_method(SharedString::default());
-                        ui.set_pdv_customer_addresses(
+                        ui.global::<PdvUiState>().set_pdv_payment_method(SharedString::default());
+                        ui.global::<PdvUiState>().set_pdv_customer_addresses(
                             ModelRc::new(VecModel::from(Vec::<PdvAddressRow>::new())),
                         );
                         // Modal pós-venda.
-                        ui.set_pdv_sold_order_id(SharedString::from(order.base.id.to_string()));
-                        ui.set_pdv_sold_order_number(SharedString::from(format!("{:04}", order.number)));
-                        ui.set_pdv_sold_total(SharedString::from(format!("R$ {:.2}", order.total)));
-                        ui.set_pdv_show_sold(true);
+                        ui.global::<PdvUiState>().set_pdv_sold_order_id(SharedString::from(order.base.id.to_string()));
+                        ui.global::<PdvUiState>().set_pdv_sold_order_number(SharedString::from(format!("{:04}", order.number)));
+                        ui.global::<PdvUiState>().set_pdv_sold_total(SharedString::from(format!("R$ {:.2}", order.total)));
+                        ui.global::<PdvUiState>().set_pdv_show_sold(true);
                         apply_state_to_ui(&ui, &pdv);
                         notify.notify_one();
-                        ui.invoke_refresh_orders();
+                        ui.global::<OrdersState>().invoke_refresh_orders();
                         // Atualiza o dashboard de Caixa com a nova venda
                         // (movimento foi lançado pelo service).
-                        ui.invoke_cash_refresh();
+                        ui.global::<CashState>().invoke_cash_refresh();
                         // Fiado espelhado no Financeiro — recarrega a tela
                         // para a conta a receber aparecer sem ação manual.
                         if payment_method_clone == "wallet" {
-                            ui.invoke_finance_refresh();
+                            ui.global::<FinanceState>().invoke_finance_refresh();
                         }
                         // Limpa o estado da carteira no PDV — próximo
                         // cliente recarrega.
@@ -408,7 +409,7 @@ pub(crate) fn setup_finalize(
                             _ => "Não foi possível finalizar a venda. Tente novamente.".to_string(),
                         };
                         tracing::warn!("PDV finalize falhou: {e}");
-                        ui.set_pdv_finalize_error(SharedString::from(msg.clone()));
+                        ui.global::<PdvUiState>().set_pdv_finalize_error(SharedString::from(msg.clone()));
                         show_toast(&ui, &msg, "error");
                     }
                 }
@@ -424,9 +425,9 @@ pub(crate) fn setup_finalize(
 /// registra as formas escolhidas e seus valores.
 fn build_split_payment(ui: &MainWindow) -> Result<(String, String), String> {
     let lines = [
-        (ui.get_pdv_split_m1().to_string(), ui.get_pdv_split_v1() as f64),
-        (ui.get_pdv_split_m2().to_string(), ui.get_pdv_split_v2() as f64),
-        (ui.get_pdv_split_m3().to_string(), ui.get_pdv_split_v3() as f64),
+        (ui.global::<PdvUiState>().get_pdv_split_m1().to_string(), ui.global::<PdvUiState>().get_pdv_split_v1() as f64),
+        (ui.global::<PdvUiState>().get_pdv_split_m2().to_string(), ui.global::<PdvUiState>().get_pdv_split_v2() as f64),
+        (ui.global::<PdvUiState>().get_pdv_split_m3().to_string(), ui.global::<PdvUiState>().get_pdv_split_v3() as f64),
     ];
     let filled: Vec<(String, f64)> = lines
         .into_iter()
@@ -472,15 +473,15 @@ fn split_label(method: &str) -> &str {
 
 /// Reseta os campos do rateio (pagamento parcial) para o padrão desativado.
 fn reset_split(ui: &MainWindow) {
-    ui.set_pdv_split_enabled(false);
-    ui.set_pdv_split_m1(SharedString::default());
-    ui.set_pdv_split_m2(SharedString::default());
-    ui.set_pdv_split_m3(SharedString::default());
-    ui.set_pdv_split_v1_input(SharedString::default());
-    ui.set_pdv_split_v2_input(SharedString::default());
-    ui.set_pdv_split_v3_input(SharedString::default());
-    ui.set_pdv_split_v1(0.0);
-    ui.set_pdv_split_v2(0.0);
-    ui.set_pdv_split_v3(0.0);
+    ui.global::<PdvUiState>().set_pdv_split_enabled(false);
+    ui.global::<PdvUiState>().set_pdv_split_m1(SharedString::default());
+    ui.global::<PdvUiState>().set_pdv_split_m2(SharedString::default());
+    ui.global::<PdvUiState>().set_pdv_split_m3(SharedString::default());
+    ui.global::<PdvUiState>().set_pdv_split_v1_input(SharedString::default());
+    ui.global::<PdvUiState>().set_pdv_split_v2_input(SharedString::default());
+    ui.global::<PdvUiState>().set_pdv_split_v3_input(SharedString::default());
+    ui.global::<PdvUiState>().set_pdv_split_v1(0.0);
+    ui.global::<PdvUiState>().set_pdv_split_v2(0.0);
+    ui.global::<PdvUiState>().set_pdv_split_v3(0.0);
 }
 

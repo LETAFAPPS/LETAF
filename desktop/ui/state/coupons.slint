@@ -1,0 +1,56 @@
+// Estado da feature CUPONS (lista, modal e calendario de validade), isolado do MainWindow.
+//
+// Por que um `global` (AI_RULES §8 / "Modularidade real"): em Slint as
+// propriedades de um componente vivem todas no mesmo arquivo — o
+// `main.slint` concentrava ~830 declaracoes de ~30 features. `global` e
+// o unico mecanismo da linguagem para separar estado por dominio sem
+// prop drilling, e o projeto ja o usa em `Theme`, `IconGlyph` e
+// `AdminState`.
+//
+// Acesso: no Slint, `CouponsState.<prop>`; no Rust,
+// `ui.global::<CouponsState>().set_<prop>()` / `.on_<callback>()`.
+// Logica em desktop/src/ui/coupons.
+import { CalDay, CouponData } from "../types.slint";
+
+export global CouponsState {
+    // ── Cupons (Fase 8) ────────────────────────────
+    in-out property <[CouponData]> coupons: [];
+    in-out property <int> coupons-active-count: 0;
+    in-out property <int> coupons-inactive-count: 0;
+    in-out property <string> coupon-title: "";
+    in-out property <string> coupon-code: "";
+    in-out property <string> coupon-type: "standard";
+    in-out property <string> coupon-discount-kind: "fixed";
+    in-out property <string> coupon-discount-value: "";
+    in-out property <string> coupon-min-order: "";
+    in-out property <string> coupon-max-discount: "";
+    in-out property <string> coupon-per-user-limit: "";
+    in-out property <string> coupon-usage-limit: "";
+    in-out property <string> coupon-valid-from: "";
+    in-out property <string> coupon-valid-until: "";
+    in-out property <string> coupon-error-title: "";
+    in-out property <string> coupon-error-code: "";
+    in-out property <string> coupon-error-discount: "";
+    in-out property <string> coupon-error-min: "";
+    in-out property <string> coupon-error-per-user: "";
+    in-out property <string> coupon-error-usage: "";
+    in-out property <string> coupon-error-validity: "";
+    callback refresh-coupons();
+    callback add-coupon();
+    callback update-coupon();
+    callback delete-coupon(string);
+    callback toggle-coupon-active(string);
+    callback format-coupon-date(string) -> string;
+    // ── Modal: calendário pop-up dos campos de validade do Cupom ──
+    // Um único CalendarPopup é reutilizado para os dois campos
+    // (`coupon-valid-from` e `coupon-valid-until`). `target` define
+    // qual campo recebe a data escolhida.
+    in-out property <string>   coupon-cal-target: "";    // "" | "from" | "until"
+    in-out property <string>   coupon-cal-title: "";
+    in-out property <[CalDay]> coupon-cal-days: [];
+    callback coupon-cal-open(string);            // "from" | "until"
+    callback coupon-cal-close();
+    callback coupon-cal-prev();
+    callback coupon-cal-next();
+    callback coupon-cal-pick(string);            // "YYYY-MM-DD" ("" = limpar)
+}

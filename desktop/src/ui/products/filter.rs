@@ -8,6 +8,7 @@ use crate::MainWindow;
 
 use super::state::{DecodedProduct, SharedFilter};
 use super::list::refresh_products_view;
+use crate::ProductsState;
 
 /// Setup do callback de busca textual (mantém o estado de query e re-aplica).
 pub(crate) fn setup_filter_products(
@@ -16,7 +17,7 @@ pub(crate) fn setup_filter_products(
     filter: SharedFilter,
 ) {
     let ui_weak = ui.as_weak();
-    ui.on_filter_products(move |query| {
+    ui.global::<ProductsState>().on_filter_products(move |query| {
         let Some(ui) = ui_weak.upgrade() else { return };
         if let Ok(mut f) = filter.lock() {
             f.search_query = query.to_string();
@@ -32,7 +33,7 @@ pub(crate) fn setup_toggle_category_filter(
     filter: SharedFilter,
 ) {
     let ui_weak = ui.as_weak();
-    ui.on_toggle_category_filter(move |id| {
+    ui.global::<ProductsState>().on_toggle_category_filter(move |id| {
         let Some(ui) = ui_weak.upgrade() else { return };
         if let Ok(mut f) = filter.lock() {
             let id_s = id.to_string();
@@ -59,7 +60,7 @@ pub(crate) fn setup_toggle_subcategory_filter(
     filter: SharedFilter,
 ) {
     let ui_weak = ui.as_weak();
-    ui.on_toggle_subcategory_filter(move |id| {
+    ui.global::<ProductsState>().on_toggle_subcategory_filter(move |id| {
         let Some(ui) = ui_weak.upgrade() else { return };
         if let Ok(mut f) = filter.lock() {
             let id_s = id.to_string();
@@ -77,12 +78,12 @@ pub(crate) fn setup_set_status_filter(
     filter: SharedFilter,
 ) {
     let ui_weak = ui.as_weak();
-    ui.on_set_status_filter(move |value| {
+    ui.global::<ProductsState>().on_set_status_filter(move |value| {
         let Some(ui) = ui_weak.upgrade() else { return };
         if let Ok(mut f) = filter.lock() {
             f.status = value.to_string();
         }
-        ui.set_filter_status(value);
+        ui.global::<ProductsState>().set_filter_status(value);
         refresh_products_view(&ui, &cache, &filter);
     });
 }
@@ -93,12 +94,12 @@ pub(crate) fn setup_set_stock_filter(
     filter: SharedFilter,
 ) {
     let ui_weak = ui.as_weak();
-    ui.on_set_stock_filter(move |value| {
+    ui.global::<ProductsState>().on_set_stock_filter(move |value| {
         let Some(ui) = ui_weak.upgrade() else { return };
         if let Ok(mut f) = filter.lock() {
             f.stock = value.to_string();
         }
-        ui.set_filter_stock(value);
+        ui.global::<ProductsState>().set_filter_stock(value);
         refresh_products_view(&ui, &cache, &filter);
     });
 }
@@ -109,7 +110,7 @@ pub(crate) fn setup_reset_product_filters(
     filter: SharedFilter,
 ) {
     let ui_weak = ui.as_weak();
-    ui.on_reset_product_filters(move || {
+    ui.global::<ProductsState>().on_reset_product_filters(move || {
         let Some(ui) = ui_weak.upgrade() else { return };
         if let Ok(mut f) = filter.lock() {
             f.selected_categories.clear();
@@ -117,8 +118,8 @@ pub(crate) fn setup_reset_product_filters(
             f.status = "both".to_string();
             f.stock  = "both".to_string();
         }
-        ui.set_filter_status(SharedString::from("both"));
-        ui.set_filter_stock(SharedString::from("both"));
+        ui.global::<ProductsState>().set_filter_status(SharedString::from("both"));
+        ui.global::<ProductsState>().set_filter_stock(SharedString::from("both"));
         refresh_products_view(&ui, &cache, &filter);
     });
 }

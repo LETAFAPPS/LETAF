@@ -9,6 +9,7 @@ use crate::{MainWindow, SubcategoryData};
 
 use super::super::helpers::friendly_error;
 use super::crud::to_subcategory_data;
+use crate::CategoriesState;
 
 /// Carrega subcategorias do SQLite e popula a tabela.
 ///
@@ -24,7 +25,7 @@ pub(crate) fn setup_refresh_subcategories(
     let state = state.clone();
     let handle = handle.clone();
 
-    ui.on_refresh_subcategories(move || {
+    ui.global::<CategoriesState>().on_refresh_subcategories(move || {
         let ui_weak = ui_weak.clone();
         let state = state.clone();
 
@@ -41,14 +42,14 @@ pub(crate) fn setup_refresh_subcategories(
                         .collect();
                     let _ = slint::invoke_from_event_loop(move || {
                         let Some(ui) = ui_weak.upgrade() else { return };
-                        let filter = ui.get_subcategory_filter_category_id().to_string();
+                        let filter = ui.global::<CategoriesState>().get_subcategory_filter_category_id().to_string();
                         let filter_id = Uuid::parse_str(&filter).ok();
                         let data: Vec<SubcategoryData> = subs
                             .iter()
                             .filter(|s| filter_id.is_none_or(|fid| s.category_id == fid))
                             .map(|s| to_subcategory_data(s, &cat_names))
                             .collect();
-                        ui.set_subcategories(ModelRc::new(VecModel::from(data)));
+                        ui.global::<CategoriesState>().set_subcategories(ModelRc::new(VecModel::from(data)));
                     });
                 }
                 (Err(e), _) | (_, Err(e)) => {
@@ -64,16 +65,16 @@ pub(crate) fn setup_refresh_subcategories(
 
 /// Limpa erros de validação do formulário de subcategoria.
 pub(crate) fn clear_subcategory_errors(ui: &MainWindow) {
-    ui.set_subcategory_error_name(SharedString::default());
-    ui.set_subcategory_error_category(SharedString::default());
+    ui.global::<CategoriesState>().set_subcategory_error_name(SharedString::default());
+    ui.global::<CategoriesState>().set_subcategory_error_category(SharedString::default());
 }
 
 /// Limpa o formulário de subcategoria.
 pub(crate) fn clear_subcategory_form(ui: &MainWindow) {
-    ui.set_subcategory_name(SharedString::default());
-    ui.set_subcategory_category_id(SharedString::default());
-    ui.set_subcategory_category_name(SharedString::default());
-    ui.set_subcategory_category_open(false);
+    ui.global::<CategoriesState>().set_subcategory_name(SharedString::default());
+    ui.global::<CategoriesState>().set_subcategory_category_id(SharedString::default());
+    ui.global::<CategoriesState>().set_subcategory_category_name(SharedString::default());
+    ui.global::<CategoriesState>().set_subcategory_category_open(false);
     clear_subcategory_errors(ui);
 }
 
@@ -86,12 +87,12 @@ pub(crate) fn validate_subcategory_form(ui: &MainWindow) -> bool {
     let mut valid = true;
     clear_subcategory_errors(ui);
 
-    if ui.get_subcategory_name().trim().is_empty() {
-        ui.set_subcategory_error_name(SharedString::from("Preencha o nome da subcategoria"));
+    if ui.global::<CategoriesState>().get_subcategory_name().trim().is_empty() {
+        ui.global::<CategoriesState>().set_subcategory_error_name(SharedString::from("Preencha o nome da subcategoria"));
         valid = false;
     }
-    if ui.get_subcategory_category_id().trim().is_empty() {
-        ui.set_subcategory_error_category(SharedString::from("Selecione uma categoria"));
+    if ui.global::<CategoriesState>().get_subcategory_category_id().trim().is_empty() {
+        ui.global::<CategoriesState>().set_subcategory_error_category(SharedString::from("Selecione uma categoria"));
         valid = false;
     }
 

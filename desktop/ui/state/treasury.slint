@@ -1,0 +1,37 @@
+// Estado da feature TESOURARIA (carteira do estabelecimento), isolado do MainWindow.
+//
+// Por que um `global` (AI_RULES §8 / "Modularidade real"): em Slint as
+// propriedades de um componente vivem todas no mesmo arquivo — o
+// `main.slint` concentrava ~830 declaracoes de ~30 features. `global` e
+// o unico mecanismo da linguagem para separar estado por dominio sem
+// prop drilling, e o projeto ja o usa em `Theme`, `IconGlyph` e
+// `AdminState`.
+//
+// Acesso: no Slint, `TreasuryState.<prop>`; no Rust,
+// `ui.global::<TreasuryState>().set_<prop>()` / `.on_<callback>()`.
+// Logica em desktop/src/ui/treasury.
+import { TreasuryBreakdownRow, TreasuryChartBar, TreasuryMovementRow, TreasurySummary } from "../types.slint";
+
+export global TreasuryState {
+    // ── Carteira do estabelecimento (tesouraria) ─────────────
+    in-out property <TreasurySummary> treasury-summary;
+    in-out property <[TreasuryMovementRow]> treasury-movements: [];
+    in-out property <string> treasury-initial-input: "";
+    in-out property <string> treasury-notes-input: "";
+    in-out property <string> treasury-setup-error: "";
+    in-out property <[TreasuryChartBar]> treasury-chart: [];
+    // Detalhamento do dia (entradas e saídas por origem).
+    in-out property <[TreasuryBreakdownRow]> treasury-breakdown-in: [];
+    in-out property <[TreasuryBreakdownRow]> treasury-breakdown-out: [];
+    // Modal de aporte/retirada/meta.
+    in-out property <bool> treasury-show-modal: false;
+    in-out property <string> treasury-modal-kind: "deposit";
+    in-out property <string> treasury-modal-amount: "";
+    in-out property <string> treasury-modal-notes: "";
+    in-out property <string> treasury-modal-error: "";
+    callback treasury-refresh();
+    callback treasury-open();
+    callback treasury-open-modal(string);
+    callback treasury-close-modal();
+    callback treasury-confirm-modal();
+}

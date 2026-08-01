@@ -37,6 +37,7 @@ struct CatalogPlan {
 use super::card::setup_card;
 use super::pix_auto::setup_pix_auto;
 use super::payment_methods::setup_payment_method_crud;
+use crate::SubscriptionState;
 
 pub(crate) fn setup_subscription(
     ui: &MainWindow,
@@ -158,7 +159,7 @@ fn setup_refresh(
     let ui_weak = ui.as_weak();
     let state = state.clone();
     let handle = handle.clone();
-    ui.on_subscription_refresh(move || {
+    ui.global::<SubscriptionState>().on_subscription_refresh(move || {
         let ui_weak = ui_weak.clone();
         let state = state.clone();
         let auth_token = auth_token.clone();
@@ -282,15 +283,15 @@ async fn reapply(
     let ui_weak = ui_weak.clone();
     let _ = slint::invoke_from_event_loop(move || {
         if let Some(ui) = ui_weak.upgrade() {
-            ui.set_subscription_data(view);
-            ui.set_subscription_plans(ModelRc::new(VecModel::from(plan_cards)));
-            ui.set_subscription_invoices(ModelRc::new(VecModel::from(invoice_rows)));
+            ui.global::<SubscriptionState>().set_subscription_data(view);
+            ui.global::<SubscriptionState>().set_subscription_plans(ModelRc::new(VecModel::from(plan_cards)));
+            ui.global::<SubscriptionState>().set_subscription_invoices(ModelRc::new(VecModel::from(invoice_rows)));
             ui.set_subscription_pending_count(pending_count);
-            ui.set_subscription_open_invoice_id(SharedString::from(open_id));
-            ui.set_subscription_open_invoice_amount(SharedString::from(open_amount));
-            ui.set_subscription_open_invoice_label(SharedString::from(open_label));
-            ui.set_subscription_open_invoice_overdue(open_overdue);
-            ui.set_payment_methods(ModelRc::new(VecModel::from(payment_methods)));
+            ui.global::<SubscriptionState>().set_subscription_open_invoice_id(SharedString::from(open_id));
+            ui.global::<SubscriptionState>().set_subscription_open_invoice_amount(SharedString::from(open_amount));
+            ui.global::<SubscriptionState>().set_subscription_open_invoice_label(SharedString::from(open_label));
+            ui.global::<SubscriptionState>().set_subscription_open_invoice_overdue(open_overdue);
+            ui.global::<SubscriptionState>().set_payment_methods(ModelRc::new(VecModel::from(payment_methods)));
         }
     });
 }
@@ -575,7 +576,7 @@ fn setup_choose_plan(
     let ui_weak = ui.as_weak();
     let state = state.clone();
     let handle = handle.clone();
-    ui.on_subscription_choose_plan(move |kind_str| {
+    ui.global::<SubscriptionState>().on_subscription_choose_plan(move |kind_str| {
         let k = kind_str.as_str();
         // Planos do catálogo (id dinâmico do super admin) → assina por id,
         // com snapshot dos termos + trial. Os planos fixos legados
@@ -608,7 +609,7 @@ fn setup_choose_plan(
                         let _ = slint::invoke_from_event_loop(move || {
                             if let Some(ui) = ui_weak.upgrade() {
                                 show_toast(&ui, &label, "success");
-                                ui.invoke_subscription_refresh();
+                                ui.global::<SubscriptionState>().invoke_subscription_refresh();
                             }
                         });
                     }
@@ -656,10 +657,10 @@ fn setup_choose_plan(
                         let target_key = plan.as_str().to_string();
                         let _ = slint::invoke_from_event_loop(move || {
                             if let Some(ui) = ui_weak.upgrade() {
-                                ui.set_plan_change_confirm_message(SharedString::from(message));
-                                ui.set_plan_change_confirm_target(SharedString::from(target_key));
-                                ui.set_plan_change_confirm_loading(false);
-                                ui.set_plan_change_confirm_open(true);
+                                ui.global::<SubscriptionState>().set_plan_change_confirm_message(SharedString::from(message));
+                                ui.global::<SubscriptionState>().set_plan_change_confirm_target(SharedString::from(target_key));
+                                ui.global::<SubscriptionState>().set_plan_change_confirm_loading(false);
+                                ui.global::<SubscriptionState>().set_plan_change_confirm_open(true);
                             }
                         });
                         return;
@@ -674,7 +675,7 @@ fn setup_choose_plan(
                     let _ = slint::invoke_from_event_loop(move || {
                         if let Some(ui) = ui_weak_toast.upgrade() {
                             show_toast(&ui, &label, "success");
-                            ui.invoke_subscription_refresh();
+                            ui.global::<SubscriptionState>().invoke_subscription_refresh();
                         }
                     });
                 }
@@ -708,20 +709,20 @@ fn setup_plan_change_confirm(
     sync_notify: Arc<Notify>,
 ) {
     let ui_weak = ui.as_weak();
-    ui.on_plan_change_confirm_close(move || {
+    ui.global::<SubscriptionState>().on_plan_change_confirm_close(move || {
         if let Some(ui) = ui_weak.upgrade() {
-            ui.set_plan_change_confirm_open(false);
-            ui.set_plan_change_confirm_loading(false);
+            ui.global::<SubscriptionState>().set_plan_change_confirm_open(false);
+            ui.global::<SubscriptionState>().set_plan_change_confirm_loading(false);
         }
     });
 
     let ui_weak = ui.as_weak();
     let state_y = state.clone();
     let handle_y = handle.clone();
-    ui.on_plan_change_confirm_yes(move || {
+    ui.global::<SubscriptionState>().on_plan_change_confirm_yes(move || {
         let Some(ui) = ui_weak.upgrade() else { return };
-        let target = PlanKind::from_str(ui.get_plan_change_confirm_target().as_str());
-        ui.set_plan_change_confirm_loading(true);
+        let target = PlanKind::from_str(ui.global::<SubscriptionState>().get_plan_change_confirm_target().as_str());
+        ui.global::<SubscriptionState>().set_plan_change_confirm_loading(true);
         let ui_weak = ui_weak.clone();
         let state = state_y.clone();
         let auth = auth_token.clone();
@@ -764,10 +765,10 @@ fn setup_plan_change_confirm(
             );
             let _ = slint::invoke_from_event_loop(move || {
                 if let Some(ui) = ui_weak.upgrade() {
-                    ui.set_plan_change_confirm_loading(false);
-                    ui.set_plan_change_confirm_open(false);
+                    ui.global::<SubscriptionState>().set_plan_change_confirm_loading(false);
+                    ui.global::<SubscriptionState>().set_plan_change_confirm_open(false);
                     show_toast(&ui, &label, "success");
-                    ui.invoke_subscription_refresh();
+                    ui.global::<SubscriptionState>().invoke_subscription_refresh();
                 }
             });
         });
@@ -801,8 +802,8 @@ fn plan_confirm_error(ui_weak: &slint::Weak<MainWindow>, message: String) {
     let ui_weak = ui_weak.clone();
     let _ = slint::invoke_from_event_loop(move || {
         if let Some(ui) = ui_weak.upgrade() {
-            ui.set_plan_change_confirm_loading(false);
-            ui.set_plan_change_confirm_open(false);
+            ui.global::<SubscriptionState>().set_plan_change_confirm_loading(false);
+            ui.global::<SubscriptionState>().set_plan_change_confirm_open(false);
             show_toast(&ui, &message, "error");
         }
     });
@@ -814,9 +815,9 @@ fn plan_confirm_error(ui_weak: &slint::Weak<MainWindow>, message: String) {
 fn setup_placeholders(ui: &MainWindow) {
     // Toggle do painel inline "Trocar forma de pagamento".
     let ui_weak = ui.as_weak();
-    ui.on_subscription_toggle_payment_picker(move || {
+    ui.global::<SubscriptionState>().on_subscription_toggle_payment_picker(move || {
         if let Some(ui) = ui_weak.upgrade() {
-            ui.set_payment_picker_open(!ui.get_payment_picker_open());
+            ui.global::<SubscriptionState>().set_payment_picker_open(!ui.global::<SubscriptionState>().get_payment_picker_open());
         }
     });
 
@@ -832,7 +833,7 @@ fn setup_downloads(ui: &MainWindow, state: &DesktopState, handle: &tokio::runtim
     let ui_weak = ui.as_weak();
     let state_dl = state.clone();
     let handle_dl = handle.clone();
-    ui.on_subscription_download_invoice(move |id| {
+    ui.global::<SubscriptionState>().on_subscription_download_invoice(move |id| {
         let Ok(invoice_id) = uuid::Uuid::parse_str(id.as_str()) else { return };
         let ui_weak = ui_weak.clone();
         let state = state_dl.clone();
@@ -865,7 +866,7 @@ fn setup_downloads(ui: &MainWindow, state: &DesktopState, handle: &tokio::runtim
     let ui_weak = ui.as_weak();
     let state_all = state.clone();
     let handle_all = handle.clone();
-    ui.on_subscription_download_all(move || {
+    ui.global::<SubscriptionState>().on_subscription_download_all(move || {
         let ui_weak = ui_weak.clone();
         let state = state_all.clone();
         handle_all.spawn(async move {

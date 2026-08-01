@@ -5,6 +5,7 @@ use crate::PrinterData;
 use crate::context::DesktopState;
 
 use super::super::helpers::show_toast;
+use crate::PrintersState;
 
 /// "Imprimir página de teste" — gera texto monospace fixo e envia
 /// para o `system_name` digitado no form (mesmo sem ter salvado).
@@ -14,12 +15,12 @@ pub(crate) fn setup_test_print(ui: &MainWindow, state: &DesktopState, handle: &t
     let ui_weak = ui.as_weak();
     let _state = state.clone();
     let handle = handle.clone();
-    ui.on_printer_test_print(move || {
+    ui.global::<PrintersState>().on_printer_test_print(move || {
         let Some(ui_ref) = ui_weak.upgrade() else { return };
-        let system_name = ui_ref.get_printer_form_system_name().to_string();
-        let paper_width = ui_ref.get_printer_form_paper_width();
+        let system_name = ui_ref.global::<PrintersState>().get_printer_form_system_name().to_string();
+        let paper_width = ui_ref.global::<PrintersState>().get_printer_form_paper_width();
         if system_name.trim().is_empty() {
-            ui_ref.set_printer_form_error(SharedString::from(
+            ui_ref.global::<PrintersState>().set_printer_form_error(SharedString::from(
                 "Preencha 'Nome no sistema operacional' antes de testar."
             ));
             return;
@@ -107,7 +108,7 @@ pub(crate) fn center_line(s: &str, width: usize) -> String {
 pub(crate) fn setup_refresh_available_printers(ui: &MainWindow, handle: &tokio::runtime::Handle) {
     let ui_weak = ui.as_weak();
     let handle = handle.clone();
-    ui.on_refresh_available_printers(move || {
+    ui.global::<PrintersState>().on_refresh_available_printers(move || {
         let ui_weak = ui_weak.clone();
         handle.spawn_blocking(move || {
             let list = enumerate_system_printers();
@@ -115,7 +116,7 @@ pub(crate) fn setup_refresh_available_printers(ui: &MainWindow, handle: &tokio::
                 if let Some(ui) = ui_weak.upgrade() {
                     let shared: Vec<SharedString> =
                         list.into_iter().map(SharedString::from).collect();
-                    ui.set_printer_available_list(ModelRc::new(VecModel::from(shared)));
+                    ui.global::<PrintersState>().set_printer_available_list(ModelRc::new(VecModel::from(shared)));
                 }
             });
         });

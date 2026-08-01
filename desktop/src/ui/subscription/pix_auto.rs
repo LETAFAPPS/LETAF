@@ -17,6 +17,7 @@ use crate::{
 use super::super::helpers::show_toast;
 use super::pix::{paid_view, set_error_view};
 use super::card::{refresh, toast};
+use crate::SubscriptionState;
 
 // ── Pix Automático (mandato de débito recorrente) ────────────────
 //
@@ -47,24 +48,24 @@ pub(crate) fn setup_pix_auto(
     server_url: String,
     sync_notify: Arc<Notify>,
 ) {
-    ui.on_pix_auto_fmt_cpf_cnpj(|raw| SharedString::from(format_document(raw.as_str())));
+    ui.global::<SubscriptionState>().on_pix_auto_fmt_cpf_cnpj(|raw| SharedString::from(format_document(raw.as_str())));
 
     // Abre o modal de ativação.
     let ui_weak = ui.as_weak();
-    ui.on_subscription_open_pix_auto(move || {
+    ui.global::<SubscriptionState>().on_subscription_open_pix_auto(move || {
         if let Some(ui) = ui_weak.upgrade() {
-            ui.set_pix_auto_name(SharedString::default());
-            ui.set_pix_auto_cpf(SharedString::default());
-            ui.set_pix_auto_error(SharedString::default());
-            ui.set_pix_auto_loading(false);
-            ui.set_pix_auto_modal_open(true);
+            ui.global::<SubscriptionState>().set_pix_auto_name(SharedString::default());
+            ui.global::<SubscriptionState>().set_pix_auto_cpf(SharedString::default());
+            ui.global::<SubscriptionState>().set_pix_auto_error(SharedString::default());
+            ui.global::<SubscriptionState>().set_pix_auto_loading(false);
+            ui.global::<SubscriptionState>().set_pix_auto_modal_open(true);
         }
     });
 
     let ui_weak = ui.as_weak();
-    ui.on_pix_auto_close(move || {
+    ui.global::<SubscriptionState>().on_pix_auto_close(move || {
         if let Some(ui) = ui_weak.upgrade() {
-            ui.set_pix_auto_modal_open(false);
+            ui.global::<SubscriptionState>().set_pix_auto_modal_open(false);
         }
     });
 
@@ -75,24 +76,24 @@ pub(crate) fn setup_pix_auto(
     let auth_a = auth_token.clone();
     let url_a = server_url.clone();
     let notify_a = sync_notify.clone();
-    ui.on_pix_auto_submit(move || {
+    ui.global::<SubscriptionState>().on_pix_auto_submit(move || {
         let Some(ui) = ui_weak.upgrade() else { return };
-        let name = ui.get_pix_auto_name().to_string().trim().to_string();
+        let name = ui.global::<SubscriptionState>().get_pix_auto_name().to_string().trim().to_string();
         let cpf_digits: String = ui
-            .get_pix_auto_cpf()
+            .global::<SubscriptionState>().get_pix_auto_cpf()
             .chars()
             .filter(|c| c.is_ascii_digit())
             .collect();
         if name.is_empty() {
-            ui.set_pix_auto_error(SharedString::from("Informe o nome do titular"));
+            ui.global::<SubscriptionState>().set_pix_auto_error(SharedString::from("Informe o nome do titular"));
             return;
         }
         if cpf_digits.len() != 11 && cpf_digits.len() != 14 {
-            ui.set_pix_auto_error(SharedString::from("CPF (11) ou CNPJ (14) inválido"));
+            ui.global::<SubscriptionState>().set_pix_auto_error(SharedString::from("CPF (11) ou CNPJ (14) inválido"));
             return;
         }
-        ui.set_pix_auto_error(SharedString::default());
-        ui.set_pix_auto_loading(true);
+        ui.global::<SubscriptionState>().set_pix_auto_error(SharedString::default());
+        ui.global::<SubscriptionState>().set_pix_auto_loading(true);
         let body = PixAutoActivateBody {
             customer_name: name,
             customer_cpf: cpf_digits,
@@ -163,7 +164,7 @@ pub(crate) fn setup_pix_auto(
     let auth_c = auth_token;
     let url_c = server_url;
     let notify_c = sync_notify;
-    ui.on_subscription_cancel_pix_auto(move || {
+    ui.global::<SubscriptionState>().on_subscription_cancel_pix_auto(move || {
         let ui_weak = ui_weak.clone();
         let state = state_c.clone();
         let auth = auth_c.clone();
@@ -205,8 +206,8 @@ fn pix_auto_form_error(ui_weak: &slint::Weak<MainWindow>, message: String) {
     let ui_weak = ui_weak.clone();
     let _ = slint::invoke_from_event_loop(move || {
         if let Some(ui) = ui_weak.upgrade() {
-            ui.set_pix_auto_loading(false);
-            ui.set_pix_auto_error(SharedString::from(message));
+            ui.global::<SubscriptionState>().set_pix_auto_loading(false);
+            ui.global::<SubscriptionState>().set_pix_auto_error(SharedString::from(message));
         }
     });
 }
@@ -227,15 +228,15 @@ fn show_pix_auth_qr(ui_weak: &slint::Weak<MainWindow>, copia_cola: &str, qr_b64:
     let ui_weak = ui_weak.clone();
     let _ = slint::invoke_from_event_loop(move || {
         if let Some(ui) = ui_weak.upgrade() {
-            ui.set_pix_auto_loading(false);
-            ui.set_pix_auto_modal_open(false);
-            ui.set_pix_charge_view(view);
+            ui.global::<SubscriptionState>().set_pix_auto_loading(false);
+            ui.global::<SubscriptionState>().set_pix_auto_modal_open(false);
+            ui.global::<SubscriptionState>().set_pix_charge_view(view);
             if let Some(buf) = buffer {
-                ui.set_pix_qr_image(slint::Image::from_rgba8(buf));
+                ui.global::<SubscriptionState>().set_pix_qr_image(slint::Image::from_rgba8(buf));
             } else {
-                ui.set_pix_qr_image(slint::Image::default());
+                ui.global::<SubscriptionState>().set_pix_qr_image(slint::Image::default());
             }
-            ui.set_pix_modal_open(true);
+            ui.global::<SubscriptionState>().set_pix_modal_open(true);
         }
     });
 }
@@ -275,9 +276,9 @@ fn spawn_pix_auto_polling(
                 let ui_weak = ui_weak.clone();
                 let _ = slint::invoke_from_event_loop(move || {
                     if let Some(ui) = ui_weak.upgrade() {
-                        ui.set_pix_charge_view(paid_view());
+                        ui.global::<SubscriptionState>().set_pix_charge_view(paid_view());
                         show_toast(&ui, "PIX Automático autorizado · débito ativo", "success");
-                        ui.invoke_subscription_refresh();
+                        ui.global::<SubscriptionState>().invoke_subscription_refresh();
                     }
                 });
                 return;

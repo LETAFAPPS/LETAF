@@ -7,9 +7,10 @@ use crate::context::DesktopState;
 use crate::{MainWindow, WalletMovementRow, WalletSummary};
 
 use super::core::{MovementRowRaw, refresh_for_selected, SummaryRaw};
+use crate::{CustomersState, WalletState};
 
 pub(crate) fn apply_summary(ui: &MainWindow, s: SummaryRaw) {
-    ui.set_wallet_summary(WalletSummary {
+    ui.global::<WalletState>().set_wallet_summary(WalletSummary {
         has_account: s.has_account,
         account_id: SharedString::from(s.account_id),
         balance_display: SharedString::from(s.balance_display),
@@ -35,7 +36,7 @@ pub(crate) fn apply_movements(ui: &MainWindow, rows: Vec<MovementRowRaw>) {
             notes: SharedString::from(r.notes),
         })
         .collect();
-    ui.set_wallet_movements(ModelRc::new(VecModel::from(model)));
+    ui.global::<WalletState>().set_wallet_movements(ModelRc::new(VecModel::from(model)));
 }
 
 // ── Setup callbacks ───────────────────────────────────────────────
@@ -64,7 +65,7 @@ pub(crate) fn setup_select_listener(
                 let _ = slint::invoke_from_event_loop(move || {
                     let id = ui_weak2
                         .upgrade()
-                        .map(|u| u.get_selected_customer_id().to_string())
+                        .map(|u| u.global::<CustomersState>().get_selected_customer_id().to_string())
                         .unwrap_or_default();
                     let _ = tx.send(id);
                 });
@@ -88,58 +89,58 @@ pub(crate) fn setup_select_listener(
 
 pub(crate) fn setup_open_modals(ui: &MainWindow) {
     let ui_weak = ui.as_weak();
-    ui.on_wallet_open_deposit(move || {
+    ui.global::<WalletState>().on_wallet_open_deposit(move || {
         if let Some(ui) = ui_weak.upgrade() {
             reset_form(&ui);
-            ui.set_wallet_show_deposit(true);
+            ui.global::<WalletState>().set_wallet_show_deposit(true);
         }
     });
     let ui_weak = ui.as_weak();
-    ui.on_wallet_open_withdraw(move || {
+    ui.global::<WalletState>().on_wallet_open_withdraw(move || {
         if let Some(ui) = ui_weak.upgrade() {
             reset_form(&ui);
-            ui.set_wallet_show_withdraw(true);
+            ui.global::<WalletState>().set_wallet_show_withdraw(true);
         }
     });
     let ui_weak = ui.as_weak();
-    ui.on_wallet_open_adjust(move || {
+    ui.global::<WalletState>().on_wallet_open_adjust(move || {
         if let Some(ui) = ui_weak.upgrade() {
             reset_form(&ui);
-            ui.set_wallet_show_adjust(true);
+            ui.global::<WalletState>().set_wallet_show_adjust(true);
         }
     });
     let ui_weak = ui.as_weak();
-    ui.on_wallet_open_limit(move || {
+    ui.global::<WalletState>().on_wallet_open_limit(move || {
         if let Some(ui) = ui_weak.upgrade() {
-            let current = ui.get_wallet_summary().credit_limit_display.to_string();
+            let current = ui.global::<WalletState>().get_wallet_summary().credit_limit_display.to_string();
             // Limpa e pré-preenche com o limite atual sem o "R$ ".
             let pre = current
                 .trim_start_matches("R$ ")
                 .trim()
                 .to_string();
-            ui.set_wallet_form_limit(SharedString::from(pre));
-            ui.set_wallet_form_notes(SharedString::from(""));
-            ui.set_wallet_form_error(SharedString::from(""));
-            ui.set_wallet_show_limit(true);
+            ui.global::<WalletState>().set_wallet_form_limit(SharedString::from(pre));
+            ui.global::<WalletState>().set_wallet_form_notes(SharedString::from(""));
+            ui.global::<WalletState>().set_wallet_form_error(SharedString::from(""));
+            ui.global::<WalletState>().set_wallet_show_limit(true);
         }
     });
 }
 
 pub(crate) fn reset_form(ui: &MainWindow) {
-    ui.set_wallet_form_amount(SharedString::from(""));
-    ui.set_wallet_form_notes(SharedString::from(""));
-    ui.set_wallet_form_limit(SharedString::from(""));
-    ui.set_wallet_form_error(SharedString::from(""));
+    ui.global::<WalletState>().set_wallet_form_amount(SharedString::from(""));
+    ui.global::<WalletState>().set_wallet_form_notes(SharedString::from(""));
+    ui.global::<WalletState>().set_wallet_form_limit(SharedString::from(""));
+    ui.global::<WalletState>().set_wallet_form_error(SharedString::from(""));
 }
 
 pub(crate) fn setup_close_modals(ui: &MainWindow) {
     let ui_weak = ui.as_weak();
-    ui.on_wallet_close_modals(move || {
+    ui.global::<WalletState>().on_wallet_close_modals(move || {
         if let Some(ui) = ui_weak.upgrade() {
-            ui.set_wallet_show_deposit(false);
-            ui.set_wallet_show_withdraw(false);
-            ui.set_wallet_show_adjust(false);
-            ui.set_wallet_show_limit(false);
+            ui.global::<WalletState>().set_wallet_show_deposit(false);
+            ui.global::<WalletState>().set_wallet_show_withdraw(false);
+            ui.global::<WalletState>().set_wallet_show_adjust(false);
+            ui.global::<WalletState>().set_wallet_show_limit(false);
         }
     });
 }

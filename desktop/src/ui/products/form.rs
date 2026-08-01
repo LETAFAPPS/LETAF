@@ -8,6 +8,8 @@ use crate::{MainWindow, VariationData, VariationOptionData};
 
 use super::state::ui_to_availability_json;
 use super::editors::ui_tiers_to_json;
+use slint::ComponentHandle;
+use crate::ProductsState;
 
 /// Dados do formulário de produto lidos da UI.
 pub(crate) struct ProductFormData {
@@ -48,26 +50,26 @@ pub(crate) struct ProductFormData {
 /// - Aceita tanto `,` quanto `.` como separador decimal (locale pt-BR vs
 ///   formato técnico). Internamente o número segue o padrão Rust/JSON com `.`.
 pub(crate) fn read_product_form(ui: &MainWindow) -> ProductFormData {
-    let desc = ui.get_product_description().to_string();
-    let barcode_str = ui.get_product_barcode().to_string();
-    let unit_raw = ui.get_product_unit().to_string();
+    let desc = ui.global::<ProductsState>().get_product_description().to_string();
+    let barcode_str = ui.global::<ProductsState>().get_product_barcode().to_string();
+    let unit_raw = ui.global::<ProductsState>().get_product_unit().to_string();
     let unit = if unit_raw.is_empty() { "un".to_string() } else { unit_raw };
-    let img = ui.get_product_image_data().to_string();
-    let cover_str = ui.get_product_cover_color().to_string();
-    let cat_str = ui.get_product_category_id().to_string();
-    let sub_str = ui.get_product_subcategory_id().to_string();
-    let stock_raw: f64 = parse_decimal(&ui.get_product_stock_quantity()).unwrap_or(0.0);
+    let img = ui.global::<ProductsState>().get_product_image_data().to_string();
+    let cover_str = ui.global::<ProductsState>().get_product_cover_color().to_string();
+    let cat_str = ui.global::<ProductsState>().get_product_category_id().to_string();
+    let sub_str = ui.global::<ProductsState>().get_product_subcategory_id().to_string();
+    let stock_raw: f64 = parse_decimal(&ui.global::<ProductsState>().get_product_stock_quantity()).unwrap_or(0.0);
     let stock_quantity = if unit == "kg" { stock_raw } else { stock_raw.round() };
-    let unlimited_stock = ui.get_product_unlimited_stock();
-    let availability_enabled = ui.get_product_availability_enabled();
-    let availability_model = ui.get_product_availability();
+    let unlimited_stock = ui.global::<ProductsState>().get_product_unlimited_stock();
+    let availability_enabled = ui.global::<ProductsState>().get_product_availability_enabled();
+    let availability_model = ui.global::<ProductsState>().get_product_availability();
     let availability_schedule = ui_to_availability_json(availability_enabled, &availability_model);
 
     // Desconto: sentinel "none" do UI vira None no domínio.
     // - fixed/percent: value único (sem tiers, sem min_qty).
     // - bulk_*: tiers via `product-discount-tiers` (JSON); value/min_qty
     //   ficam None — quem manda é o array.
-    let discount_kind_str = ui.get_product_discount_kind().to_string();
+    let discount_kind_str = ui.global::<ProductsState>().get_product_discount_kind().to_string();
     let is_bulk = discount_kind_str.starts_with("bulk_");
     let (discount_kind, discount_value, discount_min_qty, discount_tiers) =
         if discount_kind_str == "none" || discount_kind_str.is_empty() {
@@ -77,26 +79,26 @@ pub(crate) fn read_product_form(ui: &MainWindow) -> ProductFormData {
         } else {
             (
                 Some(discount_kind_str),
-                parse_decimal(&ui.get_product_discount_value()),
+                parse_decimal(&ui.global::<ProductsState>().get_product_discount_value()),
                 None,
                 None,
             )
         };
 
-    let balance_mode = BalanceMode::from_db_str(ui.get_product_balance_mode().as_ref())
+    let balance_mode = BalanceMode::from_db_str(ui.global::<ProductsState>().get_product_balance_mode().as_ref())
         .unwrap_or_default();
     let has_image = !img.is_empty();
     // Custo e mínimo (Fase 9). Lê dos campos novos do MainWindow; vazio
     // = None / 0.0 (mesma semântica do preço).
-    let cost_price = parse_decimal(&ui.get_product_cost_price());
-    let min_stock_raw = parse_decimal(&ui.get_product_min_stock()).unwrap_or(0.0);
+    let cost_price = parse_decimal(&ui.global::<ProductsState>().get_product_cost_price());
+    let min_stock_raw = parse_decimal(&ui.global::<ProductsState>().get_product_min_stock()).unwrap_or(0.0);
     // Mesmo arredondamento do estoque atual: `un`/`cx` → inteiro, `kg`
     // mantém decimais. Mantém a coerência visual entre os dois campos.
     let min_stock = if unit == "kg" { min_stock_raw.max(0.0) } else { min_stock_raw.round().max(0.0) };
     ProductFormData {
-        name: ui.get_product_name().to_string(),
+        name: ui.global::<ProductsState>().get_product_name().to_string(),
         description: if desc.is_empty() { None } else { Some(desc) },
-        price: parse_decimal(&ui.get_product_price()),
+        price: parse_decimal(&ui.global::<ProductsState>().get_product_price()),
         cost_price,
         stock_quantity,
         min_stock,
@@ -136,7 +138,7 @@ pub(crate) fn read_product_form(ui: &MainWindow) -> ProductFormData {
 ///   `0.0` para evitar bloquear o save por um typo.
 /// - Devolve `None` quando não restar nenhuma variação válida.
 fn ui_variations_json(ui: &MainWindow) -> Option<String> {
-    let model = ui.get_product_variations();
+    let model = ui.global::<ProductsState>().get_product_variations();
     let mut arr: Vec<serde_json::Value> = Vec::new();
     for i in 0..model.row_count() {
         let Some(v) = model.row_data(i) else { continue };
@@ -262,9 +264,9 @@ pub(crate) fn parse_decimal(raw: &slint::SharedString) -> Option<f64> {
 
 /// Limpa mensagens de erro de validação do formulário de produto.
 fn clear_product_errors(ui: &MainWindow) {
-    ui.set_product_error_name(SharedString::default());
-    ui.set_product_error_price(SharedString::default());
-    ui.set_product_error_stock(SharedString::default());
+    ui.global::<ProductsState>().set_product_error_name(SharedString::default());
+    ui.global::<ProductsState>().set_product_error_price(SharedString::default());
+    ui.global::<ProductsState>().set_product_error_stock(SharedString::default());
 }
 
 /// Valida campos obrigatórios do formulário de produto.
@@ -275,25 +277,25 @@ pub(crate) fn validate_product_form(ui: &MainWindow) -> bool {
     let mut valid = true;
     clear_product_errors(ui);
 
-    if ui.get_product_name().trim().is_empty() {
-        ui.set_product_error_name(SharedString::from("Preencha o nome do produto"));
+    if ui.global::<ProductsState>().get_product_name().trim().is_empty() {
+        ui.global::<ProductsState>().set_product_error_name(SharedString::from("Preencha o nome do produto"));
         valid = false;
     }
-    if ui.get_product_price().trim().is_empty() {
-        ui.set_product_error_price(SharedString::from("Preencha o preço"));
+    if ui.global::<ProductsState>().get_product_price().trim().is_empty() {
+        ui.global::<ProductsState>().set_product_error_price(SharedString::from("Preencha o preço"));
         valid = false;
-    } else if ui.get_product_price().to_string().parse::<f64>().is_err() {
-        ui.set_product_error_price(SharedString::from("Preço inválido"));
+    } else if ui.global::<ProductsState>().get_product_price().to_string().parse::<f64>().is_err() {
+        ui.global::<ProductsState>().set_product_error_price(SharedString::from("Preço inválido"));
         valid = false;
     }
     // Estoque ilimitado: o input de quantidade é escondido e perde sentido.
     // Não validamos preenchimento nem parse — o service força `stock = 0`.
-    if !ui.get_product_unlimited_stock() {
-        if ui.get_product_stock_quantity().trim().is_empty() {
-            ui.set_product_error_stock(SharedString::from("Preencha o estoque"));
+    if !ui.global::<ProductsState>().get_product_unlimited_stock() {
+        if ui.global::<ProductsState>().get_product_stock_quantity().trim().is_empty() {
+            ui.global::<ProductsState>().set_product_error_stock(SharedString::from("Preencha o estoque"));
             valid = false;
-        } else if parse_decimal(&ui.get_product_stock_quantity()).is_none() {
-            ui.set_product_error_stock(SharedString::from("Estoque inválido"));
+        } else if parse_decimal(&ui.global::<ProductsState>().get_product_stock_quantity()).is_none() {
+            ui.global::<ProductsState>().set_product_error_stock(SharedString::from("Estoque inválido"));
             valid = false;
         }
     }

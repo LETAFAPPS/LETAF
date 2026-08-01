@@ -1,0 +1,47 @@
+// Estado da feature BANNERS (carrossel do cardapio web), isolado do MainWindow.
+//
+// Por que um `global` (AI_RULES §8 / "Modularidade real"): em Slint as
+// propriedades de um componente vivem todas no mesmo arquivo — o
+// `main.slint` concentrava ~830 declaracoes de ~30 features. `global` e
+// o unico mecanismo da linguagem para separar estado por dominio sem
+// prop drilling, e o projeto ja o usa em `Theme`, `IconGlyph` e
+// `AdminState`.
+//
+// Acesso: no Slint, `BannersState.<prop>`; no Rust,
+// `ui.global::<BannersState>().set_<prop>()` / `.on_<callback>()`.
+// Logica em desktop/src/ui/banners.
+import { BannerData, ProductData } from "../types.slint";
+
+export global BannersState {
+    // ── Banners (Fase 7) ────────────────────────────
+    in-out property <[BannerData]> banners: [];
+    in-out property <int> banners-active-count: 0;
+    in-out property <int> banners-inactive-count: 0;
+    in-out property <string> banner-title: "";
+    in-out property <string> banner-item-type: "product";
+    in-out property <string> banner-product-id: "";
+    in-out property <string> banner-product-name: "";
+    /// Texto da barra de busca do produto. Sugestões só aparecem
+    /// quando há algo digitado; clicar em uma sugestão preenche
+    /// `banner-product-id`/`banner-product-name` e limpa a busca.
+    in-out property <string> banner-product-search: "";
+    /// Lista de produtos filtrada pela pesquisa. Rust mantém em sync
+    /// com `banner-product-search` (Slint não tem `string.contains`).
+    in-out property <[ProductData]> banner-product-filtered: [];
+    /// Pedido para o Rust refiltrar a lista (depois que o operador
+    /// digita na barra de busca).
+    callback filter-banner-products();
+    in-out property <string> banner-url: "";
+    in-out property <string> banner-image-data: "";
+    in-out property <image>  banner-image;
+    in-out property <bool>   banner-image-loading: false;
+    in-out property <string> banner-error-title: "";
+    in-out property <string> banner-error-image: "";
+    in-out property <string> banner-error-target: "";
+    callback refresh-banners();
+    callback pick-banner-image();
+    callback add-banner();
+    callback update-banner();
+    callback delete-banner(string);
+    callback toggle-banner-active(string);
+}

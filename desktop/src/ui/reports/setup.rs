@@ -9,6 +9,7 @@ use crate::MainWindow;
 use super::super::helpers::show_toast;
 use super::state::{Caches, ReportState, Shared};
 use super::snapshot::{apply_to_ui, build_snapshot};
+use crate::ReportsState;
 
 pub(crate) fn setup_reports(
     ui: &MainWindow,
@@ -42,7 +43,7 @@ pub(crate) fn setup_refresh(
     let ui_weak = ui.as_weak();
     let state = state.clone();
     let handle = handle.clone();
-    ui.on_report_refresh(move || {
+    ui.global::<ReportsState>().on_report_refresh(move || {
         let ui_weak = ui_weak.clone();
         let state = state.clone();
         let rs = rs.clone();
@@ -64,7 +65,7 @@ pub(crate) fn setup_refresh(
 
 pub(crate) fn setup_set_type(ui: &MainWindow, rs: Shared<ReportState>, caches: Caches) {
     let ui_weak = ui.as_weak();
-    ui.on_report_set_type(move |key| {
+    ui.global::<ReportsState>().on_report_set_type(move |key| {
         if let Ok(mut g) = rs.lock() { g.kind = key.to_string(); }
         reapply(&ui_weak, &rs, &caches);
     });
@@ -72,7 +73,7 @@ pub(crate) fn setup_set_type(ui: &MainWindow, rs: Shared<ReportState>, caches: C
 
 pub(crate) fn setup_set_period(ui: &MainWindow, rs: Shared<ReportState>, caches: Caches) {
     let ui_weak = ui.as_weak();
-    ui.on_report_set_period(move |key| {
+    ui.global::<ReportsState>().on_report_set_period(move |key| {
         if let Ok(mut g) = rs.lock() { g.period = key.to_string(); }
         reapply(&ui_weak, &rs, &caches);
     });
@@ -80,7 +81,7 @@ pub(crate) fn setup_set_period(ui: &MainWindow, rs: Shared<ReportState>, caches:
 
 pub(crate) fn setup_export(ui: &MainWindow) {
     let ui_weak = ui.as_weak();
-    ui.on_report_export(move || {
+    ui.global::<ReportsState>().on_report_export(move || {
         if let Some(ui) = ui_weak.upgrade() {
             show_toast(&ui, "Exportação em desenvolvimento", "info");
         }

@@ -8,6 +8,7 @@ use crate::{DiscountTierData, MainWindow, VariationData, VariationOptionData};
 use super::state::{availability_to_ui, default_availability_entries, parse_availability};
 use super::form::{parse_decimal, parse_variations_for_ui};
 use super::data::parse_addon_group_ids_csv;
+use crate::ProductsState;
 
 /// Popula `product-addon-groups` (chips) ao abrir o form. Recebe CSV
 /// de UUIDs dos grupos JÁ associados; entradas com `selected = true`
@@ -20,7 +21,7 @@ pub(crate) fn setup_load_product_addon_groups(
     let state = state.clone();
     let handle = handle.clone();
     let ui_weak = ui.as_weak();
-    ui.on_load_product_addon_groups(move |csv| {
+    ui.global::<ProductsState>().on_load_product_addon_groups(move |csv| {
         let Some(ui) = ui_weak.upgrade() else { return };
         let selected = parse_addon_group_ids_csv(csv.as_str());
         super::super::addons::refresh_product_addon_groups(&ui, &state, &handle, selected);
@@ -35,22 +36,22 @@ pub(crate) fn setup_load_product_addon_groups(
 ///   de 7 `BusinessHoursData` para o card mostrar.
 pub(crate) fn setup_load_product_availability(ui: &MainWindow) {
     let ui_weak = ui.as_weak();
-    ui.on_load_product_availability(move |json| {
+    ui.global::<ProductsState>().on_load_product_availability(move |json| {
         let Some(ui) = ui_weak.upgrade() else { return };
         let entries = parse_availability(
             if json.is_empty() { None } else { Some(json.as_str()) }
         );
-        ui.set_product_availability(ModelRc::new(VecModel::from(availability_to_ui(&entries))));
+        ui.global::<ProductsState>().set_product_availability(ModelRc::new(VecModel::from(availability_to_ui(&entries))));
     });
 }
 
 /// Popula `variations` ao abrir o form de edição.
 pub(crate) fn setup_load_product_variations(ui: &MainWindow) {
     let ui_weak = ui.as_weak();
-    ui.on_load_product_variations(move |json| {
+    ui.global::<ProductsState>().on_load_product_variations(move |json| {
         let Some(ui) = ui_weak.upgrade() else { return };
         let list = parse_variations_for_ui(json.as_str());
-        ui.set_product_variations(ModelRc::new(VecModel::from(list)));
+        ui.global::<ProductsState>().set_product_variations(ModelRc::new(VecModel::from(list)));
     });
 }
 
@@ -58,9 +59,9 @@ pub(crate) fn setup_load_product_variations(ui: &MainWindow) {
 /// para alinhar com a UI mostrando a pill "Única" ativa.
 pub(crate) fn setup_add_variation(ui: &MainWindow) {
     let ui_weak = ui.as_weak();
-    ui.on_add_variation(move || {
+    ui.global::<ProductsState>().on_add_variation(move || {
         let Some(ui) = ui_weak.upgrade() else { return };
-        let model = ui.get_product_variations();
+        let model = ui.global::<ProductsState>().get_product_variations();
         let new_variation = VariationData {
             title: SharedString::default(),
             selection: SharedString::from("single"),
@@ -75,16 +76,16 @@ pub(crate) fn setup_add_variation(ui: &MainWindow) {
             let mut acc: Vec<VariationData> = (0..model.row_count())
                 .filter_map(|i| model.row_data(i)).collect();
             acc.push(new_variation);
-            ui.set_product_variations(ModelRc::new(VecModel::from(acc)));
+            ui.global::<ProductsState>().set_product_variations(ModelRc::new(VecModel::from(acc)));
         }
     });
 }
 
 pub(crate) fn setup_remove_variation(ui: &MainWindow) {
     let ui_weak = ui.as_weak();
-    ui.on_remove_variation(move |idx| {
+    ui.global::<ProductsState>().on_remove_variation(move |idx| {
         let Some(ui) = ui_weak.upgrade() else { return };
-        let model = ui.get_product_variations();
+        let model = ui.global::<ProductsState>().get_product_variations();
         if idx < 0 || (idx as usize) >= model.row_count() { return; }
         if let Some(vm) = model.as_any().downcast_ref::<VecModel<VariationData>>() {
             vm.remove(idx as usize);
@@ -98,9 +99,9 @@ pub(crate) fn setup_remove_variation(ui: &MainWindow) {
 /// Slint re-avalie o `for option[o_idx] in variation.options`.
 pub(crate) fn setup_add_variation_option(ui: &MainWindow) {
     let ui_weak = ui.as_weak();
-    ui.on_add_variation_option(move |v_idx| {
+    ui.global::<ProductsState>().on_add_variation_option(move |v_idx| {
         let Some(ui) = ui_weak.upgrade() else { return };
-        let model = ui.get_product_variations();
+        let model = ui.global::<ProductsState>().get_product_variations();
         if v_idx < 0 || (v_idx as usize) >= model.row_count() { return; }
         let Some(variation) = model.row_data(v_idx as usize) else { return };
         let new_opt = VariationOptionData {
@@ -129,9 +130,9 @@ pub(crate) fn setup_add_variation_option(ui: &MainWindow) {
 
 pub(crate) fn setup_remove_variation_option(ui: &MainWindow) {
     let ui_weak = ui.as_weak();
-    ui.on_remove_variation_option(move |v_idx, o_idx| {
+    ui.global::<ProductsState>().on_remove_variation_option(move |v_idx, o_idx| {
         let Some(ui) = ui_weak.upgrade() else { return };
-        let model = ui.get_product_variations();
+        let model = ui.global::<ProductsState>().get_product_variations();
         if v_idx < 0 || (v_idx as usize) >= model.row_count() { return; }
         let Some(variation) = model.row_data(v_idx as usize) else { return };
         if o_idx < 0 || (o_idx as usize) >= variation.options.row_count() { return; }
@@ -146,16 +147,16 @@ pub(crate) fn setup_remove_variation_option(ui: &MainWindow) {
 /// mostrar mesmo em "Novo Produto".
 pub(crate) fn init_product_availability_default(ui: &MainWindow) {
     let entries = default_availability_entries();
-    ui.set_product_availability(ModelRc::new(VecModel::from(availability_to_ui(&entries))));
+    ui.global::<ProductsState>().set_product_availability(ModelRc::new(VecModel::from(availability_to_ui(&entries))));
 }
 
 /// Adiciona uma faixa de desconto bulk em branco ao final da lista.
 /// Reaproveita o `VecModel` existente para preservar foco/scroll.
 pub(crate) fn setup_add_discount_tier(ui: &MainWindow) {
     let ui_weak = ui.as_weak();
-    ui.on_add_discount_tier(move || {
+    ui.global::<ProductsState>().on_add_discount_tier(move || {
         let Some(ui) = ui_weak.upgrade() else { return };
-        let model = ui.get_product_discount_tiers();
+        let model = ui.global::<ProductsState>().get_product_discount_tiers();
         if let Some(vm) = model.as_any().downcast_ref::<VecModel<DiscountTierData>>() {
             vm.push(DiscountTierData {
                 min_qty: SharedString::default(),
@@ -171,7 +172,7 @@ pub(crate) fn setup_add_discount_tier(ui: &MainWindow) {
                 min_qty: SharedString::default(),
                 value: SharedString::default(),
             });
-            ui.set_product_discount_tiers(ModelRc::new(VecModel::from(acc)));
+            ui.global::<ProductsState>().set_product_discount_tiers(ModelRc::new(VecModel::from(acc)));
         }
     });
 }
@@ -180,9 +181,9 @@ pub(crate) fn setup_add_discount_tier(ui: &MainWindow) {
 /// menos um tier para bulk" fica no service no save.
 pub(crate) fn setup_remove_discount_tier(ui: &MainWindow) {
     let ui_weak = ui.as_weak();
-    ui.on_remove_discount_tier(move |idx| {
+    ui.global::<ProductsState>().on_remove_discount_tier(move |idx| {
         let Some(ui) = ui_weak.upgrade() else { return };
-        let model = ui.get_product_discount_tiers();
+        let model = ui.global::<ProductsState>().get_product_discount_tiers();
         if idx < 0 || (idx as usize) >= model.row_count() { return; }
         if let Some(vm) = model.as_any().downcast_ref::<VecModel<DiscountTierData>>() {
             vm.remove(idx as usize);
@@ -194,10 +195,10 @@ pub(crate) fn setup_remove_discount_tier(ui: &MainWindow) {
 /// produto. JSON inválido ou vazio resulta em lista vazia.
 pub(crate) fn setup_load_discount_tiers(ui: &MainWindow) {
     let ui_weak = ui.as_weak();
-    ui.on_load_discount_tiers(move |json| {
+    ui.global::<ProductsState>().on_load_discount_tiers(move |json| {
         let Some(ui) = ui_weak.upgrade() else { return };
         let tiers = parse_tiers_for_ui(json.as_str());
-        ui.set_product_discount_tiers(ModelRc::new(VecModel::from(tiers)));
+        ui.global::<ProductsState>().set_product_discount_tiers(ModelRc::new(VecModel::from(tiers)));
     });
 }
 
@@ -240,7 +241,7 @@ fn format_tier_number(n: f64) -> String {
 /// nenhum tier válido sobrou (o caller decide o que fazer — service
 /// rejeita `bulk_*` sem tiers).
 pub(crate) fn ui_tiers_to_json(ui: &MainWindow) -> Option<String> {
-    let model = ui.get_product_discount_tiers();
+    let model = ui.global::<ProductsState>().get_product_discount_tiers();
     let mut pairs: Vec<(f64, f64)> = (0..model.row_count())
         .filter_map(|i| model.row_data(i))
         .filter_map(|t| {

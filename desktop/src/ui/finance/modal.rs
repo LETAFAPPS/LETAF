@@ -21,6 +21,7 @@ use super::super::helpers::show_toast;
 use super::setup::reapply;
 use super::state::{CalStateHandle, CustomersHandle, DueCalState, DueCalStateHandle};
 use super::helpers::{parse_amount, parse_date_br};
+use crate::{CashState, FinanceState, OrdersState};
 
 // ── Trocar aba / busca ──────────────────────────────────────────
 
@@ -33,9 +34,9 @@ pub(crate) fn setup_set_tab(
     let ui_weak = ui.as_weak();
     let state = state.clone();
     let handle = handle.clone();
-    ui.on_finance_set_tab(move |k| {
+    ui.global::<FinanceState>().on_finance_set_tab(move |k| {
         if let Some(ui) = ui_weak.upgrade() {
-            ui.set_finance_active_tab(SharedString::from(k.to_string()));
+            ui.global::<FinanceState>().set_finance_active_tab(SharedString::from(k.to_string()));
         }
         let ui_weak = ui_weak.clone();
         let state = state.clone();
@@ -55,9 +56,9 @@ pub(crate) fn setup_search(
     let ui_weak = ui.as_weak();
     let state = state.clone();
     let handle = handle.clone();
-    ui.on_finance_search_changed(move |q| {
+    ui.global::<FinanceState>().on_finance_search_changed(move |q| {
         if let Some(ui) = ui_weak.upgrade() {
-            ui.set_finance_search_query(SharedString::from(q.to_string()));
+            ui.global::<FinanceState>().set_finance_search_query(SharedString::from(q.to_string()));
         }
         let ui_weak = ui_weak.clone();
         let state = state.clone();
@@ -77,14 +78,14 @@ pub(crate) fn setup_status_filter(
     let ui_weak = ui.as_weak();
     let state = state.clone();
     let handle = handle.clone();
-    ui.on_finance_set_status_filter(move |k| {
+    ui.global::<FinanceState>().on_finance_set_status_filter(move |k| {
         let key = k.to_string();
         let normalized = match key.as_str() {
             "open" | "overdue" | "settled" => key,
             _ => "all".to_string(),
         };
         if let Some(ui) = ui_weak.upgrade() {
-            ui.set_finance_status_filter(SharedString::from(normalized));
+            ui.global::<FinanceState>().set_finance_status_filter(SharedString::from(normalized));
         }
         let ui_weak = ui_weak.clone();
         let state = state.clone();
@@ -107,14 +108,14 @@ pub(crate) fn setup_group_page(
     let ui_weak = ui.as_weak();
     let state = state.clone();
     let handle = handle.clone();
-    ui.on_finance_set_group_page(move |status, page| {
+    ui.global::<FinanceState>().on_finance_set_group_page(move |status, page| {
         let page = page.max(1);
         if let Some(ui) = ui_weak.upgrade() {
             match status.as_str() {
-                "overdue" => ui.set_finance_page_overdue(page),
-                "pending" => ui.set_finance_page_pending(page),
-                "paid" => ui.set_finance_page_settled(page),
-                _ => ui.set_finance_page_cancelled(page),
+                "overdue" => ui.global::<FinanceState>().set_finance_page_overdue(page),
+                "pending" => ui.global::<FinanceState>().set_finance_page_pending(page),
+                "paid" => ui.global::<FinanceState>().set_finance_page_settled(page),
+                _ => ui.global::<FinanceState>().set_finance_page_cancelled(page),
             }
         }
         let ui_weak = ui_weak.clone();
@@ -138,16 +139,16 @@ pub(crate) fn setup_open_new(
     let ui_weak = ui.as_weak();
     let state = state.clone();
     let handle = handle.clone();
-    ui.on_finance_open_new(move |kind| {
+    ui.global::<FinanceState>().on_finance_open_new(move |kind| {
         if let Some(ui) = ui_weak.upgrade() {
-            ui.set_finance_form_kind(SharedString::from(kind.to_string()));
-            ui.set_finance_form_editing_id(SharedString::from(""));
+            ui.global::<FinanceState>().set_finance_form_kind(SharedString::from(kind.to_string()));
+            ui.global::<FinanceState>().set_finance_form_editing_id(SharedString::from(""));
             reset_form(&ui);
             // Reseta o calendário de vencimento para o mês corrente.
             if let Ok(mut g) = due_cal.lock() {
                 *g = DueCalState::today();
             }
-            ui.set_finance_show_modal(true);
+            ui.global::<FinanceState>().set_finance_show_modal(true);
         }
         load_customers_for_modal(&ui_weak, &state, &handle, &customers);
     });
@@ -163,7 +164,7 @@ pub(crate) fn setup_open_edit(
     let ui_weak = ui.as_weak();
     let state = state.clone();
     let handle = handle.clone();
-    ui.on_finance_open_edit(move |id| {
+    ui.global::<FinanceState>().on_finance_open_edit(move |id| {
         let ui_weak = ui_weak.clone();
         let state = state.clone();
         let due_cal = due_cal.clone();
@@ -187,7 +188,7 @@ pub(crate) fn setup_open_edit(
             let _ = slint::invoke_from_event_loop(move || {
                 if let Some(ui) = ui_weak2.upgrade() {
                     populate_form(&ui, &entry);
-                    ui.set_finance_show_modal(true);
+                    ui.global::<FinanceState>().set_finance_show_modal(true);
                 }
             });
             load_customers_for_modal(&ui_weak, &state, &handle_inner, &customers);
@@ -215,8 +216,8 @@ pub(crate) fn load_customers_for_modal(
         let rows = build_party_rows(&list, "");
         let _ = slint::invoke_from_event_loop(move || {
             if let Some(ui) = ui_weak.upgrade() {
-                ui.set_finance_party_options(ModelRc::new(VecModel::from(rows)));
-                ui.set_finance_party_search(SharedString::from(""));
+                ui.global::<FinanceState>().set_finance_party_options(ModelRc::new(VecModel::from(rows)));
+                ui.global::<FinanceState>().set_finance_party_search(SharedString::from(""));
             }
         });
     });
@@ -250,9 +251,9 @@ pub(crate) fn build_party_rows(all: &[Customer], filter: &str) -> Vec<PdvCustome
 
 pub(crate) fn setup_close_modal(ui: &MainWindow) {
     let ui_weak = ui.as_weak();
-    ui.on_finance_close_modal(move || {
+    ui.global::<FinanceState>().on_finance_close_modal(move || {
         if let Some(ui) = ui_weak.upgrade() {
-            ui.set_finance_show_modal(false);
+            ui.global::<FinanceState>().set_finance_show_modal(false);
             clear_errors(&ui);
         }
     });
@@ -260,52 +261,52 @@ pub(crate) fn setup_close_modal(ui: &MainWindow) {
 
 pub(crate) fn reset_form(ui: &MainWindow) {
     let today = letaf_core::tz::today().format("%d/%m/%Y").to_string();
-    ui.set_finance_form_description(SharedString::from(""));
-    ui.set_finance_form_party(SharedString::from(""));
-    ui.set_finance_form_party_id(SharedString::from(""));
-    ui.set_finance_form_category_id(SharedString::from(""));
-    ui.set_finance_form_amount(SharedString::from(""));
-    ui.set_finance_form_due_date(SharedString::from(today));
-    ui.set_finance_form_installments(1);
-    ui.set_finance_form_recurrence(SharedString::from("once"));
-    ui.set_finance_form_notes(SharedString::from(""));
-    ui.set_finance_form_no_due(false);
-    ui.set_finance_form_is_fiado(false);
-    ui.set_finance_due_cal_open(false);
-    ui.set_finance_show_party_picker(false);
+    ui.global::<FinanceState>().set_finance_form_description(SharedString::from(""));
+    ui.global::<FinanceState>().set_finance_form_party(SharedString::from(""));
+    ui.global::<FinanceState>().set_finance_form_party_id(SharedString::from(""));
+    ui.global::<FinanceState>().set_finance_form_category_id(SharedString::from(""));
+    ui.global::<FinanceState>().set_finance_form_amount(SharedString::from(""));
+    ui.global::<FinanceState>().set_finance_form_due_date(SharedString::from(today));
+    ui.global::<FinanceState>().set_finance_form_installments(1);
+    ui.global::<FinanceState>().set_finance_form_recurrence(SharedString::from("once"));
+    ui.global::<FinanceState>().set_finance_form_notes(SharedString::from(""));
+    ui.global::<FinanceState>().set_finance_form_no_due(false);
+    ui.global::<FinanceState>().set_finance_form_is_fiado(false);
+    ui.global::<FinanceState>().set_finance_due_cal_open(false);
+    ui.global::<FinanceState>().set_finance_show_party_picker(false);
     clear_errors(ui);
 }
 
 pub(crate) fn populate_form(ui: &MainWindow, e: &FinanceEntry) {
-    ui.set_finance_form_editing_id(SharedString::from(e.base.id.to_string()));
-    ui.set_finance_form_kind(SharedString::from(e.kind.to_string()));
-    ui.set_finance_form_description(SharedString::from(e.description.clone()));
-    ui.set_finance_form_party(SharedString::from(e.party_name.clone()));
-    ui.set_finance_form_party_id(SharedString::from(
+    ui.global::<FinanceState>().set_finance_form_editing_id(SharedString::from(e.base.id.to_string()));
+    ui.global::<FinanceState>().set_finance_form_kind(SharedString::from(e.kind.to_string()));
+    ui.global::<FinanceState>().set_finance_form_description(SharedString::from(e.description.clone()));
+    ui.global::<FinanceState>().set_finance_form_party(SharedString::from(e.party_name.clone()));
+    ui.global::<FinanceState>().set_finance_form_party_id(SharedString::from(
         e.party_id.map(|i| i.to_string()).unwrap_or_default(),
     ));
-    ui.set_finance_form_category_id(SharedString::from(
+    ui.global::<FinanceState>().set_finance_form_category_id(SharedString::from(
         e.category_id.map(|i| i.to_string()).unwrap_or_default(),
     ));
-    ui.set_finance_form_amount(SharedString::from(format!("{:.2}", e.amount).replace('.', ",")));
-    ui.set_finance_form_due_date(SharedString::from(e.due_date.format("%d/%m/%Y").to_string()));
-    ui.set_finance_form_installments(e.installment_total);
-    ui.set_finance_form_recurrence(SharedString::from(e.recurrence.to_string()));
-    ui.set_finance_form_notes(SharedString::from(e.notes.clone().unwrap_or_default()));
-    ui.set_finance_form_no_due(e.due_date == letaf_core::finance::service::fiado_due_sentinel());
-    ui.set_finance_form_is_fiado(
+    ui.global::<FinanceState>().set_finance_form_amount(SharedString::from(format!("{:.2}", e.amount).replace('.', ",")));
+    ui.global::<FinanceState>().set_finance_form_due_date(SharedString::from(e.due_date.format("%d/%m/%Y").to_string()));
+    ui.global::<FinanceState>().set_finance_form_installments(e.installment_total);
+    ui.global::<FinanceState>().set_finance_form_recurrence(SharedString::from(e.recurrence.to_string()));
+    ui.global::<FinanceState>().set_finance_form_notes(SharedString::from(e.notes.clone().unwrap_or_default()));
+    ui.global::<FinanceState>().set_finance_form_no_due(e.due_date == letaf_core::finance::service::fiado_due_sentinel());
+    ui.global::<FinanceState>().set_finance_form_is_fiado(
         e.notes.as_deref() == Some(letaf_core::finance::service::FIADO_AUTO_TAG),
     );
-    ui.set_finance_due_cal_open(false);
-    ui.set_finance_show_party_picker(false);
+    ui.global::<FinanceState>().set_finance_due_cal_open(false);
+    ui.global::<FinanceState>().set_finance_show_party_picker(false);
     clear_errors(ui);
 }
 
 pub(crate) fn clear_errors(ui: &MainWindow) {
-    ui.set_finance_form_error_description(SharedString::from(""));
-    ui.set_finance_form_error_amount(SharedString::from(""));
-    ui.set_finance_form_error_due_date(SharedString::from(""));
-    ui.set_finance_form_error_general(SharedString::from(""));
+    ui.global::<FinanceState>().set_finance_form_error_description(SharedString::from(""));
+    ui.global::<FinanceState>().set_finance_form_error_amount(SharedString::from(""));
+    ui.global::<FinanceState>().set_finance_form_error_due_date(SharedString::from(""));
+    ui.global::<FinanceState>().set_finance_form_error_general(SharedString::from(""));
 }
 
 // ── Salvar ──────────────────────────────────────────────────────
@@ -320,34 +321,34 @@ pub(crate) fn setup_save_modal(
     let ui_weak = ui.as_weak();
     let state = state.clone();
     let handle = handle.clone();
-    ui.on_finance_save_modal(move || {
+    ui.global::<FinanceState>().on_finance_save_modal(move || {
         let Some(ui) = ui_weak.upgrade() else { return };
 
-        let kind_s = ui.get_finance_form_kind().to_string();
+        let kind_s = ui.global::<FinanceState>().get_finance_form_kind().to_string();
         let kind = match kind_s.as_str() {
             "receivable" => FinanceKind::Receivable,
             _ => FinanceKind::Payable,
         };
-        let description = ui.get_finance_form_description().to_string();
-        let party = ui.get_finance_form_party().to_string();
-        let party_id_s = ui.get_finance_form_party_id().to_string();
-        let amount_s = ui.get_finance_form_amount().to_string();
-        let due_date_s = ui.get_finance_form_due_date().to_string();
-        let installments = ui.get_finance_form_installments();
-        let recurrence_s = ui.get_finance_form_recurrence().to_string();
-        let notes = if ui.get_finance_form_is_fiado() {
+        let description = ui.global::<FinanceState>().get_finance_form_description().to_string();
+        let party = ui.global::<FinanceState>().get_finance_form_party().to_string();
+        let party_id_s = ui.global::<FinanceState>().get_finance_form_party_id().to_string();
+        let amount_s = ui.global::<FinanceState>().get_finance_form_amount().to_string();
+        let due_date_s = ui.global::<FinanceState>().get_finance_form_due_date().to_string();
+        let installments = ui.global::<FinanceState>().get_finance_form_installments();
+        let recurrence_s = ui.global::<FinanceState>().get_finance_form_recurrence().to_string();
+        let notes = if ui.global::<FinanceState>().get_finance_form_is_fiado() {
             // Conta automática do fiado: preserva o marcador interno.
             letaf_core::finance::service::FIADO_AUTO_TAG.to_string()
         } else {
-            ui.get_finance_form_notes().to_string()
+            ui.global::<FinanceState>().get_finance_form_notes().to_string()
         };
-        let editing_id = ui.get_finance_form_editing_id().to_string();
+        let editing_id = ui.global::<FinanceState>().get_finance_form_editing_id().to_string();
 
         // Validação UI antes de chamar service (mensagens por campo).
         clear_errors(&ui);
         let mut has_err = false;
         if description.trim().is_empty() {
-            ui.set_finance_form_error_description(SharedString::from(
+            ui.global::<FinanceState>().set_finance_form_error_description(SharedString::from(
                 "Descrição é obrigatória",
             ));
             has_err = true;
@@ -355,14 +356,14 @@ pub(crate) fn setup_save_modal(
         let amount = match parse_amount(&amount_s) {
             Some(a) if a > 0.0 => a,
             _ => {
-                ui.set_finance_form_error_amount(SharedString::from(
+                ui.global::<FinanceState>().set_finance_form_error_amount(SharedString::from(
                     "Informe um valor maior que zero",
                 ));
                 has_err = true;
                 0.0
             }
         };
-        let no_due = ui.get_finance_form_no_due();
+        let no_due = ui.global::<FinanceState>().get_finance_form_no_due();
         let due_date = if no_due {
             // Sem vencimento: sentinela interna (UI exibe "Sem vencimento").
             letaf_core::finance::service::fiado_due_sentinel()
@@ -370,7 +371,7 @@ pub(crate) fn setup_save_modal(
             match parse_date_br(&due_date_s) {
                 Some(d) => d,
                 None => {
-                    ui.set_finance_form_error_due_date(SharedString::from(
+                    ui.global::<FinanceState>().set_finance_form_error_due_date(SharedString::from(
                         "Use o formato dd/mm/aaaa",
                     ));
                     has_err = true;
@@ -453,7 +454,7 @@ pub(crate) fn setup_save_modal(
                     let ui_weak2 = ui_weak.clone();
                     let _ = slint::invoke_from_event_loop(move || {
                         if let Some(ui) = ui_weak2.upgrade() {
-                            ui.set_finance_show_modal(false);
+                            ui.global::<FinanceState>().set_finance_show_modal(false);
                             show_toast(&ui, "Lançamento Salvo", "success");
                         }
                     });
@@ -463,7 +464,7 @@ pub(crate) fn setup_save_modal(
                     let msg = e.to_string();
                     let _ = slint::invoke_from_event_loop(move || {
                         if let Some(ui) = ui_weak.upgrade() {
-                            ui.set_finance_form_error_general(SharedString::from(msg));
+                            ui.global::<FinanceState>().set_finance_form_error_general(SharedString::from(msg));
                         }
                     });
                 }
@@ -547,7 +548,7 @@ pub(crate) fn setup_mark_settled(
     let ui_weak = ui.as_weak();
     let state = state.clone();
     let handle = handle.clone();
-    ui.on_finance_mark_settled(move |id| {
+    ui.global::<FinanceState>().on_finance_mark_settled(move |id| {
         let id = id.to_string();
         // Valor + forma de pagamento do modal de recebimento
         // (obrigatórios para contas a receber; ignorados no pagar).
@@ -556,9 +557,9 @@ pub(crate) fn setup_mark_settled(
             .upgrade()
             .map(|u| {
                 (
-                    u.get_finance_settle_amount_input().to_string(),
-                    u.get_finance_settle_method().to_string(),
-                    u.get_cash_summary().session_id.to_string(),
+                    u.global::<FinanceState>().get_finance_settle_amount_input().to_string(),
+                    u.global::<FinanceState>().get_finance_settle_method().to_string(),
+                    u.global::<CashState>().get_cash_summary().session_id.to_string(),
                 )
             })
             .unwrap_or_default();
@@ -580,9 +581,9 @@ pub(crate) fn setup_mark_settled(
                         if let Some(ui) = ui_weak2.upgrade() {
                             show_toast(&ui, &msg, "success");
                             // Entrada lançada no caixa → atualiza a tela.
-                            ui.invoke_cash_refresh();
+                            ui.global::<CashState>().invoke_cash_refresh();
                             // Pedidos fiados podem ter sido quitados.
-                            ui.invoke_refresh_orders();
+                            ui.global::<OrdersState>().invoke_refresh_orders();
                         }
                     });
                     // Carteira do cliente selecionado reflete a baixa na
@@ -698,7 +699,7 @@ pub(crate) fn setup_cancel_entry(
     let ui_weak = ui.as_weak();
     let state = state.clone();
     let handle = handle.clone();
-    ui.on_finance_cancel_entry(move |id| {
+    ui.global::<FinanceState>().on_finance_cancel_entry(move |id| {
         let id = id.to_string();
         let ui_weak = ui_weak.clone();
         let state = state.clone();
@@ -729,7 +730,7 @@ pub(crate) fn setup_delete_entry(
     let ui_weak = ui.as_weak();
     let state = state.clone();
     let handle = handle.clone();
-    ui.on_finance_delete_entry(move |id| {
+    ui.global::<FinanceState>().on_finance_delete_entry(move |id| {
         let id = id.to_string();
         let ui_weak = ui_weak.clone();
         let state = state.clone();

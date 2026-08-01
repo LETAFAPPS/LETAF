@@ -18,6 +18,7 @@ use crate::{
 };
 
 use super::super::helpers::show_toast;
+use crate::SubscriptionState;
 
 // ── PIX (Efi) ────────────────────────────────────────────────────
 //
@@ -57,7 +58,7 @@ pub(crate) fn setup_pix_modal(
     let auth_token_pay = auth_token.clone();
     let server_url_pay = server_url.clone();
     let modal_open_pay = modal_open.clone();
-    ui.on_subscription_pay_invoice(move |invoice_id_str| {
+    ui.global::<SubscriptionState>().on_subscription_pay_invoice(move |invoice_id_str| {
         let Ok(invoice_id) = Uuid::parse_str(invoice_id_str.as_str()) else {
             return;
         };
@@ -74,8 +75,8 @@ pub(crate) fn setup_pix_modal(
         let ui_weak_open = ui_weak.clone();
         let _ = slint::invoke_from_event_loop(move || {
             if let Some(ui) = ui_weak_open.upgrade() {
-                ui.set_pix_charge_view(loading_view());
-                ui.set_pix_modal_open(true);
+                ui.global::<SubscriptionState>().set_pix_charge_view(loading_view());
+                ui.global::<SubscriptionState>().set_pix_modal_open(true);
             }
         });
 
@@ -161,9 +162,9 @@ pub(crate) fn setup_pix_modal(
 
     // copy-code: copia o copia-cola para o clipboard via xclip/wl-copy/etc.
     let ui_weak = ui.as_weak();
-    ui.on_subscription_copy_pix_code(move || {
+    ui.global::<SubscriptionState>().on_subscription_copy_pix_code(move || {
         let Some(ui) = ui_weak.upgrade() else { return };
-        let view = ui.get_pix_charge_view();
+        let view = ui.global::<SubscriptionState>().get_pix_charge_view();
         let code = view.pix_copia_cola.to_string();
         if code.is_empty() {
             return;
@@ -178,13 +179,13 @@ pub(crate) fn setup_pix_modal(
     // close-pix-modal
     let ui_weak = ui.as_weak();
     let modal_open_close = modal_open.clone();
-    ui.on_subscription_close_pix_modal(move || {
+    ui.global::<SubscriptionState>().on_subscription_close_pix_modal(move || {
         modal_open_close.store(false, Ordering::SeqCst);
         if let Some(ui) = ui_weak.upgrade() {
-            ui.set_pix_modal_open(false);
-            ui.set_pix_charge_view(empty_view());
-            ui.set_pix_qr_image(slint::Image::default());
-            ui.invoke_subscription_refresh();
+            ui.global::<SubscriptionState>().set_pix_modal_open(false);
+            ui.global::<SubscriptionState>().set_pix_charge_view(empty_view());
+            ui.global::<SubscriptionState>().set_pix_qr_image(slint::Image::default());
+            ui.global::<SubscriptionState>().invoke_subscription_refresh();
         }
     });
 }
@@ -247,7 +248,7 @@ fn spawn_polling(
                 let ui_weak = ui_weak.clone();
                 let _ = slint::invoke_from_event_loop(move || {
                     if let Some(ui) = ui_weak.upgrade() {
-                        ui.set_pix_charge_view(paid_view());
+                        ui.global::<SubscriptionState>().set_pix_charge_view(paid_view());
                     }
                 });
                 return;
@@ -278,11 +279,11 @@ fn apply_charge_view(ui_weak: &slint::Weak<MainWindow>, c: &PaymentCharge) {
     let ui_weak = ui_weak.clone();
     let _ = slint::invoke_from_event_loop(move || {
         if let Some(ui) = ui_weak.upgrade() {
-            ui.set_pix_charge_view(view);
+            ui.global::<SubscriptionState>().set_pix_charge_view(view);
             if let Some(buf) = buffer {
-                ui.set_pix_qr_image(slint::Image::from_rgba8(buf));
+                ui.global::<SubscriptionState>().set_pix_qr_image(slint::Image::from_rgba8(buf));
             } else {
-                ui.set_pix_qr_image(slint::Image::default());
+                ui.global::<SubscriptionState>().set_pix_qr_image(slint::Image::default());
             }
         }
     });
@@ -344,7 +345,7 @@ pub(crate) fn set_error_view(ui_weak: &slint::Weak<MainWindow>, message: String)
     let ui_weak = ui_weak.clone();
     let _ = slint::invoke_from_event_loop(move || {
         if let Some(ui) = ui_weak.upgrade() {
-            ui.set_pix_charge_view(view);
+            ui.global::<SubscriptionState>().set_pix_charge_view(view);
         }
     });
 }

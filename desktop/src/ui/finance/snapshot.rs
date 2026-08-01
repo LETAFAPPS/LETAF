@@ -27,6 +27,8 @@ use crate::{
 
 use super::state::CalState;
 use super::helpers::{balance_tone, days_label, kpi, kpi_ex, money_signed, parse_hex_color, payment_method_label, tab};
+use slint::ComponentHandle;
+use crate::FinanceState;
 
 // ── Snapshot ────────────────────────────────────────────────────
 
@@ -676,9 +678,9 @@ pub(crate) fn group_and_paginate(mut rows: Vec<EntryRaw>, pages: &mut GroupPages
 
 pub(crate) fn apply_snapshot(ui: &MainWindow, snap: Snapshot) {
     let kpis_model: ModelRc<FinanceKpi> = ModelRc::new(VecModel::from(snap.kpis));
-    ui.set_finance_kpis(kpis_model);
+    ui.global::<FinanceState>().set_finance_kpis(kpis_model);
 
-    let active = ui.get_finance_active_tab().to_string();
+    let active = ui.global::<FinanceState>().get_finance_active_tab().to_string();
     let active = if active.is_empty() { "receivable".to_string() } else { active };
     let tabs: Vec<FinanceTab> = snap
         .tabs
@@ -688,13 +690,13 @@ pub(crate) fn apply_snapshot(ui: &MainWindow, snap: Snapshot) {
             t
         })
         .collect();
-    ui.set_finance_tabs(ModelRc::new(VecModel::from(tabs)));
+    ui.global::<FinanceState>().set_finance_tabs(ModelRc::new(VecModel::from(tabs)));
 
     // Lista unificada: receber + pagar aparecem juntos. `active-tab`
     // segue como property residual (ainda escolhe o kind padrão de
     // alguns lugares), mas não filtra a lista.
-    let search = ui.get_finance_search_query().to_lowercase();
-    let status_filter = ui.get_finance_status_filter().to_string();
+    let search = ui.global::<FinanceState>().get_finance_search_query().to_lowercase();
+    let status_filter = ui.global::<FinanceState>().get_finance_status_filter().to_string();
     let filtered_raw: Vec<EntryRaw> = snap
         .entries
         .into_iter()
@@ -705,18 +707,18 @@ pub(crate) fn apply_snapshot(ui: &MainWindow, snap: Snapshot) {
     // MainWindow (autoridade no backend); clamp corrige valores fora de
     // faixa e é persistido de volta.
     let mut pages = GroupPages {
-        overdue: ui.get_finance_page_overdue(),
-        pending: ui.get_finance_page_pending(),
-        paid: ui.get_finance_page_settled(),
-        cancelled: ui.get_finance_page_cancelled(),
+        overdue: ui.global::<FinanceState>().get_finance_page_overdue(),
+        pending: ui.global::<FinanceState>().get_finance_page_pending(),
+        paid: ui.global::<FinanceState>().get_finance_page_settled(),
+        cancelled: ui.global::<FinanceState>().get_finance_page_cancelled(),
     };
     let windowed = group_and_paginate(filtered_raw, &mut pages);
-    ui.set_finance_page_overdue(pages.overdue);
-    ui.set_finance_page_pending(pages.pending);
-    ui.set_finance_page_settled(pages.paid);
-    ui.set_finance_page_cancelled(pages.cancelled);
+    ui.global::<FinanceState>().set_finance_page_overdue(pages.overdue);
+    ui.global::<FinanceState>().set_finance_page_pending(pages.pending);
+    ui.global::<FinanceState>().set_finance_page_settled(pages.paid);
+    ui.global::<FinanceState>().set_finance_page_cancelled(pages.cancelled);
     let filtered: Vec<FinanceEntryRow> = windowed.into_iter().map(to_slint_row).collect();
-    ui.set_finance_entries(ModelRc::new(VecModel::from(filtered)));
+    ui.global::<FinanceState>().set_finance_entries(ModelRc::new(VecModel::from(filtered)));
 
     let cats: Vec<FinanceCategoryOption> = snap
         .categories
@@ -728,7 +730,7 @@ pub(crate) fn apply_snapshot(ui: &MainWindow, snap: Snapshot) {
             scope: SharedString::from(c.scope),
         })
         .collect();
-    ui.set_finance_categories(ModelRc::new(VecModel::from(cats)));
+    ui.global::<FinanceState>().set_finance_categories(ModelRc::new(VecModel::from(cats)));
 
     let cash_flow: Vec<FinanceCashFlowPoint> = snap
         .cash_flow
@@ -742,12 +744,12 @@ pub(crate) fn apply_snapshot(ui: &MainWindow, snap: Snapshot) {
             today: p.today,
         })
         .collect();
-    ui.set_finance_cash_flow(ModelRc::new(VecModel::from(cash_flow)));
-    ui.set_finance_cash_flow_summary(SharedString::from(snap.cash_flow_summary));
+    ui.global::<FinanceState>().set_finance_cash_flow(ModelRc::new(VecModel::from(cash_flow)));
+    ui.global::<FinanceState>().set_finance_cash_flow_summary(SharedString::from(snap.cash_flow_summary));
 
     // ── Calendário ──
-    ui.set_finance_cal_title(SharedString::from(snap.cal_title));
-    ui.set_finance_cal_month_total(SharedString::from(snap.cal_month_total));
+    ui.global::<FinanceState>().set_finance_cal_title(SharedString::from(snap.cal_title));
+    ui.global::<FinanceState>().set_finance_cal_month_total(SharedString::from(snap.cal_month_total));
     let cells: Vec<FinanceCalendarCell> = snap
         .cal_cells
         .into_iter()
@@ -761,10 +763,10 @@ pub(crate) fn apply_snapshot(ui: &MainWindow, snap: Snapshot) {
             selected: c.selected,
         })
         .collect();
-    ui.set_finance_cal_cells(ModelRc::new(VecModel::from(cells)));
-    ui.set_finance_cal_selected(SharedString::from(snap.cal_selected_key));
-    ui.set_finance_cal_detail_header(SharedString::from(snap.cal_detail_header));
-    ui.set_finance_cal_detail_summary(SharedString::from(snap.cal_detail_summary));
+    ui.global::<FinanceState>().set_finance_cal_cells(ModelRc::new(VecModel::from(cells)));
+    ui.global::<FinanceState>().set_finance_cal_selected(SharedString::from(snap.cal_selected_key));
+    ui.global::<FinanceState>().set_finance_cal_detail_header(SharedString::from(snap.cal_detail_header));
+    ui.global::<FinanceState>().set_finance_cal_detail_summary(SharedString::from(snap.cal_detail_summary));
     let detail_rows: Vec<FinanceDayRow> = snap
         .cal_detail_rows
         .into_iter()
@@ -780,7 +782,7 @@ pub(crate) fn apply_snapshot(ui: &MainWindow, snap: Snapshot) {
             kind: SharedString::from(r.kind),
         })
         .collect();
-    ui.set_finance_cal_detail_rows(ModelRc::new(VecModel::from(detail_rows)));
+    ui.global::<FinanceState>().set_finance_cal_detail_rows(ModelRc::new(VecModel::from(detail_rows)));
 }
 
 pub(crate) fn match_search(needle: &str, e: &EntryRaw) -> bool {

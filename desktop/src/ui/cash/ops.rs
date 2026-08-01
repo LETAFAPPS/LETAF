@@ -15,6 +15,7 @@ use super::super::helpers::{show_toast, user_error};
 fn fmt_brl(v: f64) -> String { crate::format::money_br_f64(v) }
 fn fmt_brl_signed(v: f64) -> String { crate::format::money_br_signed(letaf_core::money::from_db_f64(v)) }
 use super::core::parse_amount;
+use crate::CashState;
 
 // ── Abrir caixa ──────────────────────────────────────────────────
 
@@ -27,10 +28,10 @@ pub(crate) fn setup_open_confirm(
     let ui_weak = ui.as_weak();
     let state = state.clone();
     let handle = handle.clone();
-    ui.on_cash_open_confirm(move || {
+    ui.global::<CashState>().on_cash_open_confirm(move || {
         let Some(ui_ref) = ui_weak.upgrade() else { return };
-        let amount = parse_amount(&ui_ref.get_cash_open_amount());
-        let notes = ui_ref.get_cash_open_notes().to_string();
+        let amount = parse_amount(&ui_ref.global::<CashState>().get_cash_open_amount());
+        let notes = ui_ref.global::<CashState>().get_cash_open_notes().to_string();
         let notes_opt = if notes.trim().is_empty() {
             None
         } else {
@@ -60,11 +61,11 @@ pub(crate) fn setup_open_confirm(
                 let Some(ui) = ui_weak.upgrade() else { return };
                 match result {
                     Ok(_) => {
-                        ui.set_cash_show_open(false);
-                        ui.set_cash_open_amount(SharedString::default());
-                        ui.set_cash_open_notes(SharedString::default());
+                        ui.global::<CashState>().set_cash_show_open(false);
+                        ui.global::<CashState>().set_cash_open_amount(SharedString::default());
+                        ui.global::<CashState>().set_cash_open_notes(SharedString::default());
                         show_toast(&ui, "Caixa Aberto", "success");
-                        ui.invoke_cash_refresh();
+                        ui.global::<CashState>().invoke_cash_refresh();
                         notify.notify_one();
                     }
                     Err(e) => {
@@ -87,17 +88,17 @@ pub(crate) fn setup_sangria_confirm(
     let ui_weak = ui.as_weak();
     let state = state.clone();
     let handle = handle.clone();
-    ui.on_cash_sangria_confirm(move || {
+    ui.global::<CashState>().on_cash_sangria_confirm(move || {
         let Some(ui_ref) = ui_weak.upgrade() else { return };
-        let amount = parse_amount(&ui_ref.get_cash_sangria_amount());
-        let reason = ui_ref.get_cash_sangria_reason().to_string();
-        let detail = ui_ref.get_cash_sangria_detail().to_string();
+        let amount = parse_amount(&ui_ref.global::<CashState>().get_cash_sangria_amount());
+        let reason = ui_ref.global::<CashState>().get_cash_sangria_reason().to_string();
+        let detail = ui_ref.global::<CashState>().get_cash_sangria_detail().to_string();
         let detail_opt = if detail.trim().is_empty() {
             None
         } else {
             Some(detail)
         };
-        let session_id_str = ui_ref.get_cash_summary().session_id.to_string();
+        let session_id_str = ui_ref.global::<CashState>().get_cash_summary().session_id.to_string();
         let Ok(session_id) = Uuid::parse_str(&session_id_str) else {
             show_toast(&ui_ref, "Nenhuma sessão aberta", "error");
             return;
@@ -116,11 +117,11 @@ pub(crate) fn setup_sangria_confirm(
                 let Some(ui) = ui_weak.upgrade() else { return };
                 match result {
                     Ok(_) => {
-                        ui.set_cash_show_sangria(false);
-                        ui.set_cash_sangria_amount(SharedString::default());
-                        ui.set_cash_sangria_detail(SharedString::default());
+                        ui.global::<CashState>().set_cash_show_sangria(false);
+                        ui.global::<CashState>().set_cash_sangria_amount(SharedString::default());
+                        ui.global::<CashState>().set_cash_sangria_detail(SharedString::default());
                         show_toast(&ui, "Sangria registrada", "success");
-                        ui.invoke_cash_refresh();
+                        ui.global::<CashState>().invoke_cash_refresh();
                         notify.notify_one();
                     }
                     Err(e) => {
@@ -143,17 +144,17 @@ pub(crate) fn setup_suprimento_confirm(
     let ui_weak = ui.as_weak();
     let state = state.clone();
     let handle = handle.clone();
-    ui.on_cash_suprimento_confirm(move || {
+    ui.global::<CashState>().on_cash_suprimento_confirm(move || {
         let Some(ui_ref) = ui_weak.upgrade() else { return };
-        let amount = parse_amount(&ui_ref.get_cash_suprimento_amount());
-        let origin = ui_ref.get_cash_suprimento_origin().to_string();
-        let detail = ui_ref.get_cash_suprimento_detail().to_string();
+        let amount = parse_amount(&ui_ref.global::<CashState>().get_cash_suprimento_amount());
+        let origin = ui_ref.global::<CashState>().get_cash_suprimento_origin().to_string();
+        let detail = ui_ref.global::<CashState>().get_cash_suprimento_detail().to_string();
         let detail_opt = if detail.trim().is_empty() {
             None
         } else {
             Some(detail)
         };
-        let session_id_str = ui_ref.get_cash_summary().session_id.to_string();
+        let session_id_str = ui_ref.global::<CashState>().get_cash_summary().session_id.to_string();
         let Ok(session_id) = Uuid::parse_str(&session_id_str) else {
             show_toast(&ui_ref, "Nenhuma sessão aberta", "error");
             return;
@@ -172,11 +173,11 @@ pub(crate) fn setup_suprimento_confirm(
                 let Some(ui) = ui_weak.upgrade() else { return };
                 match result {
                     Ok(_) => {
-                        ui.set_cash_show_suprimento(false);
-                        ui.set_cash_suprimento_amount(SharedString::default());
-                        ui.set_cash_suprimento_detail(SharedString::default());
+                        ui.global::<CashState>().set_cash_show_suprimento(false);
+                        ui.global::<CashState>().set_cash_suprimento_amount(SharedString::default());
+                        ui.global::<CashState>().set_cash_suprimento_detail(SharedString::default());
                         show_toast(&ui, "Suprimento registrado", "success");
-                        ui.invoke_cash_refresh();
+                        ui.global::<CashState>().invoke_cash_refresh();
                         notify.notify_one();
                     }
                     Err(e) => {
@@ -192,22 +193,22 @@ pub(crate) fn setup_suprimento_confirm(
 
 pub(crate) fn setup_close_recalc(ui: &MainWindow) {
     let ui_weak = ui.as_weak();
-    ui.on_cash_close_recalc(move || {
+    ui.global::<CashState>().on_cash_close_recalc(move || {
         let Some(ui) = ui_weak.upgrade() else { return };
         // Sistema (vem do summary cacheado) + informado (input do usuário).
-        let summary = ui.get_cash_summary();
+        let summary = ui.global::<CashState>().get_cash_summary();
         // Header info: opened-at, duration, operator.
-        ui.set_cash_close_opened_at(summary.opened_summary.clone());
+        ui.global::<CashState>().set_cash_close_opened_at(summary.opened_summary.clone());
 
         let sys_cash = parse_brl(&summary.cash_now_display);
         let sys_total_expected = parse_brl(&summary.total_expected_display);
 
         // Pra preservar simplicidade, lemos sistema dos campos sys-* já
         // populados (set no refresh). Mas recalc usa o que tá na UI.
-        let sys_cash_ui = parse_brl(&ui.get_cash_close_sys_cash());
-        let sys_pix = parse_brl(&ui.get_cash_close_sys_pix());
-        let sys_credit = parse_brl(&ui.get_cash_close_sys_credit());
-        let sys_debit = parse_brl(&ui.get_cash_close_sys_debit());
+        let sys_cash_ui = parse_brl(&ui.global::<CashState>().get_cash_close_sys_cash());
+        let sys_pix = parse_brl(&ui.global::<CashState>().get_cash_close_sys_pix());
+        let sys_credit = parse_brl(&ui.global::<CashState>().get_cash_close_sys_credit());
+        let sys_debit = parse_brl(&ui.global::<CashState>().get_cash_close_sys_debit());
 
         let sys_cash_used = if sys_cash_ui > 0.0 { sys_cash_ui } else { sys_cash };
         let _ = sys_total_expected;
@@ -215,10 +216,10 @@ pub(crate) fn setup_close_recalc(ui: &MainWindow) {
         // Cada linha só entra na conferência depois de preenchida: campo
         // vazio mostra "—" e não conta na diferença (nem no total).
         let rows = [
-            (ui.get_cash_close_in_cash(), sys_cash_used),
-            (ui.get_cash_close_in_pix(), sys_pix),
-            (ui.get_cash_close_in_credit(), sys_credit),
-            (ui.get_cash_close_in_debit(), sys_debit),
+            (ui.global::<CashState>().get_cash_close_in_cash(), sys_cash_used),
+            (ui.global::<CashState>().get_cash_close_in_pix(), sys_pix),
+            (ui.global::<CashState>().get_cash_close_in_credit(), sys_credit),
+            (ui.global::<CashState>().get_cash_close_in_debit(), sys_debit),
         ];
         let diffs: Vec<Option<f64>> = rows
             .iter()
@@ -239,14 +240,14 @@ pub(crate) fn setup_close_recalc(ui: &MainWindow) {
             Some(diffs.iter().flatten().sum())
         };
 
-        ui.set_cash_close_sys_total(SharedString::from(fmt_brl(sys_total)));
-        ui.set_cash_close_in_total(SharedString::from(fmt_brl(in_total)));
-        ui.set_cash_close_diff_cash(diff_text(diffs[0]));
-        ui.set_cash_close_diff_pix(diff_text(diffs[1]));
-        ui.set_cash_close_diff_credit(diff_text(diffs[2]));
-        ui.set_cash_close_diff_debit(diff_text(diffs[3]));
-        ui.set_cash_close_diff_total(diff_text(diff_total));
-        ui.set_cash_close_has_diff(diffs.iter().flatten().any(|d| d.abs() > 0.005));
+        ui.global::<CashState>().set_cash_close_sys_total(SharedString::from(fmt_brl(sys_total)));
+        ui.global::<CashState>().set_cash_close_in_total(SharedString::from(fmt_brl(in_total)));
+        ui.global::<CashState>().set_cash_close_diff_cash(diff_text(diffs[0]));
+        ui.global::<CashState>().set_cash_close_diff_pix(diff_text(diffs[1]));
+        ui.global::<CashState>().set_cash_close_diff_credit(diff_text(diffs[2]));
+        ui.global::<CashState>().set_cash_close_diff_debit(diff_text(diffs[3]));
+        ui.global::<CashState>().set_cash_close_diff_total(diff_text(diff_total));
+        ui.global::<CashState>().set_cash_close_has_diff(diffs.iter().flatten().any(|d| d.abs() > 0.005));
     });
 }
 
@@ -275,16 +276,16 @@ pub(crate) fn setup_close_confirm(
     let ui_weak = ui.as_weak();
     let state = state.clone();
     let handle = handle.clone();
-    ui.on_cash_close_confirm(move || {
+    ui.global::<CashState>().on_cash_close_confirm(move || {
         let Some(ui_ref) = ui_weak.upgrade() else { return };
-        let session_id_str = ui_ref.get_cash_summary().session_id.to_string();
+        let session_id_str = ui_ref.global::<CashState>().get_cash_summary().session_id.to_string();
         let Ok(session_id) = Uuid::parse_str(&session_id_str) else {
             show_toast(&ui_ref, "Nenhuma sessão aberta", "error");
             return;
         };
-        let counted = parse_amount(&ui_ref.get_cash_close_in_cash());
-        let notes = ui_ref.get_cash_close_notes().to_string();
-        let has_diff = ui_ref.get_cash_close_has_diff();
+        let counted = parse_amount(&ui_ref.global::<CashState>().get_cash_close_in_cash());
+        let notes = ui_ref.global::<CashState>().get_cash_close_notes().to_string();
+        let has_diff = ui_ref.global::<CashState>().get_cash_close_has_diff();
         if has_diff && notes.trim().is_empty() {
             show_toast(&ui_ref, "Observação é obrigatória quando há diferença", "error");
             return;
@@ -308,14 +309,14 @@ pub(crate) fn setup_close_confirm(
                 let Some(ui) = ui_weak.upgrade() else { return };
                 match result {
                     Ok(_) => {
-                        ui.set_cash_show_close(false);
-                        ui.set_cash_close_in_cash(SharedString::default());
-                        ui.set_cash_close_in_pix(SharedString::default());
-                        ui.set_cash_close_in_credit(SharedString::default());
-                        ui.set_cash_close_in_debit(SharedString::default());
-                        ui.set_cash_close_notes(SharedString::default());
+                        ui.global::<CashState>().set_cash_show_close(false);
+                        ui.global::<CashState>().set_cash_close_in_cash(SharedString::default());
+                        ui.global::<CashState>().set_cash_close_in_pix(SharedString::default());
+                        ui.global::<CashState>().set_cash_close_in_credit(SharedString::default());
+                        ui.global::<CashState>().set_cash_close_in_debit(SharedString::default());
+                        ui.global::<CashState>().set_cash_close_notes(SharedString::default());
                         show_toast(&ui, "Caixa Fechado", "success");
-                        ui.invoke_cash_refresh();
+                        ui.global::<CashState>().invoke_cash_refresh();
                         notify.notify_one();
                     }
                     Err(e) => {

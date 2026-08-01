@@ -8,9 +8,9 @@ use uuid::Uuid;
 use letaf_core::auth::model::UserRole;
 
 use crate::HTTP_CLIENT;
-use crate::AdminState;
 use crate::MainWindow;
 use crate::context::DesktopState;
+use crate::{AdminState, CashState, CustomersState, DashboardState, FinanceState, OrdersState, ProductsState, SettingsState};
 
 /// Callback: autentica no servidor e grava JWT.
 ///
@@ -362,21 +362,21 @@ pub(crate) fn update_ui_after_login(ui_weak: slint::Weak<MainWindow>, role: User
         ));
         ui.set_login_status(SharedString::from("Login realizado!"));
         ui.set_status_message(SharedString::from("Conectado ao servidor"));
-        ui.invoke_refresh_products();
-        ui.invoke_refresh_business_hours();
+        ui.global::<ProductsState>().invoke_refresh_products();
+        ui.global::<SettingsState>().invoke_refresh_business_hours();
         // Pré-carrega o status do caixa pra que o modal de bloqueio
         // do PDV (renderizado quando `cash-summary.open == false`)
         // já apareça/desapareça corretamente desde a primeira tela.
-        ui.invoke_cash_refresh();
+        ui.global::<CashState>().invoke_cash_refresh();
         // Dashboard é a landing page — popula KPIs/séries imediatamente
         // após login pra não mostrar tela em branco.
-        ui.invoke_dashboard_refresh();
-        ui.invoke_refresh_orders();
+        ui.global::<DashboardState>().invoke_dashboard_refresh();
+        ui.global::<OrdersState>().invoke_refresh_orders();
         // Financeiro (KPIs + fluxo de caixa) e Clientes (lista mestre)
         // — pré-carga garante que o usuário não veja tela vazia ao
         // navegar nessas abas antes do primeiro ciclo de sync.
-        ui.invoke_finance_refresh();
-        ui.invoke_refresh_customers();
+        ui.global::<FinanceState>().invoke_finance_refresh();
+        ui.global::<CustomersState>().invoke_refresh_customers();
         // Super admin: carrega o painel de plataforma (rotas /admin/*).
         if role.is_super_admin() {
             ui.global::<AdminState>().invoke_refresh();

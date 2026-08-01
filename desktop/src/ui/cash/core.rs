@@ -12,6 +12,7 @@ use crate::MainWindow;
 
 use super::ops::{setup_close_confirm, setup_close_recalc, setup_open_confirm, setup_sangria_confirm, setup_suprimento_confirm};
 use super::view::apply_to_ui;
+use crate::CashState;
 
 pub(crate) fn setup_cash(
     ui: &MainWindow,
@@ -69,7 +70,7 @@ pub(crate) fn setup_refresh(
     let ui_weak = ui.as_weak();
     let state = state.clone();
     let handle = handle.clone();
-    ui.on_cash_refresh(move || {
+    ui.global::<CashState>().on_cash_refresh(move || {
         let ui_weak = ui_weak.clone();
         let state = state.clone();
         handle.spawn(async move {

@@ -11,6 +11,7 @@ use crate::{BusinessHoursData, MainWindow};
 
 use super::super::helpers::{friendly_error, show_toast};
 use super::super::image::decode_pixel_buffer;
+use crate::SettingsState;
 
 const DAY_NAMES: [&str; 7] = [
     "Domingo",
@@ -65,7 +66,7 @@ pub(crate) fn setup_refresh_business_hours(
     let state = state.clone();
     let handle = handle.clone();
 
-    ui.on_refresh_business_hours(move || {
+    ui.global::<SettingsState>().on_refresh_business_hours(move || {
         let ui_weak = ui_weak.clone();
         let state = state.clone();
 
@@ -106,27 +107,27 @@ pub(crate) fn setup_refresh_business_hours(
                     let data = build_all_days(&saved);
                     let _ = slint::invoke_from_event_loop(move || {
                         let Some(ui) = ui_weak.upgrade() else { return };
-                        ui.set_store_override(SharedString::from(override_status));
-                        ui.set_store_name(SharedString::from(s_name));
-                        ui.set_store_address(SharedString::from(s_address));
-                        ui.set_store_phone(SharedString::from(format_phone(&s_phone)));
-                        ui.set_store_whatsapp(SharedString::from(format_phone(&s_whatsapp)));
-                        ui.set_store_email(SharedString::from(s_email));
-                        ui.set_store_instagram(SharedString::from(s_instagram));
-                        ui.set_store_document(SharedString::from(crate::format::format_document(&s_document)));
-                        ui.set_store_neighborhood(SharedString::from(s_neighbor));
-                        ui.set_store_zip_code(SharedString::from(s_zip));
-                        ui.set_store_city(SharedString::from(s_city));
-                        ui.set_store_uf(SharedString::from(s_uf));
-                        ui.set_store_logo_data(SharedString::from(s_logo));
-                        ui.set_store_logo_image(logo_buf.map(slint::Image::from_rgba8).unwrap_or_default());
-                        ui.set_store_cover_data(SharedString::from(s_cover));
-                        ui.set_store_cover_image(cover_buf.map(slint::Image::from_rgba8).unwrap_or_default());
-                        ui.set_store_synced(s_synced);
-                        ui.set_products_per_page(s_per_page);
-                        ui.set_orders_per_page(s_orders_per_page);
-                        ui.set_store_delivery_fee(SharedString::from(s_delivery_fee));
-                        ui.set_business_hours(ModelRc::new(VecModel::from(data)));
+                        ui.global::<SettingsState>().set_store_override(SharedString::from(override_status));
+                        ui.global::<SettingsState>().set_store_name(SharedString::from(s_name));
+                        ui.global::<SettingsState>().set_store_address(SharedString::from(s_address));
+                        ui.global::<SettingsState>().set_store_phone(SharedString::from(format_phone(&s_phone)));
+                        ui.global::<SettingsState>().set_store_whatsapp(SharedString::from(format_phone(&s_whatsapp)));
+                        ui.global::<SettingsState>().set_store_email(SharedString::from(s_email));
+                        ui.global::<SettingsState>().set_store_instagram(SharedString::from(s_instagram));
+                        ui.global::<SettingsState>().set_store_document(SharedString::from(crate::format::format_document(&s_document)));
+                        ui.global::<SettingsState>().set_store_neighborhood(SharedString::from(s_neighbor));
+                        ui.global::<SettingsState>().set_store_zip_code(SharedString::from(s_zip));
+                        ui.global::<SettingsState>().set_store_city(SharedString::from(s_city));
+                        ui.global::<SettingsState>().set_store_uf(SharedString::from(s_uf));
+                        ui.global::<SettingsState>().set_store_logo_data(SharedString::from(s_logo));
+                        ui.global::<SettingsState>().set_store_logo_image(logo_buf.map(slint::Image::from_rgba8).unwrap_or_default());
+                        ui.global::<SettingsState>().set_store_cover_data(SharedString::from(s_cover));
+                        ui.global::<SettingsState>().set_store_cover_image(cover_buf.map(slint::Image::from_rgba8).unwrap_or_default());
+                        ui.global::<SettingsState>().set_store_synced(s_synced);
+                        ui.global::<SettingsState>().set_products_per_page(s_per_page);
+                        ui.global::<SettingsState>().set_orders_per_page(s_orders_per_page);
+                        ui.global::<SettingsState>().set_store_delivery_fee(SharedString::from(s_delivery_fee));
+                        ui.global::<SettingsState>().set_business_hours(ModelRc::new(VecModel::from(data)));
                     });
                 }
                 Err(e) => {
@@ -153,7 +154,7 @@ pub(crate) fn setup_refresh_business_hours(
 /// - Insere ':' automaticamente entre posições 2 e 3
 /// - Clicar no campo seleciona tudo (via Slint), permitindo substituição total
 pub(crate) fn setup_apply_time_mask(ui: &MainWindow) {
-    ui.on_apply_time_mask(|s| {
+    ui.global::<SettingsState>().on_apply_time_mask(|s| {
         let digits: String = s.chars().filter(|c| c.is_ascii_digit()).take(4).collect();
         let formatted = match digits.len() {
             0..=2 => digits,
@@ -177,7 +178,7 @@ pub(crate) fn setup_set_store_override(
     let state = state.clone();
     let handle = handle.clone();
 
-    ui.on_set_store_override(move |override_status| {
+    ui.global::<SettingsState>().on_set_store_override(move |override_status| {
         let ui_weak = ui_weak.clone();
         let state = state.clone();
         let notify = sync_notify.clone();
@@ -190,8 +191,8 @@ pub(crate) fn setup_set_store_override(
                     notify.notify_one();
                     let _ = slint::invoke_from_event_loop(move || {
                         let Some(ui) = ui_weak.upgrade() else { return };
-                        ui.set_store_override(SharedString::from(override_str));
-                        let label = match ui.get_store_override().as_str() {
+                        ui.global::<SettingsState>().set_store_override(SharedString::from(override_str));
+                        let label = match ui.global::<SettingsState>().get_store_override().as_str() {
                             "open" => "Estabelecimento Forçado: Aberto",
                             "closed" => "Estabelecimento Forçado: Fechado",
                             _ => "Desativado",
@@ -227,13 +228,13 @@ pub(crate) fn setup_save_business_hours(
     let state = state.clone();
     let handle = handle.clone();
 
-    ui.on_save_business_hours(move || {
+    ui.global::<SettingsState>().on_save_business_hours(move || {
         let Some(ui_ref) = ui_weak.upgrade() else { return };
 
-        let day = ui_ref.get_bh_editing_day();
-        let open_time = ui_ref.get_bh_open_time().to_string();
-        let close_time = ui_ref.get_bh_close_time().to_string();
-        let is_open = ui_ref.get_bh_is_open();
+        let day = ui_ref.global::<SettingsState>().get_bh_editing_day();
+        let open_time = ui_ref.global::<SettingsState>().get_bh_open_time().to_string();
+        let close_time = ui_ref.global::<SettingsState>().get_bh_close_time().to_string();
+        let is_open = ui_ref.global::<SettingsState>().get_bh_is_open();
 
         let ui_weak = ui_ref.as_weak();
         let state = state.clone();
@@ -249,7 +250,7 @@ pub(crate) fn setup_save_business_hours(
                         show_toast(&ui, "Horário Salvo", "success");
                         ui.set_show_modal(false);
                         ui.set_status_message(SharedString::from("Horário Salvo"));
-                        ui.invoke_refresh_business_hours();
+                        ui.global::<SettingsState>().invoke_refresh_business_hours();
                     });
                 }
                 Err(e) => {

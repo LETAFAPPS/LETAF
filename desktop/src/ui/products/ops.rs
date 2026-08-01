@@ -15,6 +15,7 @@ use super::super::image::{
 };
 use super::state::DecodedProduct;
 use super::data::{parse_hex_color, update_detail_product_flag, update_product_flag};
+use crate::ProductsState;
 
 /// Listener leve do worker — atualiza apenas o flag `synced` (e o
 /// `sync-label`) na lista e no `detail-product` quando o worker fecha
@@ -64,7 +65,7 @@ pub(crate) fn setup_sync_listener(
             let _ = slint::invoke_from_event_loop(move || {
                 let Some(ui) = ui_weak2.upgrade() else { return };
                 // 1) Lista lateral: atualiza cada linha cujo `synced` mudou.
-                let model = ui.get_products();
+                let model = ui.global::<ProductsState>().get_products();
                 if let Some(vm) = model.as_any().downcast_ref::<VecModel<ProductData>>() {
                     for i in 0..vm.row_count() {
                         if let Some(mut p) = vm.row_data(i) {
@@ -81,7 +82,7 @@ pub(crate) fn setup_sync_listener(
                     }
                 }
                 // 2) Painel direito: detail-product.
-                let mut detail = ui.get_detail_product();
+                let mut detail = ui.global::<ProductsState>().get_detail_product();
                 if !detail.id.is_empty() {
                     let is_synced = !pending_ids_arc.contains(detail.id.as_str());
                     if detail.synced != is_synced {
@@ -89,7 +90,7 @@ pub(crate) fn setup_sync_listener(
                         detail.sync_label = SharedString::from(
                             if is_synced { "Sincronizado" } else { "Aguardando Sincronização" }
                         );
-                        ui.set_detail_product(detail);
+                        ui.global::<ProductsState>().set_detail_product(detail);
                     }
                 }
             });
@@ -101,7 +102,7 @@ pub(crate) fn setup_sync_listener(
 ///
 /// Regras aplicadas (AI_RULES.md §8, §13): atualização cirúrgica — sem re-decode.
 pub(crate) fn remove_product_from_model(ui: &MainWindow, id: &SharedString) {
-    let model = ui.get_products();
+    let model = ui.global::<ProductsState>().get_products();
     if let Some(vm) = model.as_any().downcast_ref::<VecModel<ProductData>>() {
         for i in 0..vm.row_count() {
             if vm.row_data(i).map(|p| p.id == id).unwrap_or(false) {
@@ -120,17 +121,17 @@ pub(crate) fn remove_product_from_model(ui: &MainWindow, id: &SharedString) {
 /// (mesma semântica do card antigo do form).
 pub(crate) fn setup_remove_product_image(ui: &MainWindow) {
     let ui_weak = ui.as_weak();
-    ui.on_remove_product_image(move || {
+    ui.global::<ProductsState>().on_remove_product_image(move || {
         let Some(ui) = ui_weak.upgrade() else { return };
-        ui.set_product_image_data(SharedString::default());
-        ui.set_product_cover_color(SharedString::default());
-        let mut detail = ui.get_detail_product();
+        ui.global::<ProductsState>().set_product_image_data(SharedString::default());
+        ui.global::<ProductsState>().set_product_cover_color(SharedString::default());
+        let mut detail = ui.global::<ProductsState>().get_detail_product();
         detail.image_data = SharedString::default();
         detail.cover_color = SharedString::default();
         detail.cover_color_value = slint::Color::default();
         detail.has_cover_color = false;
         detail.product_image = slint::Image::default();
-        ui.set_detail_product(detail);
+        ui.global::<ProductsState>().set_detail_product(detail);
         let editing_id = ui.get_editing_id();
         if !editing_id.is_empty() {
             update_product_flag(&ui, &editing_id, |p| {
@@ -157,7 +158,7 @@ pub(crate) fn setup_pick_product_image(
     let ui_weak = ui.as_weak();
     let handle = handle.clone();
 
-    ui.on_pick_product_image(move || {
+    ui.global::<ProductsState>().on_pick_product_image(move || {
         let ui_weak = ui_weak.clone();
         let cache = cache.clone();
         handle.spawn_blocking(move || {
@@ -166,7 +167,7 @@ pub(crate) fn setup_pick_product_image(
             // Arquivo selecionado — sinaliza início do processamento na UI
             let uw = ui_weak.clone();
             let _ = slint::invoke_from_event_loop(move || {
-                if let Some(ui) = uw.upgrade() { ui.set_product_image_loading(true); }
+                if let Some(ui) = uw.upgrade() { ui.global::<ProductsState>().set_product_image_loading(true); }
             });
 
             match process_product_image(&path) {
@@ -182,16 +183,16 @@ pub(crate) fn setup_pick_product_image(
                     let cache_for_loop = cache.clone();
                     let _ = slint::invoke_from_event_loop(move || {
                         if let Some(ui) = ui_weak.upgrade() {
-                            ui.set_product_image_data(SharedString::from(encoded));
-                            ui.set_product_cover_color(SharedString::from(cover));
-                            ui.set_product_image_loading(false);
+                            ui.global::<ProductsState>().set_product_image_data(SharedString::from(encoded));
+                            ui.global::<ProductsState>().set_product_cover_color(SharedString::from(cover));
+                            ui.global::<ProductsState>().set_product_image_loading(false);
                             // Atualiza o snapshot do painel direito —
                             // `detail-product.product-image` é uma
                             // `slint::Image`; gravar aqui faz o header
                             // refletir em tempo real.
-                            let mut detail = ui.get_detail_product();
-                            detail.image_data = ui.get_product_image_data();
-                            detail.cover_color = ui.get_product_cover_color();
+                            let mut detail = ui.global::<ProductsState>().get_detail_product();
+                            detail.image_data = ui.global::<ProductsState>().get_product_image_data();
+                            detail.cover_color = ui.global::<ProductsState>().get_product_cover_color();
                             if let Some((r, g, b)) = cover_rgb {
                                 detail.cover_color_value = slint::Color::from_rgb_u8(r, g, b);
                                 detail.has_cover_color = true;
@@ -203,7 +204,7 @@ pub(crate) fn setup_pick_product_image(
                                 .clone()
                                 .map(slint::Image::from_rgba8)
                                 .unwrap_or_default();
-                            ui.set_detail_product(detail.clone());
+                            ui.global::<ProductsState>().set_detail_product(detail.clone());
                             // Atualiza também a linha da lista mestra
                             // (não só o detalhe). Sem isso, a miniatura
                             // à esquerda só refletiria a nova imagem
@@ -237,7 +238,7 @@ pub(crate) fn setup_pick_product_image(
                 None => {
                     tracing::error!("Failed to process image: {}", path.display());
                     let _ = slint::invoke_from_event_loop(move || {
-                        if let Some(ui) = ui_weak.upgrade() { ui.set_product_image_loading(false); }
+                        if let Some(ui) = ui_weak.upgrade() { ui.global::<ProductsState>().set_product_image_loading(false); }
                     });
                 }
             }
@@ -261,12 +262,12 @@ pub(crate) fn setup_toggle_product_active(
     let state = state.clone();
     let handle = handle.clone();
 
-    ui.on_toggle_product_active(move |id_str| {
+    ui.global::<ProductsState>().on_toggle_product_active(move |id_str| {
         let Some(ui_ref) = ui_weak.upgrade() else { return };
         let Ok(id) = Uuid::parse_str(id_str.as_str()) else { return };
 
         let new_active = !ui_ref
-            .get_products()
+            .global::<ProductsState>().get_products()
             .iter()
             .find(|p| p.id == id_str)
             .map(|p| p.active)
@@ -321,7 +322,7 @@ pub(crate) fn setup_toggle_product_active(
 /// Chamado após cada toggle de `active` — mantém o subtítulo da página em
 /// sincronia sem recarregar a lista.
 fn update_active_counts(ui: &MainWindow) {
-    let model = ui.get_products();
+    let model = ui.global::<ProductsState>().get_products();
     let mut active = 0i32;
     let mut inactive = 0i32;
     for i in 0..model.row_count() {
@@ -329,8 +330,8 @@ fn update_active_counts(ui: &MainWindow) {
             if p.active { active += 1; } else { inactive += 1; }
         }
     }
-    ui.set_products_active_count(active);
-    ui.set_products_inactive_count(inactive);
+    ui.global::<ProductsState>().set_products_active_count(active);
+    ui.global::<ProductsState>().set_products_inactive_count(inactive);
 }
 
 /// Callback: alterna visibilidade do produto no cardápio web.
@@ -350,12 +351,12 @@ pub(crate) fn setup_toggle_web_visible(
     let state = state.clone();
     let handle = handle.clone();
 
-    ui.on_toggle_product_web_visible(move |id_str| {
+    ui.global::<ProductsState>().on_toggle_product_web_visible(move |id_str| {
         let Some(ui_ref) = ui_weak.upgrade() else { return };
         let Ok(id) = Uuid::parse_str(id_str.as_str()) else { return };
 
         let new_visible = !ui_ref
-            .get_products()
+            .global::<ProductsState>().get_products()
             .iter()
             .find(|p| p.id == id_str)
             .map(|p| p.web_visible)

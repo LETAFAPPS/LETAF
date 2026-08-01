@@ -9,6 +9,7 @@ use crate::context::DesktopState;
 use crate::MainWindow;
 
 use super::super::helpers::show_toast;
+use crate::{OrdersState, ProductConfigState};
 
 // ── Configurador de produto (adicionais/variações) ─────────────────
 //
@@ -64,11 +65,11 @@ fn addon_group_hint(g: &letaf_core::addon_group::model::AddonGroup) -> String {
 /// Recomputa `config-final-display` e atualiza `unit-price` dos rows
 /// quando o operador altera seleção ou qty.
 fn recompute_config_total(ui: &MainWindow) {
-    let base = ui.get_config_base_price() as f64;
-    let qty = ui.get_config_qty().max(1) as f64;
+    let base = ui.global::<ProductConfigState>().get_config_base_price() as f64;
+    let qty = ui.global::<ProductConfigState>().get_config_qty().max(1) as f64;
     // Variações: sum dos marcados (com regra max_value).
     let mut extras = 0.0_f64;
-    let variations = ui.get_config_variations();
+    let variations = ui.global::<ProductConfigState>().get_config_variations();
     for vi in 0..variations.row_count() {
         let v = variations.row_data(vi).unwrap();
         let selection = v.selection.to_string();
@@ -88,7 +89,7 @@ fn recompute_config_total(ui: &MainWindow) {
         }
     }
     // Adicionais: soma direta dos marcados (sem regra max_value).
-    let groups = ui.get_config_addon_groups();
+    let groups = ui.global::<ProductConfigState>().get_config_addon_groups();
     for gi in 0..groups.row_count() {
         let g = groups.row_data(gi).unwrap();
         let addons = g.addons;
@@ -98,7 +99,7 @@ fn recompute_config_total(ui: &MainWindow) {
         }
     }
     let total = (base + extras) * qty;
-    ui.set_config_final_display(SharedString::from(format!("R$ {:.2}", total)));
+    ui.global::<ProductConfigState>().set_config_final_display(SharedString::from(format!("R$ {:.2}", total)));
 }
 
 /// "Comecar a configurar" — chama Rust quando o operador clica num
@@ -112,7 +113,7 @@ pub(crate) fn setup_start_product_config(
     let ui_weak = ui.as_weak();
     let state = state.clone();
     let handle = handle.clone();
-    ui.on_start_product_config(move |pid| {
+    ui.global::<ProductConfigState>().on_start_product_config(move |pid| {
         let pid_uuid = match Uuid::parse_str(pid.as_str()) {
             Ok(v) => v, Err(_) => return,
         };
@@ -133,7 +134,7 @@ pub(crate) fn setup_start_product_config(
             if !has_variations && !has_addons {
                 let _ = slint::invoke_from_event_loop(move || {
                     let Some(ui) = ui_weak2.upgrade() else { return };
-                    ui.invoke_edit_order_add_product(SharedString::from(pid_str));
+                    ui.global::<OrdersState>().invoke_edit_order_add_product(SharedString::from(pid_str));
                 });
                 return;
             }
@@ -201,16 +202,16 @@ pub(crate) fn setup_start_product_config(
                         addons: ModelRc::new(VecModel::from(items)),
                     }
                 }).collect();
-                ui.set_config_product_id(SharedString::from(pid_str));
-                ui.set_config_product_name(SharedString::from(product_name));
-                ui.set_config_product_image(
+                ui.global::<ProductConfigState>().set_config_product_id(SharedString::from(pid_str));
+                ui.global::<ProductConfigState>().set_config_product_name(SharedString::from(product_name));
+                ui.global::<ProductConfigState>().set_config_product_image(
                     product_img.map(slint::Image::from_rgba8).unwrap_or_default(),
                 );
-                ui.set_config_base_price(base_price.to_f64().unwrap_or(0.0) as f32);
-                ui.set_config_qty(1);
-                ui.set_config_variations(ModelRc::new(VecModel::from(vars_ui)));
-                ui.set_config_addon_groups(ModelRc::new(VecModel::from(groups_ui)));
-                ui.set_config_error(SharedString::default());
+                ui.global::<ProductConfigState>().set_config_base_price(base_price.to_f64().unwrap_or(0.0) as f32);
+                ui.global::<ProductConfigState>().set_config_qty(1);
+                ui.global::<ProductConfigState>().set_config_variations(ModelRc::new(VecModel::from(vars_ui)));
+                ui.global::<ProductConfigState>().set_config_addon_groups(ModelRc::new(VecModel::from(groups_ui)));
+                ui.global::<ProductConfigState>().set_config_error(SharedString::default());
                 recompute_config_total(&ui);
             });
         });
@@ -237,9 +238,9 @@ pub(crate) fn setup_edit_order_edit_item(
     let ui_weak = ui.as_weak();
     let state = state.clone();
     let handle = handle.clone();
-    ui.on_edit_order_edit_item(move |idx: i32| {
+    ui.global::<OrdersState>().on_edit_order_edit_item(move |idx: i32| {
         let Some(ui_ref) = ui_weak.upgrade() else { return };
-        let items_model = ui_ref.get_edit_order_items();
+        let items_model = ui_ref.global::<OrdersState>().get_edit_order_items();
         let Some(item) = items_model.row_data(idx as usize) else { return };
         let pid_str = item.product_id.to_string();
         let Ok(pid_uuid) = Uuid::parse_str(&pid_str) else { return };
@@ -361,17 +362,17 @@ pub(crate) fn setup_edit_order_edit_item(
                         addons: ModelRc::new(VecModel::from(items)),
                     }
                 }).collect();
-                ui.set_config_product_id(SharedString::from(pid_str));
-                ui.set_config_product_name(SharedString::from(product_name));
-                ui.set_config_product_image(
+                ui.global::<ProductConfigState>().set_config_product_id(SharedString::from(pid_str));
+                ui.global::<ProductConfigState>().set_config_product_name(SharedString::from(product_name));
+                ui.global::<ProductConfigState>().set_config_product_image(
                     product_img.map(slint::Image::from_rgba8).unwrap_or_default(),
                 );
-                ui.set_config_base_price(base_price.to_f64().unwrap_or(0.0) as f32);
-                ui.set_config_qty(qty_i.max(1));
-                ui.set_config_variations(ModelRc::new(VecModel::from(vars_ui)));
-                ui.set_config_addon_groups(ModelRc::new(VecModel::from(groups_ui)));
-                ui.set_config_error(SharedString::default());
-                ui.set_config_edit_idx(idx);
+                ui.global::<ProductConfigState>().set_config_base_price(base_price.to_f64().unwrap_or(0.0) as f32);
+                ui.global::<ProductConfigState>().set_config_qty(qty_i.max(1));
+                ui.global::<ProductConfigState>().set_config_variations(ModelRc::new(VecModel::from(vars_ui)));
+                ui.global::<ProductConfigState>().set_config_addon_groups(ModelRc::new(VecModel::from(groups_ui)));
+                ui.global::<ProductConfigState>().set_config_error(SharedString::default());
+                ui.global::<ProductConfigState>().set_config_edit_idx(idx);
                 recompute_config_total(&ui);
             });
         });
@@ -383,9 +384,9 @@ pub(crate) fn setup_edit_order_edit_item(
 /// já atingiu o limite (operador deve desmarcar outra antes).
 pub(crate) fn setup_config_toggle_variation(ui: &MainWindow) {
     let ui_weak = ui.as_weak();
-    ui.on_config_toggle_variation(move |vidx, oidx| {
+    ui.global::<ProductConfigState>().on_config_toggle_variation(move |vidx, oidx| {
         let Some(ui) = ui_weak.upgrade() else { return };
-        let variations = ui.get_config_variations();
+        let variations = ui.global::<ProductConfigState>().get_config_variations();
         let Some(v) = variations.row_data(vidx as usize) else { return };
         let opts = v.options.clone();
         let selection = v.selection.to_string();
@@ -401,7 +402,7 @@ pub(crate) fn setup_config_toggle_variation(ui: &MainWindow) {
                 .filter(|o| o.selected)
                 .count();
             if already >= max_select {
-                ui.set_config_error(SharedString::from(format!(
+                ui.global::<ProductConfigState>().set_config_error(SharedString::from(format!(
                     "“{}”: limite de {} opções atingido", v.title, max_select
                 )));
                 return;
@@ -429,7 +430,7 @@ pub(crate) fn setup_config_toggle_variation(ui: &MainWindow) {
                 options: opts,
             });
         }
-        ui.set_config_error(SharedString::default());
+        ui.global::<ProductConfigState>().set_config_error(SharedString::default());
         recompute_config_total(&ui);
     });
 }
@@ -438,9 +439,9 @@ pub(crate) fn setup_config_toggle_variation(ui: &MainWindow) {
 /// Para "multi" com `max_select > 0`: refuso ao atingir o limite.
 pub(crate) fn setup_config_toggle_addon(ui: &MainWindow) {
     let ui_weak = ui.as_weak();
-    ui.on_config_toggle_addon(move |gidx, aidx| {
+    ui.global::<ProductConfigState>().on_config_toggle_addon(move |gidx, aidx| {
         let Some(ui) = ui_weak.upgrade() else { return };
-        let groups = ui.get_config_addon_groups();
+        let groups = ui.global::<ProductConfigState>().get_config_addon_groups();
         let Some(g) = groups.row_data(gidx as usize) else { return };
         let addons = g.addons.clone();
         let selection = g.selection.to_string();
@@ -454,7 +455,7 @@ pub(crate) fn setup_config_toggle_addon(ui: &MainWindow) {
                 .filter(|a| a.selected)
                 .count();
             if already >= max_select {
-                ui.set_config_error(SharedString::from(format!(
+                ui.global::<ProductConfigState>().set_config_error(SharedString::from(format!(
                     "“{}”: limite de {} opções atingido", g.name, max_select
                 )));
                 return;
@@ -481,27 +482,27 @@ pub(crate) fn setup_config_toggle_addon(ui: &MainWindow) {
                 addons,
             });
         }
-        ui.set_config_error(SharedString::default());
+        ui.global::<ProductConfigState>().set_config_error(SharedString::default());
         recompute_config_total(&ui);
     });
 }
 
 pub(crate) fn setup_config_inc_qty(ui: &MainWindow) {
     let ui_weak = ui.as_weak();
-    ui.on_config_inc_qty(move || {
+    ui.global::<ProductConfigState>().on_config_inc_qty(move || {
         let Some(ui) = ui_weak.upgrade() else { return };
-        ui.set_config_qty(ui.get_config_qty() + 1);
+        ui.global::<ProductConfigState>().set_config_qty(ui.global::<ProductConfigState>().get_config_qty() + 1);
         recompute_config_total(&ui);
     });
 }
 
 pub(crate) fn setup_config_dec_qty(ui: &MainWindow) {
     let ui_weak = ui.as_weak();
-    ui.on_config_dec_qty(move || {
+    ui.global::<ProductConfigState>().on_config_dec_qty(move || {
         let Some(ui) = ui_weak.upgrade() else { return };
-        let cur = ui.get_config_qty();
+        let cur = ui.global::<ProductConfigState>().get_config_qty();
         if cur > 1 {
-            ui.set_config_qty(cur - 1);
+            ui.global::<ProductConfigState>().set_config_qty(cur - 1);
             recompute_config_total(&ui);
         }
     });
@@ -513,12 +514,12 @@ pub(crate) fn setup_config_dec_qty(ui: &MainWindow) {
 /// em `config-error` e retorna sem empurrar.
 pub(crate) fn setup_config_confirm(ui: &MainWindow) {
     let ui_weak = ui.as_weak();
-    ui.on_config_confirm_add(move || {
+    ui.global::<ProductConfigState>().on_config_confirm_add(move || {
         let Some(ui) = ui_weak.upgrade() else { return };
-        let pid = ui.get_config_product_id().to_string();
+        let pid = ui.global::<ProductConfigState>().get_config_product_id().to_string();
         if pid.is_empty() { return; }
         // ── Validação prévia (espelha o que o backend exige) ──
-        let variations = ui.get_config_variations();
+        let variations = ui.global::<ProductConfigState>().get_config_variations();
         for vi in 0..variations.row_count() {
             let v = variations.row_data(vi).unwrap();
             let selected = (0..v.options.row_count())
@@ -532,11 +533,11 @@ pub(crate) fn setup_config_confirm(ui: &MainWindow) {
                 } else {
                     format!("“{}”: selecione pelo menos {} opções", v.title, min_required)
                 };
-                ui.set_config_error(SharedString::from(msg));
+                ui.global::<ProductConfigState>().set_config_error(SharedString::from(msg));
                 return;
             }
         }
-        let addon_groups_validate = ui.get_config_addon_groups();
+        let addon_groups_validate = ui.global::<ProductConfigState>().get_config_addon_groups();
         for gi in 0..addon_groups_validate.row_count() {
             let g = addon_groups_validate.row_data(gi).unwrap();
             if g.min_select <= 0 { continue; }
@@ -545,17 +546,17 @@ pub(crate) fn setup_config_confirm(ui: &MainWindow) {
                 .filter(|a| a.selected)
                 .count() as i32;
             if selected < g.min_select {
-                ui.set_config_error(SharedString::from(format!(
+                ui.global::<ProductConfigState>().set_config_error(SharedString::from(format!(
                     "“{}”: selecione pelo menos {} opções", g.name, g.min_select
                 )));
                 return;
             }
         }
-        ui.set_config_error(SharedString::default());
+        ui.global::<ProductConfigState>().set_config_error(SharedString::default());
 
-        let name = ui.get_config_product_name().to_string();
-        let base = ui.get_config_base_price() as f64;
-        let qty = ui.get_config_qty().max(1) as f64;
+        let name = ui.global::<ProductConfigState>().get_config_product_name().to_string();
+        let base = ui.global::<ProductConfigState>().get_config_base_price() as f64;
+        let qty = ui.global::<ProductConfigState>().get_config_qty().max(1) as f64;
         // Monta o snapshot mesma forma do web (vide
         // `build_variations_snapshot` / `build_addons_snapshot`).
         // Cada item carrega `group` (título da variação / nome do grupo
@@ -595,7 +596,7 @@ pub(crate) fn setup_config_confirm(ui: &MainWindow) {
                 }
             }
         }
-        let groups = ui.get_config_addon_groups();
+        let groups = ui.global::<ProductConfigState>().get_config_addon_groups();
         for gi in 0..groups.row_count() {
             let g = groups.row_data(gi).unwrap();
             let group_name = g.name.to_string();
@@ -622,8 +623,8 @@ pub(crate) fn setup_config_confirm(ui: &MainWindow) {
         //   preservando o `item_id` original (UUID existente do
         //   OrderItem ou sentinel "new:" se o item ainda nem foi
         //   salvo), para que o save atualize a mesma linha.
-        let edit_idx = ui.get_config_edit_idx();
-        let model = ui.get_edit_order_items();
+        let edit_idx = ui.global::<ProductConfigState>().get_config_edit_idx();
+        let model = ui.global::<OrdersState>().get_edit_order_items();
         if let Some(vm) = model.as_any().downcast_ref::<VecModel<crate::EditOrderItem>>() {
             if edit_idx >= 0 {
                 let existing = vm.row_data(edit_idx as usize);
@@ -661,7 +662,7 @@ pub(crate) fn setup_config_confirm(ui: &MainWindow) {
 /// O item em edição (se houver) permanece intacto na lista.
 pub(crate) fn setup_config_cancel(ui: &MainWindow) {
     let ui_weak = ui.as_weak();
-    ui.on_config_cancel(move || {
+    ui.global::<ProductConfigState>().on_config_cancel(move || {
         let Some(ui) = ui_weak.upgrade() else { return };
         reset_config_state(&ui);
     });
@@ -673,16 +674,16 @@ pub(crate) fn setup_config_cancel(ui: &MainWindow) {
 /// mesmo cleanup — manter em sincronia evita resíduo de seleções
 /// vazando para o próximo produto configurado.
 fn reset_config_state(ui: &MainWindow) {
-    ui.set_config_product_id(SharedString::default());
-    ui.set_config_product_name(SharedString::default());
-    ui.set_config_product_image(slint::Image::default());
-    ui.set_config_variations(ModelRc::new(VecModel::from(Vec::<crate::ConfigVariation>::new())));
-    ui.set_config_addon_groups(ModelRc::new(VecModel::from(Vec::<crate::ConfigAddonGroup>::new())));
-    ui.set_config_qty(1);
-    ui.set_config_base_price(0.0);
-    ui.set_config_final_display(SharedString::from("R$ 0,00"));
-    ui.set_config_error(SharedString::default());
-    ui.set_config_edit_idx(-1);
+    ui.global::<ProductConfigState>().set_config_product_id(SharedString::default());
+    ui.global::<ProductConfigState>().set_config_product_name(SharedString::default());
+    ui.global::<ProductConfigState>().set_config_product_image(slint::Image::default());
+    ui.global::<ProductConfigState>().set_config_variations(ModelRc::new(VecModel::from(Vec::<crate::ConfigVariation>::new())));
+    ui.global::<ProductConfigState>().set_config_addon_groups(ModelRc::new(VecModel::from(Vec::<crate::ConfigAddonGroup>::new())));
+    ui.global::<ProductConfigState>().set_config_qty(1);
+    ui.global::<ProductConfigState>().set_config_base_price(0.0);
+    ui.global::<ProductConfigState>().set_config_final_display(SharedString::from("R$ 0,00"));
+    ui.global::<ProductConfigState>().set_config_error(SharedString::default());
+    ui.global::<ProductConfigState>().set_config_edit_idx(-1);
 }
 
 /// Formata o snapshot `addons_json` numa string compacta para exibir

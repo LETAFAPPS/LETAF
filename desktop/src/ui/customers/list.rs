@@ -16,6 +16,7 @@ use crate::{CustomerAddressRow, CustomerOrderRow, MainWindow};
 
 use super::data::{AddressRow, DecodedCustomer, money, order_summary, recency_label, RecentOrder, status_for, status_label_pt};
 use super::crud::{decode_customer_pixel_buffer, decoded_to_customer_data_ref};
+use crate::CustomersState;
 
 /// Callback: carrega clientes + agrega métricas dos pedidos.
 pub(crate) fn setup_refresh_customers(
@@ -28,7 +29,7 @@ pub(crate) fn setup_refresh_customers(
     let state = state.clone();
     let handle = handle.clone();
 
-    ui.on_refresh_customers(move || {
+    ui.global::<CustomersState>().on_refresh_customers(move || {
         let ui_weak = ui_weak.clone();
         let state = state.clone();
         let cache = cache.clone();
@@ -62,10 +63,10 @@ pub(crate) fn setup_refresh_customers(
                 let data = cache2.lock().map(|g| {
                     g.iter().map(decoded_to_customer_data_ref).collect::<Vec<_>>()
                 }).unwrap_or_default();
-                ui.set_customers(ModelRc::new(VecModel::from(data)));
+                ui.global::<CustomersState>().set_customers(ModelRc::new(VecModel::from(data)));
                 // Reaplica a seleção atual para o detalhe refletir
                 // criação/edição sem o operador trocar de tela.
-                let sel = ui.get_selected_customer_id().to_string();
+                let sel = ui.global::<CustomersState>().get_selected_customer_id().to_string();
                 if !sel.is_empty() {
                     apply_selection(&ui, &cache2, &sel);
                 }
@@ -192,7 +193,7 @@ pub(crate) fn setup_filter_customers(
     cache: Arc<std::sync::Mutex<Vec<DecodedCustomer>>>,
 ) {
     let ui_weak = ui.as_weak();
-    ui.on_filter_customers(move |query| {
+    ui.global::<CustomersState>().on_filter_customers(move |query| {
         let Some(ui) = ui_weak.upgrade() else { return };
         let q = query.to_lowercase();
         let data = cache.lock().map(|g| {
@@ -207,7 +208,7 @@ pub(crate) fn setup_filter_customers(
                 .map(decoded_to_customer_data_ref)
                 .collect::<Vec<_>>()
         }).unwrap_or_default();
-        ui.set_customers(ModelRc::new(VecModel::from(data)));
+        ui.global::<CustomersState>().set_customers(ModelRc::new(VecModel::from(data)));
     });
 }
 
@@ -236,10 +237,10 @@ pub(crate) fn apply_selection(ui: &MainWindow, cache: &std::sync::Mutex<Vec<Deco
             (data, rows, addrs)
         }));
     if let Some((data, rows, addrs)) = found {
-        ui.set_selected_customer_id(SharedString::from(id));
-        ui.set_detail_customer(data);
-        ui.set_detail_recent_orders(ModelRc::new(VecModel::from(rows)));
-        ui.set_detail_addresses(ModelRc::new(VecModel::from(addrs)));
+        ui.global::<CustomersState>().set_selected_customer_id(SharedString::from(id));
+        ui.global::<CustomersState>().set_detail_customer(data);
+        ui.global::<CustomersState>().set_detail_recent_orders(ModelRc::new(VecModel::from(rows)));
+        ui.global::<CustomersState>().set_detail_addresses(ModelRc::new(VecModel::from(addrs)));
     }
 }
 
@@ -248,7 +249,7 @@ pub(crate) fn setup_select_customer(
     cache: Arc<std::sync::Mutex<Vec<DecodedCustomer>>>,
 ) {
     let ui_weak = ui.as_weak();
-    ui.on_select_customer(move |id| {
+    ui.global::<CustomersState>().on_select_customer(move |id| {
         let Some(ui) = ui_weak.upgrade() else { return };
         apply_selection(&ui, &cache, id.as_str());
     });

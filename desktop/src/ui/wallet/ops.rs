@@ -9,6 +9,7 @@ use crate::MainWindow;
 
 use super::super::helpers::show_toast;
 use super::core::refresh_for_selected;
+use crate::{CustomersState, FinanceState, WalletState};
 
 // ── Abrir carteira ───────────────────────────────────────────────
 
@@ -21,9 +22,9 @@ pub(crate) fn setup_confirm_open(
     let ui_weak = ui.as_weak();
     let state = state.clone();
     let handle = handle.clone();
-    ui.on_wallet_confirm_open(move || {
+    ui.global::<WalletState>().on_wallet_confirm_open(move || {
         let Some(ui) = ui_weak.upgrade() else { return };
-        let customer_id_s = ui.get_selected_customer_id().to_string();
+        let customer_id_s = ui.global::<CustomersState>().get_selected_customer_id().to_string();
         let Ok(customer_id) = Uuid::parse_str(&customer_id_s) else { return };
         let cid = state.company_id();
         let ui_weak = ui_weak.clone();
@@ -59,7 +60,7 @@ pub(crate) fn setup_confirm_deposit(
     let ui_weak = ui.as_weak();
     let state = state.clone();
     let handle = handle.clone();
-    ui.on_wallet_confirm_deposit(move || {
+    ui.global::<WalletState>().on_wallet_confirm_deposit(move || {
         confirm_op(
             &ui_weak,
             &state,
@@ -79,7 +80,7 @@ pub(crate) fn setup_confirm_withdraw(
     let ui_weak = ui.as_weak();
     let state = state.clone();
     let handle = handle.clone();
-    ui.on_wallet_confirm_withdraw(move || {
+    ui.global::<WalletState>().on_wallet_confirm_withdraw(move || {
         confirm_op(
             &ui_weak,
             &state,
@@ -99,7 +100,7 @@ pub(crate) fn setup_confirm_adjust(
     let ui_weak = ui.as_weak();
     let state = state.clone();
     let handle = handle.clone();
-    ui.on_wallet_confirm_adjust(move || {
+    ui.global::<WalletState>().on_wallet_confirm_adjust(move || {
         confirm_op(
             &ui_weak,
             &state,
@@ -119,24 +120,24 @@ pub(crate) fn setup_confirm_limit(
     let ui_weak = ui.as_weak();
     let state = state.clone();
     let handle = handle.clone();
-    ui.on_wallet_confirm_limit(move || {
+    ui.global::<WalletState>().on_wallet_confirm_limit(move || {
         let Some(ui) = ui_weak.upgrade() else { return };
-        let raw = ui.get_wallet_form_limit().to_string();
+        let raw = ui.global::<WalletState>().get_wallet_form_limit().to_string();
         let Some(limit) = parse_amount(&raw, false) else {
-            ui.set_wallet_form_error(SharedString::from("Informe um valor válido"));
+            ui.global::<WalletState>().set_wallet_form_error(SharedString::from("Informe um valor válido"));
             return;
         };
         if limit < 0.0 {
-            ui.set_wallet_form_error(SharedString::from("Limite deve ser zero ou positivo"));
+            ui.global::<WalletState>().set_wallet_form_error(SharedString::from("Limite deve ser zero ou positivo"));
             return;
         }
-        let account_id_s = ui.get_wallet_summary().account_id.to_string();
+        let account_id_s = ui.global::<WalletState>().get_wallet_summary().account_id.to_string();
         let Ok(account_id) = Uuid::parse_str(&account_id_s) else {
-            ui.set_wallet_form_error(SharedString::from("Abra a carteira primeiro"));
+            ui.global::<WalletState>().set_wallet_form_error(SharedString::from("Abra a carteira primeiro"));
             return;
         };
         // Observação do modal — registrada no movimento "Limite de fiado".
-        let notes_s = ui.get_wallet_form_notes().to_string();
+        let notes_s = ui.global::<WalletState>().get_wallet_form_notes().to_string();
         let notes_opt = if notes_s.is_empty() { None } else { Some(notes_s) };
         let cid = state.company_id();
         let ui_weak = ui_weak.clone();
@@ -154,7 +155,7 @@ pub(crate) fn setup_confirm_limit(
                     let ui_weak2 = ui_weak.clone();
                     let _ = slint::invoke_from_event_loop(move || {
                         if let Some(ui) = ui_weak2.upgrade() {
-                            ui.set_wallet_show_limit(false);
+                            ui.global::<WalletState>().set_wallet_show_limit(false);
                             show_toast(&ui, "Limite atualizado", "success");
                         }
                     });
@@ -181,31 +182,31 @@ pub(crate) fn confirm_op(
     op: OpKind,
 ) {
     let Some(ui) = ui_weak.upgrade() else { return };
-    let amount_s = ui.get_wallet_form_amount().to_string();
-    let notes_s = ui.get_wallet_form_notes().to_string();
+    let amount_s = ui.global::<WalletState>().get_wallet_form_amount().to_string();
+    let notes_s = ui.global::<WalletState>().get_wallet_form_notes().to_string();
     // ajuste permite negativo
     let allow_neg = matches!(op, OpKind::Adjust);
     let Some(amount) = parse_amount(&amount_s, allow_neg) else {
-        ui.set_wallet_form_error(SharedString::from(
+        ui.global::<WalletState>().set_wallet_form_error(SharedString::from(
             "Informe um valor válido",
         ));
         return;
     };
     if !allow_neg && amount <= 0.0 {
-        ui.set_wallet_form_error(SharedString::from(
+        ui.global::<WalletState>().set_wallet_form_error(SharedString::from(
             "Valor deve ser maior que zero",
         ));
         return;
     }
     if matches!(op, OpKind::Adjust) && notes_s.trim().is_empty() {
-        ui.set_wallet_form_error(SharedString::from(
+        ui.global::<WalletState>().set_wallet_form_error(SharedString::from(
             "Justificativa obrigatória para ajuste manual",
         ));
         return;
     }
-    let account_id_s = ui.get_wallet_summary().account_id.to_string();
+    let account_id_s = ui.global::<WalletState>().get_wallet_summary().account_id.to_string();
     let Ok(account_id) = Uuid::parse_str(&account_id_s) else {
-        ui.set_wallet_form_error(SharedString::from("Abra a carteira primeiro"));
+        ui.global::<WalletState>().set_wallet_form_error(SharedString::from("Abra a carteira primeiro"));
         return;
     };
     let cid = state.company_id();
@@ -240,12 +241,12 @@ pub(crate) fn confirm_op(
                 let ui_weak2 = ui_weak.clone();
                 let _ = slint::invoke_from_event_loop(move || {
                     if let Some(ui) = ui_weak2.upgrade() {
-                        ui.set_wallet_show_deposit(false);
-                        ui.set_wallet_show_withdraw(false);
-                        ui.set_wallet_show_adjust(false);
+                        ui.global::<WalletState>().set_wallet_show_deposit(false);
+                        ui.global::<WalletState>().set_wallet_show_withdraw(false);
+                        ui.global::<WalletState>().set_wallet_show_adjust(false);
                         show_toast(&ui, "Operação registrada", "success");
                         // Reflete a conta a receber do fiado na hora.
-                        ui.invoke_finance_refresh();
+                        ui.global::<FinanceState>().invoke_finance_refresh();
                     }
                 });
                 refresh_for_selected(&ui_weak, &state, &handle_inner);
@@ -260,7 +261,7 @@ pub(crate) fn set_form_error(ui_weak: &slint::Weak<MainWindow>, msg: &str) {
     let ui_weak = ui_weak.clone();
     let _ = slint::invoke_from_event_loop(move || {
         if let Some(ui) = ui_weak.upgrade() {
-            ui.set_wallet_form_error(SharedString::from(msg));
+            ui.global::<WalletState>().set_wallet_form_error(SharedString::from(msg));
         }
     });
 }

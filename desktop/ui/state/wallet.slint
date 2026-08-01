@@ -1,0 +1,43 @@
+// Estado da feature CARTEIRA DO CLIENTE (saldo, fiado e limite), isolado do MainWindow.
+//
+// Por que um `global` (AI_RULES §8 / "Modularidade real"): em Slint as
+// propriedades de um componente vivem todas no mesmo arquivo — o
+// `main.slint` concentrava ~830 declaracoes de ~30 features. `global` e
+// o unico mecanismo da linguagem para separar estado por dominio sem
+// prop drilling, e o projeto ja o usa em `Theme`, `IconGlyph` e
+// `AdminState`.
+//
+// Acesso: no Slint, `WalletState.<prop>`; no Rust,
+// `ui.global::<WalletState>().set_<prop>()` / `.on_<callback>()`.
+// Logica em desktop/src/ui/wallet. O espelho da carteira dentro do PDV
+// (`pdv-wallet-*`) fica no PdvState — la e so leitura para a venda.
+import { WalletMovementRow, WalletSummary } from "../types.slint";
+
+export global WalletState {
+    // ── Carteira do cliente (Fase 12) ─────────────────────────────
+    in-out property <WalletSummary> wallet-summary;
+    in-out property <[WalletMovementRow]> wallet-movements: [];
+    // Modais — um boolean por modal e um conjunto compartilhado de
+    // campos. Rust limpa/popula antes de abrir cada modal.
+    in-out property <bool>   wallet-show-deposit: false;
+    in-out property <bool>   wallet-show-withdraw: false;
+    in-out property <bool>   wallet-show-adjust: false;
+    in-out property <bool>   wallet-show-limit: false;
+    in-out property <bool>   wallet-show-open: false;   // "abrir carteira"
+    in-out property <string> wallet-form-amount: "";
+    in-out property <string> wallet-form-notes: "";
+    in-out property <string> wallet-form-limit: "";
+    in-out property <string> wallet-form-error: "";
+    callback wallet-open-deposit();
+    callback wallet-open-withdraw();
+    callback wallet-open-adjust();
+    callback wallet-open-limit();
+    callback wallet-close-modals();
+    callback wallet-confirm-deposit();
+    callback wallet-confirm-withdraw();
+    callback wallet-confirm-adjust();
+    callback wallet-confirm-limit();
+    /// Abre a carteira (open_account) — usado quando o cliente ainda
+    /// não tem carteira ativa.
+    callback wallet-confirm-open();
+}

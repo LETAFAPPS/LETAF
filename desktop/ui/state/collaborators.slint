@@ -1,0 +1,43 @@
+// Estado da feature COLABORADORES (RBAC: funcoes + funcionarios), isolado do MainWindow.
+//
+// Por que um `global` (AI_RULES §8 / "Modularidade real"): em Slint as
+// propriedades de um componente vivem todas no mesmo arquivo — o
+// `main.slint` concentrava ~830 declaracoes de ~30 features. `global` e
+// o unico mecanismo da linguagem para separar estado por dominio sem
+// prop drilling, e o projeto ja o usa em `Theme`, `IconGlyph` e
+// `AdminState`.
+//
+// Acesso: no Slint, `CollaboratorsState.<prop>`; no Rust,
+// `ui.global::<CollaboratorsState>().set_<prop>()` / `.on_<callback>()`.
+// Logica em desktop/src/ui/collaborators. As permissoes de NAVEGACAO
+// (`nav-perms`) ficam no MainWindow porque governam a sidebar.
+import { CollabEmployeeRow, CollabPermRow, CollabRoleRow } from "../types.slint";
+
+export global CollaboratorsState {
+    // ── Colaboradores (RBAC) ──
+    in-out property <[CollabRoleRow]> collab-roles;
+    in-out property <[CollabEmployeeRow]> collab-employees;
+    in-out property <[CollabPermRow]> collab-perm-rows;
+    in-out property <[string]> collab-role-combo;
+    in-out property <string> collab-editing-role-id;
+    in-out property <string> collab-role-name;
+    in-out property <string> collab-emp-id;
+    in-out property <string> collab-emp-name;
+    in-out property <string> collab-emp-email;
+    in-out property <string> collab-emp-password;
+    in-out property <int> collab-emp-role-index;
+    in-out property <int> collab-perm-active;
+    in-out property <int> collab-perm-total;
+    callback refresh-collaborators();
+    callback collab-mark-all-perms();
+    callback collab-new-role();
+    callback collab-edit-role(string);
+    callback collab-save-role(string, string);
+    callback collab-toggle-perm(string, bool, bool);
+    callback collab-new-employee();
+    callback collab-edit-employee(string);
+    callback collab-save-employee(string, string, string, string, int);
+    /// Busca das listas mestres de Funções/Funcionários (filtro no Rust).
+    callback collab-role-search-changed(string);
+    callback collab-emp-search-changed(string);
+}

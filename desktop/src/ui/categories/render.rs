@@ -12,6 +12,8 @@ use crate::{CatProduct, CatSub, CatTreeRow, CategoryData, MainWindow};
 
 use super::super::image::decode_pixel_buffer;
 use super::crud::to_category_data;
+use slint::ComponentHandle;
+use crate::CategoriesState;
 
 /// Cache do master-detail de Categorias. Mantém o snapshot do SQLite e
 /// o estado de UI (expansão da árvore e seleção) para que o detalhe
@@ -114,11 +116,11 @@ pub(crate) fn resolve_category(cache: &CatCache, id: Uuid) -> Option<Uuid> {
 /// Popula os campos de detalhe da categoria selecionada.
 pub(crate) fn apply_detail(ui: &MainWindow, cache: &CatCache) {
     let Some(sel) = cache.selected.and_then(|id| resolve_category(cache, id)) else {
-        ui.set_selected_category_id(SharedString::default());
+        ui.global::<CategoriesState>().set_selected_category_id(SharedString::default());
         return;
     };
     let Some(cat) = cache.categories.iter().find(|c| c.base.id == sel) else {
-        ui.set_selected_category_id(SharedString::default());
+        ui.global::<CategoriesState>().set_selected_category_id(SharedString::default());
         return;
     };
 
@@ -218,30 +220,30 @@ pub(crate) fn apply_detail(ui: &MainWindow, cache: &CatCache) {
         0
     };
 
-    ui.set_selected_category_id(SharedString::from(sel.to_string()));
-    ui.set_detail_category(to_category_data(cat));
-    ui.set_detail_color(cat_color(category_index(cache, sel)));
-    ui.set_detail_prod_count(prod_rows.len() as i32);
-    ui.set_detail_sub_count(sub_rows.len() as i32);
-    ui.set_detail_stock_value(SharedString::from(money_br(stock_value)));
-    ui.set_detail_catalog_pct(SharedString::from(format!("{pct}%")));
-    ui.set_detail_catalog_hint(SharedString::from(format!(
+    ui.global::<CategoriesState>().set_selected_category_id(SharedString::from(sel.to_string()));
+    ui.global::<CategoriesState>().set_detail_category(to_category_data(cat));
+    ui.global::<CategoriesState>().set_detail_color(cat_color(category_index(cache, sel)));
+    ui.global::<CategoriesState>().set_detail_prod_count(prod_rows.len() as i32);
+    ui.global::<CategoriesState>().set_detail_sub_count(sub_rows.len() as i32);
+    ui.global::<CategoriesState>().set_detail_stock_value(SharedString::from(money_br(stock_value)));
+    ui.global::<CategoriesState>().set_detail_catalog_pct(SharedString::from(format!("{pct}%")));
+    ui.global::<CategoriesState>().set_detail_catalog_hint(SharedString::from(format!(
         "{} de {} Produtos",
         prod_rows.len(),
         total_active
     )));
-    ui.set_detail_cat_products(ModelRc::new(VecModel::from(prod_rows)));
-    ui.set_detail_cat_subs(ModelRc::new(VecModel::from(sub_rows)));
+    ui.global::<CategoriesState>().set_detail_cat_products(ModelRc::new(VecModel::from(prod_rows)));
+    ui.global::<CategoriesState>().set_detail_cat_subs(ModelRc::new(VecModel::from(sub_rows)));
 }
 
 /// Reflete o cache na UI (árvore + detalhe + lista auxiliar usada
 /// pelos pickers do formulário de produto/subcategoria).
 pub(crate) fn apply_cache(ui: &MainWindow, cache: &CatCache) {
     let tree = build_tree(cache);
-    ui.set_category_tree(ModelRc::new(VecModel::from(tree)));
-    ui.set_category_count(cache.categories.len() as i32);
+    ui.global::<CategoriesState>().set_category_tree(ModelRc::new(VecModel::from(tree)));
+    ui.global::<CategoriesState>().set_category_count(cache.categories.len() as i32);
     let cats: Vec<CategoryData> = cache.categories.iter().map(to_category_data).collect();
-    ui.set_categories(ModelRc::new(VecModel::from(cats)));
+    ui.global::<CategoriesState>().set_categories(ModelRc::new(VecModel::from(cats)));
     apply_detail(ui, cache);
 }
 

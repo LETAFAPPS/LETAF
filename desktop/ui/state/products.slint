@@ -1,0 +1,156 @@
+// Estado da feature PRODUTOS (lista master-detail + formulario + filtros), isolado do MainWindow.
+//
+// Por que um `global` (AI_RULES §8 / "Modularidade real"): em Slint as
+// propriedades de um componente vivem todas no mesmo arquivo — o
+// `main.slint` concentrava ~830 declaracoes de ~30 features. `global` e
+// o unico mecanismo da linguagem para separar estado por dominio sem
+// prop drilling, e o projeto ja o usa em `Theme`, `IconGlyph` e
+// `AdminState`.
+//
+// Acesso: no Slint, `ProductsState.<prop>`; no Rust,
+// `ui.global::<ProductsState>().set_<prop>()` / `.on_<callback>()`.
+// Logica em desktop/src/ui/products.
+import { AddonGroupData, BusinessHoursData, CategoryFilterEntry, DiscountTierData, ProductData, SubcategoryFilterEntry, VariationData } from "../types.slint";
+
+export global ProductsState {
+    // ── Produtos ────────────────────────────────────
+    in-out property <[ProductData]> products: [];
+    in-out property <int> products-active-count: 0;
+    in-out property <int> products-inactive-count: 0;
+    /// ID do produto selecionado na master-detail. Vazio = nenhum
+    /// (detalhe mostra placeholder). Alterado via callback
+    /// `select-product`; o Rust valida e popula `detail-product`.
+    in-out property <string> selected-product-id: "";
+    /// Snapshot do produto mostrado no painel direito da tela
+    /// Produtos. O Rust monta o ProductData a partir do cache em
+    /// `select-product`.
+    in-out property <ProductData> detail-product;
+    in-out property <string> product-name: "";
+    in-out property <string> product-description: "";
+    in-out property <string> product-price: "";
+    /// Preço de custo (Fase 9 — tela Produtos). Vazio = sem custo
+    /// cadastrado; a UI mostra "—" na margem e o relatório de
+    /// rentabilidade ignora o item.
+    in-out property <string> product-cost-price: "";
+    in-out property <string> product-stock-quantity: "";
+    /// Estoque mínimo desejado (Fase 9). Vazio/0 desliga o alerta
+    /// "baixo" e a sugestão de compra. Segue a mesma regra de
+    /// arredondamento do estoque atual conforme a unidade.
+    in-out property <string> product-min-stock: "";
+    /// Resumo de margem em pt-BR (Fase 9). "—" quando faltam dados
+    /// (sem preço ou sem custo). Recalculado pelo Rust no
+    /// request-edit/request-new.
+    in-out property <string> product-margin-display: "—";
+    in-out property <string> product-barcode: "";
+    in-out property <string> product-unit: "un";
+    /// "weight" | "price" — só relevante quando unit == "kg".
+    /// Padrão "price": a maioria das balanças no varejo brasileiro emite
+    /// etiqueta com o valor já calculado (não com o peso). [[product_modal_balance_mode]]
+    in-out property <string> product-balance-mode: "price";
+    in-out property <string> product-image-data: "";
+    /// Cor de fundo detectada nas bordas da imagem do produto (#RRGGBB).
+    /// Vazio = não detectado / imagem transparente → card cai no tema.
+    in-out property <string> product-cover-color: "";
+    in-out property <bool>   product-image-loading: false;
+    /// Quando `true`, o produto é tratado como "estoque infinito": filtros
+    /// do catálogo nunca o escondem por falta de estoque, carrinho não
+    /// impõe teto e baixa de estoque é pulada no `OrderService::create`.
+    in-out property <bool>   product-unlimited-stock: false;
+    /// Disponibilidade do produto no cardápio web: quando `false`, o
+    /// produto está sempre disponível; quando `true`, segue a agenda em
+    /// `product-availability` (7 entradas, uma por dia).
+    in-out property <bool>   product-availability-enabled: false;
+    in-out property <[BusinessHoursData]> product-availability: [];
+    /// Tipo de desconto: "none" (UI sentinel) ou um dos 4 kinds do core.
+    in-out property <string> product-discount-kind: "none";
+    in-out property <string> product-discount-value: "";
+    in-out property <string> product-discount-min-qty: "";
+    /// Faixas (tiers) para `bulk_*`. O Rust serializa/desserializa o JSON
+    /// e popula esta lista — push/remove via `add-discount-tier` /
+    /// `remove-discount-tier` (callbacks também no Rust).
+    in-out property <[DiscountTierData]> product-discount-tiers: [];
+    in-out property <string> product-category-id: "";
+    in-out property <string> product-category-name: "";
+    in-out property <bool>   product-category-open: false;
+    in-out property <string> product-subcategory-id: "";
+    in-out property <string> product-subcategory-name: "";
+    in-out property <bool>   product-subcategory-open: false;
+    in-out property <string> product-error-name: "";
+    in-out property <string> product-error-price: "";
+    in-out property <string> product-error-stock: "";
+    in-out property <string> product-save-error: "";
+    callback add-product();
+    callback update-product();
+    callback toggle-product-active(string);
+    callback toggle-product-web-visible(string);
+    callback delete-product(string);
+    /// Duplica um produto: o Rust lê o original, cria uma cópia com
+    /// novo ID + nome "(cópia)" e devolve o ProductData no modelo.
+    callback duplicate-product(string);
+    /// Seleciona o produto pelo ID na master-detail. O Rust resolve
+    /// `detail-product` a partir do cache e atualiza `selected-product-id`.
+    callback select-product(string);
+    /// Limpa o snapshot `detail-product` para o estado default (sem
+    /// imagem, sem cor, etc.). Slint não permite atribuir campos
+    /// individuais de struct, então o reset acontece no Rust.
+    /// Disparado pelo `request-new` antes de zerar o form.
+    callback clear-detail-product();
+    callback refresh-products();
+    /// Aplica o filtro de produtos com a busca textual atual; os demais
+    /// filtros (categorias, subcategorias, status, estoque) ficam no
+    /// Rust e são alterados via os toggle-/set-* callbacks abaixo.
+    callback filter-products(string);
+    callback pick-product-image();
+    callback remove-product-image();
+    /// Pede ao Rust para deserializar o JSON da agenda e popular
+    /// `product-availability` (7 entradas). String vazia → carrega
+    /// o default (todos os dias ativos 08:00-22:00).
+    callback load-product-availability(string);
+    /// Recarrega `product-addon-groups` (chips) marcando `selected` para
+    /// cada ID presente no CSV. String vazia = sem nenhum marcado.
+    callback load-product-addon-groups(string);
+    /// Adiciona uma faixa em branco em `product-discount-tiers`.
+    /// O Rust faz push no VecModel — o Slint não tem helper de array.
+    callback add-discount-tier();
+    /// Remove a faixa no índice indicado.
+    callback remove-discount-tier(int);
+    /// Pede ao Rust para parsear o JSON `discount_tiers` e popular a
+    /// lista exposta na UI. String vazia limpa a lista.
+    callback load-discount-tiers(string);
+    // ── Estado de filtros de produtos (multi-select, mantido no Rust) ──
+    //
+    // Regras aplicadas (AI_RULES.md §1, §11):
+    // - O estado da seleção fica no Rust; o Slint apenas reflete o que
+    //   o Rust devolve via `filter-cats` / `filter-subs` (com `selected:
+    //   bool` em cada entrada). Isso evita lógica de set/manipulação de
+    //   coleções dentro do Slint.
+    // - `filter-status` / `filter-stock` são strings simples com 3
+    //   valores: "active" | "inactive" | "both" (e o equivalente para
+    //   estoque). Padrão: "active" + "with" (só vendáveis).
+    in-out property <[CategoryFilterEntry]>    filter-cats: [];
+    in-out property <[SubcategoryFilterEntry]> filter-subs: [];
+    in-out property <string> filter-status: "both";
+    in-out property <string> filter-stock:  "both";
+    in-out property <int>    filter-active-count: 0;
+    callback toggle-category-filter(string);
+    callback toggle-subcategory-filter(string);
+    callback set-status-filter(string);
+    callback set-stock-filter(string);
+    callback reset-product-filters();
+    // Lista de grupos exibida como chips no form do produto. A diferença
+    // é o flag `selected` por linha (= produto em edição usa esse grupo).
+    in-out property <[AddonGroupData]> product-addon-groups: [];
+    callback toggle-product-addon-group(string);
+    // ── Variações (Fase 5B) ─────────────────────────────────
+    // Lista mutável de variações do produto em edição. Rust gere
+    // push/remove (VecModel) via callbacks; campos de texto são
+    // editados diretamente via bindings inline na Slint.
+    in-out property <[VariationData]> product-variations: [];
+    callback add-variation();
+    callback remove-variation(int);
+    callback add-variation-option(int);
+    callback remove-variation-option(int, int);
+    /// Recarrega `product-variations` a partir do JSON persistido no
+    /// produto. String vazia limpa a lista.
+    callback load-product-variations(string);
+}

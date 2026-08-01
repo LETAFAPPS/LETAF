@@ -1,0 +1,140 @@
+// Estado da feature FINANCEIRO (contas a pagar/receber, calendario e baixas), isolado do MainWindow.
+//
+// Por que um `global` (AI_RULES §8 / "Modularidade real"): em Slint as
+// propriedades de um componente vivem todas no mesmo arquivo — o
+// `main.slint` concentrava ~830 declaracoes de ~30 features. `global` e
+// o unico mecanismo da linguagem para separar estado por dominio sem
+// prop drilling, e o projeto ja o usa em `Theme`, `IconGlyph` e
+// `AdminState`.
+//
+// Acesso: no Slint, `FinanceState.<prop>`; no Rust,
+// `ui.global::<FinanceState>().set_<prop>()` / `.on_<callback>()`.
+// Logica em desktop/src/ui/finance. O badge `finance-overdue-count` fica
+// no MainWindow porque pertence a navegacao (sidebar).
+import { CalDay, FinanceCalendarCell, FinanceCashFlowPoint, FinanceCategoryOption, FinanceDayRow, FinanceEntryRow, FinanceKpi, FinanceTab, PdvCustomerRow } from "../types.slint";
+
+export global FinanceState {
+    // ── Financeiro (contas a pagar/receber) ───────────────────────
+    /// "receivable" (A receber) | "payable" (A pagar)
+    in-out property <string> finance-active-tab: "receivable";
+    /// Termo de busca livre na lista.
+    in-out property <string> finance-search-query: "";
+    /// Filtro de status. "all" | "open" | "overdue" | "settled".
+    in-out property <string> finance-status-filter: "all";
+    // Página atual de cada grupo (paginação de 10 por status). O Rust lê
+    // estas props em apply_snapshot e grava de volta o valor clampeado.
+    in-out property <int> finance-page-overdue: 1;
+    in-out property <int> finance-page-pending: 1;
+    in-out property <int> finance-page-settled: 1;
+    in-out property <int> finance-page-cancelled: 1;
+    in-out property <[FinanceKpi]> finance-kpis: [];
+    in-out property <[FinanceTab]> finance-tabs: [];
+    in-out property <[FinanceEntryRow]> finance-entries: [];
+    /// Categorias disponíveis no modal (filtradas por escopo no Rust).
+    in-out property <[FinanceCategoryOption]> finance-categories: [];
+    /// Gráfico "Fluxo de caixa — 30 dias" no topo da tela.
+    in-out property <[FinanceCashFlowPoint]> finance-cash-flow: [];
+    /// Sub-rótulo do gráfico: "saldo previsto: R$ -5.541,50".
+    in-out property <string> finance-cash-flow-summary: "";
+    /// Modo de visualização: "list" (default) | "calendar".
+    in-out property <string> finance-view-mode: "list";
+    /// Cabeçalho do calendário ("Maio · 2026") + total do mês.
+    in-out property <string> finance-cal-title: "";
+    in-out property <string> finance-cal-month-total: "";
+    /// Sempre 42 células (6 semanas × 7 dias).
+    in-out property <[FinanceCalendarCell]> finance-cal-cells: [];
+    /// Dia atualmente selecionado: "" = nenhum; senão "AAAA-MM-DD".
+    in-out property <string> finance-cal-selected: "";
+    /// Texto exibido no header do painel lateral ("HOJE · DIA 12/05").
+    in-out property <string> finance-cal-detail-header: "";
+    in-out property <string> finance-cal-detail-summary: "";
+    /// Lançamentos do dia selecionado.
+    in-out property <[FinanceDayRow]> finance-cal-detail-rows: [];
+    callback finance-set-view(string);          // "list" | "calendar"
+    callback finance-cal-prev();                // mês anterior
+    callback finance-cal-next();                // próximo mês
+    callback finance-cal-select-day(int);       // dia 1..31; Rust resolve ano/mês
+    // ── Modal: picker de cliente/fornecedor ──────────────────────
+    // Reusa PdvCustomerRow (id, name, phone, document) já existente.
+    in-out property <[PdvCustomerRow]> finance-party-options: [];
+    in-out property <bool>   finance-show-party-picker: false;
+    in-out property <string> finance-party-search: "";
+    callback finance-open-party-picker();
+    callback finance-close-party-picker();
+    callback finance-party-search-changed(string);
+    callback finance-pick-party(string);        // id ("" = limpar)
+    // ── Modal: calendário pop-up do campo Vencimento ─────────────
+    in-out property <bool>     finance-due-cal-open: false;
+    in-out property <string>   finance-due-cal-title: "";
+    in-out property <[CalDay]> finance-due-cal-days: [];
+    callback finance-due-cal-toggle();
+    callback finance-due-cal-prev();
+    callback finance-due-cal-next();
+    callback finance-due-cal-pick(string);      // "YYYY-MM-DD"
+    callback finance-cal-today();               // volta para o mês de hoje
+    /// Modal "Nova conta a pagar/receber" — campos do formulário.
+    in-out property <bool>   finance-show-modal: false;
+    in-out property <string> finance-form-kind: "payable"; // "payable" | "receivable"
+    in-out property <string> finance-form-editing-id: ""; // "" = criação
+    in-out property <string> finance-form-description: "";
+    in-out property <string> finance-form-party: "";
+    /// UUID do cliente/fornecedor selecionado via picker. Vazio = "Outros"
+    /// (party_type = Other no service).
+    in-out property <string> finance-form-party-id: "";
+    in-out property <string> finance-form-category-id: "";
+    in-out property <string> finance-form-amount: "";
+    in-out property <string> finance-form-due-date: "";
+    in-out property <int>    finance-form-installments: 1;
+    in-out property <string> finance-form-recurrence: "once"; // once|weekly|monthly|custom
+    in-out property <string> finance-form-notes: "";
+    /// Lançamento sem data de vencimento (fiado sempre; opcional nos demais).
+    in-out property <bool> finance-form-no-due: false;
+    /// Conta automática do fiado — modal esconde a observação interna.
+    in-out property <bool> finance-form-is-fiado: false;
+    /// Mensagens de erro de validação por campo (vazias = ok).
+    in-out property <string> finance-form-error-description: "";
+    in-out property <string> finance-form-error-amount: "";
+    in-out property <string> finance-form-error-due-date: "";
+    in-out property <string> finance-form-error-general: "";
+    callback finance-refresh();
+    callback finance-set-tab(string);
+    callback finance-search-changed(string);
+    callback finance-set-status-filter(string);
+    // Troca a página de um grupo de status: (status-key, page).
+    callback finance-set-group-page(string, int);
+    callback finance-open-new(string);        // "payable" | "receivable"
+    callback finance-open-edit(string);       // id
+    callback finance-close-modal();
+    callback finance-save-modal();
+    // Confirmação de baixa: a row chama `finance-request-settle(id)`
+    // que popula os campos abaixo e mostra o modal. "Confirmar" no
+    // modal invoca `finance-confirm-settle` (que aciona o Rust real).
+    in-out property <bool>   finance-show-settle-confirm: false;
+    in-out property <string> finance-settle-target-id: "";
+    in-out property <string> finance-settle-target-kind: "";       // "payable" | "receivable"
+    in-out property <string> finance-settle-target-desc: "";
+    in-out property <string> finance-settle-target-party: "";
+    in-out property <string> finance-settle-target-amount: "";
+    /// Valor informado no recebimento (pré-preenchido com o valor da conta).
+    in-out property <string> finance-settle-amount-input: "";
+    /// Forma de pagamento do recebimento ("cash" | "credit" | "debit" | "pix").
+    in-out property <string> finance-settle-method: "cash";
+    callback finance-request-settle(string);
+    callback finance-confirm-settle();
+    callback finance-close-settle-confirm();
+    callback finance-mark-settled(string);    // id → marca pago/recebido
+    // Confirmação de exclusão — fluxo análogo ao da baixa.
+    in-out property <bool>   finance-show-delete-confirm: false;
+    in-out property <string> finance-delete-target-id: "";
+    in-out property <string> finance-delete-target-desc: "";
+    in-out property <string> finance-delete-target-amount: "";
+    in-out property <string> finance-delete-target-kind: "";
+    callback finance-request-delete(string);
+    callback finance-confirm-delete();
+    callback finance-close-delete-confirm();
+    callback finance-cancel-entry(string);    // id → cancela
+    callback finance-delete-entry(string);    // id → soft delete
+    callback finance-set-recurrence(string);
+    callback finance-set-installments(int);
+    callback finance-set-category(string);
+}

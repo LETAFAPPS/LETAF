@@ -50,6 +50,7 @@ use crate::context::DesktopState;
 use self::helpers::{friendly_error, show_toast};
 use self::products::{DecodedProduct, remove_from_cache, remove_product_from_model};
 use self::customers::DecodedCustomer;
+use crate::{AddonsState, BannersState, CategoriesState, CollaboratorsState, CouponsState, CustomersState, ProductsState};
 
 /// Exibe a foto de perfil em cache (base64) na janela, decodificando-a.
 /// Chamado sincronamente no restore da sessão (main thread, antes do loop)
@@ -349,32 +350,32 @@ fn setup_confirm_delete(
                                 remove_from_cache(&products_cache, id_ss.as_str());
                                 // Limpa o detalhe quando o produto
                                 // excluído era o selecionado.
-                                if ui.get_selected_product_id() == id_ss {
-                                    ui.set_selected_product_id(SharedString::default());
-                                    ui.set_detail_product(crate::ProductData::default());
+                                if ui.global::<ProductsState>().get_selected_product_id() == id_ss {
+                                    ui.global::<ProductsState>().set_selected_product_id(SharedString::default());
+                                    ui.global::<ProductsState>().set_detail_product(crate::ProductData::default());
                                 }
                             }
-                            "category" => ui.invoke_refresh_categories(),
+                            "category" => ui.global::<CategoriesState>().invoke_refresh_categories(),
                             "subcategory" => {
-                                ui.invoke_refresh_subcategories();
-                                ui.invoke_refresh_categories();
+                                ui.global::<CategoriesState>().invoke_refresh_subcategories();
+                                ui.global::<CategoriesState>().invoke_refresh_categories();
                             }
-                            "customer" => ui.invoke_refresh_customers(),
+                            "customer" => ui.global::<CustomersState>().invoke_refresh_customers(),
                             "addon-group" => {
-                                if ui.get_selected_addon_group_id() == id_ss {
-                                    ui.set_selected_addon_group_id(SharedString::default());
-                                    ui.set_selected_addon_group_name(SharedString::default());
+                                if ui.global::<AddonsState>().get_selected_addon_group_id() == id_ss {
+                                    ui.global::<AddonsState>().set_selected_addon_group_id(SharedString::default());
+                                    ui.global::<AddonsState>().set_selected_addon_group_name(SharedString::default());
                                 }
-                                ui.invoke_refresh_addon_groups();
+                                ui.global::<AddonsState>().invoke_refresh_addon_groups();
                             }
                             "addon" => {
-                                let gid = ui.get_selected_addon_group_id();
-                                ui.invoke_refresh_addon_groups();
-                                if !gid.is_empty() { ui.invoke_select_addon_group(gid); }
+                                let gid = ui.global::<AddonsState>().get_selected_addon_group_id();
+                                ui.global::<AddonsState>().invoke_refresh_addon_groups();
+                                if !gid.is_empty() { ui.global::<AddonsState>().invoke_select_addon_group(gid); }
                             }
-                            "banner" => ui.invoke_refresh_banners(),
-                            "coupon" => ui.invoke_refresh_coupons(),
-                            "job-role" | "employee" => ui.invoke_refresh_collaborators(),
+                            "banner" => ui.global::<BannersState>().invoke_refresh_banners(),
+                            "coupon" => ui.global::<CouponsState>().invoke_refresh_coupons(),
+                            "job-role" | "employee" => ui.global::<CollaboratorsState>().invoke_refresh_collaborators(),
                             _ => {}
                         }
                     }

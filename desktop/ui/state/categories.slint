@@ -1,0 +1,65 @@
+// Estado da feature CATEGORIAS e SUBCATEGORIAS (arvore master-detail + modais), isolado do MainWindow.
+//
+// Por que um `global` (AI_RULES §8 / "Modularidade real"): em Slint as
+// propriedades de um componente vivem todas no mesmo arquivo — o
+// `main.slint` concentrava ~830 declaracoes de ~30 features. `global` e
+// o unico mecanismo da linguagem para separar estado por dominio sem
+// prop drilling, e o projeto ja o usa em `Theme`, `IconGlyph` e
+// `AdminState`.
+//
+// Acesso: no Slint, `CategoriesState.<prop>`; no Rust,
+// `ui.global::<CategoriesState>().set_<prop>()` / `.on_<callback>()`.
+// Categorias e subcategorias andam juntas: a arvore, o filtro e o
+// detalhe cruzam as duas entidades. Logica em desktop/src/ui/categories
+// e desktop/src/ui/subcategories.
+import { CatProduct, CatSub, CatTreeRow, CategoryData, CategoryIconOption, SubcategoryData } from "../types.slint";
+
+export global CategoriesState {
+    // ── Categorias ──────────────────────────────────
+    in-out property <[CategoryData]> categories: [];
+    in-out property <string> category-name: "";
+    in-out property <string> category-description: "";
+    in-out property <string> category-error-name: "";
+    /// Slug do ícone selecionado no formulário ("" = sem ícone).
+    /// Persistido em `Category.icon_name` ao salvar.
+    in-out property <string> category-icon-name: "";
+    /// Allowlist de ícones disponíveis (populada pelo Rust a partir
+    /// de `letaf_core::category::icons::ICONS`). Estática, sem rede.
+    in-out property <[CategoryIconOption]> category-icon-options: [];
+    callback add-category();
+    callback update-category();
+    callback delete-category(string);
+    callback reorder-category(string, bool);
+    // ── Subcategorias ───────────────────────────────
+    in-out property <[SubcategoryData]> subcategories: [];
+    in-out property <string> subcategory-name: "";
+    in-out property <string> subcategory-category-id: "";
+    in-out property <string> subcategory-category-name: "";
+    in-out property <string> subcategory-error-name: "";
+    in-out property <string> subcategory-error-category: "";
+    in-out property <bool> subcategory-category-open: false;
+    in-out property <string> subcategory-filter-category-id: "all";
+    callback refresh-subcategories();
+    callback add-subcategory();
+    callback update-subcategory();
+    callback delete-subcategory(string);
+    callback reorder-subcategory(string, bool);
+    callback refresh-categories();
+    // ── Categorias: master-detail (árvore + detalhe) ────────────────
+    // Tree e detalhe vêm prontos do Rust (cache + agregação). Sem
+    // contagem na lista mestra (pedido do usuário); detalhe sim.
+    in-out property <[CatTreeRow]> category-tree: [];
+    in-out property <int> category-count: 0;
+    in-out property <string> selected-category-id: "";
+    in-out property <CategoryData> detail-category;
+    in-out property <color> detail-color;
+    in-out property <int> detail-prod-count: 0;
+    in-out property <int> detail-sub-count: 0;
+    in-out property <string> detail-stock-value: "";
+    in-out property <string> detail-catalog-pct: "";
+    in-out property <string> detail-catalog-hint: "";
+    in-out property <[CatProduct]> detail-cat-products: [];
+    in-out property <[CatSub]> detail-cat-subs: [];
+    callback select-category(string);
+    callback toggle-category(string);
+}

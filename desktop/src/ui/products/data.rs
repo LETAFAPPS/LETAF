@@ -11,6 +11,8 @@ use crate::{MainWindow, ProductData};
 
 use super::super::image::decode_pixel_buffer;
 use super::state::DecodedProduct;
+use slint::ComponentHandle;
+use crate::ProductsState;
 
 /// Conjunto de strings já formatadas para a UI a partir de um `Product`.
 ///
@@ -332,7 +334,7 @@ pub(crate) fn build_product_data_from_product(
 /// rodapé. Antes era `vm.push`, o que jogava o novo produto no fim e
 /// criava inconsistência depois do próximo refresh.
 pub(crate) fn push_product_to_model(ui: &MainWindow, data: ProductData) {
-    let model = ui.get_products();
+    let model = ui.global::<ProductsState>().get_products();
     if let Some(vm) = model.as_any().downcast_ref::<VecModel<ProductData>>() {
         vm.insert(0, data);
     }
@@ -344,7 +346,7 @@ pub(crate) fn push_product_to_model(ui: &MainWindow, data: ProductData) {
 /// Usa remove + insert (não set_row_data) para garantir re-avaliação das condições
 /// `if product.product-image.width` no ProductCard.
 pub(crate) fn replace_product_in_model(ui: &MainWindow, id: &SharedString, data: ProductData) {
-    let model = ui.get_products();
+    let model = ui.global::<ProductsState>().get_products();
     if let Some(vm) = model.as_any().downcast_ref::<VecModel<ProductData>>() {
         for i in 0..vm.row_count() {
             if vm.row_data(i).map(|p| p.id == id).unwrap_or(false) {
@@ -363,7 +365,7 @@ pub(crate) fn replace_product_in_model(ui: &MainWindow, id: &SharedString, data:
 /// das propriedades, mas não força re-avaliação dos `if` condicionais
 /// que controlam a visibilidade dos badges do card.
 pub(crate) fn update_product_flag(ui: &MainWindow, id: &SharedString, update: impl FnOnce(&mut ProductData)) {
-    let model = ui.get_products();
+    let model = ui.global::<ProductsState>().get_products();
     if let Some(vm) = model.as_any().downcast_ref::<VecModel<ProductData>>() {
         for i in 0..vm.row_count() {
             if let Some(mut p) = vm.row_data(i) {
@@ -384,10 +386,10 @@ pub(crate) fn update_product_flag(ui: &MainWindow, id: &SharedString, update: im
 /// `detail-product.active`/`web-visible`) — sem isso, o switch só
 /// mudava após sair e voltar na tela.
 pub(crate) fn update_detail_product_flag(ui: &MainWindow, id: &SharedString, update: impl FnOnce(&mut ProductData)) {
-    let mut current = ui.get_detail_product();
+    let mut current = ui.global::<ProductsState>().get_detail_product();
     if current.id == id {
         update(&mut current);
-        ui.set_detail_product(current);
+        ui.global::<ProductsState>().set_detail_product(current);
     }
 }
 

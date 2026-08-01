@@ -16,6 +16,7 @@ use crate::HTTP_CLIENT;
 use crate::MainWindow;
 
 use super::super::helpers::show_toast;
+use crate::SubscriptionState;
 
 // ── Cartão recorrente (cobrança automática via gateway) ──────────
 //
@@ -74,12 +75,12 @@ pub(crate) fn setup_card(
     sync_notify: Arc<Notify>,
 ) {
     // Máscaras de input (reaproveitam os formatadores do `format.rs`).
-    ui.on_card_fmt_number(|raw| SharedString::from(format_card_number(raw.as_str())));
-    ui.on_card_fmt_expiry(|raw| SharedString::from(format_card_expiry(raw.as_str())));
-    ui.on_card_fmt_cvv(|raw| SharedString::from(format_cvv(raw.as_str())));
-    ui.on_card_fmt_cpf_cnpj(|raw| SharedString::from(format_document(raw.as_str())));
-    ui.on_card_fmt_birth(|raw| SharedString::from(format_date_br(raw.as_str())));
-    ui.on_card_fmt_phone(|raw| SharedString::from(format_phone(raw.as_str())));
+    ui.global::<SubscriptionState>().on_card_fmt_number(|raw| SharedString::from(format_card_number(raw.as_str())));
+    ui.global::<SubscriptionState>().on_card_fmt_expiry(|raw| SharedString::from(format_card_expiry(raw.as_str())));
+    ui.global::<SubscriptionState>().on_card_fmt_cvv(|raw| SharedString::from(format_cvv(raw.as_str())));
+    ui.global::<SubscriptionState>().on_card_fmt_cpf_cnpj(|raw| SharedString::from(format_document(raw.as_str())));
+    ui.global::<SubscriptionState>().on_card_fmt_birth(|raw| SharedString::from(format_date_br(raw.as_str())));
+    ui.global::<SubscriptionState>().on_card_fmt_phone(|raw| SharedString::from(format_phone(raw.as_str())));
 
     // "Adicionar cartão": a tokenização é client-side (Efi.js, página
     // hosted). Abrimos uma sessão no server, abrimos o navegador na
@@ -90,7 +91,7 @@ pub(crate) fn setup_card(
     let auth_open = auth_token.clone();
     let url_open = server_url.clone();
     let notify_open = sync_notify.clone();
-    ui.on_subscription_open_card_modal(move || {
+    ui.global::<SubscriptionState>().on_subscription_open_card_modal(move || {
         let ui_weak = ui_weak.clone();
         let state = state_open.clone();
         let auth = auth_open.clone();
@@ -200,9 +201,9 @@ pub(crate) fn setup_card(
 
     // Fecha o modal e descarta os dados sensíveis.
     let ui_weak = ui.as_weak();
-    ui.on_card_modal_close(move || {
+    ui.global::<SubscriptionState>().on_card_modal_close(move || {
         if let Some(ui) = ui_weak.upgrade() {
-            ui.set_card_modal_open(false);
+            ui.global::<SubscriptionState>().set_card_modal_open(false);
             clear_card_form(&ui);
         }
     });
@@ -214,9 +215,9 @@ pub(crate) fn setup_card(
     let auth_add = auth_token.clone();
     let url_add = server_url.clone();
     let notify_add = sync_notify.clone();
-    ui.on_card_modal_submit(move || {
+    ui.global::<SubscriptionState>().on_card_modal_submit(move || {
         let Some(ui) = ui_weak.upgrade() else { return };
-        ui.set_card_form_error(SharedString::default());
+        ui.global::<SubscriptionState>().set_card_form_error(SharedString::default());
         clear_card_errors(&ui);
         // Validação por campo (mensagens abaixo de cada campo). Só
         // envia quando tudo está válido.
@@ -227,7 +228,7 @@ pub(crate) fn setup_card(
                 return;
             }
         };
-        ui.set_card_modal_loading(true);
+        ui.global::<SubscriptionState>().set_card_modal_loading(true);
         let ui_weak = ui_weak.clone();
         let state = state_add.clone();
         let auth = auth_add.clone();
@@ -279,11 +280,11 @@ pub(crate) fn setup_card(
             notify.notify_one();
             let _ = slint::invoke_from_event_loop(move || {
                 if let Some(ui) = ui_weak.upgrade() {
-                    ui.set_card_modal_loading(false);
-                    ui.set_card_modal_open(false);
+                    ui.global::<SubscriptionState>().set_card_modal_loading(false);
+                    ui.global::<SubscriptionState>().set_card_modal_open(false);
                     clear_card_form(&ui);
                     show_toast(&ui, "Cartão cadastrado · cobrança automática ativa", "success");
-                    ui.invoke_subscription_refresh();
+                    ui.global::<SubscriptionState>().invoke_subscription_refresh();
                 }
             });
         });
@@ -296,7 +297,7 @@ pub(crate) fn setup_card(
     let auth_cancel = auth_token;
     let url_cancel = server_url;
     let notify_cancel = sync_notify;
-    ui.on_subscription_cancel_card(move || {
+    ui.global::<SubscriptionState>().on_subscription_cancel_card(move || {
         let ui_weak = ui_weak.clone();
         let state = state_cancel.clone();
         let auth = auth_cancel.clone();
@@ -337,28 +338,28 @@ pub(crate) fn setup_card(
 }
 
 fn clear_card_form(ui: &MainWindow) {
-    ui.set_card_form_number(SharedString::default());
-    ui.set_card_form_holder(SharedString::default());
-    ui.set_card_form_expiry(SharedString::default());
-    ui.set_card_form_cvv(SharedString::default());
-    ui.set_card_form_cpf(SharedString::default());
-    ui.set_card_form_email(SharedString::default());
-    ui.set_card_form_phone(SharedString::default());
-    ui.set_card_form_birth(SharedString::default());
-    ui.set_card_form_error(SharedString::default());
-    ui.set_card_modal_loading(false);
+    ui.global::<SubscriptionState>().set_card_form_number(SharedString::default());
+    ui.global::<SubscriptionState>().set_card_form_holder(SharedString::default());
+    ui.global::<SubscriptionState>().set_card_form_expiry(SharedString::default());
+    ui.global::<SubscriptionState>().set_card_form_cvv(SharedString::default());
+    ui.global::<SubscriptionState>().set_card_form_cpf(SharedString::default());
+    ui.global::<SubscriptionState>().set_card_form_email(SharedString::default());
+    ui.global::<SubscriptionState>().set_card_form_phone(SharedString::default());
+    ui.global::<SubscriptionState>().set_card_form_birth(SharedString::default());
+    ui.global::<SubscriptionState>().set_card_form_error(SharedString::default());
+    ui.global::<SubscriptionState>().set_card_modal_loading(false);
     clear_card_errors(ui);
 }
 
 fn clear_card_errors(ui: &MainWindow) {
-    ui.set_card_error_number(SharedString::default());
-    ui.set_card_error_holder(SharedString::default());
-    ui.set_card_error_expiry(SharedString::default());
-    ui.set_card_error_cvv(SharedString::default());
-    ui.set_card_error_cpf(SharedString::default());
-    ui.set_card_error_birth(SharedString::default());
-    ui.set_card_error_email(SharedString::default());
-    ui.set_card_error_phone(SharedString::default());
+    ui.global::<SubscriptionState>().set_card_error_number(SharedString::default());
+    ui.global::<SubscriptionState>().set_card_error_holder(SharedString::default());
+    ui.global::<SubscriptionState>().set_card_error_expiry(SharedString::default());
+    ui.global::<SubscriptionState>().set_card_error_cvv(SharedString::default());
+    ui.global::<SubscriptionState>().set_card_error_cpf(SharedString::default());
+    ui.global::<SubscriptionState>().set_card_error_birth(SharedString::default());
+    ui.global::<SubscriptionState>().set_card_error_email(SharedString::default());
+    ui.global::<SubscriptionState>().set_card_error_phone(SharedString::default());
 }
 
 /// Erros de validação por campo do formulário de cartão. Campo vazio
@@ -389,14 +390,14 @@ impl CardFieldErrors {
 }
 
 fn apply_card_errors(ui: &MainWindow, e: &CardFieldErrors) {
-    ui.set_card_error_number(SharedString::from(&e.number));
-    ui.set_card_error_holder(SharedString::from(&e.holder));
-    ui.set_card_error_expiry(SharedString::from(&e.expiry));
-    ui.set_card_error_cvv(SharedString::from(&e.cvv));
-    ui.set_card_error_cpf(SharedString::from(&e.cpf));
-    ui.set_card_error_birth(SharedString::from(&e.birth));
-    ui.set_card_error_email(SharedString::from(&e.email));
-    ui.set_card_error_phone(SharedString::from(&e.phone));
+    ui.global::<SubscriptionState>().set_card_error_number(SharedString::from(&e.number));
+    ui.global::<SubscriptionState>().set_card_error_holder(SharedString::from(&e.holder));
+    ui.global::<SubscriptionState>().set_card_error_expiry(SharedString::from(&e.expiry));
+    ui.global::<SubscriptionState>().set_card_error_cvv(SharedString::from(&e.cvv));
+    ui.global::<SubscriptionState>().set_card_error_cpf(SharedString::from(&e.cpf));
+    ui.global::<SubscriptionState>().set_card_error_birth(SharedString::from(&e.birth));
+    ui.global::<SubscriptionState>().set_card_error_email(SharedString::from(&e.email));
+    ui.global::<SubscriptionState>().set_card_error_phone(SharedString::from(&e.phone));
 }
 
 /// Só dígitos de uma string mascarada.
@@ -415,20 +416,20 @@ fn digits(s: &str) -> String {
 fn validate_card_form(ui: &MainWindow) -> Result<CardSubscribeBody, CardFieldErrors> {
     let mut e = CardFieldErrors::default();
 
-    let number = digits(ui.get_card_form_number().as_ref());
+    let number = digits(ui.global::<SubscriptionState>().get_card_form_number().as_ref());
     if number.is_empty() {
         e.number = "Informe o número do cartão".into();
     } else if !(13..=19).contains(&number.len()) {
         e.number = "Número do cartão inválido".into();
     }
 
-    let holder = ui.get_card_form_holder().to_string().trim().to_string();
+    let holder = ui.global::<SubscriptionState>().get_card_form_holder().to_string().trim().to_string();
     if holder.is_empty() {
         e.holder = "Informe o nome impresso no cartão".into();
     }
 
     // Validade: "MM/AA".
-    let exp_digits = digits(ui.get_card_form_expiry().as_ref());
+    let exp_digits = digits(ui.global::<SubscriptionState>().get_card_form_expiry().as_ref());
     let expiry = if exp_digits.len() != 4 {
         e.expiry = "Validade incompleta (MM/AA)".into();
         String::new()
@@ -442,18 +443,18 @@ fn validate_card_form(ui: &MainWindow) -> Result<CardSubscribeBody, CardFieldErr
         }
     };
 
-    let cvv = digits(ui.get_card_form_cvv().as_ref());
+    let cvv = digits(ui.global::<SubscriptionState>().get_card_form_cvv().as_ref());
     if !(3..=4).contains(&cvv.len()) {
         e.cvv = "CVV inválido".into();
     }
 
-    let cpf = digits(ui.get_card_form_cpf().as_ref());
+    let cpf = digits(ui.global::<SubscriptionState>().get_card_form_cpf().as_ref());
     if cpf.len() != 11 && cpf.len() != 14 {
         e.cpf = "CPF (11) ou CNPJ (14) inválido".into();
     }
 
     // Nascimento: UI em "DD/MM/AAAA" → envia "AAAA-MM-DD".
-    let birth_digits = digits(ui.get_card_form_birth().as_ref());
+    let birth_digits = digits(ui.global::<SubscriptionState>().get_card_form_birth().as_ref());
     let birth_iso = if birth_digits.len() != 8 {
         e.birth = "Data incompleta (DD/MM/AAAA)".into();
         String::new()
@@ -472,14 +473,14 @@ fn validate_card_form(ui: &MainWindow) -> Result<CardSubscribeBody, CardFieldErr
         }
     };
 
-    let email = ui.get_card_form_email().to_string().trim().to_string();
+    let email = ui.global::<SubscriptionState>().get_card_form_email().to_string().trim().to_string();
     let email_ok = email.contains('@')
         && email.rsplit('@').next().map(|d| d.contains('.')).unwrap_or(false);
     if !email_ok {
         e.email = "E-mail inválido".into();
     }
 
-    let phone = digits(ui.get_card_form_phone().as_ref());
+    let phone = digits(ui.global::<SubscriptionState>().get_card_form_phone().as_ref());
     if phone.len() != 10 && phone.len() != 11 {
         e.phone = "Telefone inválido com DDD".into();
     }
@@ -504,8 +505,8 @@ fn set_card_error(ui_weak: &slint::Weak<MainWindow>, message: String) {
     let ui_weak = ui_weak.clone();
     let _ = slint::invoke_from_event_loop(move || {
         if let Some(ui) = ui_weak.upgrade() {
-            ui.set_card_modal_loading(false);
-            ui.set_card_form_error(SharedString::from(message));
+            ui.global::<SubscriptionState>().set_card_modal_loading(false);
+            ui.global::<SubscriptionState>().set_card_form_error(SharedString::from(message));
         }
     });
 }
@@ -524,7 +525,7 @@ pub(crate) fn refresh(ui_weak: &slint::Weak<MainWindow>) {
     let ui_weak = ui_weak.clone();
     let _ = slint::invoke_from_event_loop(move || {
         if let Some(ui) = ui_weak.upgrade() {
-            ui.invoke_subscription_refresh();
+            ui.global::<SubscriptionState>().invoke_subscription_refresh();
         }
     });
 }

@@ -1,0 +1,67 @@
+// Estado da feature CONFIGURACOES (dados da loja, horario de funcionamento, preferencias), isolado do MainWindow.
+//
+// Por que um `global` (AI_RULES §8 / "Modularidade real"): em Slint as
+// propriedades de um componente vivem todas no mesmo arquivo — o
+// `main.slint` concentrava ~830 declaracoes de ~30 features. `global` e
+// o unico mecanismo da linguagem para separar estado por dominio sem
+// prop drilling, e o projeto ja o usa em `Theme`, `IconGlyph` e
+// `AdminState`.
+//
+// Acesso: no Slint, `SettingsState.<prop>`; no Rust,
+// `ui.global::<SettingsState>().set_<prop>()` / `.on_<callback>()`.
+// Logica em desktop/src/ui/settings. As impressoras tem global proprio
+// (`PrintersState`) por serem outra responsabilidade.
+import { BusinessHoursData } from "../types.slint";
+
+export global SettingsState {
+    // ── Configurações / Horário de Funcionamento ────
+    in-out property <[BusinessHoursData]> business-hours: [];
+    in-out property <int> bh-editing-day: -1;
+    in-out property <string> bh-editing-day-name: "";
+    in-out property <string> bh-open-time: "";
+    in-out property <string> bh-close-time: "";
+    in-out property <bool> bh-is-open: false;
+    in-out property <string> store-override: "none";
+    in-out property <string> store-name: "";
+    in-out property <string> store-address: "";
+    in-out property <string> store-phone: "";
+    // ── Contato adicional ─────────────────────────────────
+    in-out property <string> store-whatsapp: "";
+    in-out property <string> store-email: "";
+    in-out property <string> store-instagram: "";
+    // ── Endereço & documento ──────────────────────────────
+    in-out property <string> store-document: "";
+    in-out property <string> store-neighborhood: "";
+    in-out property <string> store-zip-code: "";
+    in-out property <string> store-city: "";
+    in-out property <string> store-uf: "";
+    // ── Imagens ───────────────────────────────────────────
+    in-out property <string> store-logo-data;
+    in     property <image>  store-logo-image;
+    in-out property <bool>   store-logo-loading: false;
+    in-out property <string> store-cover-data;
+    in     property <image>  store-cover-image;
+    in-out property <bool>   store-cover-loading: false;
+    /// `Company.synced` exposto para o cabeçalho mostrar badge
+    /// "editado" (pendente) / "sincronizado" nos 3 cards.
+    in-out property <bool>   store-synced: true;
+    /// Quantidade de produtos exibidos por página na grade.
+    /// Configurada em SettingsPage e persistida em Company.
+    in-out property <int>    products-per-page: 20;
+    in-out property <int>    orders-per-page: 20;
+    /// Taxa de entrega (frete) como texto pt-BR. Persistida em Company;
+    /// aplicada automaticamente em pedidos de entrega no PDV.
+    in-out property <string> store-delivery-fee;
+    callback refresh-business-hours();
+    callback save-business-hours();
+    callback set-store-override(string);
+    callback save-store-info();
+    callback pick-store-logo();
+    callback pick-store-cover();
+    callback format-store-phone(string) -> string;
+    /// Máscara para CPF/CNPJ — reaproveita `format_document` do desktop.
+    callback format-store-document(string) -> string;
+    /// Máscara para CEP: `00000-000`.
+    callback format-store-zip(string) -> string;
+    callback apply-time-mask(string) -> string;
+}

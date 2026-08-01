@@ -12,6 +12,7 @@ use crate::MainWindow;
 
 use super::super::helpers::{friendly_error, show_toast};
 use super::view::apply_to_ui_from_cache;
+use crate::InventoryState;
 
 pub(crate) type SharedCache = Arc<std::sync::Mutex<Vec<Product>>>;
 pub(crate) type SharedCategories = Arc<std::sync::Mutex<Vec<Category>>>;
@@ -49,9 +50,9 @@ pub(crate) fn setup_sync(
     let ui_weak = ui.as_weak();
     let state = state.clone();
     let handle = handle.clone();
-    ui.on_inventory_sync(move || {
+    ui.global::<InventoryState>().on_inventory_sync(move || {
         if let Some(ui) = ui_weak.upgrade() {
-            ui.set_inventory_syncing(true);
+            ui.global::<InventoryState>().set_inventory_syncing(true);
         }
         // Acorda o SyncWorker para um ciclo imediato.
         sync_notify.notify_one();
@@ -81,9 +82,9 @@ pub(crate) fn setup_sync(
             }
             let _ = slint::invoke_from_event_loop(move || {
                 if let Some(ui) = ui_weak.upgrade() {
-                    ui.set_inventory_syncing(false);
+                    ui.global::<InventoryState>().set_inventory_syncing(false);
                     // Recarrega a lista (contadores/labels do estado atual).
-                    ui.invoke_inventory_refresh();
+                    ui.global::<InventoryState>().invoke_inventory_refresh();
                 }
             });
         });
@@ -122,9 +123,9 @@ pub(crate) fn setup_sync_listener(
                 // Atualiza só o campo `sync_pending_count` do header,
                 // preservando o resto do `inventory_health` cacheado
                 // (não força redecodificar miniaturas).
-                let mut h = ui.get_inventory_health();
+                let mut h = ui.global::<InventoryState>().get_inventory_health();
                 h.sync_pending_count = pending;
-                ui.set_inventory_health(h);
+                ui.global::<InventoryState>().set_inventory_health(h);
             });
         }
     });
@@ -134,7 +135,7 @@ pub(crate) fn setup_sync_listener(
 
 pub(crate) fn setup_search(ui: &MainWindow, cache: SharedCache, cats_cache: SharedCategories) {
     let ui_weak = ui.as_weak();
-    ui.on_inventory_search_changed(move |_q| {
+    ui.global::<InventoryState>().on_inventory_search_changed(move |_q| {
         // O texto fica em `inventory-search` (Slint property), lido pelo
         // `apply_to_ui` direto. Re-renderiza com o cache atual.
         apply_to_ui_from_cache(&ui_weak, &cache, &cats_cache);
@@ -146,7 +147,7 @@ pub(crate) fn setup_search(ui: &MainWindow, cache: SharedCache, cats_cache: Shar
 // lido pelo `apply_to_ui`. Re-renderiza a lista com o cache atual.
 pub(crate) fn setup_filter(ui: &MainWindow, cache: SharedCache, cats_cache: SharedCategories) {
     let ui_weak = ui.as_weak();
-    ui.on_inventory_filter_changed(move |_k| {
+    ui.global::<InventoryState>().on_inventory_filter_changed(move |_k| {
         apply_to_ui_from_cache(&ui_weak, &cache, &cats_cache);
     });
 }
@@ -163,7 +164,7 @@ pub(crate) fn setup_refresh(
     let ui_weak = ui.as_weak();
     let state = state.clone();
     let handle = handle.clone();
-    ui.on_inventory_refresh(move || {
+    ui.global::<InventoryState>().on_inventory_refresh(move || {
         let ui_weak = ui_weak.clone();
         let state = state.clone();
         let cache = cache.clone();
@@ -194,37 +195,37 @@ pub(crate) fn setup_refresh(
 
 pub(crate) fn setup_request_add(ui: &MainWindow, cache: SharedCache) {
     let ui_weak = ui.as_weak();
-    ui.on_inventory_request_add(move |id_str| {
+    ui.global::<InventoryState>().on_inventory_request_add(move |id_str| {
         let Some(ui) = ui_weak.upgrade() else { return };
         let Ok(id) = Uuid::parse_str(&id_str) else { return };
         let snapshot = cache.lock().ok().and_then(|g| g.iter().find(|p| p.base.id == id).cloned());
         let Some(p) = snapshot else { return };
-        ui.set_stock_adjust_mode(SharedString::from("add"));
-        ui.set_stock_adjust_product_id(SharedString::from(p.base.id.to_string()));
-        ui.set_stock_adjust_product_name(SharedString::from(p.name.clone()));
-        ui.set_stock_adjust_current(SharedString::from(format_stock(p.stock_quantity, &p.unit)));
-        ui.set_stock_adjust_qty(SharedString::default());
-        ui.set_stock_adjust_reason(SharedString::default());
-        ui.set_stock_adjust_error(SharedString::default());
-        ui.set_stock_adjust_show(true);
+        ui.global::<InventoryState>().set_stock_adjust_mode(SharedString::from("add"));
+        ui.global::<InventoryState>().set_stock_adjust_product_id(SharedString::from(p.base.id.to_string()));
+        ui.global::<InventoryState>().set_stock_adjust_product_name(SharedString::from(p.name.clone()));
+        ui.global::<InventoryState>().set_stock_adjust_current(SharedString::from(format_stock(p.stock_quantity, &p.unit)));
+        ui.global::<InventoryState>().set_stock_adjust_qty(SharedString::default());
+        ui.global::<InventoryState>().set_stock_adjust_reason(SharedString::default());
+        ui.global::<InventoryState>().set_stock_adjust_error(SharedString::default());
+        ui.global::<InventoryState>().set_stock_adjust_show(true);
     });
 }
 
 pub(crate) fn setup_request_edit(ui: &MainWindow, cache: SharedCache) {
     let ui_weak = ui.as_weak();
-    ui.on_inventory_request_edit(move |id_str| {
+    ui.global::<InventoryState>().on_inventory_request_edit(move |id_str| {
         let Some(ui) = ui_weak.upgrade() else { return };
         let Ok(id) = Uuid::parse_str(&id_str) else { return };
         let snapshot = cache.lock().ok().and_then(|g| g.iter().find(|p| p.base.id == id).cloned());
         let Some(p) = snapshot else { return };
-        ui.set_stock_adjust_mode(SharedString::from("set"));
-        ui.set_stock_adjust_product_id(SharedString::from(p.base.id.to_string()));
-        ui.set_stock_adjust_product_name(SharedString::from(p.name.clone()));
-        ui.set_stock_adjust_current(SharedString::from(format_stock(p.stock_quantity, &p.unit)));
-        ui.set_stock_adjust_qty(SharedString::from(format!("{}", p.stock_quantity)));
-        ui.set_stock_adjust_reason(SharedString::default());
-        ui.set_stock_adjust_error(SharedString::default());
-        ui.set_stock_adjust_show(true);
+        ui.global::<InventoryState>().set_stock_adjust_mode(SharedString::from("set"));
+        ui.global::<InventoryState>().set_stock_adjust_product_id(SharedString::from(p.base.id.to_string()));
+        ui.global::<InventoryState>().set_stock_adjust_product_name(SharedString::from(p.name.clone()));
+        ui.global::<InventoryState>().set_stock_adjust_current(SharedString::from(format_stock(p.stock_quantity, &p.unit)));
+        ui.global::<InventoryState>().set_stock_adjust_qty(SharedString::from(format!("{}", p.stock_quantity)));
+        ui.global::<InventoryState>().set_stock_adjust_reason(SharedString::default());
+        ui.global::<InventoryState>().set_stock_adjust_error(SharedString::default());
+        ui.global::<InventoryState>().set_stock_adjust_show(true);
     });
 }
 
@@ -239,20 +240,20 @@ pub(crate) fn setup_confirm_adjust(
     let ui_weak = ui.as_weak();
     let state = state.clone();
     let handle = handle.clone();
-    ui.on_inventory_confirm_adjust(move || {
+    ui.global::<InventoryState>().on_inventory_confirm_adjust(move || {
         let Some(ui_ref) = ui_weak.upgrade() else { return };
-        let mode = ui_ref.get_stock_adjust_mode().to_string();
-        let pid_str = ui_ref.get_stock_adjust_product_id().to_string();
-        let qty_str = ui_ref.get_stock_adjust_qty().to_string();
-        let reason = ui_ref.get_stock_adjust_reason().to_string();
+        let mode = ui_ref.global::<InventoryState>().get_stock_adjust_mode().to_string();
+        let pid_str = ui_ref.global::<InventoryState>().get_stock_adjust_product_id().to_string();
+        let qty_str = ui_ref.global::<InventoryState>().get_stock_adjust_qty().to_string();
+        let reason = ui_ref.global::<InventoryState>().get_stock_adjust_reason().to_string();
 
         let Ok(pid) = Uuid::parse_str(&pid_str) else {
-            ui_ref.set_stock_adjust_error(SharedString::from("Produto inválido"));
+            ui_ref.global::<InventoryState>().set_stock_adjust_error(SharedString::from("Produto inválido"));
             return;
         };
         let parsed = qty_str.trim().replace(',', ".").parse::<f64>();
         let Ok(qty) = parsed else {
-            ui_ref.set_stock_adjust_error(SharedString::from("Quantidade inválida"));
+            ui_ref.global::<InventoryState>().set_stock_adjust_error(SharedString::from("Quantidade inválida"));
             return;
         };
 
@@ -267,7 +268,7 @@ pub(crate) fn setup_confirm_adjust(
                 let Ok(Some(p)) = state.product_service.find_by_id(cid, pid).await else {
                     let _ = slint::invoke_from_event_loop(move || {
                         if let Some(ui) = ui_weak.upgrade() {
-                            ui.set_stock_adjust_error(SharedString::from("Produto não encontrado"));
+                            ui.global::<InventoryState>().set_stock_adjust_error(SharedString::from("Produto não encontrado"));
                         }
                     });
                     return;
@@ -280,7 +281,7 @@ pub(crate) fn setup_confirm_adjust(
             if delta.abs() < 0.0005 {
                 let _ = slint::invoke_from_event_loop(move || {
                     if let Some(ui) = ui_weak.upgrade() {
-                        ui.set_stock_adjust_error(SharedString::from(
+                        ui.global::<InventoryState>().set_stock_adjust_error(SharedString::from(
                             "Nada a alterar (valor igual ao atual)",
                         ));
                     }
@@ -299,16 +300,16 @@ pub(crate) fn setup_confirm_adjust(
                                 pid, delta, reason.trim()
                             );
                         }
-                        ui.set_stock_adjust_show(false);
-                        ui.set_stock_adjust_qty(SharedString::default());
-                        ui.set_stock_adjust_reason(SharedString::default());
-                        ui.set_stock_adjust_error(SharedString::default());
+                        ui.global::<InventoryState>().set_stock_adjust_show(false);
+                        ui.global::<InventoryState>().set_stock_adjust_qty(SharedString::default());
+                        ui.global::<InventoryState>().set_stock_adjust_reason(SharedString::default());
+                        ui.global::<InventoryState>().set_stock_adjust_error(SharedString::default());
                         show_toast(&ui, "Estoque Atualizado", "success");
-                        ui.invoke_inventory_refresh();
+                        ui.global::<InventoryState>().invoke_inventory_refresh();
                         notify.notify_one();
                     }
                     Err(e) => {
-                        ui.set_stock_adjust_error(SharedString::from(friendly_error(&e)));
+                        ui.global::<InventoryState>().set_stock_adjust_error(SharedString::from(friendly_error(&e)));
                     }
                 }
             });

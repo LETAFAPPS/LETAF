@@ -6,6 +6,8 @@ use slint::{Image, ModelRc, SharedString, VecModel};
 use crate::{MainWindow, PdvCartRow, PdvCategoryChip, PdvProductRow};
 
 use super::state::{fmt_brl, PdvState};
+use slint::ComponentHandle;
+use crate::PdvUiState;
 
 // ── Renderização ──────────────────────────────────────────────
 
@@ -23,8 +25,8 @@ pub(crate) fn apply_state_to_ui(ui: &MainWindow, pdv: &Arc<Mutex<PdvState>>) {
     // chips comprimem via `min-width` no Slint; se o conteúdo
     // estourar, o ScrollView horizontal do bloco de categorias
     // permite scroll lateral.
-    ui.set_pdv_categories(ModelRc::new(VecModel::from(chips)));
-    ui.set_pdv_categories_row2(ModelRc::new(VecModel::from(Vec::<PdvCategoryChip>::new())));
+    ui.global::<PdvUiState>().set_pdv_categories(ModelRc::new(VecModel::from(chips)));
+    ui.global::<PdvUiState>().set_pdv_categories_row2(ModelRc::new(VecModel::from(Vec::<PdvCategoryChip>::new())));
 
     let q_lower = g.search_query.to_lowercase();
     let products: Vec<PdvProductRow> = g.products_all.iter()
@@ -76,7 +78,7 @@ pub(crate) fn apply_state_to_ui(ui: &MainWindow, pdv: &Arc<Mutex<PdvState>>) {
             }
         })
         .collect();
-    ui.set_pdv_products(ModelRc::new(VecModel::from(products)));
+    ui.global::<PdvUiState>().set_pdv_products(ModelRc::new(VecModel::from(products)));
 
     let cart_rows: Vec<PdvCartRow> = g.cart.iter().map(|line| {
         let subtotal = (line.qty * line.unit_price).max(0.0);
@@ -112,30 +114,30 @@ pub(crate) fn apply_state_to_ui(ui: &MainWindow, pdv: &Arc<Mutex<PdvState>>) {
     let discount = g.discount_value.min(subtotal).max(0.0);
     let additional = g.additional_value.max(0.0);
     // Taxa de entrega só entra no total quando o pedido é de entrega.
-    let is_delivery = ui.get_pdv_sale_type() == "delivery";
+    let is_delivery = ui.global::<PdvUiState>().get_pdv_sale_type() == "delivery";
     let delivery_fee = g.delivery_fee_for(is_delivery);
     let total = (subtotal - discount + additional + delivery_fee).max(0.0);
     let count: i32 = g.cart.iter().map(|l| l.qty as i32).sum();
-    ui.set_pdv_cart(ModelRc::new(VecModel::from(cart_rows)));
-    ui.set_pdv_subtotal_display(SharedString::from(fmt_brl(subtotal)));
-    ui.set_pdv_discount_display(SharedString::from(fmt_brl(discount)));
-    ui.set_pdv_additional_display(SharedString::from(fmt_brl(additional)));
-    ui.set_pdv_delivery_fee_display(if delivery_fee > 0.0 {
+    ui.global::<PdvUiState>().set_pdv_cart(ModelRc::new(VecModel::from(cart_rows)));
+    ui.global::<PdvUiState>().set_pdv_subtotal_display(SharedString::from(fmt_brl(subtotal)));
+    ui.global::<PdvUiState>().set_pdv_discount_display(SharedString::from(fmt_brl(discount)));
+    ui.global::<PdvUiState>().set_pdv_additional_display(SharedString::from(fmt_brl(additional)));
+    ui.global::<PdvUiState>().set_pdv_delivery_fee_display(if delivery_fee > 0.0 {
         SharedString::from(fmt_brl(delivery_fee))
     } else {
         SharedString::default()
     });
-    ui.set_pdv_total_display(SharedString::from(fmt_brl(total)));
-    ui.set_pdv_total_amount(total as f32);
-    ui.set_pdv_cart_count(count);
+    ui.global::<PdvUiState>().set_pdv_total_display(SharedString::from(fmt_brl(total)));
+    ui.global::<PdvUiState>().set_pdv_total_amount(total as f32);
+    ui.global::<PdvUiState>().set_pdv_cart_count(count);
 
     // Troco / restante — mesmo bloco (abaixo do TOTAL) para o fluxo
     // único (Dinheiro) e para o rateio (pagamento parcial). O valor
     // pago vem do campo Valor Pago ou da soma das linhas do rateio.
-    let method = ui.get_pdv_payment_method().to_string();
-    let split = ui.get_pdv_split_enabled();
+    let method = ui.global::<PdvUiState>().get_pdv_payment_method().to_string();
+    let split = ui.global::<PdvUiState>().get_pdv_split_enabled();
     let paid = if split {
-        ui.get_pdv_split_v1() as f64 + ui.get_pdv_split_v2() as f64 + ui.get_pdv_split_v3() as f64
+        ui.global::<PdvUiState>().get_pdv_split_v1() as f64 + ui.global::<PdvUiState>().get_pdv_split_v2() as f64 + ui.global::<PdvUiState>().get_pdv_split_v3() as f64
     } else if method == "cash" {
         g.amount_paid
     } else {
@@ -143,17 +145,17 @@ pub(crate) fn apply_state_to_ui(ui: &MainWindow, pdv: &Arc<Mutex<PdvState>>) {
     };
     if paid >= total && paid > 0.0 && total > 0.0 {
         let change = (paid - total).max(0.0);
-        ui.set_pdv_change_display(if change > 0.0 {
+        ui.global::<PdvUiState>().set_pdv_change_display(if change > 0.0 {
             SharedString::from(fmt_brl(change))
         } else {
             SharedString::default()
         });
-        ui.set_pdv_remaining_display(SharedString::default());
+        ui.global::<PdvUiState>().set_pdv_remaining_display(SharedString::default());
     } else if paid > 0.0 && paid < total {
-        ui.set_pdv_remaining_display(SharedString::from(fmt_brl((total - paid).max(0.0))));
-        ui.set_pdv_change_display(SharedString::default());
+        ui.global::<PdvUiState>().set_pdv_remaining_display(SharedString::from(fmt_brl((total - paid).max(0.0))));
+        ui.global::<PdvUiState>().set_pdv_change_display(SharedString::default());
     } else {
-        ui.set_pdv_change_display(SharedString::default());
-        ui.set_pdv_remaining_display(SharedString::default());
+        ui.global::<PdvUiState>().set_pdv_change_display(SharedString::default());
+        ui.global::<PdvUiState>().set_pdv_remaining_display(SharedString::default());
     }
 }

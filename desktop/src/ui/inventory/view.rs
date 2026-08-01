@@ -9,6 +9,8 @@ use crate::{InventoryHealthData, InventoryProductRow, MainWindow};
 
 use super::super::image::decode_pixel_buffer;
 use super::setup::{SharedCache, SharedCategories};
+use slint::ComponentHandle;
+use crate::InventoryState;
 
 // ── Pintura: derivações + populate UI ────────────────────────────
 
@@ -59,13 +61,13 @@ pub(crate) fn apply_to_ui(ui: &MainWindow, products: &[Product], categories: &[C
         sync_pending_count: sync_pending as i32,
         total_count: total as i32,
     };
-    ui.set_inventory_health(health);
+    ui.global::<InventoryState>().set_inventory_health(health);
 
     // Filtro de busca (nome) + filtro de status (abas). As métricas
     // acima continuam refletindo o conjunto COMPLETO; só a lista
     // exibida é filtrada.
-    let search_lc = ui.get_inventory_search().to_string().trim().to_lowercase();
-    let filter = ui.get_inventory_filter().to_string();
+    let search_lc = ui.global::<InventoryState>().get_inventory_search().to_string().trim().to_lowercase();
+    let filter = ui.global::<InventoryState>().get_inventory_filter().to_string();
     let mut filtered: Vec<&Product> = products
         .iter()
         .filter(|p| {
@@ -127,7 +129,7 @@ pub(crate) fn apply_to_ui(ui: &MainWindow, products: &[Product], categories: &[C
         }
         product_rows.push(row);
     }
-    ui.set_inventory_products(ModelRc::new(VecModel::from(product_rows)));
+    ui.global::<InventoryState>().set_inventory_products(ModelRc::new(VecModel::from(product_rows)));
 }
 
 /// Prioridade de exibição dentro da coluna. `ok` antes de `unlimited`

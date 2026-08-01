@@ -13,6 +13,7 @@ use super::state::{CalState, CalStateHandle, CustomersHandle, DueCalState, DueCa
 use super::snapshot::{apply_snapshot, build_snapshot};
 use super::modal::{setup_cancel_entry, setup_close_modal, setup_delete_entry, setup_group_page, setup_mark_settled, setup_open_edit, setup_open_new, setup_save_modal, setup_search, setup_set_tab, setup_status_filter};
 use super::calendar::{setup_cal_next, setup_cal_prev, setup_cal_select_day, setup_cal_today, setup_due_cal, setup_party_picker, setup_set_category, setup_set_installments, setup_set_recurrence, setup_set_view};
+use crate::FinanceState;
 
 pub(crate) fn setup_finance(
     ui: &MainWindow,
@@ -63,7 +64,7 @@ pub(crate) fn setup_delete_confirm(
     let ui_weak = ui.as_weak();
     let state_req = state.clone();
     let handle_req = handle.clone();
-    ui.on_finance_request_delete(move |id| {
+    ui.global::<FinanceState>().on_finance_request_delete(move |id| {
         let id_s = id.to_string();
         let Ok(uuid) = Uuid::parse_str(&id_s) else { return };
         let ui_weak = ui_weak.clone();
@@ -82,32 +83,32 @@ pub(crate) fn setup_delete_confirm(
             let desc = entry.description.clone();
             let _ = slint::invoke_from_event_loop(move || {
                 if let Some(ui) = ui_weak.upgrade() {
-                    ui.set_finance_delete_target_id(SharedString::from(id_s));
-                    ui.set_finance_delete_target_desc(SharedString::from(desc));
-                    ui.set_finance_delete_target_amount(SharedString::from(amount));
-                    ui.set_finance_delete_target_kind(SharedString::from(kind_s));
-                    ui.set_finance_show_delete_confirm(true);
+                    ui.global::<FinanceState>().set_finance_delete_target_id(SharedString::from(id_s));
+                    ui.global::<FinanceState>().set_finance_delete_target_desc(SharedString::from(desc));
+                    ui.global::<FinanceState>().set_finance_delete_target_amount(SharedString::from(amount));
+                    ui.global::<FinanceState>().set_finance_delete_target_kind(SharedString::from(kind_s));
+                    ui.global::<FinanceState>().set_finance_show_delete_confirm(true);
                 }
             });
         });
     });
 
     let ui_weak = ui.as_weak();
-    ui.on_finance_close_delete_confirm(move || {
+    ui.global::<FinanceState>().on_finance_close_delete_confirm(move || {
         if let Some(ui) = ui_weak.upgrade() {
-            ui.set_finance_show_delete_confirm(false);
-            ui.set_finance_delete_target_id(SharedString::from(""));
+            ui.global::<FinanceState>().set_finance_show_delete_confirm(false);
+            ui.global::<FinanceState>().set_finance_delete_target_id(SharedString::from(""));
         }
     });
 
     let ui_weak = ui.as_weak();
-    ui.on_finance_confirm_delete(move || {
+    ui.global::<FinanceState>().on_finance_confirm_delete(move || {
         if let Some(ui) = ui_weak.upgrade() {
-            let id = ui.get_finance_delete_target_id();
-            ui.set_finance_show_delete_confirm(false);
-            ui.set_finance_delete_target_id(SharedString::from(""));
+            let id = ui.global::<FinanceState>().get_finance_delete_target_id();
+            ui.global::<FinanceState>().set_finance_show_delete_confirm(false);
+            ui.global::<FinanceState>().set_finance_delete_target_id(SharedString::from(""));
             if !id.is_empty() {
-                ui.invoke_finance_delete_entry(id);
+                ui.global::<FinanceState>().invoke_finance_delete_entry(id);
             }
         }
     });
@@ -126,7 +127,7 @@ pub(crate) fn setup_settle_confirm(
     let ui_weak = ui.as_weak();
     let state_req = state.clone();
     let handle_req = handle.clone();
-    ui.on_finance_request_settle(move |id| {
+    ui.global::<FinanceState>().on_finance_request_settle(move |id| {
         let id_s = id.to_string();
         let Ok(uuid) = Uuid::parse_str(&id_s) else { return };
         let ui_weak = ui_weak.clone();
@@ -147,16 +148,16 @@ pub(crate) fn setup_settle_confirm(
             let amount_plain = format!("{:.2}", entry.amount).replace('.', ",");
             let _ = slint::invoke_from_event_loop(move || {
                 if let Some(ui) = ui_weak.upgrade() {
-                    ui.set_finance_settle_target_id(SharedString::from(id_s));
-                    ui.set_finance_settle_target_kind(SharedString::from(kind_s));
-                    ui.set_finance_settle_target_desc(SharedString::from(desc));
-                    ui.set_finance_settle_target_party(SharedString::from(party));
-                    ui.set_finance_settle_target_amount(SharedString::from(amount));
+                    ui.global::<FinanceState>().set_finance_settle_target_id(SharedString::from(id_s));
+                    ui.global::<FinanceState>().set_finance_settle_target_kind(SharedString::from(kind_s));
+                    ui.global::<FinanceState>().set_finance_settle_target_desc(SharedString::from(desc));
+                    ui.global::<FinanceState>().set_finance_settle_target_party(SharedString::from(party));
+                    ui.global::<FinanceState>().set_finance_settle_target_amount(SharedString::from(amount));
                     // Campo de valor: pré-preenchido com o valor da
                     // conta (o input seleciona tudo ao abrir).
-                    ui.set_finance_settle_amount_input(SharedString::from(amount_plain));
-                    ui.set_finance_settle_method(SharedString::from("cash"));
-                    ui.set_finance_show_settle_confirm(true);
+                    ui.global::<FinanceState>().set_finance_settle_amount_input(SharedString::from(amount_plain));
+                    ui.global::<FinanceState>().set_finance_settle_method(SharedString::from("cash"));
+                    ui.global::<FinanceState>().set_finance_show_settle_confirm(true);
                 }
             });
         });
@@ -164,22 +165,22 @@ pub(crate) fn setup_settle_confirm(
 
     // close: só fecha
     let ui_weak = ui.as_weak();
-    ui.on_finance_close_settle_confirm(move || {
+    ui.global::<FinanceState>().on_finance_close_settle_confirm(move || {
         if let Some(ui) = ui_weak.upgrade() {
-            ui.set_finance_show_settle_confirm(false);
-            ui.set_finance_settle_target_id(SharedString::from(""));
+            ui.global::<FinanceState>().set_finance_show_settle_confirm(false);
+            ui.global::<FinanceState>().set_finance_settle_target_id(SharedString::from(""));
         }
     });
 
     // confirm: fecha o modal + dispara mark-settled (já registrado)
     let ui_weak = ui.as_weak();
-    ui.on_finance_confirm_settle(move || {
+    ui.global::<FinanceState>().on_finance_confirm_settle(move || {
         if let Some(ui) = ui_weak.upgrade() {
-            let id = ui.get_finance_settle_target_id();
-            ui.set_finance_show_settle_confirm(false);
-            ui.set_finance_settle_target_id(SharedString::from(""));
+            let id = ui.global::<FinanceState>().get_finance_settle_target_id();
+            ui.global::<FinanceState>().set_finance_show_settle_confirm(false);
+            ui.global::<FinanceState>().set_finance_settle_target_id(SharedString::from(""));
             if !id.is_empty() {
-                ui.invoke_finance_mark_settled(id);
+                ui.global::<FinanceState>().invoke_finance_mark_settled(id);
             }
         }
     });
@@ -230,7 +231,7 @@ pub(crate) fn setup_refresh(
     let ui_weak = ui.as_weak();
     let state = state.clone();
     let handle = handle.clone();
-    ui.on_finance_refresh(move || {
+    ui.global::<FinanceState>().on_finance_refresh(move || {
         let ui_weak = ui_weak.clone();
         let state = state.clone();
         let cal = cal.clone();

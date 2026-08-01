@@ -13,6 +13,7 @@ use crate::MainWindow;
 
 use super::super::helpers::{friendly_error, show_toast};
 use super::config::format_qty;
+use crate::OrdersState;
 
 /// Callback: "Editar pedido" — carrega itens/notes/delivery do
 /// pedido atual e abre o `EditOrderModal`.
@@ -30,7 +31,7 @@ pub(crate) fn setup_edit_order(
     let ui_weak = ui.as_weak();
     let state = state.clone();
     let handle = handle.clone();
-    ui.on_edit_order(move |id_str| {
+    ui.global::<OrdersState>().on_edit_order(move |id_str| {
         let id = match Uuid::parse_str(id_str.as_str()) {
             Ok(v) => v, Err(_) => return,
         };
@@ -92,10 +93,10 @@ pub(crate) fn setup_edit_order(
                 .collect();
             let _ = slint::invoke_from_event_loop(move || {
                 if let Some(ui) = ui_weak2.upgrade() {
-                    ui.set_edit_order_items(ModelRc::new(VecModel::from(items)));
-                    ui.set_edit_order_notes(SharedString::from(notes_clean));
-                    ui.set_edit_order_delivery_type(SharedString::from(dt));
-                    ui.set_edit_order_error(SharedString::default());
+                    ui.global::<OrdersState>().set_edit_order_items(ModelRc::new(VecModel::from(items)));
+                    ui.global::<OrdersState>().set_edit_order_notes(SharedString::from(notes_clean));
+                    ui.global::<OrdersState>().set_edit_order_delivery_type(SharedString::from(dt));
+                    ui.global::<OrdersState>().set_edit_order_error(SharedString::default());
                     let picker_products: Vec<crate::ProductData> = picker_tuples
                         .into_iter()
                         .map(|(id, name, price, price_display)| crate::ProductData {
@@ -108,9 +109,9 @@ pub(crate) fn setup_edit_order(
                         .collect();
                     // O master é a fonte de verdade do filtro; o
                     // `picker-products` começa idêntico (sem filtro).
-                    ui.set_edit_order_picker_master(ModelRc::new(VecModel::from(picker_products.clone())));
-                    ui.set_edit_order_picker_products(ModelRc::new(VecModel::from(picker_products)));
-                    ui.set_show_edit_order_modal(true);
+                    ui.global::<OrdersState>().set_edit_order_picker_master(ModelRc::new(VecModel::from(picker_products.clone())));
+                    ui.global::<OrdersState>().set_edit_order_picker_products(ModelRc::new(VecModel::from(picker_products)));
+                    ui.global::<OrdersState>().set_show_edit_order_modal(true);
                 }
             });
         });
@@ -125,10 +126,10 @@ pub(crate) fn setup_edit_order(
 /// `ui.products` (que é lazy e pode estar vazio).
 pub(crate) fn setup_edit_order_filter_picker(ui: &MainWindow) {
     let ui_weak = ui.as_weak();
-    ui.on_edit_order_filter_picker(move |query| {
+    ui.global::<OrdersState>().on_edit_order_filter_picker(move |query| {
         let Some(ui) = ui_weak.upgrade() else { return };
         let q = query.to_string().to_lowercase();
-        let master = ui.get_edit_order_picker_master();
+        let master = ui.global::<OrdersState>().get_edit_order_picker_master();
         let mut filtered = Vec::new();
         for i in 0..master.row_count() {
             if let Some(p) = master.row_data(i) {
@@ -137,7 +138,7 @@ pub(crate) fn setup_edit_order_filter_picker(ui: &MainWindow) {
                 }
             }
         }
-        ui.set_edit_order_picker_products(ModelRc::new(VecModel::from(filtered)));
+        ui.global::<OrdersState>().set_edit_order_picker_products(ModelRc::new(VecModel::from(filtered)));
     });
 }
 
@@ -158,9 +159,9 @@ pub(crate) fn strip_address_prefix(raw: &str) -> String {
 /// `+ 1` na qty do item `idx`.
 pub(crate) fn setup_edit_order_inc(ui: &MainWindow) {
     let ui_weak = ui.as_weak();
-    ui.on_edit_order_inc(move |idx| {
+    ui.global::<OrdersState>().on_edit_order_inc(move |idx| {
         let Some(ui) = ui_weak.upgrade() else { return };
-        let model = ui.get_edit_order_items();
+        let model = ui.global::<OrdersState>().get_edit_order_items();
         let Some(vm) = model.as_any().downcast_ref::<VecModel<crate::EditOrderItem>>() else { return };
         let Some(mut row) = vm.row_data(idx as usize) else { return };
         let cur: f64 = row.qty.parse().unwrap_or(0.0);
@@ -174,9 +175,9 @@ pub(crate) fn setup_edit_order_inc(ui: &MainWindow) {
 /// `− 1` na qty; quando chega a 0, remove a linha.
 pub(crate) fn setup_edit_order_dec(ui: &MainWindow) {
     let ui_weak = ui.as_weak();
-    ui.on_edit_order_dec(move |idx| {
+    ui.global::<OrdersState>().on_edit_order_dec(move |idx| {
         let Some(ui) = ui_weak.upgrade() else { return };
-        let model = ui.get_edit_order_items();
+        let model = ui.global::<OrdersState>().get_edit_order_items();
         let Some(vm) = model.as_any().downcast_ref::<VecModel<crate::EditOrderItem>>() else { return };
         let Some(mut row) = vm.row_data(idx as usize) else { return };
         let cur: f64 = row.qty.parse().unwrap_or(0.0);
@@ -194,9 +195,9 @@ pub(crate) fn setup_edit_order_dec(ui: &MainWindow) {
 /// Remove o item no índice `idx` do model do modal de edição.
 pub(crate) fn setup_edit_order_delete(ui: &MainWindow) {
     let ui_weak = ui.as_weak();
-    ui.on_edit_order_delete(move |idx| {
+    ui.global::<OrdersState>().on_edit_order_delete(move |idx| {
         let Some(ui) = ui_weak.upgrade() else { return };
-        let model = ui.get_edit_order_items();
+        let model = ui.global::<OrdersState>().get_edit_order_items();
         let Some(vm) = model.as_any().downcast_ref::<VecModel<crate::EditOrderItem>>() else { return };
         if (idx as usize) < vm.row_count() {
             vm.remove(idx as usize);
@@ -209,12 +210,12 @@ pub(crate) fn setup_edit_order_delete(ui: &MainWindow) {
 /// Lê `name` e `price` direto do products model (Slint) já em memória.
 pub(crate) fn setup_edit_order_add_product(ui: &MainWindow) {
     let ui_weak = ui.as_weak();
-    ui.on_edit_order_add_product(move |pid| {
+    ui.global::<OrdersState>().on_edit_order_add_product(move |pid| {
         let Some(ui) = ui_weak.upgrade() else { return };
         // Resolve o produto na lista mestra do picker (carregada do
         // service no `setup_edit_order` — não depende de a aba
         // Produtos ter sido aberta).
-        let master = ui.get_edit_order_picker_master();
+        let master = ui.global::<OrdersState>().get_edit_order_picker_master();
         let mut found: Option<(String, f64)> = None;
         for i in 0..master.row_count() {
             if let Some(p) = master.row_data(i) {
@@ -229,7 +230,7 @@ pub(crate) fn setup_edit_order_add_product(ui: &MainWindow) {
             Some(v) => v,
             None => { show_toast(&ui, "Produto não encontrado", "error"); return; }
         };
-        let model = ui.get_edit_order_items();
+        let model = ui.global::<OrdersState>().get_edit_order_items();
         let Some(vm) = model.as_any().downcast_ref::<VecModel<crate::EditOrderItem>>() else { return };
         // Se já existe linha do MESMO produto (pelo nome), apenas
         // incrementa qty — evita duplicar linhas do mesmo produto.
@@ -274,9 +275,9 @@ pub(crate) fn setup_save_edit_order(
     let ui_weak = ui.as_weak();
     let state = state.clone();
     let handle = handle.clone();
-    ui.on_save_edit_order(move || {
+    ui.global::<OrdersState>().on_save_edit_order(move || {
         let Some(ui_ref) = ui_weak.upgrade() else { return };
-        let order_id_str = ui_ref.get_detail_order().id.to_string();
+        let order_id_str = ui_ref.global::<OrdersState>().get_detail_order().id.to_string();
         let id = match Uuid::parse_str(&order_id_str) {
             Ok(v) => v, Err(_) => return,
         };
@@ -284,7 +285,7 @@ pub(crate) fn setup_save_edit_order(
         // OrderItem (existente: id já parsado; novo: id = nil para o
         // service gerar). product_id vem do snapshot original (ou do
         // sentinel "new:<uuid>" para novos).
-        let items_model = ui_ref.get_edit_order_items();
+        let items_model = ui_ref.global::<OrdersState>().get_edit_order_items();
         // (item_id, product_name, qty, unit_price, addons_json)
         let mut rows: Vec<(String, String, f64, f64, String)> = Vec::new();
         for i in 0..items_model.row_count() {
@@ -299,7 +300,7 @@ pub(crate) fn setup_save_edit_order(
                 ));
             }
         }
-        let notes_raw = ui_ref.get_edit_order_notes().to_string();
+        let notes_raw = ui_ref.global::<OrdersState>().get_edit_order_notes().to_string();
         // `delivery_type` não é mais editável no modal (UX simplificado:
         // alterar entre entrega/retirada no meio do fluxo é raro e
         // afeta endereço/taxa — o operador cancela e refaz o pedido
@@ -377,14 +378,14 @@ pub(crate) fn setup_save_edit_order(
                 let Some(ui) = ui_weak2.upgrade() else { return };
                 match result {
                     Ok(_) => {
-                        ui.set_show_edit_order_modal(false);
-                        ui.set_edit_order_error(SharedString::default());
+                        ui.global::<OrdersState>().set_show_edit_order_modal(false);
+                        ui.global::<OrdersState>().set_edit_order_error(SharedString::default());
                         show_toast(&ui, "Pedido Atualizado", "success");
-                        ui.invoke_open_order(ui.get_detail_order().id);
-                        ui.invoke_refresh_orders();
+                        ui.global::<OrdersState>().invoke_open_order(ui.global::<OrdersState>().get_detail_order().id);
+                        ui.global::<OrdersState>().invoke_refresh_orders();
                     }
                     Err(e) => {
-                        ui.set_edit_order_error(SharedString::from(friendly_error(&e)));
+                        ui.global::<OrdersState>().set_edit_order_error(SharedString::from(friendly_error(&e)));
                     }
                 }
             });

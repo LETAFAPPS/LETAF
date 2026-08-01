@@ -1,0 +1,45 @@
+// Estado da feature RELATORIOS (central de analises), isolado do MainWindow.
+//
+// Por que um `global` (AI_RULES §8 / "Modularidade real"): em Slint as
+// propriedades de um componente vivem todas no mesmo arquivo — o
+// `main.slint` concentrava ~830 declaracoes de ~30 features. `global` e
+// o unico mecanismo da linguagem para separar estado por dominio sem
+// prop drilling, e o projeto ja o usa em `Theme`, `IconGlyph` e
+// `AdminState`.
+//
+// Acesso: no Slint, `ReportsState.<prop>`; no Rust,
+// `ui.global::<ReportsState>().set_<prop>()` / `.on_<callback>()`.
+// Logica em desktop/src/ui/reports.
+import { ReportCustomerRow, ReportDailyBar, ReportDreLine, ReportHBar, ReportHourlyBar, ReportKpi, ReportNewVsReturning, ReportOption, ReportProductRow } from "../types.slint";
+
+export global ReportsState {
+    // ── Relatórios (Central de análises) ────────────────────────
+    in-out property <[ReportOption]> report-types: [];
+    in-out property <[ReportOption]> report-periods: [];
+    in-out property <[ReportKpi]> report-kpis: [];
+    in-out property <string> report-active-type: "financial";
+    in-out property <string> report-header-title: "Relatório";
+    in-out property <string> report-header-subtitle: "";
+    // Título/subtítulo do gráfico principal — variam por período
+    // (Semanal/Mensal/Anual) e por sub-relatório (Financeiro/Pedidos).
+    in-out property <string> report-chart-title: "";
+    in-out property <string> report-chart-subtitle: "";
+    // Financeiro
+    in-out property <[ReportDailyBar]> report-daily-bars: [];
+    in-out property <[ReportDreLine]> report-dre-lines: [];
+    in-out property <[ReportHBar]> report-method-bars: [];
+    in-out property <string> report-method-total: "R$ 0,00";
+    // Pedidos
+    in-out property <[ReportDailyBar]> report-orders-bars: [];
+    in-out property <[ReportHBar]> report-channel-bars: [];
+    in-out property <[ReportHourlyBar]> report-hourly-bars: [];
+    // Produtos
+    in-out property <[ReportProductRow]> report-top-products: [];
+    // Clientes
+    in-out property <[ReportCustomerRow]> report-top-customers: [];
+    in-out property <ReportNewVsReturning> report-new-vs-ret;
+    callback report-refresh();
+    callback report-set-type(string);
+    callback report-set-period(string);
+    callback report-export();
+}

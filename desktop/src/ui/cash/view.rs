@@ -11,6 +11,8 @@ use crate::{
 
 use crate::format::{money_br as fmt_brl, money_br_signed as fmt_brl_signed};
 use super::core::{fmt_duration, now_local, to_local};
+use slint::ComponentHandle;
+use crate::CashState;
 
 pub(crate) fn apply_to_ui(
     ui: &MainWindow,
@@ -73,10 +75,10 @@ pub(crate) fn apply_to_ui(
         suggested_change_display: SharedString::from(fmt_brl(letaf_core::money::from_db_f64(suggested))),
         last_closed_summary: SharedString::default(),
     };
-    ui.set_cash_summary(s_data);
+    ui.global::<CashState>().set_cash_summary(s_data);
     // Property bool dedicada para o modal de bloqueio do PDV — ver
     // comentário em main.slint sobre o panic "Recursion detected".
-    ui.set_cash_blocked(!open);
+    ui.global::<CashState>().set_cash_blocked(!open);
 
     // Pré-popula sistema do modal "Fechar Caixa" — caso contrário os
     // campos abriam zerados independentemente da sessão atual.
@@ -90,21 +92,21 @@ pub(crate) fn apply_to_ui(
     let sys_credit_val = by("credit");
     let sys_debit_val = by("debit");
     let sys_total_val = sys_cash_val + sys_pix_val + sys_credit_val + sys_debit_val;
-    ui.set_cash_close_sys_cash(SharedString::from(fmt_brl(sys_cash_val)));
-    ui.set_cash_close_sys_pix(SharedString::from(fmt_brl(sys_pix_val)));
-    ui.set_cash_close_sys_credit(SharedString::from(fmt_brl(sys_credit_val)));
-    ui.set_cash_close_sys_debit(SharedString::from(fmt_brl(sys_debit_val)));
-    ui.set_cash_close_sys_total(SharedString::from(fmt_brl(sys_total_val)));
+    ui.global::<CashState>().set_cash_close_sys_cash(SharedString::from(fmt_brl(sys_cash_val)));
+    ui.global::<CashState>().set_cash_close_sys_pix(SharedString::from(fmt_brl(sys_pix_val)));
+    ui.global::<CashState>().set_cash_close_sys_credit(SharedString::from(fmt_brl(sys_credit_val)));
+    ui.global::<CashState>().set_cash_close_sys_debit(SharedString::from(fmt_brl(sys_debit_val)));
+    ui.global::<CashState>().set_cash_close_sys_total(SharedString::from(fmt_brl(sys_total_val)));
     // Sem nada informado ainda: a diferença fica em branco (só é
     // calculada depois que o operador preenche o campo).
     let pending = SharedString::from(super::PENDING_DIFF);
-    ui.set_cash_close_diff_cash(pending.clone());
-    ui.set_cash_close_diff_pix(pending.clone());
-    ui.set_cash_close_diff_credit(pending.clone());
-    ui.set_cash_close_diff_debit(pending.clone());
-    ui.set_cash_close_diff_total(pending);
-    ui.set_cash_close_in_total(SharedString::from(fmt_brl(rust_decimal::Decimal::ZERO)));
-    ui.set_cash_close_has_diff(false);
+    ui.global::<CashState>().set_cash_close_diff_cash(pending.clone());
+    ui.global::<CashState>().set_cash_close_diff_pix(pending.clone());
+    ui.global::<CashState>().set_cash_close_diff_credit(pending.clone());
+    ui.global::<CashState>().set_cash_close_diff_debit(pending.clone());
+    ui.global::<CashState>().set_cash_close_diff_total(pending);
+    ui.global::<CashState>().set_cash_close_in_total(SharedString::from(fmt_brl(rust_decimal::Decimal::ZERO)));
+    ui.global::<CashState>().set_cash_close_has_diff(false);
 
     // Histórico
     let session_rows: Vec<CashSessionRow> = recent
@@ -144,7 +146,7 @@ pub(crate) fn apply_to_ui(
             }
         })
         .collect();
-    ui.set_cash_sessions(ModelRc::new(VecModel::from(session_rows)));
+    ui.global::<CashState>().set_cash_sessions(ModelRc::new(VecModel::from(session_rows)));
 
     // Movimentos
     let mv_rows: Vec<CashMovementRow> = movements
@@ -199,7 +201,7 @@ pub(crate) fn apply_to_ui(
             }
         })
         .collect();
-    ui.set_cash_movements(ModelRc::new(VecModel::from(mv_rows)));
+    ui.global::<CashState>().set_cash_movements(ModelRc::new(VecModel::from(mv_rows)));
 
     // Totais por forma de pagamento — uma linha por forma no card
     // "Pagamentos" (rótulo, nº de transações e valor recebido).
@@ -226,11 +228,11 @@ pub(crate) fn apply_to_ui(
             }
         })
         .collect();
-    ui.set_cash_method_totals(ModelRc::new(VecModel::from(mt_rows)));
+    ui.global::<CashState>().set_cash_method_totals(ModelRc::new(VecModel::from(mt_rows)));
 
     // Defaults dos campos do modal "Abrir caixa"
-    ui.set_cash_open_operator(SharedString::from("Admin · Operador".to_string()));
-    ui.set_cash_open_suggested(SharedString::from(fmt_brl(letaf_core::money::from_db_f64(suggested))));
+    ui.global::<CashState>().set_cash_open_operator(SharedString::from("Admin · Operador".to_string()));
+    ui.global::<CashState>().set_cash_open_suggested(SharedString::from(fmt_brl(letaf_core::money::from_db_f64(suggested))));
 }
 
 pub(crate) fn method_to_label(method: Option<&str>) -> String {

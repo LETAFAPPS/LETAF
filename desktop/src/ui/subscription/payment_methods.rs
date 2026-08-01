@@ -10,6 +10,7 @@ use crate::context::DesktopState;
 use crate::MainWindow;
 
 use super::card::toast;
+use crate::SubscriptionState;
 
 // ── CRUD de formas de pagamento (Fase 14E) ───────────────────────
 //
@@ -37,10 +38,10 @@ pub(crate) fn setup_payment_method_crud(
     let state_pick = state.clone();
     let handle_pick = handle.clone();
     let sync_notify_pick = sync_notify.clone();
-    ui.on_subscription_pick_payment_method(move |id_str| {
+    ui.global::<SubscriptionState>().on_subscription_pick_payment_method(move |id_str| {
         let Some(ui) = ui_weak.upgrade() else { return };
         let id_string = id_str.to_string();
-        ui.set_payment_picker_open(false);
+        ui.global::<SubscriptionState>().set_payment_picker_open(false);
         let ui_weak = ui_weak.clone();
         let state = state_pick.clone();
         let notify = sync_notify_pick.clone();
@@ -99,7 +100,7 @@ pub(crate) fn setup_payment_method_crud(
             notify.notify_one();
             let _ = slint::invoke_from_event_loop(move || {
                 if let Some(ui) = ui_weak.upgrade() {
-                    ui.invoke_subscription_refresh();
+                    ui.global::<SubscriptionState>().invoke_subscription_refresh();
                 }
             });
         });

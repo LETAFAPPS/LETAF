@@ -11,6 +11,7 @@ use crate::{BannerData, MainWindow};
 use super::super::helpers::{friendly_error, show_toast};
 use super::super::image::{decode_pixel_buffer, pick_image_file, process_image_file};
 use super::form::{clear_form, read_and_validate, to_banner_data};
+use crate::{BannersState, ProductsState};
 
 /// Validação de URL para `banner.item_url`.
 /// - Precisa começar com `http://` ou `https://`.
@@ -49,7 +50,7 @@ pub(crate) fn setup_refresh_banners(
     let state = state.clone();
     let handle = handle.clone();
 
-    ui.on_refresh_banners(move || {
+    ui.global::<BannersState>().on_refresh_banners(move || {
         let ui_weak = ui_weak.clone();
         let state = state.clone();
         handle.spawn(async move {
@@ -58,15 +59,15 @@ pub(crate) fn setup_refresh_banners(
                 Ok(items) => {
                     let _ = slint::invoke_from_event_loop(move || {
                         let Some(ui) = ui_weak.upgrade() else { return };
-                        let products = ui.get_products();
+                        let products = ui.global::<ProductsState>().get_products();
                         let active = items.iter().filter(|b| b.active).count() as i32;
                         let inactive = items.len() as i32 - active;
                         let data: Vec<BannerData> = items.iter()
                             .map(|b| to_banner_data(b, &products))
                             .collect();
-                        ui.set_banners(ModelRc::new(VecModel::from(data)));
-                        ui.set_banners_active_count(active);
-                        ui.set_banners_inactive_count(inactive);
+                        ui.global::<BannersState>().set_banners(ModelRc::new(VecModel::from(data)));
+                        ui.global::<BannersState>().set_banners_active_count(active);
+                        ui.global::<BannersState>().set_banners_inactive_count(inactive);
                     });
                 }
                 Err(e) => {
@@ -88,32 +89,32 @@ pub(crate) fn setup_pick_banner_image(
     let ui_weak = ui.as_weak();
     let handle = handle.clone();
 
-    ui.on_pick_banner_image(move || {
+    ui.global::<BannersState>().on_pick_banner_image(move || {
         let ui_weak = ui_weak.clone();
         handle.spawn_blocking(move || {
             let Some(path) = pick_image_file() else { return };
             let uw = ui_weak.clone();
             let _ = slint::invoke_from_event_loop(move || {
-                if let Some(ui) = uw.upgrade() { ui.set_banner_image_loading(true); }
+                if let Some(ui) = uw.upgrade() { ui.global::<BannersState>().set_banner_image_loading(true); }
             });
             match process_image_file(&path) {
                 Some(b64) => {
                     let pixel_buf = decode_pixel_buffer(&b64);
                     let _ = slint::invoke_from_event_loop(move || {
                         if let Some(ui) = ui_weak.upgrade() {
-                            ui.set_banner_image_data(SharedString::from(b64));
+                            ui.global::<BannersState>().set_banner_image_data(SharedString::from(b64));
                             if let Some(pb) = pixel_buf {
-                                ui.set_banner_image(Image::from_rgba8(pb));
+                                ui.global::<BannersState>().set_banner_image(Image::from_rgba8(pb));
                             }
-                            ui.set_banner_image_loading(false);
-                            ui.set_banner_error_image(SharedString::default());
+                            ui.global::<BannersState>().set_banner_image_loading(false);
+                            ui.global::<BannersState>().set_banner_error_image(SharedString::default());
                         }
                     });
                 }
                 None => {
                     tracing::error!("Failed to process banner image: {}", path.display());
                     let _ = slint::invoke_from_event_loop(move || {
-                        if let Some(ui) = ui_weak.upgrade() { ui.set_banner_image_loading(false); }
+                        if let Some(ui) = ui_weak.upgrade() { ui.global::<BannersState>().set_banner_image_loading(false); }
                     });
                 }
             }
@@ -131,7 +132,7 @@ pub(crate) fn setup_add_banner(
     let state = state.clone();
     let handle = handle.clone();
 
-    ui.on_add_banner(move || {
+    ui.global::<BannersState>().on_add_banner(move || {
         let Some(ui_ref) = ui_weak.upgrade() else { return };
         let Some(form) = read_and_validate(&ui_ref) else { return };
         let ui_weak = ui_ref.as_weak();
@@ -152,7 +153,7 @@ pub(crate) fn setup_add_banner(
                         clear_form(&ui);
                         ui.set_show_modal(false);
                         ui.set_status_message(SharedString::from("Banner Criado"));
-                        ui.invoke_refresh_banners();
+                        ui.global::<BannersState>().invoke_refresh_banners();
                     });
                 }
                 Err(e) => {
@@ -178,7 +179,7 @@ pub(crate) fn setup_update_banner(
     let state = state.clone();
     let handle = handle.clone();
 
-    ui.on_update_banner(move || {
+    ui.global::<BannersState>().on_update_banner(move || {
         let Some(ui_ref) = ui_weak.upgrade() else { return };
         let id_str = ui_ref.get_editing_id().to_string();
         let Ok(id) = Uuid::parse_str(&id_str) else { return };
@@ -201,7 +202,7 @@ pub(crate) fn setup_update_banner(
                         clear_form(&ui);
                         ui.set_show_modal(false);
                         ui.set_status_message(SharedString::from("Banner Atualizado"));
-                        ui.invoke_refresh_banners();
+                        ui.global::<BannersState>().invoke_refresh_banners();
                     });
                 }
                 Err(e) => {
@@ -224,10 +225,10 @@ pub(crate) fn setup_update_banner(
 /// callback do `TextInput` (Slint não tem `string.contains`).
 pub(crate) fn setup_filter_banner_products(ui: &MainWindow) {
     let ui_weak = ui.as_weak();
-    ui.on_filter_banner_products(move || {
+    ui.global::<BannersState>().on_filter_banner_products(move || {
         let Some(ui) = ui_weak.upgrade() else { return };
-        let query = ui.get_banner_product_search().to_string().to_lowercase();
-        let all = ui.get_products();
+        let query = ui.global::<BannersState>().get_banner_product_search().to_string().to_lowercase();
+        let all = ui.global::<ProductsState>().get_products();
         let filtered: Vec<crate::ProductData> = if query.is_empty() {
             all.iter().collect()
         } else {
@@ -235,7 +236,7 @@ pub(crate) fn setup_filter_banner_products(ui: &MainWindow) {
                 .filter(|p| p.name.to_lowercase().contains(&query))
                 .collect()
         };
-        ui.set_banner_product_filtered(ModelRc::new(VecModel::from(filtered)));
+        ui.global::<BannersState>().set_banner_product_filtered(ModelRc::new(VecModel::from(filtered)));
     });
 }
 
@@ -249,10 +250,10 @@ pub(crate) fn setup_toggle_banner_active(
     let state = state.clone();
     let handle = handle.clone();
 
-    ui.on_toggle_banner_active(move |id_str| {
+    ui.global::<BannersState>().on_toggle_banner_active(move |id_str| {
         let Ok(id) = Uuid::parse_str(id_str.as_str()) else { return };
         let Some(ui_ref) = ui_weak.upgrade() else { return };
-        let new_active = !ui_ref.get_banners().iter()
+        let new_active = !ui_ref.global::<BannersState>().get_banners().iter()
             .find(|b| b.id == id_str)
             .map(|b| b.active)
             .unwrap_or(true);
@@ -270,7 +271,7 @@ pub(crate) fn setup_toggle_banner_active(
                         let Some(ui) = ui_weak.upgrade() else { return };
                         let label = if new_active { "Banner Ativado" } else { "Banner Desativado" };
                         show_toast(&ui, label, "success");
-                        ui.invoke_refresh_banners();
+                        ui.global::<BannersState>().invoke_refresh_banners();
                     });
                 }
                 Err(e) => {

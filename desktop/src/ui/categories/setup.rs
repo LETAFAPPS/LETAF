@@ -10,6 +10,7 @@ use crate::MainWindow;
 
 use super::super::helpers::friendly_error;
 use super::render::{apply_cache, apply_detail, build_tree, CatCache, resolve_category};
+use crate::CategoriesState;
 
 /// Registra os callbacks do master-detail de Categorias.
 ///
@@ -30,7 +31,7 @@ pub(crate) fn setup_categories(
         let state = state.clone();
         let handle = handle.clone();
         let cache = cache.clone();
-        ui.on_refresh_categories(move || {
+        ui.global::<CategoriesState>().on_refresh_categories(move || {
             let ui_weak = ui_weak.clone();
             let state = state.clone();
             let cache = cache.clone();
@@ -74,7 +75,7 @@ pub(crate) fn setup_categories(
     {
         let ui_weak = ui.as_weak();
         let cache = cache.clone();
-        ui.on_select_category(move |id_str| {
+        ui.global::<CategoriesState>().on_select_category(move |id_str| {
             let Some(ui) = ui_weak.upgrade() else { return };
             let Ok(id) = Uuid::parse_str(id_str.as_str()) else { return };
             if let Ok(mut g) = cache.lock() {
@@ -88,7 +89,7 @@ pub(crate) fn setup_categories(
     {
         let ui_weak = ui.as_weak();
         let cache = cache.clone();
-        ui.on_toggle_category(move |id_str| {
+        ui.global::<CategoriesState>().on_toggle_category(move |id_str| {
             let Some(ui) = ui_weak.upgrade() else { return };
             let Ok(id) = Uuid::parse_str(id_str.as_str()) else { return };
             if let Ok(mut g) = cache.lock() {
@@ -98,7 +99,7 @@ pub(crate) fn setup_categories(
                     g.expanded.insert(id);
                 }
                 let tree = build_tree(&g);
-                ui.set_category_tree(ModelRc::new(VecModel::from(tree)));
+                ui.global::<CategoriesState>().set_category_tree(ModelRc::new(VecModel::from(tree)));
             }
         });
     }

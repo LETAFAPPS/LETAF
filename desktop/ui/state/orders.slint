@@ -1,0 +1,102 @@
+// Estado da feature PEDIDOS (kanban/lista, detalhe, edicao, comanda e calendario), isolado do MainWindow.
+//
+// Por que um `global` (AI_RULES §8 / "Modularidade real"): em Slint as
+// propriedades de um componente vivem todas no mesmo arquivo — o
+// `main.slint` concentrava ~830 declaracoes de ~30 features. `global` e
+// o unico mecanismo da linguagem para separar estado por dominio sem
+// prop drilling, e o projeto ja o usa em `Theme`, `IconGlyph` e
+// `AdminState`.
+//
+// Acesso: no Slint, `OrdersState.<prop>`; no Rust,
+// `ui.global::<OrdersState>().set_<prop>()` / `.on_<callback>()`.
+// Logica em desktop/src/ui/orders. O configurador de produto vive em
+// `ProductConfigState` porque e compartilhado com o PDV.
+import { CalDay, EditOrderItem, KanbanCol, OrderData, OrderItemData, ProductData } from "../types.slint";
+
+export global OrdersState {
+    // ── Pedidos ─────────────────────────────────────
+    in-out property <[OrderData]> orders: [];
+    in-out property <string> order-filter-status: "all";
+    in-out property <string> order-detail-id: "";
+    in-out property <OrderData> detail-order: { id: "", number: "", order-date: "", order-time: "", customer-name: "", customer-phone: "", delivery-label: "", delivery-street: "", delivery-number: "", delivery-neighborhood: "", delivery-apartment: "", total: "", coupon-summary: "", status: "", status-label: "", delivery-type: "", items-count: 0, items-summary: "", notes: "", subtotal-display: "", discount-display: "", delivery-fee-display: "", coupon-code-display: "", elapsed-display: "", created-at-iso: "" };
+    in-out property <[OrderItemData]> detail-order-items: [];
+    // Kanban (filtro "all"): estatísticas por coluna de status,
+    // agregadas no Rust. Busca textual de pedidos.
+    in-out property <[KanbanCol]> kanban-cols: [];
+    in-out property <string> order-search-query: "";
+    // Filtro por período (calendário). Datas em "AAAA-MM-DD".
+    in-out property <string> order-date-start: "";
+    in-out property <string> order-date-end: "";
+    in-out property <string> order-date-label: "Período";
+    in-out property <bool>   cal-open: false;
+    in-out property <string> cal-title: "";
+    in-out property <[CalDay]> cal-days: [];
+    // Mês visível no calendário (controlado pelo Rust).
+    in-out property <int> cal-year: 0;
+    in-out property <int> cal-month: 0;
+    callback cal-toggle();
+    callback cal-prev();
+    callback cal-next();
+    callback cal-pick(string);
+    callback cal-clear();
+    callback refresh-orders();
+    callback open-order(string);
+    callback advance-order-status(string);
+    /// Forma de pagamento + Pago/Não pago do pedido (id, método, pago).
+    callback order-set-payment(string, string, bool);
+    callback cancel-order(string, string);
+    /// Recalcula `detail-order.elapsed-display` a partir de
+    /// `detail-order.created-at-iso`. Disparado a cada 60s pelo Timer
+    /// do painel direito enquanto o pedido está ativo.
+    callback refresh-order-elapsed();
+    /// "Editar pedido" — popula `edit-order-*` (Rust) e abre o modal.
+    callback edit-order(string);
+    /// +/− qty no item `idx` da lista de edição (Rust mexe no model).
+    callback edit-order-inc(int);
+    callback edit-order-dec(int);
+    /// Remove o item `idx` da lista de edição (linha desaparece).
+    callback edit-order-delete(int);
+    /// Reabre o configurador com as seleções já marcadas para o
+    /// item `idx`. Ao confirmar, SUBSTITUI `items[idx]`; ao cancelar,
+    /// o item original é preservado.
+    callback edit-order-edit-item(int);
+    /// Adiciona um produto novo à lista (push de EditOrderItem novo
+    /// com `item_id == ""` — sentinel "novo"; o save gera UUID).
+    callback edit-order-add-product(string);
+    /// Refiltra `edit-order-picker-products` no Rust (Slint não tem
+    /// `string.contains`). Disparado pelo `edited` da busca do picker.
+    callback edit-order-filter-picker(string);
+    /// "Salvar alterações" no modal — Rust lê itens/notes/delivery
+    /// e chama `OrderService::update_basics`.
+    callback save-edit-order();
+    /// "Imprimir agora" — gera o HTML da comanda (completa ou cozinha,
+    /// conforme `receipt-modal-mode`) e abre no navegador padrão com
+    /// `window.print()` autoinjetado para o diálogo de impressão
+    /// aparecer sem interação extra. Disparado pelo `ReceiptModal`.
+    /// Argumentos: (order-id, mode).
+    callback print-receipt-now(string, string);
+    in-out property <bool> show-cancel-modal: false;
+    /// Modal de preview/impressão de comanda. Vazio = oculto.
+    /// "complete" = comanda do cliente (com valores).
+    /// "kitchen"  = comanda da cozinha (compacta, sem valores).
+    in-out property <string> receipt-modal-mode: "";
+    /// Modal de edição do pedido. `false` oculto.
+    in-out property <bool> show-edit-order-modal: false;
+    /// Lista mutável de itens em edição (qty editável; remoção por
+    /// −/+ até 0). Rust gerencia push/remove via callbacks.
+    in-out property <[EditOrderItem]> edit-order-items: [];
+    in-out property <string> edit-order-notes: "";
+    in-out property <string> edit-order-delivery-type: "delivery";
+    in-out property <string> edit-order-error: "";
+    /// Lista de produtos exibida no picker do EditOrderModal —
+    /// filtrada em Rust via callback `edit-order-filter-picker`.
+    in-out property <[ProductData]> edit-order-picker-products: [];
+    /// Lista mestra (sem filtro) usada pelo Rust para refiltrar quando
+    /// o operador digita na busca. Carregada do `product_service` na
+    /// abertura do modal — não depende do `products` lazy da UI.
+    in-out property <[ProductData]> edit-order-picker-master: [];
+    in-out property <string> cancel-target-id: "";
+    in-out property <string> cancel-target-label: "";
+    in-out property <string> cancel-reason: "";
+    in-out property <string> cancel-error: "";
+}

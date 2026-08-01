@@ -19,6 +19,8 @@ use super::helpers::ChartWindow;
 use super::sections::{fill_customers, fill_financial, fill_orders, fill_products};
 use super::helpers::opt;
 use super::super::image::decode_pixel_buffer;
+use slint::ComponentHandle;
+use crate::ReportsState;
 
 // ── Snapshot ────────────────────────────────────────────────────
 
@@ -219,21 +221,21 @@ fn period_style(period: ReportPeriod) -> (&'static str, Granularity) {
 }
 
 pub(crate) fn apply_to_ui(ui: &MainWindow, s: &Snapshot) {
-    ui.set_report_types(ModelRc::new(VecModel::from(s.types.clone())));
-    ui.set_report_periods(ModelRc::new(VecModel::from(s.periods.clone())));
-    ui.set_report_kpis(ModelRc::new(VecModel::from(s.kpis.clone())));
-    ui.set_report_active_type(SharedString::from(s.active_type.clone()));
-    ui.set_report_header_title(SharedString::from(s.header_title.clone()));
-    ui.set_report_header_subtitle(SharedString::from(s.header_subtitle.clone()));
-    ui.set_report_chart_title(SharedString::from(s.chart_title.clone()));
-    ui.set_report_chart_subtitle(SharedString::from(s.chart_subtitle.clone()));
-    ui.set_report_daily_bars(ModelRc::new(VecModel::from(s.daily_bars.clone())));
-    ui.set_report_dre_lines(ModelRc::new(VecModel::from(s.dre_lines.clone())));
-    ui.set_report_method_bars(ModelRc::new(VecModel::from(s.method_bars.clone())));
-    ui.set_report_method_total(SharedString::from(s.method_total.clone()));
-    ui.set_report_orders_bars(ModelRc::new(VecModel::from(s.orders_bars.clone())));
-    ui.set_report_channel_bars(ModelRc::new(VecModel::from(s.channel_bars.clone())));
-    ui.set_report_hourly_bars(ModelRc::new(VecModel::from(s.hourly_bars.clone())));
+    ui.global::<ReportsState>().set_report_types(ModelRc::new(VecModel::from(s.types.clone())));
+    ui.global::<ReportsState>().set_report_periods(ModelRc::new(VecModel::from(s.periods.clone())));
+    ui.global::<ReportsState>().set_report_kpis(ModelRc::new(VecModel::from(s.kpis.clone())));
+    ui.global::<ReportsState>().set_report_active_type(SharedString::from(s.active_type.clone()));
+    ui.global::<ReportsState>().set_report_header_title(SharedString::from(s.header_title.clone()));
+    ui.global::<ReportsState>().set_report_header_subtitle(SharedString::from(s.header_subtitle.clone()));
+    ui.global::<ReportsState>().set_report_chart_title(SharedString::from(s.chart_title.clone()));
+    ui.global::<ReportsState>().set_report_chart_subtitle(SharedString::from(s.chart_subtitle.clone()));
+    ui.global::<ReportsState>().set_report_daily_bars(ModelRc::new(VecModel::from(s.daily_bars.clone())));
+    ui.global::<ReportsState>().set_report_dre_lines(ModelRc::new(VecModel::from(s.dre_lines.clone())));
+    ui.global::<ReportsState>().set_report_method_bars(ModelRc::new(VecModel::from(s.method_bars.clone())));
+    ui.global::<ReportsState>().set_report_method_total(SharedString::from(s.method_total.clone()));
+    ui.global::<ReportsState>().set_report_orders_bars(ModelRc::new(VecModel::from(s.orders_bars.clone())));
+    ui.global::<ReportsState>().set_report_channel_bars(ModelRc::new(VecModel::from(s.channel_bars.clone())));
+    ui.global::<ReportsState>().set_report_hourly_bars(ModelRc::new(VecModel::from(s.hourly_bars.clone())));
     // Decodifica miniaturas no event loop (Image não é Send).
     let product_rows: Vec<ReportProductRow> = s
         .top_products
@@ -258,7 +260,7 @@ pub(crate) fn apply_to_ui(ui: &MainWindow, s: &Snapshot) {
             }
         })
         .collect();
-    ui.set_report_top_products(ModelRc::new(VecModel::from(product_rows)));
+    ui.global::<ReportsState>().set_report_top_products(ModelRc::new(VecModel::from(product_rows)));
     // Mesma técnica para clientes: decodifica foto no event loop.
     let customer_rows: Vec<ReportCustomerRow> = s
         .top_customers
@@ -285,6 +287,6 @@ pub(crate) fn apply_to_ui(ui: &MainWindow, s: &Snapshot) {
             }
         })
         .collect();
-    ui.set_report_top_customers(ModelRc::new(VecModel::from(customer_rows)));
-    ui.set_report_new_vs_ret(s.new_vs_ret.clone());
+    ui.global::<ReportsState>().set_report_top_customers(ModelRc::new(VecModel::from(customer_rows)));
+    ui.global::<ReportsState>().set_report_new_vs_ret(s.new_vs_ret.clone());
 }

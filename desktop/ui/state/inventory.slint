@@ -1,0 +1,40 @@
+// Estado da feature ESTOQUE (saude, lista e ajuste), isolado do MainWindow.
+//
+// Por que um `global` (AI_RULES §8 / "Modularidade real"): em Slint as
+// propriedades de um componente vivem todas no mesmo arquivo — o
+// `main.slint` concentrava ~830 declaracoes de ~30 features. `global` e
+// o unico mecanismo da linguagem para separar estado por dominio sem
+// prop drilling, e o projeto ja o usa em `Theme`, `IconGlyph` e
+// `AdminState`.
+//
+// Acesso: no Slint, `InventoryState.<prop>`; no Rust,
+// `ui.global::<InventoryState>().set_<prop>()` / `.on_<callback>()`.
+// Logica em desktop/src/ui/inventory.
+import { InventoryHealthData, InventoryProductRow } from "../types.slint";
+
+export global InventoryState {
+    // ── Controle de Estoque ─────────────────────────────────────
+    in-out property <InventoryHealthData> inventory-health;
+    in-out property <[InventoryProductRow]> inventory-products: [];
+    in-out property <string> inventory-search: "";
+    // Filtro de status da lista: "all" | "ok" | "low" | "out".
+    in-out property <string> inventory-filter: "all";
+    // Sincronização manual em andamento (gira o ícone do botão).
+    in-out property <bool> inventory-syncing: false;
+    // Modal de ajuste
+    in-out property <bool>   stock-adjust-show: false;
+    in-out property <string> stock-adjust-mode: "add";          // "add" | "set"
+    in-out property <string> stock-adjust-product-id: "";
+    in-out property <string> stock-adjust-product-name: "";
+    in-out property <string> stock-adjust-current: "";
+    in-out property <string> stock-adjust-qty: "";
+    in-out property <string> stock-adjust-reason: "";
+    in-out property <string> stock-adjust-error: "";
+    callback inventory-refresh();
+    callback inventory-sync();
+    callback inventory-search-changed(string);
+    callback inventory-filter-changed(string);
+    callback inventory-request-add(string);
+    callback inventory-request-edit(string);
+    callback inventory-confirm-adjust();
+}

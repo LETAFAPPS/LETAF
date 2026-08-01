@@ -8,6 +8,8 @@ use crate::{BannerData, MainWindow};
 
 use super::super::image::decode_pixel_buffer;
 use super::crud::validate_url;
+use slint::ComponentHandle;
+use crate::BannersState;
 
 // ── Helpers ──────────────────────────────────────────────
 
@@ -24,41 +26,41 @@ pub(crate) struct BannerForm {
 /// chamar o service.
 pub(crate) fn read_and_validate(ui: &MainWindow) -> Option<BannerForm> {
     // Limpa erros antes de revalidar.
-    ui.set_banner_error_title(SharedString::default());
-    ui.set_banner_error_image(SharedString::default());
-    ui.set_banner_error_target(SharedString::default());
+    ui.global::<BannersState>().set_banner_error_title(SharedString::default());
+    ui.global::<BannersState>().set_banner_error_image(SharedString::default());
+    ui.global::<BannersState>().set_banner_error_target(SharedString::default());
 
-    let title = ui.get_banner_title().to_string();
-    let image_data = ui.get_banner_image_data().to_string();
-    let item_type = ui.get_banner_item_type().to_string();
+    let title = ui.global::<BannersState>().get_banner_title().to_string();
+    let image_data = ui.global::<BannersState>().get_banner_image_data().to_string();
+    let item_type = ui.global::<BannersState>().get_banner_item_type().to_string();
 
     let mut ok = true;
     if title.trim().is_empty() {
-        ui.set_banner_error_title(SharedString::from("Informe o título"));
+        ui.global::<BannersState>().set_banner_error_title(SharedString::from("Informe o título"));
         ok = false;
     }
     if image_data.trim().is_empty() {
-        ui.set_banner_error_image(SharedString::from("Envie uma imagem (3:1)"));
+        ui.global::<BannersState>().set_banner_error_image(SharedString::from("Envie uma imagem (3:1)"));
         ok = false;
     }
 
     let (item_id, item_url) = match item_type.as_str() {
         "product" => {
-            let pid = ui.get_banner_product_id().to_string();
+            let pid = ui.global::<BannersState>().get_banner_product_id().to_string();
             match Uuid::parse_str(&pid) {
                 Ok(uuid) => (Some(uuid), None),
                 Err(_) => {
-                    ui.set_banner_error_target(SharedString::from("Selecione um produto"));
+                    ui.global::<BannersState>().set_banner_error_target(SharedString::from("Selecione um produto"));
                     ok = false;
                     (None, None)
                 }
             }
         }
         "url" => {
-            let url = ui.get_banner_url().to_string();
+            let url = ui.global::<BannersState>().get_banner_url().to_string();
             match validate_url(&url) {
                 Some(msg) => {
-                    ui.set_banner_error_target(SharedString::from(msg));
+                    ui.global::<BannersState>().set_banner_error_target(SharedString::from(msg));
                     ok = false;
                     (None, None)
                 }
@@ -75,15 +77,15 @@ pub(crate) fn read_and_validate(ui: &MainWindow) -> Option<BannerForm> {
 
 pub(crate) fn clear_form(ui: &MainWindow) {
     ui.set_editing_id(SharedString::default());
-    ui.set_banner_title(SharedString::default());
-    ui.set_banner_item_type(SharedString::from("product"));
-    ui.set_banner_product_id(SharedString::default());
-    ui.set_banner_product_name(SharedString::default());
-    ui.set_banner_url(SharedString::default());
-    ui.set_banner_image_data(SharedString::default());
-    ui.set_banner_error_title(SharedString::default());
-    ui.set_banner_error_image(SharedString::default());
-    ui.set_banner_error_target(SharedString::default());
+    ui.global::<BannersState>().set_banner_title(SharedString::default());
+    ui.global::<BannersState>().set_banner_item_type(SharedString::from("product"));
+    ui.global::<BannersState>().set_banner_product_id(SharedString::default());
+    ui.global::<BannersState>().set_banner_product_name(SharedString::default());
+    ui.global::<BannersState>().set_banner_url(SharedString::default());
+    ui.global::<BannersState>().set_banner_image_data(SharedString::default());
+    ui.global::<BannersState>().set_banner_error_title(SharedString::default());
+    ui.global::<BannersState>().set_banner_error_image(SharedString::default());
+    ui.global::<BannersState>().set_banner_error_target(SharedString::default());
 }
 
 /// Converte `Banner` (domínio) → `BannerData` (Slint), resolvendo o

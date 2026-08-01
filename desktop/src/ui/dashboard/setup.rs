@@ -5,6 +5,7 @@ use slint::ComponentHandle;
 use crate::context::DesktopState;
 use crate::MainWindow;
 use super::snapshot::{apply_to_ui, build_snapshot};
+use crate::DashboardState;
 
 pub(crate) fn setup_dashboard(
     ui: &MainWindow,
@@ -22,11 +23,11 @@ pub(crate) fn setup_refresh(ui: &MainWindow, state: &DesktopState, handle: &toki
     let ui_weak = ui.as_weak();
     let state = state.clone();
     let handle = handle.clone();
-    ui.on_dashboard_refresh(move || {
+    ui.global::<DashboardState>().on_dashboard_refresh(move || {
         // Período selecionado no filtro — lido na thread da UI.
         let period = ui_weak
             .upgrade()
-            .map(|u| u.get_dashboard_period().to_string())
+            .map(|u| u.global::<DashboardState>().get_dashboard_period().to_string())
             .unwrap_or_else(|| "week".to_string());
         let ui_weak = ui_weak.clone();
         let state = state.clone();
@@ -81,7 +82,7 @@ pub(crate) fn setup_sync_listener(
                     // Só recomputa quando a tela está visível para evitar
                     // trabalho inútil.
                     if ui.get_active_tab() == "dashboard" {
-                        ui.invoke_dashboard_refresh();
+                        ui.global::<DashboardState>().invoke_dashboard_refresh();
                     }
                 }
             });

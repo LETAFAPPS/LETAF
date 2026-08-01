@@ -9,6 +9,7 @@ use crate::context::DesktopState;
 use crate::MainWindow;
 
 use super::super::helpers::show_toast;
+use crate::OrdersState;
 
 /// Callback: gera a comanda como TEXTO MONOSPACE e envia direto para
 /// a impressora padrão do sistema (sem browser).
@@ -29,7 +30,7 @@ pub(crate) fn setup_print_receipt_now(
     let ui_weak = ui.as_weak();
     let state = state.clone();
     let handle = handle.clone();
-    ui.on_print_receipt_now(move |id_str, mode| {
+    ui.global::<OrdersState>().on_print_receipt_now(move |id_str, mode| {
         let id = match Uuid::parse_str(id_str.as_str()) {
             Ok(v) => v, Err(_) => return,
         };

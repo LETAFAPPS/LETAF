@@ -9,6 +9,7 @@ use letaf_core::coupon::model::Coupon;
 use crate::{CalDay, CouponData, MainWindow};
 
 use super::form::{discount_summary, int_str, num_str, type_label};
+use crate::CouponsState;
 
 // ── Calendário pop-up dos campos de validade ──────────────────────
 //
@@ -53,14 +54,14 @@ pub(crate) fn setup_coupon_cal(ui: &MainWindow) {
     // para que o `if` no main.slint mostre o CalendarPopup.
     let ui_weak = ui.as_weak();
     let cal_open = cal.clone();
-    ui.on_coupon_cal_open(move |target| {
+    ui.global::<CouponsState>().on_coupon_cal_open(move |target| {
         let Some(ui) = ui_weak.upgrade() else { return };
         let t = target.to_string();
         if t != "from" && t != "until" { return; }
         let current_value = if t == "from" {
-            ui.get_coupon_valid_from().to_string()
+            ui.global::<CouponsState>().get_coupon_valid_from().to_string()
         } else {
-            ui.get_coupon_valid_until().to_string()
+            ui.global::<CouponsState>().get_coupon_valid_until().to_string()
         };
         let parsed = NaiveDate::parse_from_str(&current_value, "%d/%m/%Y").ok();
         if let Ok(mut g) = cal_open.lock() {
@@ -71,22 +72,22 @@ pub(crate) fn setup_coupon_cal(ui: &MainWindow) {
                 cursor.selected = Some(d);
             }
         }
-        ui.set_coupon_cal_target(SharedString::from(t));
+        ui.global::<CouponsState>().set_coupon_cal_target(SharedString::from(t));
         apply_coupon_cal(&ui, &cal_open);
     });
 
     let ui_weak = ui.as_weak();
-    ui.on_coupon_cal_close(move || {
+    ui.global::<CouponsState>().on_coupon_cal_close(move || {
         if let Some(ui) = ui_weak.upgrade() {
-            ui.set_coupon_cal_target(SharedString::from(""));
+            ui.global::<CouponsState>().set_coupon_cal_target(SharedString::from(""));
         }
     });
 
     let ui_weak = ui.as_weak();
     let cal_prev = cal.clone();
-    ui.on_coupon_cal_prev(move || {
+    ui.global::<CouponsState>().on_coupon_cal_prev(move || {
         let Some(ui) = ui_weak.upgrade() else { return };
-        let target = ui.get_coupon_cal_target().to_string();
+        let target = ui.global::<CouponsState>().get_coupon_cal_target().to_string();
         if let Ok(mut g) = cal_prev.lock() {
             let cursor = match target.as_str() {
                 "from" => &mut g.from,
@@ -103,9 +104,9 @@ pub(crate) fn setup_coupon_cal(ui: &MainWindow) {
 
     let ui_weak = ui.as_weak();
     let cal_next = cal.clone();
-    ui.on_coupon_cal_next(move || {
+    ui.global::<CouponsState>().on_coupon_cal_next(move || {
         let Some(ui) = ui_weak.upgrade() else { return };
-        let target = ui.get_coupon_cal_target().to_string();
+        let target = ui.global::<CouponsState>().get_coupon_cal_target().to_string();
         if let Ok(mut g) = cal_next.lock() {
             let cursor = match target.as_str() {
                 "from" => &mut g.from,
@@ -122,17 +123,17 @@ pub(crate) fn setup_coupon_cal(ui: &MainWindow) {
 
     let ui_weak = ui.as_weak();
     let cal_pick = cal;
-    ui.on_coupon_cal_pick(move |ymd| {
+    ui.global::<CouponsState>().on_coupon_cal_pick(move |ymd| {
         let Some(ui) = ui_weak.upgrade() else { return };
         let ymd_s = ymd.to_string();
-        let target = ui.get_coupon_cal_target().to_string();
+        let target = ui.global::<CouponsState>().get_coupon_cal_target().to_string();
         if target != "from" && target != "until" { return; }
 
         if ymd_s.is_empty() {
             if target == "from" {
-                ui.set_coupon_valid_from(SharedString::from(""));
+                ui.global::<CouponsState>().set_coupon_valid_from(SharedString::from(""));
             } else {
-                ui.set_coupon_valid_until(SharedString::from(""));
+                ui.global::<CouponsState>().set_coupon_valid_until(SharedString::from(""));
             }
             if let Ok(mut g) = cal_pick.lock() {
                 let cursor = if target == "from" { &mut g.from } else { &mut g.until };
@@ -141,11 +142,11 @@ pub(crate) fn setup_coupon_cal(ui: &MainWindow) {
         } else if let Ok(d) = NaiveDate::parse_from_str(&ymd_s, "%Y-%m-%d") {
             let br = d.format("%d/%m/%Y").to_string();
             if target == "from" {
-                ui.set_coupon_valid_from(SharedString::from(br));
+                ui.global::<CouponsState>().set_coupon_valid_from(SharedString::from(br));
             } else {
-                ui.set_coupon_valid_until(SharedString::from(br));
+                ui.global::<CouponsState>().set_coupon_valid_until(SharedString::from(br));
             }
-            ui.set_coupon_error_validity(SharedString::default());
+            ui.global::<CouponsState>().set_coupon_error_validity(SharedString::default());
             if let Ok(mut g) = cal_pick.lock() {
                 let cursor = if target == "from" { &mut g.from } else { &mut g.until };
                 cursor.year = d.year();
@@ -153,18 +154,18 @@ pub(crate) fn setup_coupon_cal(ui: &MainWindow) {
                 cursor.selected = Some(d);
             }
         }
-        ui.set_coupon_cal_target(SharedString::from(""));
+        ui.global::<CouponsState>().set_coupon_cal_target(SharedString::from(""));
     });
 }
 
 pub(crate) fn apply_coupon_cal(ui: &MainWindow, cal: &CouponCalHandle) {
-    let target = ui.get_coupon_cal_target().to_string();
+    let target = ui.global::<CouponsState>().get_coupon_cal_target().to_string();
     if target != "from" && target != "until" { return; }
     let snap = cal.lock().ok().map(|g| if target == "from" { g.from } else { g.until })
         .unwrap_or_else(MonthCursor::today);
     let today = letaf_core::tz::today();
-    ui.set_coupon_cal_title(SharedString::from(format!("{} · {}", month_pt(snap.month), snap.year)));
-    ui.set_coupon_cal_days(ModelRc::new(VecModel::from(
+    ui.global::<CouponsState>().set_coupon_cal_title(SharedString::from(format!("{} · {}", month_pt(snap.month), snap.year)));
+    ui.global::<CouponsState>().set_coupon_cal_days(ModelRc::new(VecModel::from(
         build_cal_days(snap.year, snap.month, snap.selected, today),
     )));
 }

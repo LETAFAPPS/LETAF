@@ -17,6 +17,7 @@ use crate::{KanbanCol, MainWindow, OrderData, OrderItemData};
 use super::super::helpers::{friendly_error, show_toast};
 use super::calendar::parse_ymd;
 use super::config::{format_addons_summary, format_qty};
+use crate::OrdersState;
 
 pub(crate) fn setup_refresh_orders(
     ui: &MainWindow,
@@ -27,7 +28,7 @@ pub(crate) fn setup_refresh_orders(
     let state = state.clone();
     let handle = handle.clone();
 
-    ui.on_refresh_orders(move || {
+    ui.global::<OrdersState>().on_refresh_orders(move || {
         let ui_weak = ui_weak.clone();
         let state = state.clone();
 
@@ -53,13 +54,13 @@ pub(crate) fn setup_refresh_orders(
 /// refresh E pelas mutações (avançar/cancelar) para o Kanban/grade
 /// atualizarem na hora. Roda no event loop (lê props da UI).
 fn apply_loaded_orders(ui: &MainWindow, all: Vec<OrderData>) {
-    let filter = ui.get_order_filter_status().to_string();
-    let query = ui.get_order_search_query().to_string().to_lowercase();
+    let filter = ui.global::<OrdersState>().get_order_filter_status().to_string();
+    let query = ui.global::<OrdersState>().get_order_search_query().to_string().to_lowercase();
     // Filtro por período (calendário): início/fim em "AAAA-MM-DD".
     // Vazio = sem restrição. Mesmo dia permitido (start == end);
     // só início definido → filtra exatamente esse dia.
-    let d_start = parse_ymd(ui.get_order_date_start().as_ref());
-    let d_end = parse_ymd(ui.get_order_date_end().as_ref()).or(d_start);
+    let d_start = parse_ymd(ui.global::<OrdersState>().get_order_date_start().as_ref());
+    let d_end = parse_ymd(ui.global::<OrdersState>().get_order_date_end().as_ref()).or(d_start);
 
     // Ordena do primeiro para o último (nº crescente = mais antigo
     // no topo) — fila FIFO de atendimento no Kanban e na grade.
@@ -98,7 +99,7 @@ fn apply_loaded_orders(ui: &MainWindow, all: Vec<OrderData>) {
         .collect();
 
     // Colunas do Kanban (5 fixas; cancelados só pelo chip).
-    ui.set_kanban_cols(ModelRc::new(VecModel::from(build_kanban_cols(&searched))));
+    ui.global::<OrdersState>().set_kanban_cols(ModelRc::new(VecModel::from(build_kanban_cols(&searched))));
 
     // Grade por status (quando não é "all"/vazio).
     let mut items: Vec<OrderData> = if filter.is_empty() || filter == "all" {
@@ -114,7 +115,7 @@ fn apply_loaded_orders(ui: &MainWindow, all: Vec<OrderData>) {
         items.reverse();
     }
     let count = items.len();
-    ui.set_orders(ModelRc::new(VecModel::from(items)));
+    ui.global::<OrdersState>().set_orders(ModelRc::new(VecModel::from(items)));
     ui.set_status_message(SharedString::from(format!(
         "{count} pedido(s) carregado(s)"
     )));
@@ -136,24 +137,24 @@ pub(crate) fn setup_open_order(
     let state = state.clone();
     let handle = handle.clone();
 
-    ui.on_open_order(move |id| {
+    ui.global::<OrdersState>().on_open_order(move |id| {
         let ui_weak2 = ui_weak.clone();
         let state2 = state.clone();
         let id_str = id.to_string();
 
         // Navega imediatamente usando o OrderData já em memória.
         if let Some(u) = ui_weak.upgrade() {
-            let orders = u.get_orders();
+            let orders = u.global::<OrdersState>().get_orders();
             for i in 0..orders.row_count() {
                 if let Some(order) = orders.row_data(i) {
                     if order.id == id {
-                        u.set_detail_order(order);
+                        u.global::<OrdersState>().set_detail_order(order);
                         break;
                     }
                 }
             }
-            u.set_detail_order_items(ModelRc::new(VecModel::from(vec![])));
-            u.set_order_detail_id(id);
+            u.global::<OrdersState>().set_detail_order_items(ModelRc::new(VecModel::from(vec![])));
+            u.global::<OrdersState>().set_order_detail_id(id);
         }
 
         // Carrega itens detalhados + imagens em background e
@@ -228,8 +229,8 @@ pub(crate) fn setup_open_order(
                         ),
                     }
                 }).collect();
-                u.set_detail_order(fresh_data);
-                u.set_detail_order_items(ModelRc::new(VecModel::from(items)));
+                u.global::<OrdersState>().set_detail_order(fresh_data);
+                u.global::<OrdersState>().set_detail_order_items(ModelRc::new(VecModel::from(items)));
             });
         });
     });
@@ -263,7 +264,7 @@ pub(crate) fn setup_set_order_payment(
     let state = state.clone();
     let handle = handle.clone();
 
-    ui.on_order_set_payment(move |id, method, paid| {
+    ui.global::<OrdersState>().on_order_set_payment(move |id, method, paid| {
         let ui_weak = ui_weak.clone();
         let state = state.clone();
         let notify = sync_notify.clone();
@@ -285,15 +286,15 @@ pub(crate) fn setup_set_order_payment(
                     Ok(order) => {
                         // Atualiza o detalhe aberto na hora (sem esperar
                         // o refresh completo da lista).
-                        let mut detail = ui.get_detail_order();
+                        let mut detail = ui.global::<OrdersState>().get_detail_order();
                         if detail.id.as_str() == order.base.id.to_string() {
                             detail.payment_method = SharedString::from(
                                 order.payment_method.as_deref().unwrap_or_default(),
                             );
                             detail.paid = order.paid;
-                            ui.set_detail_order(detail);
+                            ui.global::<OrdersState>().set_detail_order(detail);
                         }
-                        ui.invoke_refresh_orders();
+                        ui.global::<OrdersState>().invoke_refresh_orders();
                         notify.notify_one();
                         show_toast(
                             &ui,
@@ -320,7 +321,7 @@ pub(crate) fn setup_advance_order_status(
     let state = state.clone();
     let handle = handle.clone();
 
-    ui.on_advance_order_status(move |id| {
+    ui.global::<OrdersState>().on_advance_order_status(move |id| {
         let ui_weak = ui_weak.clone();
         let state = state.clone();
         let notify = sync_notify.clone();
@@ -383,7 +384,7 @@ pub(crate) fn setup_cancel_order(
     let state = state.clone();
     let handle = handle.clone();
 
-    ui.on_cancel_order(move |id, reason| {
+    ui.global::<OrdersState>().on_cancel_order(move |id, reason| {
         let ui_weak = ui_weak.clone();
         let state = state.clone();
         let notify = sync_notify.clone();
@@ -432,8 +433,8 @@ async fn run_cancel_order(
         let msg = format!("Falha ao cancelar: {}", friendly_error(&e));
         let _ = slint::invoke_from_event_loop(move || {
             if let Some(ui) = ui_weak.upgrade() {
-                ui.set_cancel_error(msg.into());
-                ui.set_show_cancel_modal(true);
+                ui.global::<OrdersState>().set_cancel_error(msg.into());
+                ui.global::<OrdersState>().set_show_cancel_modal(true);
             }
         });
         return;
@@ -450,10 +451,10 @@ async fn run_cancel_order(
         show_toast(&ui, "Pedido cancelado", "success");
         if let Ok(all) = result {
             // Se estamos na tela de detalhe do pedido cancelado, atualiza detail_order.
-            let detail_id = ui.get_order_detail_id();
+            let detail_id = ui.global::<OrdersState>().get_order_detail_id();
             if !detail_id.is_empty() {
                 if let Some(item) = all.iter().find(|o| o.id == detail_id) {
-                    ui.set_detail_order(item.clone());
+                    ui.global::<OrdersState>().set_detail_order(item.clone());
                 }
             }
             apply_loaded_orders(&ui, all);
@@ -492,10 +493,10 @@ async fn run_status_change(
         show_toast(&ui, "Status Atualizado", "success");
         if let Ok(all) = result {
             // Se estamos na tela de detalhe, atualiza detail_order com o novo status.
-            let detail_id = ui.get_order_detail_id();
+            let detail_id = ui.global::<OrdersState>().get_order_detail_id();
             if !detail_id.is_empty() {
                 if let Some(item) = all.iter().find(|o| o.id == detail_id) {
-                    ui.set_detail_order(item.clone());
+                    ui.global::<OrdersState>().set_detail_order(item.clone());
                 }
             }
             apply_loaded_orders(&ui, all);

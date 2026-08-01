@@ -1,0 +1,50 @@
+// Estado da feature IMPRESSORAS (cadastro e impressao de comanda), isolado do MainWindow.
+//
+// Por que um `global` (AI_RULES §8 / "Modularidade real"): em Slint as
+// propriedades de um componente vivem todas no mesmo arquivo — o
+// `main.slint` concentrava ~830 declaracoes de ~30 features. `global` e
+// o unico mecanismo da linguagem para separar estado por dominio sem
+// prop drilling, e o projeto ja o usa em `Theme`, `IconGlyph` e
+// `AdminState`.
+//
+// Acesso: no Slint, `PrintersState.<prop>`; no Rust,
+// `ui.global::<PrintersState>().set_<prop>()` / `.on_<callback>()`.
+// Logica em desktop/src/ui/printers.
+import { PrinterCategoryRow, PrinterData } from "../types.slint";
+
+export global PrintersState {
+    // ── Impressoras (Configurações) ─────────────────────────────
+    // Lista refrescada por Rust após cada save/delete/set-default.
+    // Estado do modal de cadastro: `show-printer-modal` aciona o
+    // overlay; campos pré-preenchidos em modo edição via
+    // `request-edit-printer`.
+    in-out property <[PrinterData]> printers: [];
+    in-out property <bool>          show-printer-modal: false;
+    in-out property <string>        printer-editing-id: "";
+    in-out property <string>        printer-form-name: "";
+    in-out property <string>        printer-form-kind: "order";
+    in-out property <string>        printer-form-system-name: "";
+    in-out property <bool>          printer-form-is-default: false;
+    in-out property <int>           printer-form-paper-width: 80;
+    in-out property <string>        printer-form-error: "";
+    /// Categorias da empresa, populadas a cada abertura do modal.
+    /// Cada linha tem `selected: bool` (alternada pelo checkbox da
+    /// UI). Rust popula com `selected = true` para os IDs que estão
+    /// em `Printer.category_ids` no modo edição.
+    in-out property <[PrinterCategoryRow]> printer-form-categories: [];
+    /// Lista de impressoras detectadas no SO (lpstat / Get-Printer).
+    /// Atualizada pelo Rust quando o modal abre — operador escolhe num
+    /// dropdown em vez de digitar o nome.
+    in-out property <[string]>      printer-available-list: [];
+    callback refresh-printers();
+    callback refresh-available-printers();
+    /// Popula `printer-form-categories` com as categorias da empresa,
+    /// marcando como `selected = true` os IDs em `selected-ids`.
+    /// Chamado no `request-new-printer` (lista vazia) e
+    /// `request-edit-printer` (com os IDs da impressora).
+    callback load-printer-categories([string]);
+    callback printer-save();
+    callback printer-test-print();
+    callback printer-delete(string);
+    callback printer-set-default(string);
+}

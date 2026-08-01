@@ -11,17 +11,18 @@ use crate::context::DesktopState;
 use crate::{CategoryData, CategoryIconOption, MainWindow};
 
 use super::super::helpers::{friendly_error, show_toast};
+use crate::CategoriesState;
 
 /// Limpa erro de validação do formulário de categoria.
 pub(crate) fn clear_category_errors(ui: &MainWindow) {
-    ui.set_category_error_name(SharedString::default());
+    ui.global::<CategoriesState>().set_category_error_name(SharedString::default());
 }
 
 /// Limpa formulário de categoria.
 pub(crate) fn clear_category_form(ui: &MainWindow) {
-    ui.set_category_name(SharedString::default());
-    ui.set_category_description(SharedString::default());
-    ui.set_category_icon_name(SharedString::default());
+    ui.global::<CategoriesState>().set_category_name(SharedString::default());
+    ui.global::<CategoriesState>().set_category_description(SharedString::default());
+    ui.global::<CategoriesState>().set_category_icon_name(SharedString::default());
     clear_category_errors(ui);
 }
 
@@ -34,7 +35,7 @@ pub(crate) fn load_category_icon_options(ui: &MainWindow) {
             label: SharedString::from(*label),
         })
         .collect();
-    ui.set_category_icon_options(ModelRc::new(VecModel::from(opts)));
+    ui.global::<CategoriesState>().set_category_icon_options(ModelRc::new(VecModel::from(opts)));
 }
 
 /// Valida campos obrigatórios do formulário de categoria.
@@ -42,8 +43,8 @@ pub(crate) fn validate_category_form(ui: &MainWindow) -> bool {
     let mut valid = true;
     clear_category_errors(ui);
 
-    if ui.get_category_name().trim().is_empty() {
-        ui.set_category_error_name(SharedString::from("Preencha o nome da categoria"));
+    if ui.global::<CategoriesState>().get_category_name().trim().is_empty() {
+        ui.global::<CategoriesState>().set_category_error_name(SharedString::from("Preencha o nome da categoria"));
         valid = false;
     }
 
@@ -61,7 +62,7 @@ pub(crate) fn setup_add_category(
     let state = state.clone();
     let handle = handle.clone();
 
-    ui.on_add_category(move || {
+    ui.global::<CategoriesState>().on_add_category(move || {
         let Some(ui_ref) = ui_weak.upgrade() else { return };
 
         let ui_weak = ui_ref.as_weak();
@@ -72,10 +73,10 @@ pub(crate) fn setup_add_category(
             return;
         }
 
-        let name = ui_ref.get_category_name().to_string();
-        let desc_raw = ui_ref.get_category_description().to_string();
+        let name = ui_ref.global::<CategoriesState>().get_category_name().to_string();
+        let desc_raw = ui_ref.global::<CategoriesState>().get_category_description().to_string();
         let description = if desc_raw.is_empty() { None } else { Some(desc_raw) };
-        let icon_raw = ui_ref.get_category_icon_name().to_string();
+        let icon_raw = ui_ref.global::<CategoriesState>().get_category_icon_name().to_string();
         let icon_name = if icon_raw.is_empty() { None } else { Some(icon_raw) };
 
         handle.spawn(async move {
@@ -89,7 +90,7 @@ pub(crate) fn setup_add_category(
                         clear_category_form(&ui);
                         ui.set_show_modal(false);
                         ui.set_status_message(SharedString::from("Categoria Criada"));
-                        ui.invoke_refresh_categories();
+                        ui.global::<CategoriesState>().invoke_refresh_categories();
                     });
                 }
                 Err(e) => {
@@ -116,7 +117,7 @@ pub(crate) fn setup_update_category(
     let state = state.clone();
     let handle = handle.clone();
 
-    ui.on_update_category(move || {
+    ui.global::<CategoriesState>().on_update_category(move || {
         let Some(ui_ref) = ui_weak.upgrade() else { return };
 
         if !validate_category_form(&ui_ref) {
@@ -125,10 +126,10 @@ pub(crate) fn setup_update_category(
 
         let id_str = ui_ref.get_editing_id().to_string();
         let Ok(id) = Uuid::parse_str(&id_str) else { return };
-        let name = ui_ref.get_category_name().to_string();
-        let desc_raw = ui_ref.get_category_description().to_string();
+        let name = ui_ref.global::<CategoriesState>().get_category_name().to_string();
+        let desc_raw = ui_ref.global::<CategoriesState>().get_category_description().to_string();
         let description = if desc_raw.is_empty() { None } else { Some(desc_raw) };
-        let icon_raw = ui_ref.get_category_icon_name().to_string();
+        let icon_raw = ui_ref.global::<CategoriesState>().get_category_icon_name().to_string();
         let icon_name = if icon_raw.is_empty() { None } else { Some(icon_raw) };
 
         let ui_weak = ui_ref.as_weak();
@@ -147,7 +148,7 @@ pub(crate) fn setup_update_category(
                         ui.set_editing_id(SharedString::default());
                         ui.set_show_modal(false);
                         ui.set_status_message(SharedString::from(format!("Categoria '{}' Atualizada", c.name)));
-                        ui.invoke_refresh_categories();
+                        ui.global::<CategoriesState>().invoke_refresh_categories();
                     });
                 }
                 Err(e) => {
@@ -174,7 +175,7 @@ pub(crate) fn setup_delete_category(
     let state = state.clone();
     let handle = handle.clone();
 
-    ui.on_delete_category(move |id_str| {
+    ui.global::<CategoriesState>().on_delete_category(move |id_str| {
         let Ok(id) = uuid::Uuid::parse_str(id_str.as_str()) else { return };
 
         let ui_weak = ui_weak.clone();
@@ -190,7 +191,7 @@ pub(crate) fn setup_delete_category(
                         let Some(ui) = ui_weak.upgrade() else { return };
                         show_toast(&ui, "Categoria Excluída", "success");
                         ui.set_status_message(SharedString::from("Categoria Excluída"));
-                        ui.invoke_refresh_categories();
+                        ui.global::<CategoriesState>().invoke_refresh_categories();
                     });
                 }
                 Err(e) => {
@@ -217,7 +218,7 @@ pub(crate) fn setup_reorder_category(
     let state = state.clone();
     let handle = handle.clone();
 
-    ui.on_reorder_category(move |id_str, is_up| {
+    ui.global::<CategoriesState>().on_reorder_category(move |id_str, is_up| {
         let ui_weak = ui_weak.clone();
         let state = state.clone();
         let notify = sync_notify.clone();
@@ -254,7 +255,7 @@ pub(crate) fn setup_reorder_category(
             notify.notify_one();
             let _ = slint::invoke_from_event_loop(move || {
                 let Some(ui) = ui_weak.upgrade() else { return };
-                ui.invoke_refresh_categories();
+                ui.global::<CategoriesState>().invoke_refresh_categories();
             });
         });
     });

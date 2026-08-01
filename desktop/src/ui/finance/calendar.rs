@@ -13,54 +13,55 @@ use super::setup::reapply;
 use super::state::{CalStateHandle, CustomersHandle, DueCalState, DueCalStateHandle};
 use super::snapshot::month_pt;
 use super::modal::build_party_rows;
+use crate::FinanceState;
 
 // ── Picker de cliente/fornecedor ────────────────────────────────
 
 pub(crate) fn setup_party_picker(ui: &MainWindow, customers: CustomersHandle) {
     let ui_weak = ui.as_weak();
-    ui.on_finance_open_party_picker(move || {
+    ui.global::<FinanceState>().on_finance_open_party_picker(move || {
         if let Some(ui) = ui_weak.upgrade() {
-            ui.set_finance_party_search(SharedString::from(""));
-            ui.set_finance_show_party_picker(true);
+            ui.global::<FinanceState>().set_finance_party_search(SharedString::from(""));
+            ui.global::<FinanceState>().set_finance_show_party_picker(true);
         }
     });
     let ui_weak = ui.as_weak();
-    ui.on_finance_close_party_picker(move || {
+    ui.global::<FinanceState>().on_finance_close_party_picker(move || {
         if let Some(ui) = ui_weak.upgrade() {
-            ui.set_finance_show_party_picker(false);
+            ui.global::<FinanceState>().set_finance_show_party_picker(false);
         }
     });
     let ui_weak = ui.as_weak();
     let customers_filter = customers.clone();
-    ui.on_finance_party_search_changed(move |q| {
+    ui.global::<FinanceState>().on_finance_party_search_changed(move |q| {
         if let Some(ui) = ui_weak.upgrade() {
-            ui.set_finance_party_search(SharedString::from(q.to_string()));
+            ui.global::<FinanceState>().set_finance_party_search(SharedString::from(q.to_string()));
             let all = customers_filter
                 .lock()
                 .ok()
                 .map(|g| g.clone())
                 .unwrap_or_default();
             let rows = build_party_rows(&all, q.as_str());
-            ui.set_finance_party_options(ModelRc::new(VecModel::from(rows)));
+            ui.global::<FinanceState>().set_finance_party_options(ModelRc::new(VecModel::from(rows)));
         }
     });
     let ui_weak = ui.as_weak();
     let customers_pick = customers;
-    ui.on_finance_pick_party(move |id| {
+    ui.global::<FinanceState>().on_finance_pick_party(move |id| {
         if let Some(ui) = ui_weak.upgrade() {
             let id_s = id.to_string();
             if id_s.is_empty() {
-                ui.set_finance_form_party(SharedString::from(""));
-                ui.set_finance_form_party_id(SharedString::from(""));
+                ui.global::<FinanceState>().set_finance_form_party(SharedString::from(""));
+                ui.global::<FinanceState>().set_finance_form_party_id(SharedString::from(""));
             } else if let Ok(uuid) = Uuid::parse_str(&id_s) {
                 if let Ok(all) = customers_pick.lock() {
                     if let Some(c) = all.iter().find(|c| c.base.id == uuid) {
-                        ui.set_finance_form_party(SharedString::from(c.name.clone()));
-                        ui.set_finance_form_party_id(SharedString::from(id_s));
+                        ui.global::<FinanceState>().set_finance_form_party(SharedString::from(c.name.clone()));
+                        ui.global::<FinanceState>().set_finance_form_party_id(SharedString::from(id_s));
                     }
                 }
             }
-            ui.set_finance_show_party_picker(false);
+            ui.global::<FinanceState>().set_finance_show_party_picker(false);
         }
     });
 }
@@ -73,10 +74,10 @@ pub(crate) fn setup_due_cal(ui: &MainWindow, cal: DueCalStateHandle) {
 
     let ui_weak = ui.as_weak();
     let cal_toggle = cal.clone();
-    ui.on_finance_due_cal_toggle(move || {
+    ui.global::<FinanceState>().on_finance_due_cal_toggle(move || {
         if let Some(ui) = ui_weak.upgrade() {
-            let now_open = ui.get_finance_due_cal_open();
-            ui.set_finance_due_cal_open(!now_open);
+            let now_open = ui.global::<FinanceState>().get_finance_due_cal_open();
+            ui.global::<FinanceState>().set_finance_due_cal_open(!now_open);
             if !now_open {
                 apply_due_cal_to_ui(&ui, &cal_toggle);
             }
@@ -85,7 +86,7 @@ pub(crate) fn setup_due_cal(ui: &MainWindow, cal: DueCalStateHandle) {
 
     let ui_weak = ui.as_weak();
     let cal_prev = cal.clone();
-    ui.on_finance_due_cal_prev(move || {
+    ui.global::<FinanceState>().on_finance_due_cal_prev(move || {
         if let Ok(mut g) = cal_prev.lock() {
             let (y, m) = (g.year, g.month);
             let (ny, nm) = if m == 1 { (y - 1, 12) } else { (y, m - 1) };
@@ -99,7 +100,7 @@ pub(crate) fn setup_due_cal(ui: &MainWindow, cal: DueCalStateHandle) {
 
     let ui_weak = ui.as_weak();
     let cal_next = cal.clone();
-    ui.on_finance_due_cal_next(move || {
+    ui.global::<FinanceState>().on_finance_due_cal_next(move || {
         if let Ok(mut g) = cal_next.lock() {
             let (y, m) = (g.year, g.month);
             let (ny, nm) = if m == 12 { (y + 1, 1) } else { (y, m + 1) };
@@ -113,24 +114,24 @@ pub(crate) fn setup_due_cal(ui: &MainWindow, cal: DueCalStateHandle) {
 
     let ui_weak = ui.as_weak();
     let cal_pick = cal;
-    ui.on_finance_due_cal_pick(move |ymd| {
+    ui.global::<FinanceState>().on_finance_due_cal_pick(move |ymd| {
         let Some(ui) = ui_weak.upgrade() else { return };
         let ymd_s = ymd.to_string();
         if ymd_s.is_empty() {
             // Limpar — volta o vencimento para vazio.
-            ui.set_finance_form_due_date(SharedString::from(""));
+            ui.global::<FinanceState>().set_finance_form_due_date(SharedString::from(""));
             if let Ok(mut g) = cal_pick.lock() {
                 g.selected = None;
             }
         } else if let Ok(d) = NaiveDate::parse_from_str(&ymd_s, "%Y-%m-%d") {
-            ui.set_finance_form_due_date(SharedString::from(d.format("%d/%m/%Y").to_string()));
+            ui.global::<FinanceState>().set_finance_form_due_date(SharedString::from(d.format("%d/%m/%Y").to_string()));
             if let Ok(mut g) = cal_pick.lock() {
                 g.year = d.year();
                 g.month = d.month();
                 g.selected = Some(d);
             }
         }
-        ui.set_finance_due_cal_open(false);
+        ui.global::<FinanceState>().set_finance_due_cal_open(false);
         apply_due_cal_to_ui(&ui, &cal_pick);
     });
 }
@@ -140,8 +141,8 @@ pub(crate) fn apply_due_cal_to_ui(ui: &MainWindow, cal: &DueCalStateHandle) {
     let today = letaf_core::tz::today();
     let title = format!("{} · {}", month_pt(snap.month), snap.year);
     let days = build_due_cal_days(snap.year, snap.month, snap.selected, today);
-    ui.set_finance_due_cal_title(SharedString::from(title));
-    ui.set_finance_due_cal_days(ModelRc::new(VecModel::from(days)));
+    ui.global::<FinanceState>().set_finance_due_cal_title(SharedString::from(title));
+    ui.global::<FinanceState>().set_finance_due_cal_days(ModelRc::new(VecModel::from(days)));
 }
 
 /// Gera 42 células (6 semanas × 7 dias, domingo a sábado) para o
@@ -177,12 +178,12 @@ pub(crate) fn build_due_cal_days(
 
 pub(crate) fn setup_set_recurrence(ui: &MainWindow) {
     let ui_weak = ui.as_weak();
-    ui.on_finance_set_recurrence(move |k| {
+    ui.global::<FinanceState>().on_finance_set_recurrence(move |k| {
         if let Some(ui) = ui_weak.upgrade() {
-            ui.set_finance_form_recurrence(SharedString::from(k.to_string()));
+            ui.global::<FinanceState>().set_finance_form_recurrence(SharedString::from(k.to_string()));
             // Recorrência ≠ once força installments para 1 (regra do service).
             if k.as_str() != "once" {
-                ui.set_finance_form_installments(1);
+                ui.global::<FinanceState>().set_finance_form_installments(1);
             }
         }
     });
@@ -190,13 +191,13 @@ pub(crate) fn setup_set_recurrence(ui: &MainWindow) {
 
 pub(crate) fn setup_set_installments(ui: &MainWindow) {
     let ui_weak = ui.as_weak();
-    ui.on_finance_set_installments(move |n| {
+    ui.global::<FinanceState>().on_finance_set_installments(move |n| {
         if let Some(ui) = ui_weak.upgrade() {
             let bounded = n.clamp(1, 60);
-            ui.set_finance_form_installments(bounded);
+            ui.global::<FinanceState>().set_finance_form_installments(bounded);
             // Parcelamento ≠ 1 força recurrence = once.
             if bounded > 1 {
-                ui.set_finance_form_recurrence(SharedString::from("once"));
+                ui.global::<FinanceState>().set_finance_form_recurrence(SharedString::from("once"));
             }
         }
     });
@@ -204,9 +205,9 @@ pub(crate) fn setup_set_installments(ui: &MainWindow) {
 
 pub(crate) fn setup_set_category(ui: &MainWindow) {
     let ui_weak = ui.as_weak();
-    ui.on_finance_set_category(move |id| {
+    ui.global::<FinanceState>().on_finance_set_category(move |id| {
         if let Some(ui) = ui_weak.upgrade() {
-            ui.set_finance_form_category_id(SharedString::from(id.to_string()));
+            ui.global::<FinanceState>().set_finance_form_category_id(SharedString::from(id.to_string()));
         }
     });
 }
@@ -222,9 +223,9 @@ pub(crate) fn setup_set_view(
     let ui_weak = ui.as_weak();
     let state = state.clone();
     let handle = handle.clone();
-    ui.on_finance_set_view(move |mode| {
+    ui.global::<FinanceState>().on_finance_set_view(move |mode| {
         if let Some(ui) = ui_weak.upgrade() {
-            ui.set_finance_view_mode(SharedString::from(mode.to_string()));
+            ui.global::<FinanceState>().set_finance_view_mode(SharedString::from(mode.to_string()));
         }
         let ui_weak = ui_weak.clone();
         let state = state.clone();
@@ -244,7 +245,7 @@ pub(crate) fn setup_cal_prev(
     let ui_weak = ui.as_weak();
     let state = state.clone();
     let handle = handle.clone();
-    ui.on_finance_cal_prev(move || {
+    ui.global::<FinanceState>().on_finance_cal_prev(move || {
         if let Ok(mut g) = cal.lock() {
             let (y, m) = (g.year, g.month);
             let (ny, nm) = if m == 1 { (y - 1, 12) } else { (y, m - 1) };
@@ -270,7 +271,7 @@ pub(crate) fn setup_cal_next(
     let ui_weak = ui.as_weak();
     let state = state.clone();
     let handle = handle.clone();
-    ui.on_finance_cal_next(move || {
+    ui.global::<FinanceState>().on_finance_cal_next(move || {
         if let Ok(mut g) = cal.lock() {
             let (y, m) = (g.year, g.month);
             let (ny, nm) = if m == 12 { (y + 1, 1) } else { (y, m + 1) };
@@ -296,7 +297,7 @@ pub(crate) fn setup_cal_today(
     let ui_weak = ui.as_weak();
     let state = state.clone();
     let handle = handle.clone();
-    ui.on_finance_cal_today(move || {
+    ui.global::<FinanceState>().on_finance_cal_today(move || {
         if let Ok(mut g) = cal.lock() {
             let t = letaf_core::tz::today();
             g.year = t.year();
@@ -321,7 +322,7 @@ pub(crate) fn setup_cal_select_day(
     let ui_weak = ui.as_weak();
     let state = state.clone();
     let handle = handle.clone();
-    ui.on_finance_cal_select_day(move |day| {
+    ui.global::<FinanceState>().on_finance_cal_select_day(move |day| {
         if day < 1 {
             return;
         }

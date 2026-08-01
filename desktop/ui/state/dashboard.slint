@@ -1,0 +1,43 @@
+// Estado da feature DASHBOARD (KPIs e graficos da visao geral), isolado do MainWindow.
+//
+// Por que um `global` (AI_RULES §8 / "Modularidade real"): em Slint as
+// propriedades de um componente vivem todas no mesmo arquivo — o
+// `main.slint` concentrava ~830 declaracoes de ~30 features. `global` e
+// o unico mecanismo da linguagem para separar estado por dominio sem
+// prop drilling, e o projeto ja o usa em `Theme`, `IconGlyph` e
+// `AdminState`.
+//
+// Acesso: no Slint, `DashboardState.<prop>`; no Rust,
+// `ui.global::<DashboardState>().set_<prop>()` / `.on_<callback>()`.
+// Logica em desktop/src/ui/dashboard.
+import { DashboardBarPoint, DashboardComparePoint, DashboardKpi, DashboardLinePoint, DashboardPaymentSlice, DashboardTopProduct } from "../types.slint";
+
+export global DashboardState {
+    // ── Dashboard ───────────────────────────────────────────────
+    in-out property <[DashboardKpi]> dashboard-kpis: [];
+    in-out property <[DashboardBarPoint]> dashboard-sales-bars: [];
+    in-out property <[DashboardComparePoint]> dashboard-compare-points: [];
+    in-out property <string> dashboard-compare-label: "Esta semana vs anterior";
+    // Hero "Receita da Semana"
+    in-out property <string> dashboard-week-revenue: "R$ 0";
+    in-out property <string> dashboard-week-revenue-label: "RECEITA DA SEMANA";
+    in-out property <string> dashboard-week-delta: "";
+    in-out property <string> dashboard-week-delta-tone: "neutral";   // "pos"/"neg"/"neutral"
+    in-out property <bool> dashboard-week-has-chart: true;
+    in-out property <string> dashboard-week-orders: "0";
+    in-out property <string> dashboard-week-ticket: "R$ 0,00";
+    in-out property <string> dashboard-week-best-day: "—";
+    /// Comandos SVG da linha de receita (viewbox 0 0 100 100).
+    in-out property <string> dashboard-week-line-path: "";
+    /// Mesma linha fechada até a base — preenchimento (área) do hero.
+    in-out property <string> dashboard-week-area-path: "";
+    in-out property <[DashboardLinePoint]> dashboard-line-points: [];
+    /// Período do dashboard: "today" | "week" | "month".
+    in-out property <string> dashboard-period: "week";
+    // Top Produtos + Formas de Pagamento
+    in-out property <[DashboardTopProduct]> dashboard-top-products: [];
+    in-out property <[DashboardPaymentSlice]> dashboard-payment-slices: [];
+    in-out property <string> dashboard-payment-total: "R$ 0";
+    in-out property <string> dashboard-subtitle: "";
+    callback dashboard-refresh();
+}

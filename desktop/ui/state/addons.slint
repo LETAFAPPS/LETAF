@@ -1,0 +1,40 @@
+// Estado da feature ADICIONAIS (grupos + itens), isolado do MainWindow.
+//
+// Por que um `global` (AI_RULES §8 / "Modularidade real"): em Slint as
+// propriedades de um componente vivem todas no mesmo arquivo — o
+// `main.slint` concentrava ~830 declaracoes de ~30 features. `global` e
+// o unico mecanismo da linguagem para separar estado por dominio sem
+// prop drilling, e o projeto ja o usa em `Theme`, `IconGlyph` e
+// `AdminState`.
+//
+// Acesso: no Slint, `AddonsState.<prop>`; no Rust,
+// `ui.global::<AddonsState>().set_<prop>()` / `.on_<callback>()`.
+// Logica em desktop/src/ui/addons.
+import { AddonData, AddonGroupData } from "../types.slint";
+
+export global AddonsState {
+    // ── Adicionais (Fase 4B) ────────────────────────
+    in-out property <[AddonGroupData]> addon-groups: [];
+    in-out property <[AddonData]> current-group-addons: [];
+    in-out property <string> selected-addon-group-id: "";
+    in-out property <string> selected-addon-group-name: "";
+    // Form do modal de grupo.
+    in-out property <string> addon-group-form-id: "";
+    in-out property <string> addon-group-form-name: "";
+    in-out property <string> addon-group-form-selection: "single";
+    in-out property <string> addon-group-form-min: "0";
+    in-out property <string> addon-group-form-max: "0";
+    in-out property <string> addon-group-form-error: "";
+    // Form do modal de addon individual.
+    in-out property <string> addon-form-id: "";
+    in-out property <string> addon-form-name: "";
+    in-out property <string> addon-form-price: "";
+    in-out property <string> addon-form-error: "";
+    callback refresh-addon-groups();
+    callback select-addon-group(string);
+    callback save-addon-group();
+    callback delete-addon-group(string);
+    callback save-addon();
+    callback delete-addon(string);
+    callback toggle-addon-active(string);
+}

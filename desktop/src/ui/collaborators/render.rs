@@ -13,6 +13,8 @@ use letaf_core::job_role::model::JobRole;
 use letaf_core::permission;
 
 use crate::{CollabEmployeeRow, CollabPermRow, CollabRoleRow, MainWindow};
+use slint::ComponentHandle;
+use crate::CollaboratorsState;
 
 /// Estado de edição mantido no Rust (fonte de verdade do formulário de
 /// Função, espelhando o padrão de cache das outras telas).
@@ -61,11 +63,11 @@ pub(crate) fn apply_lists(ui: &MainWindow, cache: &CollabCache) {
             }
         })
         .collect();
-    ui.set_collab_roles(ModelRc::new(VecModel::from(role_rows)));
+    ui.global::<CollaboratorsState>().set_collab_roles(ModelRc::new(VecModel::from(role_rows)));
 
     let mut combo: Vec<SharedString> = vec!["— Sem função —".into()];
     combo.extend(cache.role_options.iter().map(|(_, name)| name.clone().into()));
-    ui.set_collab_role_combo(ModelRc::new(VecModel::from(combo)));
+    ui.global::<CollaboratorsState>().set_collab_role_combo(ModelRc::new(VecModel::from(combo)));
 
     let role_name = |id: Option<Uuid>| -> String {
         id.and_then(|jid| cache.roles.iter().find(|r| r.base.id == jid))
@@ -91,7 +93,7 @@ pub(crate) fn apply_lists(ui: &MainWindow, cache: &CollabCache) {
             avatar_color: avatar_color_for(&u.name),
         })
         .collect();
-    ui.set_collab_employees(ModelRc::new(VecModel::from(emp_rows)));
+    ui.global::<CollaboratorsState>().set_collab_employees(ModelRc::new(VecModel::from(emp_rows)));
 }
 
 /// Primeira letra do nome em maiúscula (avatar). "?" quando vazio.
@@ -156,13 +158,13 @@ pub(crate) fn apply_perm_rows(ui: &MainWindow, perms: &HashSet<String>) {
             edit_on: perms.contains(&format!("{key}.edit")),
         })
         .collect();
-    ui.set_collab_perm_rows(ModelRc::new(VecModel::from(rows)));
+    ui.global::<CollaboratorsState>().set_collab_perm_rows(ModelRc::new(VecModel::from(rows)));
 
     // Contagem "X de Y" exibida no cabeçalho do editor (telas com `.view`).
     let active = permission::FEATURES
         .iter()
         .filter(|(k, _, _)| perms.contains(&format!("{k}.view")))
         .count();
-    ui.set_collab_perm_active(active as i32);
-    ui.set_collab_perm_total(permission::FEATURES.len() as i32);
+    ui.global::<CollaboratorsState>().set_collab_perm_active(active as i32);
+    ui.global::<CollaboratorsState>().set_collab_perm_total(permission::FEATURES.len() as i32);
 }

@@ -7,6 +7,7 @@ use crate::context::DesktopState;
 
 use super::super::helpers::{friendly_error, show_toast, user_error};
 use super::print::{setup_refresh_available_printers, setup_test_print, to_printer_data};
+use crate::PrintersState;
 
 /// Ponto de entrada chamado em `setup_callbacks`.
 pub(crate) fn setup_printers(
@@ -37,7 +38,7 @@ pub(crate) fn setup_load_printer_categories(
     let ui_weak = ui.as_weak();
     let state = state.clone();
     let handle = handle.clone();
-    ui.on_load_printer_categories(move |selected_ids| {
+    ui.global::<PrintersState>().on_load_printer_categories(move |selected_ids| {
         let ui_weak = ui_weak.clone();
         let state = state.clone();
         // Snapshot dos IDs marcados (vem como ModelRc<SharedString>);
@@ -67,7 +68,7 @@ pub(crate) fn setup_load_printer_categories(
             }).collect();
             let _ = slint::invoke_from_event_loop(move || {
                 if let Some(ui) = ui_weak.upgrade() {
-                    ui.set_printer_form_categories(ModelRc::new(VecModel::from(rows)));
+                    ui.global::<PrintersState>().set_printer_form_categories(ModelRc::new(VecModel::from(rows)));
                 }
             });
         });
@@ -80,7 +81,7 @@ pub(crate) fn setup_refresh_printers(ui: &MainWindow, state: &DesktopState, hand
     let ui_weak = ui.as_weak();
     let state = state.clone();
     let handle = handle.clone();
-    ui.on_refresh_printers(move || {
+    ui.global::<PrintersState>().on_refresh_printers(move || {
         let ui_weak = ui_weak.clone();
         let state = state.clone();
         handle.spawn(async move {
@@ -95,7 +96,7 @@ pub(crate) fn setup_refresh_printers(ui: &MainWindow, state: &DesktopState, hand
             let _ = slint::invoke_from_event_loop(move || {
                 if let Some(ui) = ui_weak.upgrade() {
                     let rows: Vec<PrinterData> = list.into_iter().map(to_printer_data).collect();
-                    ui.set_printers(ModelRc::new(VecModel::from(rows)));
+                    ui.global::<PrintersState>().set_printers(ModelRc::new(VecModel::from(rows)));
                 }
             });
         });
@@ -108,17 +109,17 @@ pub(crate) fn setup_save_printer(ui: &MainWindow, state: &DesktopState, handle: 
     let ui_weak = ui.as_weak();
     let state = state.clone();
     let handle = handle.clone();
-    ui.on_printer_save(move || {
+    ui.global::<PrintersState>().on_printer_save(move || {
         let Some(ui_ref) = ui_weak.upgrade() else { return };
-        let editing_id = ui_ref.get_printer_editing_id().to_string();
-        let name = ui_ref.get_printer_form_name().to_string();
-        let kind = ui_ref.get_printer_form_kind().to_string();
-        let system_name = ui_ref.get_printer_form_system_name().to_string();
-        let is_default = ui_ref.get_printer_form_is_default();
-        let paper_width = ui_ref.get_printer_form_paper_width();
+        let editing_id = ui_ref.global::<PrintersState>().get_printer_editing_id().to_string();
+        let name = ui_ref.global::<PrintersState>().get_printer_form_name().to_string();
+        let kind = ui_ref.global::<PrintersState>().get_printer_form_kind().to_string();
+        let system_name = ui_ref.global::<PrintersState>().get_printer_form_system_name().to_string();
+        let is_default = ui_ref.global::<PrintersState>().get_printer_form_is_default();
+        let paper_width = ui_ref.global::<PrintersState>().get_printer_form_paper_width();
         // Lê as categorias selecionadas — apenas as marcadas (`selected
         // == true`) entram. Lista vazia ⇒ "catch-all" (recebe tudo).
-        let categories_model = ui_ref.get_printer_form_categories();
+        let categories_model = ui_ref.global::<PrintersState>().get_printer_form_categories();
         let mut category_ids: Vec<Uuid> = Vec::new();
         for i in 0..categories_model.row_count() {
             if let Some(row) = categories_model.row_data(i) {
@@ -151,12 +152,12 @@ pub(crate) fn setup_save_printer(ui: &MainWindow, state: &DesktopState, handle: 
                 let Some(ui) = ui_weak.upgrade() else { return };
                 match result {
                     Ok(()) => {
-                        ui.set_printer_form_error(SharedString::default());
-                        ui.set_show_printer_modal(false);
+                        ui.global::<PrintersState>().set_printer_form_error(SharedString::default());
+                        ui.global::<PrintersState>().set_show_printer_modal(false);
                         show_toast(&ui, "Impressora Salva", "success");
-                        ui.invoke_refresh_printers();
+                        ui.global::<PrintersState>().invoke_refresh_printers();
                     }
-                    Err(e) => ui.set_printer_form_error(SharedString::from(friendly_error(&e))),
+                    Err(e) => ui.global::<PrintersState>().set_printer_form_error(SharedString::from(friendly_error(&e))),
                 }
             });
         });
@@ -168,7 +169,7 @@ pub(crate) fn setup_delete_printer(ui: &MainWindow, state: &DesktopState, handle
     let ui_weak = ui.as_weak();
     let state = state.clone();
     let handle = handle.clone();
-    ui.on_printer_delete(move |id_str| {
+    ui.global::<PrintersState>().on_printer_delete(move |id_str| {
         let Ok(id) = Uuid::parse_str(id_str.as_str()) else { return };
         let state = state.clone();
         let ui_weak = ui_weak.clone();
@@ -180,7 +181,7 @@ pub(crate) fn setup_delete_printer(ui: &MainWindow, state: &DesktopState, handle
                 match result {
                     Ok(()) => {
                         show_toast(&ui, "Impressora Removida", "success");
-                        ui.invoke_refresh_printers();
+                        ui.global::<PrintersState>().invoke_refresh_printers();
                     }
                     Err(e) => show_toast(&ui, &user_error(&e), "error"),
                 }
@@ -194,7 +195,7 @@ pub(crate) fn setup_set_default_printer(ui: &MainWindow, state: &DesktopState, h
     let ui_weak = ui.as_weak();
     let state = state.clone();
     let handle = handle.clone();
-    ui.on_printer_set_default(move |id_str| {
+    ui.global::<PrintersState>().on_printer_set_default(move |id_str| {
         let Ok(id) = Uuid::parse_str(id_str.as_str()) else { return };
         let state = state.clone();
         let ui_weak = ui_weak.clone();
@@ -206,7 +207,7 @@ pub(crate) fn setup_set_default_printer(ui: &MainWindow, state: &DesktopState, h
                 match result {
                     Ok(()) => {
                         show_toast(&ui, "Impressora marcada como padrão", "success");
-                        ui.invoke_refresh_printers();
+                        ui.global::<PrintersState>().invoke_refresh_printers();
                     }
                     Err(e) => show_toast(&ui, &user_error(&e), "error"),
                 }
