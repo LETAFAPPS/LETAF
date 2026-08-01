@@ -1,8 +1,11 @@
 //! Geração e envio de PDFs de impressão (comandas, NFC-e no futuro).
 //!
 //! Responsabilidades (AI_RULES.md §8):
+//! - `text.rs` — primitivas compartilhadas (cursor, escrita, divisor,
+//!   largura/quebra de texto e sanitização WinAnsi). Fonte ÚNICA.
 //! - `pdf.rs` — monta o documento PDF a partir do `Order` + dados
 //!   resolvidos (nome/telefone formatados, largura do papel).
+//! - `invoice_pdf.rs` — recibo de fatura e extrato de 12 meses (A4).
 //! - Quem chama (em `ui::orders::setup_print_receipt_now`) salva os
 //!   bytes em arquivo temporário e dispara o spooler do SO.
 //!
@@ -13,3 +16,4 @@
 pub mod brand;
 pub mod invoice_pdf;
 pub mod pdf;
+pub mod text;

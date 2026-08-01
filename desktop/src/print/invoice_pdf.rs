@@ -5,17 +5,24 @@
 //! - [`build_statement_pdf`] — extrato ÚNICO com as faturas dos
 //!   últimos 12 meses (o "Baixar 12 meses" da tela Plano & Cobrança).
 //!
+//! Só o LAYOUT destes documentos mora aqui: cursor, escrita, divisor e
+//! medida de texto vêm de [`super::text`] (fonte única, compartilhada
+//! com a comanda).
+//!
 //! Texto nas fontes Type1 embutidas do PDF (Helvetica, encoding
 //! WinAnsi) e a marca LETAF como imagem (ver [`super::brand`]) — sem
 //! dependência de fontes/artes do SO. Coordenadas PDF têm origem no
-//! canto inferior esquerdo; mantemos um cursor `y` a partir do TOPO e
-//! convertemos em [`Ctx::coord_y`], espelhando o `print::pdf`.
+//! canto inferior esquerdo; mantemos um cursor a partir do TOPO e
+//! convertemos em [`Ctx::coord_y`], igual ao `print::pdf`.
 
 use chrono::{Datelike, NaiveDate};
-use printpdf::{BuiltinFont, IndirectFontRef, Line, Mm, PdfDocument, PdfLayerReference, Point};
+use printpdf::{BuiltinFont, IndirectFontRef, Mm, PdfDocument};
 
 use letaf_core::subscription::model::{Invoice, InvoiceStatus};
 
+use super::text::{
+    advance, divider, text_width_mm, write_at, write_left, write_pair, Ctx, Page, DEFAULT_RULE_PT,
+};
 use crate::format::money_br;
 
 const PAGE_W: f32 = 210.0; // A4
@@ -35,22 +42,10 @@ const COLS: [(f32, f32); 5] = [
     (0.80, 1.00), // valor
 ];
 
-struct Ctx<'a> {
-    layer: PdfLayerReference,
-    font: &'a IndirectFontRef,
-    bold: &'a IndirectFontRef,
-    /// Cursor em mm a partir do TOPO da página.
-    y: f32,
-}
-
-impl Ctx<'_> {
-    fn coord_y(&self, from_top: f32) -> Mm {
-        Mm(PAGE_H - from_top)
-    }
-    fn content_w(&self) -> f32 {
-        PAGE_W - MARGIN * 2.0
-    }
-}
+/// Geometria fixa destes documentos (A4 retrato). O `Ctx` compartilhado
+/// é usado sem estilo próprio (`()`): os tamanhos de fonte são fixos por
+/// bloco de layout.
+const PAGE: Page = Page { width_mm: PAGE_W, height_mm: PAGE_H, margin_mm: MARGIN };
 
 /// Recibo de uma fatura.
 pub fn build_invoice_pdf(inv: &Invoice, company_name: &str) -> Result<Vec<u8>, String> {
@@ -63,7 +58,7 @@ pub fn build_invoice_pdf(inv: &Invoice, company_name: &str) -> Result<Vec<u8>, S
     let layer = doc.get_page(page).get_layer(layer_idx);
     let font = doc.add_builtin_font(BuiltinFont::Helvetica).map_err(|e| e.to_string())?;
     let bold = doc.add_builtin_font(BuiltinFont::HelveticaBold).map_err(|e| e.to_string())?;
-    let mut ctx = Ctx { layer, font: &font, bold: &bold, y: MARGIN };
+    let mut ctx = Ctx { layer, font: &font, bold: &bold, page: PAGE, cursor_y: MARGIN, style: () };
 
     header(&mut ctx, company_name, "RECIBO DE FATURA");
 
@@ -79,7 +74,7 @@ pub fn build_invoice_pdf(inv: &Invoice, company_name: &str) -> Result<Vec<u8>, S
     }
 
     advance(&mut ctx, LINE * 0.9);
-    divider(&mut ctx);
+    rule(&ctx);
     advance(&mut ctx, LINE * 1.4);
     pair_strong(&mut ctx, "TOTAL", &money_br(inv.amount));
 
@@ -106,7 +101,7 @@ pub fn build_statement_pdf(
     let layer = doc.get_page(page).get_layer(layer_idx);
     let font = doc.add_builtin_font(BuiltinFont::Helvetica).map_err(|e| e.to_string())?;
     let bold = doc.add_builtin_font(BuiltinFont::HelveticaBold).map_err(|e| e.to_string())?;
-    let mut ctx = Ctx { layer, font: &font, bold: &bold, y: MARGIN };
+    let mut ctx = Ctx { layer, font: &font, bold: &bold, page: PAGE, cursor_y: MARGIN, style: () };
 
     header(&mut ctx, company_name, "FATURAS · ÚLTIMOS 12 MESES");
 
@@ -125,7 +120,7 @@ pub fn build_statement_pdf(
     // Cabeçalho da tabela (centralizado sobre cada coluna).
     row(&mut ctx, ["DATA", "FATURA", "DESCRIÇÃO", "SITUAÇÃO", "VALOR"], 9.0, true);
     advance(&mut ctx, LINE * 0.8);
-    divider(&mut ctx);
+    rule(&ctx);
     advance(&mut ctx, LINE * 1.1);
 
     let mut total = rust_decimal::Decimal::ZERO;
@@ -152,7 +147,7 @@ pub fn build_statement_pdf(
     }
 
     advance(&mut ctx, LINE * 0.6);
-    divider(&mut ctx);
+    rule(&ctx);
     advance(&mut ctx, LINE * 1.4);
     pair(&mut ctx, "Faturas no período", &list.len().to_string());
     pair(&mut ctx, "Total pago", &money_br(paid_total));
@@ -174,7 +169,7 @@ fn twelve_months_ago(today: NaiveDate) -> NaiveDate {
 
 /// Cabeçalho: estrela + wordmark do LETAF, nome do estabelecimento e
 /// título do documento, fechando com uma divisória.
-fn header(ctx: &mut Ctx, company_name: &str, title: &str) {
+fn header(ctx: &mut Ctx<'_>, company_name: &str, title: &str) {
     const STAR_W: f32 = 11.0;
     const GAP: f32 = 4.5;
     const WORD_W: f32 = 30.0;
@@ -187,11 +182,11 @@ fn header(ctx: &mut Ctx, company_name: &str, title: &str) {
 
     if let Some(star) = star {
         let dy = (brand_h - star_h) / 2.0;
-        star.draw(&ctx.layer, MARGIN, ctx.y + dy, STAR_W, PAGE_H);
+        star.draw(&ctx.layer, MARGIN, ctx.cursor_y + dy, STAR_W, PAGE_H);
     }
     if let Some(word) = word {
         let dy = (brand_h - word_h) / 2.0;
-        word.draw(&ctx.layer, MARGIN + STAR_W + GAP, ctx.y + dy, WORD_W, PAGE_H);
+        word.draw(&ctx.layer, MARGIN + STAR_W + GAP, ctx.cursor_y + dy, WORD_W, PAGE_H);
     }
     // Sem as artes (falha de decode), o nome textual segura o layout.
     if brand_h <= 0.0 {
@@ -205,11 +200,11 @@ fn header(ctx: &mut Ctx, company_name: &str, title: &str) {
     advance(ctx, LINE * 1.0);
     write_left(ctx, title, 11.0, ctx.bold);
     advance(ctx, LINE * 0.9);
-    divider(ctx);
+    rule(ctx);
     advance(ctx, LINE * 1.8);
 }
 
-fn footer_note(ctx: &mut Ctx) {
+fn footer_note(ctx: &mut Ctx<'_>) {
     advance(ctx, LINE * 2.4);
     write_left(
         ctx,
@@ -237,32 +232,16 @@ fn status_label(s: InvoiceStatus) -> &'static str {
     }
 }
 
-// ── Primitivas de escrita ────────────────────────────────────────
-
-fn write_left(ctx: &Ctx, text: &str, pt: f32, font: &IndirectFontRef) {
-    let y = ctx.coord_y(ctx.y + pt_to_mm(pt) * 0.75);
-    ctx.layer.use_text(sanitize(text), pt, Mm(MARGIN), y, font);
-}
-
-fn write_at(ctx: &Ctx, text: &str, x_mm: f32, pt: f32, font: &IndirectFontRef) {
-    let y = ctx.coord_y(ctx.y + pt_to_mm(pt) * 0.75);
-    ctx.layer.use_text(sanitize(text), pt, Mm(x_mm), y, font);
-}
+// ── Linhas do layout ─────────────────────────────────────────────
 
 /// Linha "rótulo ......... valor" (valor alinhado à direita).
-fn pair(ctx: &mut Ctx, label: &str, value: &str) {
-    write_left(ctx, label, 10.5, ctx.font);
-    if !value.is_empty() {
-        let w = text_width_mm(value, 10.5);
-        write_at(ctx, value, PAGE_W - MARGIN - w, 10.5, ctx.font);
-    }
+fn pair(ctx: &mut Ctx<'_>, label: &str, value: &str) {
+    write_pair(ctx, label, value, 10.5, ctx.font);
     advance(ctx, LINE);
 }
 
-fn pair_strong(ctx: &mut Ctx, label: &str, value: &str) {
-    write_left(ctx, label, 13.0, ctx.bold);
-    let w = text_width_mm(value, 13.0);
-    write_at(ctx, value, PAGE_W - MARGIN - w, 13.0, ctx.bold);
+fn pair_strong(ctx: &mut Ctx<'_>, label: &str, value: &str) {
+    write_pair(ctx, label, value, 13.0, ctx.bold);
     advance(ctx, LINE * 1.2);
 }
 
@@ -270,9 +249,9 @@ fn pair_strong(ctx: &mut Ctx, label: &str, value: &str) {
 /// (mesma regra do cabeçalho, então os títulos ficam alinhados com as
 /// informações). `bold` escolhe a fonte do próprio `ctx` — evita
 /// emprestar `ctx` imutável e mutável ao mesmo tempo.
-fn row(ctx: &mut Ctx, cells: [&str; 5], pt: f32, bold: bool) {
+fn row(ctx: &mut Ctx<'_>, cells: [&str; 5], pt: f32, bold: bool) {
     let font: &IndirectFontRef = if bold { ctx.bold } else { ctx.font };
-    let content = ctx.content_w();
+    let content = ctx.content_width_mm();
     for (cell, (from, to)) in cells.iter().zip(COLS.iter()) {
         let x0 = MARGIN + content * from;
         let x1 = MARGIN + content * to;
@@ -282,46 +261,10 @@ fn row(ctx: &mut Ctx, cells: [&str; 5], pt: f32, bold: bool) {
     }
 }
 
-fn divider(ctx: &mut Ctx) {
-    let y = ctx.coord_y(ctx.y);
-    let line = Line {
-        points: vec![
-            (Point::new(Mm(MARGIN), y), false),
-            (Point::new(Mm(PAGE_W - MARGIN), y), false),
-        ],
-        is_closed: false,
-    };
-    ctx.layer.add_line(line);
-}
-
-fn advance(ctx: &mut Ctx, delta_mm: f32) {
-    ctx.y += delta_mm;
-}
-
-fn pt_to_mm(pt: f32) -> f32 {
-    pt * 25.4 / 72.0
-}
-
-/// Largura do texto em mm para Helvetica. Usa as métricas por classe
-/// de caractere (em frações de em) — o alinhamento à direita e a
-/// centralização das colunas dependem dessa precisão.
-fn text_width_mm(text: &str, pt: f32) -> f32 {
-    let em: f32 = text.chars().map(char_width_em).sum();
-    pt_to_mm(pt) * em
-}
-
-/// Largura de um caractere em fração de em (Helvetica).
-fn char_width_em(c: char) -> f32 {
-    match c {
-        ' ' => 0.278,
-        '.' | ',' | ':' | ';' | '\'' | '|' | 'i' | 'l' | 'j' | '!' => 0.244,
-        'I' | 'f' | 't' | 'r' | '(' | ')' | '/' | '-' => 0.322,
-        'm' | 'w' => 0.833,
-        'M' | 'W' => 0.912,
-        '0'..='9' | '$' => 0.556,
-        'A'..='Z' => 0.704,
-        _ => 0.535,
-    }
+/// Divisor destes documentos: espessura padrão do PDF, sem respiro
+/// automático (cada bloco decide o espaço depois da linha).
+fn rule(ctx: &Ctx<'_>) {
+    divider(ctx, DEFAULT_RULE_PT);
 }
 
 fn elide(text: &str, max: usize) -> String {
@@ -330,11 +273,6 @@ fn elide(text: &str, max: usize) -> String {
     }
     let cut: String = text.chars().take(max.saturating_sub(1)).collect();
     format!("{cut}…")
-}
-
-/// WinAnsi (CP1252) não cobre alguns símbolos; troca pelos equivalentes.
-fn sanitize(text: &str) -> String {
-    text.replace('—', "-").replace('…', "...").replace('·', "-")
 }
 
 /// Nome de arquivo sugerido para o recibo de uma fatura.
@@ -370,9 +308,8 @@ mod tests {
     }
 
     #[test]
-    fn largura_de_texto_cresce_com_o_conteudo() {
-        let pt = 10.0;
-        assert!(text_width_mm("R$ 1.000,00", pt) > text_width_mm("R$ 10,00", pt));
-        assert!(text_width_mm("W", pt) > text_width_mm("i", pt));
+    fn descricao_longa_e_encurtada_com_reticencias() {
+        assert_eq!(elide("Plano Pro mensal", 8), "Plano P…");
+        assert_eq!(elide("Plano", 8), "Plano");
     }
 }
