@@ -55,6 +55,26 @@ impl PixAutoBillingService {
             .find_current(company_id)
             .await?
             .ok_or_else(|| CoreError::NotFound("Assinatura não encontrada".into()))?;
+        // Revoga o mandato ANTERIOR antes de criar o novo. Sem isto, reativar
+        // (ou trocar de plano) deixava os dois vivos na Efi — cada um com
+        // autorização própria de débito — e o cliente podia ser cobrado duas
+        // vezes no mesmo ciclo. O `custom_id` é único por recorrência, então a
+        // Efi aceita a criação sem reclamar e nada denuncia o mandato órfão.
+        //
+        // Falha ao revogar NÃO impede a ativação (o gateway pode estar fora,
+        // ou o mandato já ter sido cancelado do lado de lá): o log registra
+        // para conferência manual, e seguir em frente é melhor que travar a
+        // assinatura do lojista.
+        if let Some(anterior) = sub.pix_auto_rec_id.as_deref() {
+            match self.gateway.cancel_recurrence(anterior).await {
+                Ok(()) => tracing::info!("Pix Automático: mandato anterior {anterior} revogado"),
+                Err(e) => tracing::warn!(
+                    "Pix Automático: não revogou o mandato anterior {anterior} \
+                     (confira na Efi para não cobrar em duplicidade): {e}"
+                ),
+            }
+        }
+
         let terms = self.subscriptions.terms(&sub);
         let input = PixAutoInput {
             amount_cents: crate::money::to_cents(terms.amount),
