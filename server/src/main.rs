@@ -35,6 +35,9 @@ async fn main() {
     // Billing loop em background — emite cobrança recorrente PIX por
     // assinatura vencida. Não bloqueia o axum (§14B / Fase 14B).
     letaf_server::billing::start_billing_loop(state.clone());
+    // Reconcilia cobranças PIX pendentes: a baixa da fatura deixa de depender
+    // do modal do desktop ficar aberto (§3/§11).
+    letaf_server::charge_reconcile::start_charge_reconcile_loop(state.clone());
     serve(state, &config).await;
 }
 

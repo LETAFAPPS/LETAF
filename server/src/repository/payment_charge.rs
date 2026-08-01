@@ -148,4 +148,24 @@ impl PaymentChargeRepository for PgPaymentChargeRepository {
         .map_err(map_db)?;
         Ok(())
     }
+
+    async fn find_pending(
+        &self,
+        created_after: NaiveDateTime,
+        limit: i64,
+    ) -> Result<Vec<PaymentCharge>, CoreError> {
+        sqlx::query_as::<_, PaymentChargeRow>(
+            "SELECT * FROM payment_charges
+              WHERE status = 'pending' AND txid IS NOT NULL
+                AND created_at > $1 AND deleted_at IS NULL
+              ORDER BY created_at ASC
+              LIMIT $2",
+        )
+        .bind(created_after)
+        .bind(limit)
+        .fetch_all(&self.pool)
+        .await
+        .map(|rows| rows.into_iter().map(PaymentCharge::from).collect())
+        .map_err(map_db)
+    }
 }

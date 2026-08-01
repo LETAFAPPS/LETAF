@@ -94,5 +94,8 @@ async fn refresh_charge_status(
         .as_ref()
         .ok_or(ServerError::ServiceUnavailable("Gateway de pagamento não configurado"))?;
     let charge = svc.refresh_status(tenant.company_id, id).await?;
+    // A baixa da fatura é decisão do SERVIDOR (§3/§11) — o desktop só reflete
+    // na tela. O tick de reconciliação cobre o caso do modal ter sido fechado.
+    crate::charge_reconcile::settle_if_paid(&state, &charge).await;
     Ok(Json(ChargeView { charge }))
 }

@@ -110,4 +110,22 @@ impl PaymentService {
     ) -> Result<Option<PaymentCharge>, CoreError> {
         self.repo.find_by_id(company_id, id).await
     }
+
+    /// Cobranças pendentes das últimas `PENDING_WINDOW_HOURS` horas, de todas
+    /// as empresas — insumo do reconciliador do servidor.
+    pub async fn find_pending(&self, now: chrono::NaiveDateTime) -> Result<Vec<PaymentCharge>, CoreError> {
+        let desde = now - chrono::Duration::hours(PENDING_WINDOW_HOURS);
+        self.repo.find_pending(desde, PENDING_BATCH).await
+    }
 }
+
+/// Janela de reconciliação: um PIX que ninguém confirmou em 24 h já expirou
+/// no gateway — insistir só gasta chamada.
+const PENDING_WINDOW_HOURS: i64 = 24;
+
+/// Teto de cobranças por tick, para um pico não virar rajada no gateway.
+const PENDING_BATCH: i64 = 200;
+
+/// Intervalo do reconciliador de cobranças no servidor. O QR de PIX vive
+/// poucos minutos: 60 s dá várias chances dentro da validade.
+pub const CHARGE_RECONCILE_INTERVAL_SECS: u64 = 60;

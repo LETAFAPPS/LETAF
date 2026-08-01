@@ -1,4 +1,5 @@
 pub mod billing;
+pub mod charge_reconcile;
 pub mod bootstrap;
 pub mod card_page;
 pub mod card_session;
