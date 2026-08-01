@@ -96,6 +96,11 @@ pub struct SyncWorker {
     cursor_company: Mutex<uuid::Uuid>,
     /// Registros recusados pelo servidor e seu backoff (ver `send_one`).
     quarantine: Mutex<std::collections::HashMap<uuid::Uuid, Quarentena>>,
+    /// Pedidos cuja edição feita NESTE terminal foi descartada porque
+    /// outro terminal editou o mesmo pedido depois (last-write-wins).
+    /// Não é erro de sync — é conflito de edição, e o operador precisa
+    /// saber para reabrir o pedido.
+    push_superseded: std::sync::atomic::AtomicU32,
     /// Nº de registros rejeitados com erro de cliente (4xx, exceto 401) no
     /// ciclo corrente — dado preso que não sobe sem intervenção. Reiniciado a
     /// cada ciclo; publicado no `SyncStatus` para a UI mostrar o estado de erro.
@@ -158,6 +163,7 @@ impl SyncWorker {
             poison_count: std::sync::atomic::AtomicU32::new(0),
             cursor_company: Mutex::new(initial_company),
             quarantine: Mutex::new(std::collections::HashMap::new()),
+            push_superseded: std::sync::atomic::AtomicU32::new(0),
         }
     }
 
@@ -215,6 +221,7 @@ impl SyncWorker {
         if let Ok(mut g) = self.network_failed.lock() { *g = false; }
         self.push_rejected.store(0, std::sync::atomic::Ordering::Relaxed);
         self.pull_failed.store(0, std::sync::atomic::Ordering::Relaxed);
+        self.push_superseded.store(0, std::sync::atomic::Ordering::Relaxed);
         self.poison_count.store(0, std::sync::atomic::Ordering::Relaxed);
         self.state.sync_status.mark_syncing();
 
@@ -241,9 +248,12 @@ impl SyncWorker {
         let now = chrono::Utc::now().naive_utc();
         let pull_failed = self.pull_failed.load(std::sync::atomic::Ordering::Relaxed);
         let poison = self.poison_count.load(std::sync::atomic::Ordering::Relaxed);
+        let superseded = self
+            .push_superseded
+            .load(std::sync::atomic::Ordering::Relaxed);
         self.state
             .sync_status
-            .mark_finished(online, now, pending, rejected, pull_failed, poison);
+            .mark_finished(online, now, pending, rejected, pull_failed, poison + superseded);
         // Notifica a UI para refrescar telas dependentes do `synced`
         // (master-detail de Produtos atualiza o rótulo abaixo do nome).
         //
@@ -774,6 +784,51 @@ impl SyncWorker {
                 tracing::warn!("Sync {endpoint} {id}: {e}");
                 self.flag_network_failure();
                 false
+            }
+        }
+    }
+
+    /// Como o `send_one`, mas devolve também o corpo JSON da resposta.
+    ///
+    /// Usado pelo push de PEDIDOS: o servidor responde `applied: false`
+    /// quando descartou a versão enviada por já ter uma mais nova. Antes
+    /// isso era um 200 mudo e a edição daquele terminal sumia sem que
+    /// ninguém soubesse.
+    async fn send_one_with_body<T: Serialize>(
+        &self,
+        token: &str,
+        endpoint: &str,
+        id: Uuid,
+        entity: &T,
+    ) -> (bool, Option<serde_json::Value>) {
+        if self.em_quarentena(id) {
+            return (false, None);
+        }
+        let url = format!("{}{}", self.server_url, endpoint);
+        match self.http.post(&url).bearer_auth(token).json(entity).send().await {
+            Ok(resp) if resp.status().is_success() => {
+                self.limpar_quarentena(id);
+                let body = resp.json::<serde_json::Value>().await.ok();
+                (true, body)
+            }
+            Ok(resp) if resp.status() == reqwest::StatusCode::UNAUTHORIZED => {
+                tracing::warn!("SyncWorker: JWT rejeitado (401) em push {endpoint}; limpando token");
+                *self.auth_token.write().await = None;
+                (false, None)
+            }
+            Ok(resp) => {
+                let status = resp.status();
+                if status.is_client_error() || status.is_server_error() {
+                    self.push_rejected.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                    self.registrar_falha(id);
+                }
+                tracing::warn!("Sync {endpoint} {id}: status {status}");
+                (false, None)
+            }
+            Err(e) => {
+                tracing::warn!("Sync {endpoint} {id}: {e}");
+                self.flag_network_failure();
+                (false, None)
             }
         }
     }

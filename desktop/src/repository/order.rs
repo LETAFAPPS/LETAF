@@ -599,7 +599,7 @@ impl OrderRepository for SqliteOrderRepository {
     }
 
     /// Upsert com last-write-wins via `updated_at` (§7.7).
-    async fn sync_upsert(&self, order: &Order) -> Result<(), CoreError> {
+    async fn sync_upsert(&self, order: &Order) -> Result<bool, CoreError> {
         let mut tx = self.pool.begin().await.map_err(map_db)?;
         // Lê `updated_at` local para decidir o last-write-wins ANTES
         // do upsert_order (que já tem `WHERE excluded.updated_at >
@@ -642,7 +642,7 @@ impl OrderRepository for SqliteOrderRepository {
         // Quando local vence: NÃO toca em items — o upsert_order
         // também não atualiza header (cláusula WHERE protege).
         tx.commit().await.map_err(map_db)?;
-        Ok(())
+        Ok(incoming_wins)
     }
 }
 

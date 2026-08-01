@@ -695,7 +695,9 @@ impl OrderService {
         self.repo.find_updated_since_paged(company_id, since, after_id, limit).await
     }
 
-    pub async fn sync_upsert(&self, company_id: Uuid, mut order: Order) -> Result<(), CoreError> {
+    /// Upsert do sync. `false` = a versão recebida foi DESCARTADA por
+    /// existir uma mais nova (ver `OrderRepository::sync_upsert`).
+    pub async fn sync_upsert(&self, company_id: Uuid, mut order: Order) -> Result<bool, CoreError> {
         if order.base.company_id != company_id {
             return Err(CoreError::Validation("Operação não permitida para esta empresa".into()));
         }

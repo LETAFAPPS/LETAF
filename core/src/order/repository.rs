@@ -163,7 +163,14 @@ pub trait OrderRepository: Send + Sync {
     async fn mark_synced(&self, company_id: Uuid, id: Uuid, updated_at: chrono::NaiveDateTime) -> Result<(), CoreError>;
 
     /// Upsert de sincronização (§7.7 — last-write-wins via updated_at).
-    async fn sync_upsert(&self, order: &Order) -> Result<(), CoreError>;
+    /// Upsert vindo do sync. Devolve `true` quando a versão que chegou
+    /// VENCEU o last-write-wins e foi gravada; `false` quando foi
+    /// descartada por já existir uma mais nova.
+    ///
+    /// O chamador precisa saber: um push que "deu 200" mas foi descartado
+    /// significa que a edição daquele terminal foi perdida em silêncio —
+    /// e o operador tem de ser avisado (§7.6).
+    async fn sync_upsert(&self, order: &Order) -> Result<bool, CoreError>;
 
     /// Busca pedidos atualizados após o timestamp (§7 — sync pull).
     async fn find_updated_since(&self, company_id: Uuid, since: NaiveDateTime) -> Result<Vec<Order>, CoreError>;

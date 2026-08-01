@@ -29,12 +29,17 @@ pub(crate) async fn sync_order(
     // Não concede leitura (o pull segue gateado); só permite subir o que ele já
     // podia criar no PDV. §11.
     auth.require_any_permission(&["orders.view", "pdv.view"])?;
-    state
+    let aplicou = state
         .order_service
         .sync_upsert(auth.0.company_id, order)
         .await?;
 
-    Ok(Json(json!({ "synced": true })))
+    // `applied = false`: o servidor já tinha uma versão MAIS NOVA e
+    // descartou esta. O pedido foi aceito (não é erro de dado, não faz
+    // sentido reenviar), mas a edição daquele terminal foi perdida pelo
+    // last-write-wins — e antes isso era um 200 mudo. O cliente registra
+    // o aviso para o operador saber que precisa reabrir o pedido.
+    Ok(Json(json!({ "synced": true, "applied": aplicou })))
 }
 
 /// GET /sync/pull/orders?since=<timestamp> — pull de pedidos para o desktop.

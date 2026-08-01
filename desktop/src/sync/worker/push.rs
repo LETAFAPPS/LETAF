@@ -193,11 +193,36 @@ impl SyncWorker {
             .find_unsynced(self.state.company_id()).await?;
 
         for item in &items {
-            if self.send_one(token, "/sync/orders", item.base.id, item).await {
-                if let Err(e) = self.state.order_service
-                    .mark_synced(self.state.company_id(), item.base.id, item.base.updated_at).await {
-                    tracing::warn!("mark_synced order {}: {e}", item.base.id);
-                }
+            let (ok, body) = self
+                .send_one_with_body(token, "/sync/orders", item.base.id, item)
+                .await;
+            if !ok {
+                continue;
+            }
+            // O servidor aceitou o envio, mas pode ter DESCARTADO esta
+            // versão por já ter uma mais nova (last-write-wins, §7.7):
+            // outro terminal editou o mesmo pedido depois. A edição feita
+            // aqui foi perdida — o pull seguinte traz a versão vencedora.
+            // Marca como sincronizado (reenviar não adianta: continuará
+            // perdendo) e AVISA, em vez do 200 mudo de antes.
+            let aplicou = body
+                .as_ref()
+                .and_then(|b| b.get("applied"))
+                .and_then(|v| v.as_bool())
+                .unwrap_or(true);
+            if !aplicou {
+                tracing::warn!(
+                    "pedido #{:04} ({}): a edição feita neste terminal foi descartada — \
+                     outro terminal editou o mesmo pedido depois. Reabra o pedido para conferir.",
+                    item.number,
+                    item.base.id
+                );
+                self.push_superseded
+                    .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            }
+            if let Err(e) = self.state.order_service
+                .mark_synced(self.state.company_id(), item.base.id, item.base.updated_at).await {
+                tracing::warn!("mark_synced order {}: {e}", item.base.id);
             }
         }
         Ok(())

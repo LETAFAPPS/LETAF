@@ -807,7 +807,7 @@ impl OrderRepository for PgOrderRepository {
         Ok(orders)
     }
 
-    async fn sync_upsert(&self, order: &Order) -> Result<(), CoreError> {
+    async fn sync_upsert(&self, order: &Order) -> Result<bool, CoreError> {
         let mut tx = self.pool.begin().await.map_err(map_db)?;
         // Mesmo padrão do desktop: se o incoming vence o last-write-wins,
         // REESCREVE a lista de items (DELETE + INSERT). Sem isto, items
@@ -878,7 +878,7 @@ impl OrderRepository for PgOrderRepository {
             }
         }
         tx.commit().await.map_err(map_db)?;
-        Ok(())
+        Ok(incoming_wins)
     }
 }
 
