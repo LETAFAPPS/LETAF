@@ -21,15 +21,6 @@ use crate::CustomersState;
 /// verdade e não pode ser desfeita por erro no espelho.
 pub(crate) async fn sync_fiado_to_finance(state: &DesktopState, account: &WalletAccount) {
     let cid = account.base.company_id;
-    // Parte da dívida que JÁ tem conta a receber própria (lançada à mão
-    // no Financeiro): não entra no espelho, senão o mesmo dinheiro
-    // seria cobrado duas vezes.
-    let with_own_entry = state
-        .finance_service
-        .open_customer_receivables_total(cid, account.customer_id)
-        .await
-        .unwrap_or(rust_decimal::Decimal::ZERO);
-    let debt = (-account.balance - with_own_entry).max(rust_decimal::Decimal::ZERO);
     let name = state
         .customer_service
         .find_by_id(cid, account.customer_id)
@@ -38,13 +29,17 @@ pub(crate) async fn sync_fiado_to_finance(state: &DesktopState, account: &Wallet
         .flatten()
         .map(|c| c.name)
         .unwrap_or_else(|| "Cliente".to_string());
-    if let Err(e) = state
+    let debt = match state
         .finance_service
-        .sync_fiado_receivable(cid, account.customer_id, &name, debt)
+        .sync_fiado_from_balance(cid, account.customer_id, &name, account.balance)
         .await
     {
-        tracing::warn!("fiado→financeiro: sincronização falhou: {e}");
-    }
+        Ok(d) => d,
+        Err(e) => {
+            tracing::warn!("fiado→financeiro: sincronização falhou: {e}");
+            return;
+        }
+    };
     // Dívida de FIADO zerada → os pedidos fiados do cliente foram
     // quitados: marca-os como pagos (o detalhe e o KPI FIADOS refletem).
     // Usa a dívida do espelho, não o saldo: uma conta a receber manual

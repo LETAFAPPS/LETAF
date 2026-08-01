@@ -235,6 +235,18 @@ impl CashSessionRepository for PgCashSessionRepository {
             .collect())
     }
 
+    /// O servidor é o ÁRBITRO da sessão aberta — nunca adota a de outro.
+    async fn adopt_session(
+        &self,
+        _company_id: Uuid,
+        _origem: Uuid,
+        _destino: Uuid,
+    ) -> Result<u64, CoreError> {
+        Err(CoreError::Validation(
+            "Adoção de sessão de caixa só existe no cliente".into(),
+        ))
+    }
+
     async fn sync_upsert(&self, s: &CashSession) -> Result<(), CoreError> {
         sqlx::query(
             "INSERT INTO cash_sessions

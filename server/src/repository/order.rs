@@ -876,6 +876,7 @@ impl OrderRepository for PgOrderRepository {
                 // remoto). O DELETE acima garante reconciliação.
                 upsert_order_item_row(&mut tx, item).await?;
             }
+            reconcile_order_stock(&mut tx, order).await?;
         }
         tx.commit().await.map_err(map_db)?;
         Ok(incoming_wins)
@@ -976,5 +977,109 @@ async fn upsert_order_item_row(
     .execute(&mut **tx)
     .await
     .map_err(map_db)?;
+    Ok(())
+}
+
+/// Reconcilia o LEDGER de estoque com o pedido que venceu o LWW.
+///
+/// O delta da edição era calculado por cada terminal contra a cópia LOCAL do
+/// pedido, mas só uma versão sobrevive ao last-write-wins. Com A editando
+/// 2→3 (delta −1) e B editando 2→5 (delta −3) na mesma janela, os DOIS deltas
+/// eram aplicados (−4) enquanto o pedido final dizia 5: estoque e pedido
+/// ficavam permanentemente descasados, convergentes e errados, sem erro
+/// nenhum. O mesmo valia ao contrário, sobrando estoque fantasma.
+///
+/// Aqui o SERVIDOR — que é a autoridade (§11) — impõe o invariante: a soma
+/// dos deltas do pedido para cada produto tem que valer exatamente
+/// `-quantidade` do pedido vencedor (ou `0` se ele foi cancelado, porque o
+/// estoque volta). Emite um movimento COMPENSATÓRIO com a diferença; quando
+/// já está batendo, a diferença é zero e nada é gravado — idempotente.
+///
+/// Só mexe em produto que JÁ tem movimento deste pedido: pedido histórico sem
+/// controle de estoque (ou produto ilimitado) continua intocado, senão um
+/// push antigo geraria uma baixa retroativa que nunca existiu.
+async fn reconcile_order_stock(
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    order: &Order,
+) -> Result<(), CoreError> {
+    let cancelado = order.status == OrderStatus::Cancelled || order.base.deleted_at.is_some();
+
+    // Soma dos deltas já aplicados por este pedido, por produto.
+    let aplicados: Vec<(Uuid, f64)> = sqlx::query_as(
+        "SELECT product_id, COALESCE(SUM(delta), 0)::float8
+           FROM stock_movements
+          WHERE company_id = $1 AND order_id = $2
+          GROUP BY product_id",
+    )
+    .bind(order.base.company_id)
+    .bind(order.base.id)
+    .fetch_all(&mut **tx)
+    .await
+    .map_err(map_db)?;
+
+    for (product_id, soma) in aplicados {
+        // Produto ilimitado não tem estoque a reconciliar.
+        let ilimitado: Option<bool> = sqlx::query_scalar(
+            "SELECT unlimited_stock FROM products WHERE company_id = $1 AND id = $2",
+        )
+        .bind(order.base.company_id)
+        .bind(product_id)
+        .fetch_optional(&mut **tx)
+        .await
+        .map_err(map_db)?;
+        if ilimitado.unwrap_or(true) {
+            continue;
+        }
+
+        let quantidade: f64 = if cancelado {
+            0.0
+        } else {
+            order
+                .items
+                .iter()
+                .filter(|i| i.product_id == product_id)
+                .map(|i| i.quantity)
+                .sum()
+        };
+        let alvo = -quantidade;
+        let compensacao = alvo - soma;
+        // Tolerância de meia unidade de milésimo: `quantity` é f64 (venda por
+        // peso), e comparar por igualdade exata geraria movimentos de ruído.
+        if compensacao.abs() < 0.0005 {
+            continue;
+        }
+        tracing::info!(
+            "Pedido {}: ledger de estoque do produto {} valia {soma}, alvo {alvo} \
+             — compensando {compensacao}",
+            order.base.id,
+            product_id
+        );
+        let agora = chrono::Utc::now().naive_utc();
+        insert_stock_movement(
+            tx,
+            order.base.company_id,
+            product_id,
+            compensacao,
+            "edit_reconcile",
+            Some(order.base.id),
+            None,
+            agora,
+        )
+        .await?;
+        // Aplica ao materializado e bumpa `updated_at` para a correção descer
+        // aos terminais pelo cursor de pull (mesma regra do `apply`).
+        sqlx::query(
+            "UPDATE products
+                SET stock_quantity = stock_quantity + $1,
+                    updated_at = GREATEST(products.updated_at, (now() AT TIME ZONE 'utc'))
+              WHERE company_id = $2 AND id = $3 AND unlimited_stock = false",
+        )
+        .bind(compensacao)
+        .bind(order.base.company_id)
+        .bind(product_id)
+        .execute(&mut **tx)
+        .await
+        .map_err(map_db)?;
+    }
     Ok(())
 }

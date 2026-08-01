@@ -132,6 +132,34 @@ impl FinanceService {
     ///   Recebido.
     ///
     /// Chamado após cada mudança de saldo da carteira — idempotente.
+    /// Espelha no Financeiro a dívida derivada do SALDO da carteira.
+    ///
+    /// Desconta a parte que já tem conta a receber própria (lançada à mão),
+    /// senão o mesmo dinheiro seria cobrado duas vezes. Fórmula única para os
+    /// dois chamadores — a operação local de carteira e o pull do sync (§8):
+    /// tê-la só no lado da UI fazia o espelho ficar defasado quando o saldo
+    /// mudava por venda fiada de OUTRO terminal.
+    ///
+    /// Devolve a dívida espelhada, que NÃO é `-balance`: quem decide se o
+    /// fiado foi quitado precisa deste valor, não do saldo (uma conta a
+    /// receber manual em aberto deixa o saldo negativo sem haver fiado).
+    pub async fn sync_fiado_from_balance(
+        &self,
+        company_id: Uuid,
+        customer_id: Uuid,
+        customer_name: &str,
+        balance: Decimal,
+    ) -> Result<Decimal, CoreError> {
+        let com_conta_propria = self
+            .open_customer_receivables_total(company_id, customer_id)
+            .await
+            .unwrap_or(Decimal::ZERO);
+        let debt = (-balance - com_conta_propria).max(Decimal::ZERO);
+        self.sync_fiado_receivable(company_id, customer_id, customer_name, debt)
+            .await?;
+        Ok(debt)
+    }
+
     pub async fn sync_fiado_receivable(
         &self,
         company_id: Uuid,
@@ -140,24 +168,31 @@ impl FinanceService {
         debt: Decimal,
     ) -> Result<(), CoreError> {
         let debt = round2(debt.max(Decimal::ZERO));
-        let open = self
-            .repo
-            .find_by_kind(company_id, FinanceKind::Receivable)
-            .await?
-            .into_iter()
-            .find(|e| {
-                e.party_id == Some(customer_id)
-                    && e.notes.as_deref() == Some(FIADO_AUTO_TAG)
-                    && !e.status.is_settled()
-                    && e.status != FinanceStatus::Cancelled
-            });
-        match open {
+        // Id DETERMINÍSTICO: a conta automática é o espelho do saldo negativo
+        // da carteira — existe no máximo UMA por cliente, para sempre. Com id
+        // aleatório, dois terminais vendendo fiado para o mesmo cliente antes
+        // de se enxergarem criavam DUAS contas abertas para a mesma dívida: o
+        // "a receber" dobrava e a segunda ficava aberta indefinidamente,
+        // porque a busca por chave natural só encontra a primeira.
+        let id = crate::deterministic_id::fiado_auto_entry(company_id, customer_id);
+        let existente = self.repo.find_by_id(company_id, id).await?;
+        let description = format!("Fiado * {customer_name}");
+
+        match existente {
             Some(mut entry) if debt > Decimal::ZERO => {
-                let description = format!("Fiado * {customer_name}");
-                if entry.amount != debt || entry.description != description {
+                // Reabre se estava quitada: é a MESMA conta ao longo do tempo,
+                // não uma nova a cada ciclo de dívida.
+                let precisa = entry.amount != debt
+                    || entry.description != description
+                    || entry.status.is_settled()
+                    || entry.status == FinanceStatus::Cancelled;
+                if precisa {
                     entry.amount = debt;
                     entry.party_name = customer_name.to_string();
                     entry.description = description;
+                    entry.status = FinanceStatus::Pending;
+                    entry.paid_at = None;
+                    entry.base.deleted_at = None;
                     entry.base.updated_at = Utc::now().naive_utc();
                     entry.base.synced = false;
                     self.repo.update(&entry).await?;
@@ -165,27 +200,26 @@ impl FinanceService {
             }
             Some(entry) => {
                 // Dívida zerada pela carteira → recebido.
-                self.mark_settled(company_id, entry.base.id, Some("wallet".into()))
-                    .await?;
+                if !entry.status.is_settled() && entry.status != FinanceStatus::Cancelled {
+                    self.mark_settled(company_id, entry.base.id, Some("wallet".into()))
+                        .await?;
+                }
             }
             None if debt > Decimal::ZERO => {
-                self.create(CreateFinanceParams {
+                let mut entry = FinanceEntry::new(
                     company_id,
-                    kind: FinanceKind::Receivable,
-                    description: format!("Fiado * {customer_name}"),
-                    party_id: Some(customer_id),
-                    party_name: customer_name.to_string(),
-                    party_type: PartyType::Customer,
-                    category_id: None,
-                    amount: debt,
-                    due_date: fiado_due_sentinel(),
-                    payment_method: None,
-                    notes: Some(FIADO_AUTO_TAG.to_string()),
-                    recurrence: FinanceRecurrence::Once,
-                    installments: 1,
-                    order_id: None,
-                })
-                .await?;
+                    FinanceKind::Receivable,
+                    description,
+                    debt,
+                    fiado_due_sentinel(),
+                );
+                entry.base.id = id;
+                entry.parent_id = id;
+                entry.party_id = Some(customer_id);
+                entry.party_name = customer_name.to_string();
+                entry.party_type = PartyType::Customer;
+                entry.notes = Some(FIADO_AUTO_TAG.to_string());
+                self.repo.create(&entry).await?;
             }
             None => {}
         }

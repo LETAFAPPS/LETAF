@@ -29,6 +29,39 @@ use letaf_core::error::CoreError;
 
 use super::{PullCursor, SyncWorker};
 
+impl SyncWorker {
+    /// Recalcula o espelho do fiado de um cliente a partir do saldo que o
+    /// pull acabou de gravar. Falha só loga: o espelho é reflexo, não fonte
+    /// de verdade, e não pode derrubar o ciclo de sync.
+    async fn refresca_espelho_do_fiado(&self, cid: uuid::Uuid, customer_id: uuid::Uuid) {
+        let Ok(Some(conta)) = self
+            .state
+            .wallet_service
+            .find_account_by_customer(cid, customer_id)
+            .await
+        else {
+            return;
+        };
+        let nome = self
+            .state
+            .customer_service
+            .find_by_id(cid, customer_id)
+            .await
+            .ok()
+            .flatten()
+            .map(|c| c.name)
+            .unwrap_or_else(|| "Cliente".to_string());
+        if let Err(e) = self
+            .state
+            .finance_service
+            .sync_fiado_from_balance(cid, customer_id, &nome, conta.balance)
+            .await
+        {
+            tracing::warn!("espelho do fiado (pull): {e}");
+        }
+    }
+}
+
 // Cursor keyset para as entidades grandes (pull paginado, §7/§13).
 impl PullCursor for Product {
     fn pull_cursor(&self) -> (NaiveDateTime, uuid::Uuid) { (self.base.updated_at, self.base.id) }
@@ -329,7 +362,23 @@ impl SyncWorker {
         for item in items {
             if item.base.updated_at > max_ts { max_ts = item.base.updated_at; }
             let id = item.base.id;
-            self.tolera_registro("wallet_accounts", id, self.state.wallet_service.sync_upsert_account(cid, item).await);
+            let customer_id = item.customer_id;
+            let ok = self.tolera_registro(
+                "wallet_accounts",
+                id,
+                self.state.wallet_service.sync_upsert_account(cid, item).await,
+            );
+            // Recalcula o espelho do fiado no Financeiro com o saldo QUE
+            // ACABOU DE CHEGAR. O espelho grava um valor ABSOLUTO derivado do
+            // saldo: antes ele só era recalculado a partir de operações
+            // LOCAIS de carteira, então uma venda fiada feita em OUTRO
+            // terminal nunca o atualizava — o "a receber" ficava menor que a
+            // dívida real até a próxima venda fiada daquele cliente NESTE
+            // terminal. O saldo da carteira converge (é ledger de deltas);
+            // faltava o espelho acompanhar.
+            if ok {
+                self.refresca_espelho_do_fiado(cid, customer_id).await;
+            }
         }
         Ok(max_ts)
     }

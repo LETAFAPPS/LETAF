@@ -93,6 +93,14 @@ pub struct SyncWorker {
     pull_failed: std::sync::atomic::AtomicU32,
     /// Registros pulados por não serem legíveis por este binário.
     poison_count: std::sync::atomic::AtomicU32,
+    /// Entidades cujo pull o servidor NEGOU por permissão (403). Não é falha
+    /// de sincronização — é o perfil do operador não dar acesso àquele dado.
+    /// Contá-las como falha punha a UI em erro PERMANENTE (um estoquista sem
+    /// `finance.view` acumulava 11 negativas a cada 30 s), o que ensina a
+    /// ignorar o indicador e torna uma falha REAL indistinguível. Guardadas
+    /// para (a) não contar como erro e (b) só reconferir a cada reconcile,
+    /// em vez de queimar 11 requisições por ciclo.
+    sem_permissao: Mutex<std::collections::HashSet<&'static str>>,
     /// Diferença entre o relógio local e o do servidor, em segundos
     /// (positivo = esta máquina adiantada). Ver `observe_server_clock`.
     clock_skew: std::sync::atomic::AtomicI64,
@@ -166,6 +174,7 @@ impl SyncWorker {
             push_rejected: std::sync::atomic::AtomicU32::new(0),
             pull_failed: std::sync::atomic::AtomicU32::new(0),
             poison_count: std::sync::atomic::AtomicU32::new(0),
+            sem_permissao: Mutex::new(std::collections::HashSet::new()),
             clock_skew: std::sync::atomic::AtomicI64::new(0),
             cursor_company: Mutex::new(initial_company),
             quarantine: Mutex::new(std::collections::HashMap::new()),
@@ -203,6 +212,35 @@ impl SyncWorker {
                 self.flag_poison();
                 false
             }
+        }
+    }
+
+    /// `true` se o pull desta entidade deve ser PULADO por falta de permissão.
+    /// No ciclo de reconciliação (`reconferir`) a entidade sai da lista e é
+    /// tentada de novo — a permissão pode ter sido concedida no servidor.
+    fn pula_por_falta_de_permissao(&self, entidade: &'static str, reconferir: bool) -> bool {
+        let mut negadas = match self.sem_permissao.lock() {
+            Ok(g) => g,
+            Err(p) => p.into_inner(),
+        };
+        if reconferir {
+            negadas.remove(entidade);
+            return false;
+        }
+        negadas.contains(entidade)
+    }
+
+    /// Registra que o servidor negou o pull desta entidade por permissão.
+    fn marca_sem_permissao(&self, entidade: &'static str) {
+        let novo = match self.sem_permissao.lock() {
+            Ok(mut g) => g.insert(entidade),
+            Err(p) => p.into_inner().insert(entidade),
+        };
+        if novo {
+            tracing::info!(
+                "Pull {entidade}: sem permissão para este usuário — entidade ignorada \
+                 (reconferida a cada reconciliação). Não é falha de sincronização."
+            );
         }
     }
 
@@ -263,12 +301,16 @@ impl SyncWorker {
         // ciclo — push reenvia o que falta no servidor; pull re-puxa o que
         // falta no local.
         let tick = self.reconcile_tick.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-        if tick.is_multiple_of(RECONCILE_EVERY_N_CYCLES) {
+        // No ciclo da reconciliação também reconferimos as entidades que
+        // estavam negadas por permissão: o perfil do operador pode ter mudado
+        // no servidor, e sem isso a entidade ficaria ignorada até reiniciar.
+        let ciclo_de_reconciliacao = tick.is_multiple_of(RECONCILE_EVERY_N_CYCLES);
+        if ciclo_de_reconciliacao {
             self.reconcile_all(&token).await;
         }
 
         self.run_pushes(&token).await;
-        if let Err(e) = self.pull_all(&token).await {
+        if let Err(e) = self.pull_all(&token, ciclo_de_reconciliacao).await {
             tracing::warn!("Pull sync error: {e}");
         }
 
@@ -503,15 +545,23 @@ impl SyncWorker {
     ///   re-puxadas desde `since`. Sem isso, uma falha de rede numa
     ///   entidade fazia o cursor avançar com base nas que sucederam,
     ///   pulando registros das que falharam (perda de dados silenciosa).
-    async fn pull_all(&self, token: &str) -> Result<(), CoreError> {
+    async fn pull_all(&self, token: &str, reconferir_negadas: bool) -> Result<(), CoreError> {
         // Cada entidade puxa desde o SEU cursor e o avança pelo SEU máximo,
         // independente das demais (fecha a janela do cursor global, §7). Uma
         // falha só congela o cursor daquela entidade — as outras avançam.
         let mut any_failed = false;
         macro_rules! try_pull {
             ($method:ident, $label:literal) => {{
+                // Entidade já negada: só reconfere no ciclo de reconciliação
+                // (permissão pode ter sido concedida), sem queimar uma
+                // requisição por ciclo para levar 403 de novo.
                 let since = self.cursor_of($label);
-                match self.$method(token, since, since).await {
+                let negada = self.pula_por_falta_de_permissao($label, reconferir_negadas);
+                match if negada {
+                    Ok(since)
+                } else {
+                    self.$method(token, since, since).await
+                } {
                     Ok(ts) if ts > since => {
                         // Recua 1µs: um registro com `updated_at` IGUAL ao
                         // máximo, gravado logo após o snapshot, seria excluído
@@ -535,6 +585,11 @@ impl SyncWorker {
                         self.advance_cursor($label, capped.max(since));
                     }
                     Ok(_) => {}
+                    Err(CoreError::Forbidden(_)) => {
+                        // Sem permissão para esta entidade: NÃO é falha de
+                        // sync. Registra e segue — a UI continua "em dia".
+                        self.marca_sem_permissao($label);
+                    }
                     Err(e) => {
                         any_failed = true;
                         self.pull_failed
@@ -772,6 +827,13 @@ impl SyncWorker {
             tracing::warn!("SyncWorker: JWT rejeitado (401) em pull {endpoint}; limpando token");
             *self.auth_token.write().await = None;
             return Err(CoreError::Unauthorized("JWT expirado durante sync pull".into()));
+        }
+
+        if resp.status() == reqwest::StatusCode::FORBIDDEN {
+            // Permissão insuficiente para esta entidade — situação legítima
+            // de perfil, não falha de sync. Tipo próprio para o `pull_all`
+            // distinguir de um erro de verdade.
+            return Err(CoreError::Forbidden(format!("Pull {endpoint} negado")));
         }
 
         if !resp.status().is_success() {

@@ -361,9 +361,37 @@ impl CashService {
         if session.status == SessionStatus::Open && session.base.deleted_at.is_none() {
             if let Some(atual) = self.sessions.find_active(company_id).await? {
                 if atual.base.id != session.base.id {
-                    return Err(CoreError::Validation(
-                        "Já existe um caixa aberto para esta empresa".into(),
-                    ));
+                    // A sessão local nunca foi aceita pelo servidor (`synced =
+                    // false`): este terminal abriu caixa sem enxergar o caixa
+                    // que outro já tinha aberto. O servidor é o árbitro — o
+                    // perdedor ADOTA a sessão vencedora e leva junto os
+                    // movimentos que já lançou.
+                    //
+                    // Antes isto era erro duro nos dois sentidos: o push da
+                    // sessão local levava 400 e entrava em quarentena, TODOS
+                    // os movimentos dela falhavam por FK, e o pull da sessão
+                    // alheia derrubava o cursor de `cash_sessions`. Os dois
+                    // terminais operavam o turno inteiro em caixas separados e
+                    // o dinheiro de um deles não chegava ao servidor.
+                    if !atual.base.synced {
+                        let movidos = self
+                            .sessions
+                            .adopt_session(company_id, atual.base.id, session.base.id)
+                            .await?;
+                        tracing::info!(
+                            "Caixa: adotada a sessão {} do servidor; {movidos} movimento(s) \
+                             reapontados da sessão local {}",
+                            session.base.id,
+                            atual.base.id
+                        );
+                    } else {
+                        // Local marcada como sincronizada E diferente da que o
+                        // servidor manda: estado inesperado (o servidor só
+                        // mantém uma aberta). Recusa em vez de adivinhar.
+                        return Err(CoreError::Validation(
+                            "Já existe um caixa aberto para esta empresa".into(),
+                        ));
+                    }
                 }
             }
         }

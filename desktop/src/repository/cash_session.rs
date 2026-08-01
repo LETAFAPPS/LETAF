@@ -204,6 +204,49 @@ impl CashSessionRepository for SqliteCashSessionRepository {
         rows.into_iter().map(CashSession::try_from).collect()
     }
 
+    async fn adopt_session(
+        &self,
+        company_id: Uuid,
+        origem: Uuid,
+        destino: Uuid,
+    ) -> Result<u64, CoreError> {
+        let mut tx = self.pool.begin().await.map_err(map_db)?;
+        // Movimentos passam para a sessão vencedora e voltam para a fila de
+        // push com o `session_id` novo — assim o dinheiro deste terminal entra
+        // no caixa que existe de verdade no servidor.
+        let movidos = sqlx::query(
+            "UPDATE cash_movements
+                SET session_id = ?1, synced = 0, updated_at = ?2
+              WHERE company_id = ?3 AND session_id = ?4",
+        )
+        .bind(destino.to_string())
+        .bind(ts(chrono::Utc::now().naive_utc()))
+        .bind(company_id.to_string())
+        .bind(origem.to_string())
+        .execute(&mut *tx)
+        .await
+        .map_err(map_db)?
+        .rows_affected();
+
+        // A sessão perdedora nunca foi aceita pelo servidor: soft-delete local
+        // resolve, sem tombstone para propagar. `synced = 1` para o push não
+        // tentar enviá-la e levar 400 de novo.
+        sqlx::query(
+            "UPDATE cash_sessions
+                SET deleted_at = ?1, updated_at = ?1, synced = 1
+              WHERE company_id = ?2 AND id = ?3",
+        )
+        .bind(ts(chrono::Utc::now().naive_utc()))
+        .bind(company_id.to_string())
+        .bind(origem.to_string())
+        .execute(&mut *tx)
+        .await
+        .map_err(map_db)?;
+
+        tx.commit().await.map_err(map_db)?;
+        Ok(movidos)
+    }
+
     async fn sync_upsert(&self, s: &CashSession) -> Result<(), CoreError> {
         // SQLite UPSERT com guard de updated_at (last-write-wins).
         sqlx::query(

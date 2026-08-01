@@ -54,6 +54,21 @@ pub trait CashSessionRepository: Send + Sync {
         self.find_updated_since(company_id, since).await
     }
     async fn sync_upsert(&self, session: &CashSession) -> Result<(), CoreError>;
+
+    /// Reaponta os movimentos de uma sessão para outra e DESCARTA a sessão de
+    /// origem. Usado quando este terminal abriu caixa sem enxergar o caixa já
+    /// aberto de outro terminal: o servidor arbitra (uma sessão aberta por
+    /// empresa) e o perdedor adota a vencedora, levando junto os movimentos
+    /// que já lançou — senão o dinheiro do turno inteiro ficava apontando
+    /// para uma sessão que não existe no servidor.
+    ///
+    /// Só faz sentido no SQLite; o servidor é o árbitro e nunca adota.
+    async fn adopt_session(
+        &self,
+        company_id: Uuid,
+        origem: Uuid,
+        destino: Uuid,
+    ) -> Result<u64, CoreError>;
 }
 
 /// Acesso a dados de movimentos de caixa (livro-razão).

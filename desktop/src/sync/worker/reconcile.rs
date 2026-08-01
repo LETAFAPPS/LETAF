@@ -38,6 +38,12 @@ impl SyncWorker {
             match self.reconcile_entity(token, cid, table).await {
                 Ok(true) => drifted.push(table),
                 Ok(false) => {}
+                // Sem permissão não é divergência: o perfil do operador não dá
+                // acesso àquele dado. Registrar como `warn!` a cada 5 min
+                // enchia o log de ruído e escondia falha de verdade.
+                Err(CoreError::Forbidden(_)) => {
+                    tracing::debug!("Reconcile {table}: sem permissão para este usuário");
+                }
                 Err(e) => tracing::warn!("Reconcile {table}: {e}"),
             }
         }
@@ -177,6 +183,9 @@ impl SyncWorker {
             return Err(CoreError::Unauthorized(
                 "JWT expirado durante reconcile".into(),
             ));
+        }
+        if resp.status() == reqwest::StatusCode::FORBIDDEN {
+            return Err(CoreError::Forbidden(format!("Manifesto {table} negado")));
         }
         if !resp.status().is_success() {
             return Err(CoreError::Repository(format!(
