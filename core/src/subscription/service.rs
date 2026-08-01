@@ -686,6 +686,16 @@ impl SubscriptionService {
         method_note: &str,
     ) -> Result<(), CoreError> {
         let company_id = sub.base.company_id;
+
+        // Estorno tem alvo PRÓPRIO: a fatura que estava quitada, não a do ciclo
+        // corrente. A devolução pode chegar meses depois da cobrança, e o
+        // caminho normal (abaixo) criaria uma fatura nova no mês de HOJE,
+        // marcaria essa como falha e deixaria a original PAGA — o estorno
+        // sumiria e ainda apareceria uma cobrança que nunca existiu.
+        if is_refund_status(charge_status) {
+            return self.apply_refund(sub, company_id).await;
+        }
+
         // 1) Garante uma invoice no ciclo corrente (reusa se já existe).
         let invoice = match self
             .repo
@@ -734,6 +744,34 @@ impl SubscriptionService {
             if let Some(s) = self.repo.find_current(company_id).await? {
                 self.mark_overdue(s.base.id).await?;
             }
+        }
+        Ok(())
+    }
+
+    /// Desfaz a quitação da fatura mais recente que estava PAGA e devolve a
+    /// assinatura para inadimplente. Sem nenhuma fatura paga, não há o que
+    /// estornar — o evento é ignorado em vez de inventar uma cobrança.
+    async fn apply_refund(&self, sub: &Subscription, company_id: Uuid) -> Result<(), CoreError> {
+        let alvo = self
+            .repo
+            .find_invoices(company_id)
+            .await?
+            .into_iter()
+            .filter(|i| {
+                i.subscription_id == sub.base.id && matches!(i.status, InvoiceStatus::Paid)
+            })
+            // A mais recente pelo pagamento; sem `paid_at`, pela emissão.
+            .max_by_key(|i| (i.paid_at, i.issued_at));
+        let Some(alvo) = alvo else {
+            tracing::warn!(
+                "Estorno recebido para a assinatura {} sem fatura paga correspondente",
+                sub.base.id
+            );
+            return Ok(());
+        };
+        self.mark_invoice_failed(company_id, alvo.base.id).await?;
+        if let Some(s) = self.repo.find_current(company_id).await? {
+            self.mark_overdue(s.base.id).await?;
         }
         Ok(())
     }
@@ -854,6 +892,11 @@ impl SubscriptionService {
             return Ok(());
         }
         inv.status = InvoiceStatus::Failed;
+        // Limpa a data de pagamento: numa fatura estornada (que ESTAVA paga),
+        // deixar `paid_at` preenchido faz a fatura aparecer como "Falhou" com
+        // data de quitação, e qualquer soma por `paid_at` continua contando um
+        // dinheiro que voltou para o pagador.
+        inv.paid_at = None;
         inv.base.updated_at = chrono::Utc::now().naive_utc();
         inv.base.synced = false;
         self.repo.update_invoice(&inv).await
@@ -1246,9 +1289,21 @@ fn is_failed_status(s: &str) -> bool {
     // NÃO inclui "canceled"/"cancelled": um cancelamento de cobrança não é falha
     // de pagamento e não deve marcar o tenant como Overdue (o cancelamento
     // "limpo" passa por cancel_card/cancel_pix_auto). Só desfechos de FALHA real.
+    //
+    // Estorno/devolução ENTRA aqui: o dinheiro voltou para o pagador, logo a
+    // fatura deixa de estar quitada. Antes, "refunded" não casava com pago nem
+    // com falha e o webhook virava no-op — a fatura seguia PAGA, a assinatura
+    // ativa, e o estorno passava despercebido.
+    matches!(s, "unpaid" | "refused" | "declined" | "expired") || is_refund_status(s)
+}
+
+/// Status em que o dinheiro VOLTOU para o pagador depois de ter sido pago —
+/// estorno, devolução ou contestação ganha pelo cliente. Diferente de uma
+/// recusa: aqui existe uma fatura já quitada que precisa ser desfeita.
+fn is_refund_status(s: &str) -> bool {
     matches!(
         s,
-        "unpaid" | "refused" | "declined" | "expired" | "contested"
+        "refunded" | "chargeback" | "contested" | "estornado" | "devolvido"
     )
 }
 
