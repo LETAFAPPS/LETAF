@@ -190,17 +190,42 @@ pub(crate) fn setup_search(
     let ui_weak = ui.as_weak();
     ui.on_pdv_search_changed(move |q| {
         let trimmed = q.trim().to_string();
-        // Auto-add por barcode (match exato).
-        let matched_pid = {
+        // Auto-add por barcode. Duas formas:
+        // 1) match EXATO do `barcode` cadastrado (produto unitário);
+        // 2) EAN-13 emitido por BALANÇA (prefixo 2): os 6 dígitos do meio
+        //    são o `barcode` do produto e os 5 seguintes o peso/preço.
+        //    O parser já existia em `core::product::balance` e nunca era
+        //    chamado — o código da balança nunca casava e o item
+        //    simplesmente não entrava no carrinho.
+        let (matched_pid, balanca) = {
             let g = match pdv.lock() { Ok(g) => g, Err(_) => return };
-            if trimmed.is_empty() { None } else {
-                g.products_all.iter()
-                    .find(|p| p.barcode.as_deref().map(|b| b == trimmed).unwrap_or(false))
-                    .map(|p| p.base.id)
+            if trimmed.is_empty() {
+                (None, None)
+            } else if let Some(exato) = g
+                .products_all
+                .iter()
+                .find(|p| p.barcode.as_deref() == Some(trimmed.as_str()))
+            {
+                (Some(exato.base.id), None)
+            } else if let Some(code) = letaf_core::product::balance::parse_balance_barcode(&trimmed)
+            {
+                let achado = g
+                    .products_all
+                    .iter()
+                    .find(|p| p.barcode.as_deref() == Some(code.product_code.as_str()));
+                match achado {
+                    Some(p) => (Some(p.base.id), Some((code.raw_value, p.balance_mode))),
+                    None => (None, None),
+                }
+            } else {
+                (None, None)
             }
         };
         if let Some(pid) = matched_pid {
-            add_to_cart_simple(&pdv, pid);
+            match balanca {
+                Some((raw, modo)) => add_balance_item(&pdv, pid, raw, modo),
+                None => add_to_cart_simple(&pdv, pid),
+            }
             if let Some(ui) = ui_weak.upgrade() {
                 ui.set_pdv_search_text(SharedString::default());
                 if let Ok(mut g) = pdv.lock() { g.search_query.clear(); }
@@ -362,6 +387,54 @@ pub(crate) fn add_to_cart_simple(pdv: &Arc<Mutex<PdvState>>, product_id: Uuid) {
         name: product.name,
         qty: 1.0,
         unit_price: price.to_f64().unwrap_or(0.0),
+        extras: 0.0,
+        addons_summary: String::new(),
+        addons_json: None,
+    });
+}
+
+/// Adiciona ao carrinho um item lido da BALANÇA.
+///
+/// `raw` é a janela variável do EAN-13, cuja semântica vem do cadastro
+/// (`Product.balance_mode`):
+/// - `Weight`: gramas — a quantidade é `raw/1000` kg pelo preço por kg;
+/// - `Price`: centavos — o total já está no código, então a linha entra
+///   com quantidade 1 e o unitário sendo o valor lido.
+///
+/// Cada leitura vira uma LINHA nova (não soma na existente): duas pesagens
+/// do mesmo produto são itens distintos, com pesos distintos.
+pub(crate) fn add_balance_item(
+    pdv: &Arc<Mutex<PdvState>>,
+    product_id: Uuid,
+    raw: u32,
+    modo: letaf_core::product::model::BalanceMode,
+) {
+    use letaf_core::product::model::BalanceMode;
+    let Ok(mut g) = pdv.lock() else { return };
+    let product = match g.products_all.iter().find(|p| p.base.id == product_id) {
+        Some(p) => p.clone(),
+        None => return,
+    };
+    let (qty, unit) = match modo {
+        BalanceMode::Weight => {
+            let kg = f64::from(raw) / 1000.0;
+            let por_kg = letaf_core::discount::effective_unit_price(&product, kg)
+                .to_f64()
+                .unwrap_or(0.0);
+            (kg, por_kg)
+        }
+        // Preço em centavos: o total veio pronto da balança.
+        BalanceMode::Price => (1.0, f64::from(raw) / 100.0),
+    };
+    if qty <= 0.0 {
+        return;
+    }
+    g.cart.push(CartItem {
+        line_id: Uuid::new_v4(),
+        product_id,
+        name: product.name,
+        qty,
+        unit_price: unit,
         extras: 0.0,
         addons_summary: String::new(),
         addons_json: None,
