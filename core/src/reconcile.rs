@@ -128,17 +128,63 @@ pub fn diff(local: &[ManifestEntry], server: &[ManifestEntry]) -> ManifestDiff {
     ManifestDiff { server_drift, push_ids }
 }
 
+/// Tamanho de uma página de manifesto. O manifesto inteiro numa resposta só
+/// estourava o timeout do cliente em tabelas grandes (anos de pedidos), e era
+/// justamente aí que a anti-entropia (§7.6) parava de reparar.
+pub const MANIFEST_PAGE: i64 = 2_000;
+
+/// Teto de páginas por entidade — trava de segurança contra laço infinito
+/// caso o keyset não avance. 2.000 × 2.000 = 4 milhões de linhas.
+const MANIFEST_MAX_PAGES: usize = 2_000;
+
+/// Percorre todas as páginas do manifesto de uma entidade e devolve o
+/// manifesto completo. Usado nos dois lados (SQLite local e Postgres no
+/// handler), para que a paginação exista num lugar só.
+pub async fn full_manifest(
+    repo: &dyn ReconcileRepository,
+    company_id: Uuid,
+    table: &str,
+) -> Result<Vec<ManifestEntry>, CoreError> {
+    let mut todos: Vec<ManifestEntry> = Vec::new();
+    let mut after: Option<Uuid> = None;
+    for _ in 0..MANIFEST_MAX_PAGES {
+        let page = repo
+            .manifest_page(company_id, table, after, MANIFEST_PAGE)
+            .await?;
+        let curta = (page.len() as i64) < MANIFEST_PAGE;
+        after = page.last().map(|e| e.id);
+        todos.extend(page);
+        // Página incompleta = fim. `after == None` só acontece com página
+        // vazia, que já é curta — a checagem cobre os dois casos.
+        if curta {
+            return Ok(todos);
+        }
+    }
+    Err(CoreError::Repository(format!(
+        "Manifesto {table}: excedeu {MANIFEST_MAX_PAGES} páginas"
+    )))
+}
+
 /// Acesso genérico ao manifesto de uma entidade. Uma implementação por banco
 /// (Postgres no servidor, SQLite no desktop). O nome da tabela é validado
 /// contra [`RECONCILE_TABLES`] pela implementação antes de usar.
 #[async_trait]
 pub trait ReconcileRepository: Send + Sync {
-    /// Manifesto completo da entidade para a empresa: `(id, updated_at,
-    /// deleted_at)` de TODAS as linhas (inclusive soft-deletadas).
-    async fn manifest(
+    /// Uma PÁGINA do manifesto da entidade: `(id, updated_at, deleted_at)`
+    /// das linhas com `id > after_id` (inclusive soft-deletadas), ordenadas
+    /// por `id` e limitadas a `limit`.
+    ///
+    /// A ordem por `id` é a mesma nos dois bancos: o UUID em texto é
+    /// minúsculo, com hífens em posição fixa, então a ordem lexicográfica do
+    /// SQLite coincide com a ordem binária do Postgres.
+    ///
+    /// Prefira [`full_manifest`] a chamar isto direto — ele pagina até o fim.
+    async fn manifest_page(
         &self,
         company_id: Uuid,
         table: &str,
+        after_id: Option<Uuid>,
+        limit: i64,
     ) -> Result<Vec<ManifestEntry>, CoreError>;
 
     /// Marca registros como não-sincronizados (`synced = false`), para que o

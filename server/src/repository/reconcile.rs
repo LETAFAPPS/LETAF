@@ -27,10 +27,12 @@ impl PgReconcileRepository {
 
 #[async_trait]
 impl ReconcileRepository for PgReconcileRepository {
-    async fn manifest(
+    async fn manifest_page(
         &self,
         company_id: Uuid,
         table: &str,
+        after_id: Option<Uuid>,
+        limit: i64,
     ) -> Result<Vec<ManifestEntry>, CoreError> {
         if !is_reconcilable(table) {
             return Err(CoreError::Validation(format!(
@@ -41,11 +43,15 @@ impl ReconcileRepository for PgReconcileRepository {
         // interpolar. Filtro por tenant (§11); `companies` usa `id`.
         let key = tenant_key_column(table);
         let sql = format!(
-            "SELECT id, updated_at, deleted_at FROM {table} WHERE {key} = $1"
+            "SELECT id, updated_at, deleted_at FROM {table} \
+             WHERE {key} = $1 AND ($2::uuid IS NULL OR id > $2) \
+             ORDER BY id LIMIT $3"
         );
         let rows: Vec<(Uuid, NaiveDateTime, Option<NaiveDateTime>)> =
             sqlx::query_as(&sql)
                 .bind(company_id)
+                .bind(after_id)
+                .bind(limit)
                 .fetch_all(&self.pool)
                 .await
                 .map_err(map_db)?;

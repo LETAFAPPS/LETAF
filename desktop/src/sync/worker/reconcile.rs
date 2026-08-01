@@ -17,7 +17,9 @@ use chrono::NaiveDateTime;
 use uuid::Uuid;
 
 use letaf_core::error::CoreError;
-use letaf_core::reconcile::{ManifestEntry, ReconcileRepository, RECONCILE_TABLES};
+use letaf_core::reconcile::{
+    ManifestEntry, ReconcileRepository, MANIFEST_PAGE, RECONCILE_TABLES,
+};
 
 use super::SyncWorker;
 
@@ -94,7 +96,8 @@ impl SyncWorker {
         table: &str,
     ) -> Result<bool, CoreError> {
         let server = self.fetch_manifest(token, table).await?;
-        let local = self.state.reconcile.manifest(cid, table).await?;
+        let local =
+            letaf_core::reconcile::full_manifest(&*self.state.reconcile, cid, table).await?;
 
         let d = letaf_core::reconcile::diff(&local, &server);
         if !d.push_ids.is_empty() {
@@ -107,15 +110,40 @@ impl SyncWorker {
         Ok(d.server_drift)
     }
 
-    /// Busca o manifesto de uma entidade no servidor (GET autenticado).
+    /// Busca o manifesto COMPLETO de uma entidade no servidor, percorrendo as
+    /// páginas keyset até a última (§7.6: uma tabela grande não pode deixar a
+    /// anti-entropia estourar o timeout e nunca reparar).
     async fn fetch_manifest(
         &self,
         token: &str,
         table: &str,
     ) -> Result<Vec<ManifestEntry>, CoreError> {
+        let mut todos: Vec<ManifestEntry> = Vec::new();
+        let mut after: Option<Uuid> = None;
+        loop {
+            let page = self.fetch_manifest_page(token, table, after).await?;
+            let curta = (page.len() as i64) < MANIFEST_PAGE;
+            after = page.last().map(|e| e.id);
+            todos.extend(page);
+            if curta {
+                return Ok(todos);
+            }
+        }
+    }
+
+    /// Uma página do manifesto no servidor (GET autenticado).
+    async fn fetch_manifest_page(
+        &self,
+        token: &str,
+        table: &str,
+        after_id: Option<Uuid>,
+    ) -> Result<Vec<ManifestEntry>, CoreError> {
+        let cursor = after_id
+            .map(|id| format!("&after_id={id}"))
+            .unwrap_or_default();
         let url = format!(
-            "{}/sync/reconcile/manifest?entity={}",
-            self.server_url, table
+            "{}/sync/reconcile/manifest?entity={}&limit={}{}",
+            self.server_url, table, MANIFEST_PAGE, cursor
         );
         let resp = self
             .http

@@ -25,10 +25,12 @@ impl SqliteReconcileRepository {
 
 #[async_trait]
 impl ReconcileRepository for SqliteReconcileRepository {
-    async fn manifest(
+    async fn manifest_page(
         &self,
         company_id: Uuid,
         table: &str,
+        after_id: Option<Uuid>,
+        limit: i64,
     ) -> Result<Vec<ManifestEntry>, CoreError> {
         if !is_reconcilable(table) {
             return Err(CoreError::Validation(format!(
@@ -37,10 +39,14 @@ impl ReconcileRepository for SqliteReconcileRepository {
         }
         let key = tenant_key_column(table);
         let sql = format!(
-            "SELECT id, updated_at, deleted_at FROM {table} WHERE {key} = ?1"
+            "SELECT id, updated_at, deleted_at FROM {table} \
+             WHERE {key} = ?1 AND (?2 IS NULL OR id > ?2) \
+             ORDER BY id LIMIT ?3"
         );
         let rows: Vec<(String, String, Option<String>)> = sqlx::query_as(&sql)
             .bind(company_id.to_string())
+            .bind(after_id.map(|id| id.to_string()))
+            .bind(limit)
             .fetch_all(&self.pool)
             .await
             .map_err(map_db)?;
@@ -91,7 +97,7 @@ impl ReconcileRepository for SqliteReconcileRepository {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use letaf_core::reconcile::diff;
+    use letaf_core::reconcile::{diff, full_manifest};
     use sqlx::sqlite::SqlitePoolOptions;
 
     /// Pool SQLite em memória com as migrations aplicadas. `max_connections=1`
@@ -144,10 +150,10 @@ mod tests {
         insert_product(&local, cid, p1, "2026-01-05 12:00:00.000000", true, None).await;
         insert_product(&local, cid, p3, "2026-01-07 12:00:00.000000", true, None).await;
 
-        let server_manifest = SqliteReconcileRepository::new(server)
-            .manifest(cid, "products").await.unwrap();
+        let srepo = SqliteReconcileRepository::new(server);
+        let server_manifest = full_manifest(&srepo, cid, "products").await.unwrap();
         let lrepo = SqliteReconcileRepository::new(local.clone());
-        let local_manifest = lrepo.manifest(cid, "products").await.unwrap();
+        let local_manifest = full_manifest(&lrepo, cid, "products").await.unwrap();
 
         let d = diff(&local_manifest, &server_manifest);
         assert!(d.server_drift, "P2 falta no local → deve disparar re-pull");
@@ -172,12 +178,55 @@ mod tests {
             Some("2026-01-06 12:00:00.000000")).await;
         let repo = SqliteReconcileRepository::new(pool);
 
-        let m = repo.manifest(cid, "products").await.unwrap();
+        let m = full_manifest(&repo, cid, "products").await.unwrap();
         assert_eq!(m.len(), 1);
         assert!(m[0].deleted_at.is_some(), "soft-delete deve aparecer no manifesto");
 
         // Tabela fora da allowlist é rejeitada (defesa contra injeção).
-        assert!(repo.manifest(cid, "hackers").await.is_err());
+        assert!(full_manifest(&repo, cid, "hackers").await.is_err());
         assert!(repo.mark_unsynced(cid, "hackers", &[id]).await.is_err());
+    }
+
+    /// O keyset por `id` tem que percorrer TODAS as páginas, sem repetir nem
+    /// pular registro — é o que garante que a anti-entropia enxergue a tabela
+    /// inteira depois da paginação.
+    #[tokio::test]
+    async fn paginacao_do_manifesto_cobre_tudo_sem_repetir() {
+        let cid = Uuid::new_v4();
+        let pool = mem_pool().await;
+        let mut ids: Vec<Uuid> = Vec::new();
+        for _ in 0..25 {
+            let id = Uuid::new_v4();
+            insert_product(&pool, cid, id, "2026-01-05 12:00:00.000000", true, None).await;
+            ids.push(id);
+        }
+        let repo = SqliteReconcileRepository::new(pool);
+
+        // Páginas de 4 em 4, percorridas na mão como o worker faz.
+        let mut vistos: Vec<Uuid> = Vec::new();
+        let mut after: Option<Uuid> = None;
+        loop {
+            let page = repo.manifest_page(cid, "products", after, 4).await.unwrap();
+            assert!(page.len() <= 4, "página não pode passar do limite");
+            let curta = page.len() < 4;
+            after = page.last().map(|e| e.id);
+            vistos.extend(page.into_iter().map(|e| e.id));
+            if curta {
+                break;
+            }
+        }
+
+        ids.sort();
+        let mut unicos = vistos.clone();
+        unicos.sort();
+        unicos.dedup();
+        assert_eq!(unicos.len(), vistos.len(), "nenhum id pode vir duas vezes");
+        assert_eq!(unicos, ids, "a paginação deve cobrir todos os registros");
+
+        // E o laço do core chega ao mesmo conjunto.
+        let mut pelo_core: Vec<Uuid> =
+            full_manifest(&repo, cid, "products").await.unwrap().into_iter().map(|e| e.id).collect();
+        pelo_core.sort();
+        assert_eq!(pelo_core, ids);
     }
 }

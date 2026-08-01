@@ -12,7 +12,7 @@ use letaf_core::subcategory::model::Subcategory;
 use letaf_core::product::model::Product;
 use letaf_core::product::stock_movement::StockMovement;
 
-use letaf_core::reconcile::{ManifestEntry, ReconcileRepository};
+use letaf_core::reconcile::{ManifestEntry, ReconcileRepository, MANIFEST_PAGE};
 
 use crate::context::AppState;
 use crate::error::ServerError;
@@ -22,16 +22,22 @@ use crate::repository::reconcile::PgReconcileRepository;
 
 use super::PullQuery;
 
-/// Query da rota de manifesto: qual entidade reconciliar.
+/// Query da rota de manifesto: entidade e cursor keyset da página.
 #[derive(serde::Deserialize)]
 pub(crate) struct ManifestQuery {
     pub(crate) entity: String,
+    /// Último `id` da página anterior; ausente = primeira página.
+    #[serde(default)]
+    pub(crate) after_id: Option<uuid::Uuid>,
+    #[serde(default)]
+    pub(crate) limit: Option<i64>,
 }
 
-/// GET /sync/reconcile/manifest?entity=<tabela> — manifesto (id, updated_at,
-/// deleted_at) de TODAS as linhas da entidade para o tenant. Base da
-/// reconciliação anti-entropia (§7): o desktop compara com o manifesto local
-/// e sincroniza divergências/faltas nos dois sentidos.
+/// GET /sync/reconcile/manifest?entity=<tabela>&after_id=<uuid> — uma PÁGINA
+/// do manifesto (id, updated_at, deleted_at) da entidade para o tenant,
+/// ordenada por `id`. Base da reconciliação anti-entropia (§7): o desktop
+/// percorre as páginas, compara com o manifesto local e sincroniza
+/// divergências/faltas nos dois sentidos.
 pub(crate) async fn reconcile_manifest(
     State(state): State<AppState>,
     auth: AuthClaims,
@@ -59,7 +65,11 @@ pub(crate) async fn reconcile_manifest(
         auth.require_permission(perm)?;
     }
     let repo = PgReconcileRepository::new(state.pool.clone());
-    let manifest = repo.manifest(auth.0.company_id, &q.entity).await?;
+    // Página com teto do servidor: o cliente não dita o tamanho (§11).
+    let limit = q.limit.unwrap_or(MANIFEST_PAGE).clamp(1, MANIFEST_PAGE);
+    let manifest = repo
+        .manifest_page(auth.0.company_id, &q.entity, q.after_id, limit)
+        .await?;
     Ok(Json(manifest))
 }
 
