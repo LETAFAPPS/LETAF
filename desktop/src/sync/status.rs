@@ -42,7 +42,18 @@ pub struct SyncStatus {
     /// (versão mais nova do lado de lá). Foram PULADOS: o resto da página
     /// entrou, mas o operador precisa saber que falta dado.
     pub poison_count: u32,
+    /// Diferença do relógio local para o do servidor, em segundos (positivo =
+    /// esta máquina adiantada). A resolução de conflito é last-write-wins
+    /// sobre `updated_at` carimbado pelo cliente (§7.7): com o relógio errado,
+    /// este terminal sobrescreve — ou perde — alterações dos outros SEM
+    /// nenhum erro aparecer. Acima de `CLOCK_SKEW_TOLERANCE_SECS` a UI avisa.
+    pub clock_skew_seconds: i64,
 }
+
+/// Tolerância antes de considerar o relógio fora de hora. Dois minutos
+/// absorvem a imprecisão do header `Date` (resolução de 1 s) e a latência da
+/// rede, sem deixar passar um relógio de fato errado.
+pub const CLOCK_SKEW_TOLERANCE_SECS: i64 = 120;
 
 impl Default for SyncStatus {
     fn default() -> Self {
@@ -54,8 +65,21 @@ impl Default for SyncStatus {
             rejected_count: 0,
             pull_failed_count: 0,
             poison_count: 0,
+            clock_skew_seconds: 0,
         }
     }
+}
+
+/// Resultado consolidado de um ciclo de sync, publicado de uma vez.
+#[derive(Debug, Clone, Copy)]
+pub struct CycleOutcome {
+    pub online: bool,
+    pub last_sync_at: NaiveDateTime,
+    pub pending_count: u32,
+    pub rejected_count: u32,
+    pub pull_failed_count: u32,
+    pub poison_count: u32,
+    pub clock_skew_seconds: i64,
 }
 
 /// Handle thread-safe para compartilhar o `SyncStatus` entre worker e UI.
@@ -83,33 +107,30 @@ impl SyncStatusHandle {
     }
 
     /// Sinaliza fim do ciclo, com resultado consolidado.
-    pub fn mark_finished(
-        &self,
-        online: bool,
-        last_sync_at: NaiveDateTime,
-        pending_count: u32,
-        rejected_count: u32,
-        pull_failed_count: u32,
-        poison_count: u32,
-    ) {
+    pub fn mark_finished(&self, r: CycleOutcome) {
         if let Ok(mut g) = self.0.write() {
-            g.online = online;
+            g.online = r.online;
             // Erro quando a rede caiu, quando há dado rejeitado (4xx)
             // preso, quando alguma entidade não conseguiu ser PUXADA ou
             // quando veio registro ilegível — todas são situações em que
             // os dois bancos estão divergindo e o operador precisa ver.
-            g.phase = if !online || rejected_count > 0 || pull_failed_count > 0 || poison_count > 0 {
+            g.phase = if !r.online
+                || r.rejected_count > 0
+                || r.pull_failed_count > 0
+                || r.poison_count > 0
+            {
                 SyncPhase::Error
             } else {
                 SyncPhase::Idle
             };
-            if online {
-                g.last_sync_at = Some(last_sync_at);
+            if r.online {
+                g.last_sync_at = Some(r.last_sync_at);
             }
-            g.pending_count = pending_count;
-            g.rejected_count = rejected_count;
-            g.pull_failed_count = pull_failed_count;
-            g.poison_count = poison_count;
+            g.pending_count = r.pending_count;
+            g.rejected_count = r.rejected_count;
+            g.pull_failed_count = r.pull_failed_count;
+            g.poison_count = r.poison_count;
+            g.clock_skew_seconds = r.clock_skew_seconds;
         }
     }
 

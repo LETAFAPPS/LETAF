@@ -11,6 +11,8 @@ use uuid::Uuid;
 
 use letaf_core::error::CoreError;
 
+use crate::sync::status::CLOCK_SKEW_TOLERANCE_SECS;
+
 use crate::context::DesktopState;
 
 const SYNC_INTERVAL_SECS: u64 = 30;
@@ -91,6 +93,9 @@ pub struct SyncWorker {
     pull_failed: std::sync::atomic::AtomicU32,
     /// Registros pulados por não serem legíveis por este binário.
     poison_count: std::sync::atomic::AtomicU32,
+    /// Diferença entre o relógio local e o do servidor, em segundos
+    /// (positivo = esta máquina adiantada). Ver `observe_server_clock`.
+    clock_skew: std::sync::atomic::AtomicI64,
     /// Empresa a que os cursores em memória pertencem (ver
     /// `sync_cursors_with_tenant`).
     cursor_company: Mutex<uuid::Uuid>,
@@ -161,6 +166,7 @@ impl SyncWorker {
             push_rejected: std::sync::atomic::AtomicU32::new(0),
             pull_failed: std::sync::atomic::AtomicU32::new(0),
             poison_count: std::sync::atomic::AtomicU32::new(0),
+            clock_skew: std::sync::atomic::AtomicI64::new(0),
             cursor_company: Mutex::new(initial_company),
             quarantine: Mutex::new(std::collections::HashMap::new()),
             push_superseded: std::sync::atomic::AtomicU32::new(0),
@@ -251,9 +257,15 @@ impl SyncWorker {
         let superseded = self
             .push_superseded
             .load(std::sync::atomic::Ordering::Relaxed);
-        self.state
-            .sync_status
-            .mark_finished(online, now, pending, rejected, pull_failed, poison + superseded);
+        self.state.sync_status.mark_finished(crate::sync::status::CycleOutcome {
+            online,
+            last_sync_at: now,
+            pending_count: pending,
+            rejected_count: rejected,
+            pull_failed_count: pull_failed,
+            poison_count: poison + superseded,
+            clock_skew_seconds: self.clock_skew.load(std::sync::atomic::Ordering::Relaxed),
+        });
         // Notifica a UI para refrescar telas dependentes do `synced`
         // (master-detail de Produtos atualiza o rótulo abaixo do nome).
         //
@@ -674,6 +686,45 @@ impl SyncWorker {
         Ok(all)
     }
 
+    /// Compara o relógio desta máquina com o do servidor usando o header
+    /// `Date` da resposta (§7.7).
+    ///
+    /// A resolução de conflito é last-write-wins sobre `updated_at`, que é
+    /// carimbado pelo CLIENTE. Um terminal com o relógio adiantado ganha toda
+    /// disputa e sobrescreve edições legítimas dos outros — e um atrasado
+    /// perde todas, com as edições dele sumindo sem erro nenhum. Nada disso
+    /// aparece como falha: o sync reporta sucesso o tempo todo.
+    ///
+    /// Detectamos e avisamos em vez de "corrigir" o timestamp no servidor:
+    /// o cliente continuaria com o valor adiantado gravado localmente, a
+    /// reconciliação veria "local mais novo" a cada ciclo e reempurraria o
+    /// registro para sempre. A causa é o relógio da máquina — é ele que
+    /// precisa ser acertado.
+    ///
+    /// Só observa: nunca ajusta timestamp e nunca falha o sync.
+    fn observe_server_clock(&self, resp: &reqwest::Response) {
+        let Some(server_now) = resp
+            .headers()
+            .get(reqwest::header::DATE)
+            .and_then(|v| v.to_str().ok())
+            .and_then(|s| chrono::DateTime::parse_from_rfc2822(s).ok())
+        else {
+            return;
+        };
+        let skew = (chrono::Utc::now() - server_now.with_timezone(&chrono::Utc)).num_seconds();
+        self.clock_skew
+            .store(skew, std::sync::atomic::Ordering::Relaxed);
+        if skew.abs() > CLOCK_SKEW_TOLERANCE_SECS {
+            let sentido = if skew > 0 { "adiantado" } else { "atrasado" };
+            tracing::warn!(
+                "Relógio deste computador está {} {sentido} em relação ao servidor. \
+                 A resolução de conflitos usa o horário local — acerte o relógio \
+                 para não sobrescrever (ou perder) alterações de outros terminais.",
+                fmt_duracao(skew.abs()),
+            );
+        }
+    }
+
     /// GET de uma página do pull (envio + tratamento de status + decode).
     /// Base compartilhada por `fetch_pull` (tiro único) e `fetch_pull_paged`.
     async fn get_pull_page<T: DeserializeOwned>(
@@ -700,6 +751,8 @@ impl SyncWorker {
         if !resp.status().is_success() {
             return Err(CoreError::Repository(format!("Pull {endpoint}: status {}", resp.status())));
         }
+
+        self.observe_server_clock(&resp);
 
         // Decodifica item a item. Antes era `json::<Vec<T>>()`: UM registro
         // com um valor que este binário não conhece (status novo, enum
@@ -881,3 +934,24 @@ struct Quarentena {
     proxima_tentativa: NaiveDateTime,
 }
 
+/// "3 min" / "2 h 5 min" — usado só na mensagem de relógio fora de hora.
+fn fmt_duracao(segundos: i64) -> String {
+    let minutos = segundos / 60;
+    match (minutos / 60, minutos % 60) {
+        (0, m) => format!("{m} min"),
+        (h, 0) => format!("{h} h"),
+        (h, m) => format!("{h} h {m} min"),
+    }
+}
+
+#[cfg(test)]
+mod clock_tests {
+    use super::fmt_duracao;
+
+    #[test]
+    fn formata_a_duracao_do_desvio() {
+        assert_eq!(fmt_duracao(180), "3 min");
+        assert_eq!(fmt_duracao(7200), "2 h");
+        assert_eq!(fmt_duracao(7500), "2 h 5 min");
+    }
+}
