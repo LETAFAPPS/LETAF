@@ -287,6 +287,21 @@ impl OrderService {
         self.repo.count_all(company_id).await
     }
 
+    /// Pedidos do período (datas inclusivas) — insumo dos relatórios.
+    pub async fn find_in_period(
+        &self,
+        company_id: Uuid,
+        inicio: chrono::NaiveDate,
+        fim: chrono::NaiveDate,
+    ) -> Result<Vec<Order>, CoreError> {
+        self.repo.find_in_period(company_id, inicio, fim).await
+    }
+
+    /// Fiados em aberto, de qualquer data (o "a receber" não tem período).
+    pub async fn find_unpaid_wallet(&self, company_id: Uuid) -> Result<Vec<Order>, CoreError> {
+        self.repo.find_unpaid_wallet(company_id).await
+    }
+
     pub async fn find_all(&self, company_id: Uuid) -> Result<Vec<Order>, CoreError> {
         self.repo.find_all(company_id).await
     }

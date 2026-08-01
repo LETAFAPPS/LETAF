@@ -480,6 +480,45 @@ impl OrderRepository for PgOrderRepository {
         Ok(row.0)
     }
 
+    async fn find_in_period(
+        &self,
+        company_id: Uuid,
+        inicio: chrono::NaiveDate,
+        fim: chrono::NaiveDate,
+    ) -> Result<Vec<Order>, CoreError> {
+        let rows = sqlx::query_as::<_, OrderRow>(
+            "SELECT * FROM orders
+             WHERE company_id = $1 AND deleted_at IS NULL
+               AND created_at >= $2 AND created_at < $3
+             ORDER BY created_at DESC",
+        )
+        .bind(company_id)
+        .bind(inicio.and_hms_opt(0, 0, 0).unwrap_or_default())
+        .bind(fim.succ_opt().unwrap_or(fim).and_hms_opt(0, 0, 0).unwrap_or_default())
+        .fetch_all(&self.pool)
+        .await
+        .map_err(map_db)?;
+        let mut orders: Vec<Order> = rows.into_iter().map(Order::from).collect();
+        self.attach_items(&mut orders).await?;
+        Ok(orders)
+    }
+
+    async fn find_unpaid_wallet(&self, company_id: Uuid) -> Result<Vec<Order>, CoreError> {
+        let rows = sqlx::query_as::<_, OrderRow>(
+            "SELECT * FROM orders
+             WHERE company_id = $1 AND deleted_at IS NULL
+               AND payment_method = 'wallet' AND paid = false AND status <> 'cancelled'
+             ORDER BY created_at DESC",
+        )
+        .bind(company_id)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(map_db)?;
+        let mut orders: Vec<Order> = rows.into_iter().map(Order::from).collect();
+        self.attach_items(&mut orders).await?;
+        Ok(orders)
+    }
+
     async fn find_by_status(&self, company_id: Uuid, status: &OrderStatus) -> Result<Vec<Order>, CoreError> {
         let rows = sqlx::query_as::<_, OrderRow>(
             "SELECT * FROM orders WHERE company_id = $1 AND status = $2 AND deleted_at IS NULL ORDER BY created_at DESC",

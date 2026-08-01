@@ -301,6 +301,48 @@ impl OrderRepository for SqliteOrderRepository {
         Ok(row.0)
     }
 
+    async fn find_in_period(
+        &self,
+        company_id: Uuid,
+        inicio: chrono::NaiveDate,
+        fim: chrono::NaiveDate,
+    ) -> Result<Vec<Order>, CoreError> {
+        // Fim EXCLUSIVO no dia seguinte: `created_at` guarda hora, então
+        // comparar com o próprio `fim` cortaria fora tudo o que aconteceu
+        // depois da meia-noite do último dia do período.
+        let rows = sqlx::query_as::<_, OrderRow>(
+            "SELECT * FROM orders \
+             WHERE company_id = ?1 AND deleted_at IS NULL \
+               AND created_at >= ?2 AND created_at < ?3 \
+             ORDER BY created_at DESC",
+        )
+        .bind(company_id.to_string())
+        .bind(ts(inicio.and_hms_opt(0, 0, 0).unwrap_or_default()))
+        .bind(ts(fim.succ_opt().unwrap_or(fim).and_hms_opt(0, 0, 0).unwrap_or_default()))
+        .fetch_all(&self.pool)
+        .await
+        .map_err(map_db)?;
+        let mut orders: Vec<Order> = rows.into_iter().map(Order::try_from).collect::<Result<Vec<_>, _>>()?;
+        self.attach_items(&mut orders).await?;
+        Ok(orders)
+    }
+
+    async fn find_unpaid_wallet(&self, company_id: Uuid) -> Result<Vec<Order>, CoreError> {
+        let rows = sqlx::query_as::<_, OrderRow>(
+            "SELECT * FROM orders \
+             WHERE company_id = ?1 AND deleted_at IS NULL \
+               AND payment_method = 'wallet' AND paid = 0 AND status <> 'cancelled' \
+             ORDER BY created_at DESC",
+        )
+        .bind(company_id.to_string())
+        .fetch_all(&self.pool)
+        .await
+        .map_err(map_db)?;
+        let mut orders: Vec<Order> = rows.into_iter().map(Order::try_from).collect::<Result<Vec<_>, _>>()?;
+        self.attach_items(&mut orders).await?;
+        Ok(orders)
+    }
+
     async fn find_by_status(&self, company_id: Uuid, status: &OrderStatus) -> Result<Vec<Order>, CoreError> {
         let rows = sqlx::query_as::<_, OrderRow>(
             "SELECT * FROM orders WHERE company_id = ?1 AND status = ?2 AND deleted_at IS NULL ORDER BY created_at DESC",

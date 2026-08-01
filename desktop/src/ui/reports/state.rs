@@ -42,7 +42,12 @@ pub(crate) enum Granularity {
 pub(crate) type Shared<T> = Arc<std::sync::Mutex<T>>;
 
 pub(crate) struct Caches {
+    /// Pedidos da janela mais ampla que a tela pode pedir (ano atual + ano
+    /// anterior) — não o histórico inteiro.
     pub(crate) orders: Shared<Vec<Order>>,
+    /// Fiados em ABERTO de qualquer data: o "a receber" não tem recorte de
+    /// período, então não cabe no cache acima.
+    pub(crate) fiado_aberto: Shared<Vec<Order>>,
     pub(crate) products: Shared<Vec<Product>>,
     pub(crate) categories: Shared<Vec<Category>>,
     pub(crate) customers: Shared<Vec<Customer>>,
@@ -52,6 +57,7 @@ impl Clone for Caches {
     fn clone(&self) -> Self {
         Self {
             orders: self.orders.clone(),
+            fiado_aberto: self.fiado_aberto.clone(),
             products: self.products.clone(),
             categories: self.categories.clone(),
             customers: self.customers.clone(),

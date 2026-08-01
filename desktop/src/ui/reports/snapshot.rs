@@ -79,6 +79,9 @@ pub(crate) struct Snapshot {
 pub(crate) fn build_snapshot(
     s: &ReportState,
     orders: &[Order],
+    // Fiados em ABERTO de qualquer data — o "a receber" não tem recorte de
+    // período, então não sai de `orders`, que agora traz só a janela.
+    fiado_aberto: &[Order],
     products: &[Product],
     categories: &[Category],
     customers: &[Customer],
@@ -181,7 +184,7 @@ pub(crate) fn build_snapshot(
         "financial" => fill_financial(
             &mut snap,
             &report::financial(&valid, products),
-            report::outstanding_fiado(orders),
+            report::outstanding_fiado(fiado_aberto),
             &valid,
             &prev_valid,
             chart_window,

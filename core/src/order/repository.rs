@@ -106,6 +106,24 @@ pub trait OrderRepository: Send + Sync {
     ) -> Result<i64, CoreError>;
 
     /// Lista pedidos por status.
+    /// Pedidos criados no intervalo `[inicio, fim]` (datas inclusivas), com
+    /// os itens hidratados.
+    ///
+    /// Os relatórios carregavam `find_all` — TODO o histórico — e recortavam
+    /// o período em Rust. A tela nunca mostra mais que ~2 anos (a janela mais
+    /// ampla é "ano" comparado com o ano anterior), então o resto do
+    /// histórico era transportado e descartado, e o custo crescia para sempre.
+    async fn find_in_period(
+        &self,
+        company_id: Uuid,
+        inicio: chrono::NaiveDate,
+        fim: chrono::NaiveDate,
+    ) -> Result<Vec<Order>, CoreError>;
+
+    /// Pedidos fiados em ABERTO, de qualquer data — o "a receber" não tem
+    /// recorte de período. Conjunto pequeno por natureza.
+    async fn find_unpaid_wallet(&self, company_id: Uuid) -> Result<Vec<Order>, CoreError>;
+
     async fn find_by_status(&self, company_id: Uuid, status: &OrderStatus) -> Result<Vec<Order>, CoreError>;
 
     /// Atualiza status do pedido.
