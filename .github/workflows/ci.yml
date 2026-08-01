@@ -98,4 +98,6 @@ jobs:
 
       # As migrações são aplicadas pelo próprio teste (sqlx::migrate!).
       - name: Testes de integração
-        run: cargo test -p letaf-server --test admin_gate --locked
+        run: |
+          cargo test -p letaf-server --test admin_gate --locked
+          cargo test -p letaf-server --test order_stock_invariant --locked

@@ -29,3 +29,7 @@ reqwest = { version = "0.12", features = ["json", "native-tls"] }
 # `base64` para Basic Auth do endpoint /oauth/token da Efi.
 base64 = "0.22"
 lettre = { version = "0.11.22", default-features = false, features = ["builder", "smtp-transport", "native-tls", "hostname", "pool", "tokio1", "tokio1-native-tls"] }
+
+[dev-dependencies]
+# Só para os testes de integração — `dec!` nos valores monetários.
+rust_decimal_macros = "1"
