@@ -10,7 +10,7 @@ use letaf_core::error::CoreError;
 use letaf_core::treasury::model::{Treasury, TreasuryMovement, TreasuryMovementKind};
 use letaf_core::treasury::repository::TreasuryRepository;
 
-use super::helpers::map_db;
+use super::helpers::{keyset_pull_sql, map_db};
 
 #[derive(FromRow)]
 struct TreasuryRow {
@@ -319,6 +319,28 @@ impl TreasuryRepository for PgTreasuryRepository {
         .await
         .map_err(map_db)?;
         Ok(())
+    }
+
+    async fn find_movements_updated_since_paged(
+        &self,
+        company_id: Uuid,
+        since: NaiveDateTime,
+        after_id: Uuid,
+        limit: i64,
+    ) -> Result<Vec<TreasuryMovement>, CoreError> {
+        Ok(
+            sqlx::query_as::<_, TreasuryMovementRow>(&keyset_pull_sql("treasury_movements"))
+                .bind(company_id)
+                .bind(since)
+                .bind(after_id)
+                .bind(limit)
+                .fetch_all(&self.pool)
+                .await
+                .map_err(map_db)?
+                .into_iter()
+                .map(Into::into)
+                .collect(),
+        )
     }
 
     async fn find_movements_updated_since(

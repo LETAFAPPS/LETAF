@@ -44,6 +44,9 @@ impl PullCursor for CashMovement {
 impl PullCursor for WalletMovement {
     fn pull_cursor(&self) -> (NaiveDateTime, uuid::Uuid) { (self.base.updated_at, self.base.id) }
 }
+impl PullCursor for TreasuryMovement {
+    fn pull_cursor(&self) -> (NaiveDateTime, uuid::Uuid) { (self.base.updated_at, self.base.id) }
+}
 impl PullCursor for Order {
     fn pull_cursor(&self) -> (NaiveDateTime, uuid::Uuid) { (self.base.updated_at, self.base.id) }
 }
@@ -324,8 +327,9 @@ impl SyncWorker {
     pub(super) async fn pull_treasury_movements(
         &self, token: &str, since: NaiveDateTime, mut max_ts: NaiveDateTime,
     ) -> Result<NaiveDateTime, CoreError> {
+        // Ledger append-only: pagina (ver `find_movements_updated_since_paged`).
         let items: Vec<TreasuryMovement> =
-            self.fetch_pull(token, "/sync/pull/treasury-movements", since).await?;
+            self.fetch_pull_paged(token, "/sync/pull/treasury-movements", since).await?;
         let cid = self.state.company_id();
         for item in items {
             if item.base.updated_at > max_ts { max_ts = item.base.updated_at; }

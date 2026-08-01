@@ -175,6 +175,19 @@ impl TreasuryService {
         self.repo.sync_upsert_movement(&m).await
     }
 
+    /// Página do pull de movimentos (keyset) — ver o trait.
+    pub async fn find_movements_updated_since_paged(
+        &self,
+        company_id: Uuid,
+        since: chrono::NaiveDateTime,
+        after_id: Uuid,
+        limit: i64,
+    ) -> Result<Vec<TreasuryMovement>, CoreError> {
+        self.repo
+            .find_movements_updated_since_paged(company_id, since, after_id, limit)
+            .await
+    }
+
     pub async fn find_movements_updated_since(
         &self,
         company_id: Uuid,

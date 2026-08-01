@@ -74,5 +74,21 @@ pub trait TreasuryRepository: Send + Sync {
         company_id: Uuid,
         since: NaiveDateTime,
     ) -> Result<Vec<TreasuryMovement>, CoreError>;
+    /// Página do pull de movimentos por keyset `(updated_at, id)`.
+    ///
+    /// O ledger da tesouraria é append-only e CRESCE: puxá-lo inteiro numa
+    /// requisição só (era o que acontecia) acabaria estourando o timeout
+    /// de 10 s do cliente, e aí a entidade congelaria de vez. Default
+    /// delega ao não paginado; só o Postgres sobrescreve.
+    async fn find_movements_updated_since_paged(
+        &self,
+        company_id: Uuid,
+        since: NaiveDateTime,
+        _after_id: Uuid,
+        _limit: i64,
+    ) -> Result<Vec<TreasuryMovement>, CoreError> {
+        self.find_movements_updated_since(company_id, since).await
+    }
+
     async fn sync_upsert_movement(&self, movement: &TreasuryMovement) -> Result<(), CoreError>;
 }
