@@ -118,13 +118,18 @@ async fn get(app: &axum::Router, path: &str, bearer: Option<&str>) -> StatusCode
 }
 
 /// Todas as rotas de LEITURA do painel, para varrer o gate de uma vez.
+///
+/// Só rotas que EXISTEM: uma rota removida do router devolve 404, e o teste
+/// leria isso como "gate não recusou" — foi o que aconteceu quando a tela de
+/// Auditoria saiu (67d14c4) e esta lista não acompanhou, deixando o CI
+/// vermelho sem que ninguém tivesse quebrado o gate.
 const ROTAS_GET: &[&str] = &[
     "/admin/overview",
     "/admin/companies",
     "/admin/subscriptions",
     "/admin/admins",
     "/admin/plans",
-    "/admin/audit",
+    "/admin/roles",
 ];
 
 #[tokio::test]

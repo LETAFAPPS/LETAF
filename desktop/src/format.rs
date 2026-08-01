@@ -155,7 +155,7 @@ pub fn format_phone(raw: &str) -> String {
     let len = d.len();
     match len {
         0 => String::new(),
-        1..=2 => format!("({}", &d),
+        1..=2 => format!("({d}"),
         3..=6 => format!("({}) {}", &d[..2], &d[2..]),
         7..=10 => format!("({}) {}-{}", &d[..2], &d[2..6], &d[6..]),
         11 => format!("({}) {}-{}", &d[..2], &d[2..7], &d[7..]),
