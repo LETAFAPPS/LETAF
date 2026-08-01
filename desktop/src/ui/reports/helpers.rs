@@ -1,13 +1,18 @@
+//! Helpers de APRESENTAÇÃO dos relatórios: buckets do gráfico, rótulos
+//! e cores. Nenhuma regra de negócio aqui (§1/§3) — os números vêm de
+//! `letaf_core::report`.
+//!
+//! Dinheiro é `Decimal` de ponta a ponta; só a formatação final converte
+//! para texto (e a geometria das barras, para `f32`).
 
 use chrono::{Datelike, Duration, NaiveDate, Timelike};
+use rust_decimal::prelude::ToPrimitive;
+use rust_decimal::Decimal;
 use slint::{Color, SharedString};
 
-use letaf_core::order::model::{Order, OrderStatus};
+use letaf_core::order::model::Order;
 
-use crate::{
-    ReportDailyBar, ReportDreLine,
-    ReportKpi, ReportOption,
-};
+use crate::{ReportDailyBar, ReportDreLine, ReportKpi, ReportOption};
 
 use super::state::Granularity;
 
@@ -50,7 +55,6 @@ pub(crate) fn dre(label: &str, value: &str, tone: &str) -> ReportDreLine {
     }
 }
 
-#[allow(clippy::too_many_arguments)]
 /// Janela do gráfico: período ATUAL + o ANTERIOR equivalente.
 ///
 /// O período anterior é o mesmo recorte deslocado (dia anterior, semana
@@ -79,8 +83,8 @@ pub(crate) fn build_daily<F, G>(
     color: Color,
 ) -> Vec<ReportDailyBar>
 where
-    F: Fn(&Order) -> f64,
-    G: Fn(f64) -> String,
+    F: Fn(&Order) -> Decimal,
+    G: Fn(Decimal) -> String,
 {
     match win.granularity {
         Granularity::Hourly => build_hourly_buckets(win, orders, prev_orders, per_order, fmt, color),
@@ -90,7 +94,7 @@ where
 }
 
 /// Um ponto por hora do dia (0..23) — atual e dia anterior.
-pub(crate) fn build_hourly_buckets<F, G>(
+fn build_hourly_buckets<F, G>(
     win: ChartWindow,
     orders: &[&Order],
     prev_orders: &[&Order],
@@ -99,8 +103,8 @@ pub(crate) fn build_hourly_buckets<F, G>(
     color: Color,
 ) -> Vec<ReportDailyBar>
 where
-    F: Fn(&Order) -> f64,
-    G: Fn(f64) -> String,
+    F: Fn(&Order) -> Decimal,
+    G: Fn(Decimal) -> String,
 {
     let now_hour = letaf_core::tz::now().hour();
     let cur = hour_totals(orders, win.today, &per_order);
@@ -109,22 +113,14 @@ where
     (0..24_usize)
         .map(|h| {
             let label = if h % 3 == 0 { format!("{:02}h", h) } else { String::new() };
-            bar(
-                label,
-                cur[h],
-                prev[h],
-                max,
-                &fmt,
-                color,
-                h as u32 == now_hour,
-            )
+            bar(label, cur[h], prev[h], max, &fmt, color, h as u32 == now_hour)
         })
         .collect()
 }
 
 /// Um ponto por dia entre `start..end` — comparado ao mesmo índice de
 /// dia do período anterior (semana passada / mês passado).
-pub(crate) fn build_daily_buckets<F, G>(
+fn build_daily_buckets<F, G>(
     win: ChartWindow,
     orders: &[&Order],
     prev_orders: &[&Order],
@@ -133,8 +129,8 @@ pub(crate) fn build_daily_buckets<F, G>(
     color: Color,
 ) -> Vec<ReportDailyBar>
 where
-    F: Fn(&Order) -> f64,
-    G: Fn(f64) -> String,
+    F: Fn(&Order) -> Decimal,
+    G: Fn(Decimal) -> String,
 {
     let span = ((win.end - win.start).num_days() + 1).max(1);
     let cur = day_totals(orders, win.start, span, &per_order);
@@ -158,7 +154,7 @@ where
 
 /// Um ponto por mês do ano corrente — comparado ao mesmo mês do ano
 /// anterior.
-pub(crate) fn build_monthly_buckets<F, G>(
+fn build_monthly_buckets<F, G>(
     win: ChartWindow,
     orders: &[&Order],
     prev_orders: &[&Order],
@@ -167,8 +163,8 @@ pub(crate) fn build_monthly_buckets<F, G>(
     color: Color,
 ) -> Vec<ReportDailyBar>
 where
-    F: Fn(&Order) -> f64,
-    G: Fn(f64) -> String,
+    F: Fn(&Order) -> Decimal,
+    G: Fn(Decimal) -> String,
 {
     let year = win.today.year();
     let cur = month_totals(orders, year, &per_order);
@@ -192,31 +188,30 @@ where
 
 // ── Agregação por bucket ─────────────────────────────────────────
 
-fn hour_totals<F>(orders: &[&Order], day: NaiveDate, per_order: &F) -> Vec<f64>
+fn hour_totals<F>(orders: &[&Order], day: NaiveDate, per_order: &F) -> Vec<Decimal>
 where
-    F: Fn(&Order) -> f64,
+    F: Fn(&Order) -> Decimal,
 {
-    let mut totals = vec![0.0_f64; 24];
+    let mut totals = vec![Decimal::ZERO; 24];
     for o in orders {
         // `created_at` é UTC (§6): converte para o fuso da loja antes de
         // comparar o dia/hora, senão o expediente das 21h em diante cai
         // no dia seguinte e as barras ficam 3h deslocadas.
         let local = letaf_core::tz::to_local(o.base.created_at);
         if local.date() == day {
-            let h = local.hour() as usize;
-            if h < 24 {
-                totals[h] += per_order(o);
+            if let Some(slot) = totals.get_mut(local.hour() as usize) {
+                *slot += per_order(o);
             }
         }
     }
     totals
 }
 
-fn day_totals<F>(orders: &[&Order], start: NaiveDate, span: i64, per_order: &F) -> Vec<f64>
+fn day_totals<F>(orders: &[&Order], start: NaiveDate, span: i64, per_order: &F) -> Vec<Decimal>
 where
-    F: Fn(&Order) -> f64,
+    F: Fn(&Order) -> Decimal,
 {
-    let mut totals = vec![0.0_f64; span as usize];
+    let mut totals = vec![Decimal::ZERO; span as usize];
     for o in orders {
         let idx = (letaf_core::tz::to_local(o.base.created_at).date() - start).num_days();
         if idx >= 0 {
@@ -228,17 +223,17 @@ where
     totals
 }
 
-fn month_totals<F>(orders: &[&Order], year: i32, per_order: &F) -> Vec<f64>
+fn month_totals<F>(orders: &[&Order], year: i32, per_order: &F) -> Vec<Decimal>
 where
-    F: Fn(&Order) -> f64,
+    F: Fn(&Order) -> Decimal,
 {
-    let mut totals = vec![0.0_f64; 12];
+    let mut totals = vec![Decimal::ZERO; 12];
     for o in orders {
         let d = letaf_core::tz::to_local(o.base.created_at).date();
         if d.year() == year {
             let m = d.month() as usize;
-            if (1..=12).contains(&m) {
-                totals[m - 1] += per_order(o);
+            if let Some(slot) = totals.get_mut(m - 1) {
+                *slot += per_order(o);
             }
         }
     }
@@ -247,81 +242,80 @@ where
 
 /// Maior valor entre as duas séries — as barras atual e anterior
 /// dividem a MESMA escala vertical (senão a comparação engana).
-pub(crate) fn series_max(cur: &[f64], prev: &[f64]) -> f64 {
+fn series_max(cur: &[Decimal], prev: &[Decimal]) -> Decimal {
     cur.iter()
         .chain(prev.iter())
         .copied()
-        .fold(0.0_f64, f64::max)
+        .fold(Decimal::ZERO, Decimal::max)
 }
 
 /// Monta a barra (atual + anterior) já normalizada pela escala comum.
 fn bar<G>(
     label: String,
-    cur: f64,
-    prev: f64,
-    max: f64,
+    cur: Decimal,
+    prev: Decimal,
+    max: Decimal,
     fmt: &G,
     color: Color,
     highlight: bool,
 ) -> ReportDailyBar
 where
-    G: Fn(f64) -> String,
+    G: Fn(Decimal) -> String,
 {
     ReportDailyBar {
         label: SharedString::from(label),
         progress: progress_of(cur, max),
-        value_display: SharedString::from(if cur > 0.0 { fmt(cur) } else { String::new() }),
+        value_display: SharedString::from(if cur > Decimal::ZERO { fmt(cur) } else { String::new() }),
         bar_color: color,
         highlight,
         previous_progress: progress_of(prev, max),
-        previous_display: SharedString::from(if prev > 0.0 { fmt(prev) } else { String::new() }),
+        previous_display: SharedString::from(if prev > Decimal::ZERO { fmt(prev) } else { String::new() }),
     }
 }
 
-pub(crate) fn progress_of(v: f64, max: f64) -> f32 {
-    if max > 0.0 { (v / max) as f32 } else { 0.0 }
-}
-
-pub(crate) fn avg_prep_minutes(orders: &[&Order]) -> Option<f64> {
-    let mut sum = 0.0_f64;
-    let mut count = 0_u32;
-    for o in orders {
-        if !matches!(o.status, OrderStatus::Ready | OrderStatus::Delivered) {
-            continue;
-        }
-        let delta = (o.base.updated_at - o.base.created_at).num_seconds();
-        if !(5..=6 * 3600).contains(&delta) { continue; }
-        sum += delta as f64;
-        count += 1;
+/// Fração `v / max` para a altura da barra (0.0 quando não há escala).
+pub(crate) fn progress_of(v: Decimal, max: Decimal) -> f32 {
+    if max > Decimal::ZERO {
+        (v / max).to_f64().unwrap_or(0.0) as f32
+    } else {
+        0.0
     }
-    if count == 0 { None } else { Some(sum / count as f64 / 60.0) }
 }
 
-pub(crate) fn avg_prep_value(orders: &[&Order]) -> String {
-    match avg_prep_minutes(orders) {
+/// Mesma fração para séries de CONTAGEM (pedidos por hora / por canal).
+pub(crate) fn count_progress(v: u32, max: u32) -> f32 {
+    if max > 0 {
+        (v as f64 / max as f64) as f32
+    } else {
+        0.0
+    }
+}
+
+/// Tempo médio de preparo formatado (`None` = sem base para calcular).
+pub(crate) fn prep_value(minutes: Option<f64>) -> String {
+    match minutes {
         Some(m) if m < 60.0 => format!("{:.0} min", m),
         Some(m) => format!("{}h {:02}min", (m / 60.0) as u32, (m % 60.0) as u32),
-        None => "".into(),
+        None => String::new(),
     }
 }
 
-pub(crate) fn avg_prep_sub(orders: &[&Order]) -> String {
-    let n = orders
-        .iter()
-        .filter(|o| matches!(o.status, OrderStatus::Ready | OrderStatus::Delivered))
-        .count();
-    if n == 0 {
+/// Subtítulo do KPI de preparo: quantos pedidos formaram a base.
+pub(crate) fn prep_sub(completed: usize) -> String {
+    if completed == 0 {
         "Nenhum pedido completado".into()
     } else {
-        format!("Base: {} pedidos completados", n)
+        format!("Base: {} pedidos completados", completed)
     }
 }
 
 /// Igual ao `money_compact` do dashboard: sem prefixo "R$ ",
 /// 2 casas com vírgula em pt-BR. Usado nos tooltips dos candles
 /// para não estourar a largura da pílula.
-pub(crate) fn money_plain(v: f64) -> String {
-    if v.abs() < 0.005 {
+pub(crate) fn money_plain(v: Decimal) -> String {
+    // 0,005 é o limiar de "meio centavo" — abaixo disso não há o que
+    // mostrar na pílula.
+    if v.abs() < Decimal::new(5, 3) {
         String::new()
     } else {
         format!("{:.2}", v).replace('.', ",")

@@ -1,23 +1,9 @@
 //! Tela "Carteira" — tesouraria do estabelecimento.
 //!
-//! Regras (AI_RULES.md §1, §3, §14): a UI só renderiza; todo o cálculo
-//! vive aqui. O saldo é DERIVADO (não há razão duplicada): saldo
-//! inicial + entradas − saídas, consolidando as fontes existentes —
-//! evita dupla contagem e inconsistência entre telas.
-//!
-//! Modelo de fluxo (dinheiro REAL entrando/saindo do estabelecimento):
-//! - entram: pedidos PAGOS com forma ≠ carteira (não cancelados),
-//!   depósitos de clientes na carteira (inclui quitação de fiado),
-//!   Financeiro Recebido EXCETO fiado automático (o fiado entra pelo
-//!   depósito — contar os dois duplicaria) e os APORTES manuais;
-//! - saem: saques de clientes, Financeiro Pago e as RETIRADAS manuais;
-//! - ajustes manuais de carteira de cliente seguem o sinal do valor.
-//!
-//! Pedidos pagos com carteira NÃO contam: consomem crédito que já
-//! entrou no depósito do cliente.
-//!
-//! Nada anterior à ABERTURA da carteira entra na conta: o saldo inicial
-//! já resume o que existia até aquele instante.
+//! Regras (AI_RULES.md §1, §3, §14): a UI SÓ RENDERIZA. A consolidação
+//! (o que é dinheiro novo entrando/saindo, saldo derivado, recorte do
+//! dia e do mês) vive em `letaf_core::treasury::analytics` — aqui só
+//! ficam rótulos, cores e geometria.
 //!
 //! O SALDO considera todo o histórico; entradas/saídas mostram o DIA
 //! corrente (no fuso da loja), o mini-gráfico mostra as ÚLTIMAS 12
@@ -25,14 +11,14 @@
 
 use std::sync::Arc;
 
-use chrono::{Duration, NaiveDate, NaiveDateTime, Timelike};
+use chrono::{Duration, NaiveDateTime};
 use rust_decimal::Decimal;
 use slint::{ComponentHandle, ModelRc, SharedString, VecModel};
 
-use letaf_core::finance::model::{FinanceKind, FinanceStatus};
-use letaf_core::order::model::OrderStatus;
-use letaf_core::treasury::model::TreasuryMovementKind;
-use letaf_core::wallet::model::WalletMovementKind;
+use letaf_core::treasury::analytics::{
+    self, CashDetail, CashMovement, CashSources, DayBreakdown, HourFlow, TreasurySnapshot,
+};
+use letaf_core::wallet::model::WalletMovement;
 
 use crate::context::DesktopState;
 use crate::format::{format_order_date, format_order_time, money_br};
@@ -79,6 +65,7 @@ struct BreakdownRaw {
     negative: bool,
 }
 
+/// Linha da lista de movimentações, já com os textos em pt-BR.
 struct MovementRaw {
     title: String,
     source: String,
@@ -114,234 +101,136 @@ fn reapply(
     });
 }
 
-/// Primeiro dia do mês da data informada.
-fn first_of_month(day: NaiveDate) -> NaiveDate {
-    use chrono::Datelike;
-    NaiveDate::from_ymd_opt(day.year(), day.month(), 1).unwrap_or(day)
-}
-
 async fn build_snapshot(
     state: &DesktopState,
 ) -> (SummaryRaw, Vec<MovementRaw>, Vec<TreasuryChartBar>) {
     let cid = state.company_id();
-    let treasury = state.treasury_service.find(cid).await.ok().flatten();
-    let Some(treasury) = treasury else {
+    let Some(treasury) = state.treasury_service.find(cid).await.ok().flatten() else {
         return (empty_summary(), Vec::new(), Vec::new());
     };
 
-    let mut movements: Vec<MovementRaw> = Vec::new();
-
-    // Pedidos pagos (dinheiro novo — forma ≠ carteira).
+    // Carrega as fontes (§10: acesso a dados via service/repository) e
+    // entrega ao core, que decide o que é dinheiro novo.
     let orders = state.order_service.find_all(cid).await.unwrap_or_default();
-    for o in orders.iter().filter(|o| {
-        o.paid
-            && o.payment_method.as_deref() != Some("wallet")
-            && o.status != OrderStatus::Cancelled
-    }) {
-        movements.push(MovementRaw {
-            title: format!("Pedido #{:04}", o.number),
-            source: "Pedido".into(),
-            at: o.base.created_at,
-            amount: o.total,
-            positive: true,
-        });
-    }
+    let wallet_movements = load_wallet_movements(state).await;
+    let finance_entries = state.finance_service.find_all(cid).await.unwrap_or_default();
+    let cashbox_movements = state
+        .treasury_service
+        .find_movements(cid, 9_999)
+        .await
+        .unwrap_or_default();
 
-    // Carteiras de clientes: depósitos entram, saques saem, ajustes
-    // seguem o sinal. Cobrança/estorno/limite são movimentos internos
-    // de crédito — não são dinheiro novo.
+    let snapshot = analytics::consolidate(
+        &CashSources {
+            treasury: &treasury,
+            orders: &orders,
+            wallet_movements: &wallet_movements,
+            finance_entries: &finance_entries,
+            cashbox_movements: &cashbox_movements,
+        },
+        letaf_core::tz::today(),
+    );
+
+    let chart = build_chart(&snapshot.movements);
+    let rows = snapshot
+        .movements
+        .iter()
+        .take(MOVEMENTS_LIMIT)
+        .map(movement_row)
+        .collect();
+    (summary_of(&snapshot), rows, chart)
+}
+
+/// Movimentos de TODAS as carteiras de clientes numa lista só — o core
+/// classifica quais representam dinheiro entrando ou saindo do caixa.
+async fn load_wallet_movements(state: &DesktopState) -> Vec<WalletMovement> {
+    let cid = state.company_id();
     let accounts = state
         .wallet_service
         .find_all_accounts(cid)
         .await
         .unwrap_or_default();
+    let mut all = Vec::new();
     for account in &accounts {
         let list = state
             .wallet_service
             .find_movements(cid, account.base.id, 9_999)
             .await
             .unwrap_or_default();
-        for m in list {
-            match m.kind {
-                WalletMovementKind::Deposit => movements.push(MovementRaw {
-                    title: m.notes.clone().unwrap_or_else(|| "Depósito de cliente".into()),
-                    source: "Carteira".into(),
-                    at: m.base.created_at,
-                    amount: m.amount,
-                    positive: true,
-                }),
-                WalletMovementKind::Withdraw => movements.push(MovementRaw {
-                    title: m.notes.clone().unwrap_or_else(|| "Saque de cliente".into()),
-                    source: "Carteira".into(),
-                    at: m.base.created_at,
-                    amount: m.amount,
-                    positive: false,
-                }),
-                WalletMovementKind::ManualAdjust => movements.push(MovementRaw {
-                    title: m.notes.clone().unwrap_or_else(|| "Ajuste de carteira".into()),
-                    source: "Carteira".into(),
-                    at: m.base.created_at,
-                    amount: m.amount.abs(),
-                    positive: m.amount >= Decimal::ZERO,
-                }),
-                // Espelhos contábeis, não dinheiro entrando/saindo: a
-                // baixa da conta a receber entra por "Financeiro ·
-                // recebimentos" — contar os dois duplicaria.
-                WalletMovementKind::OrderCharge
-                | WalletMovementKind::OrderRefund
-                | WalletMovementKind::LimitChange
-                | WalletMovementKind::ReceivableCharge
-                | WalletMovementKind::ReceivableSettle => {}
-            }
-        }
+        all.extend(list);
     }
+    all
+}
 
-    // Financeiro: recebimentos (exceto fiado automático — já contado
-    // pelo depósito) e pagamentos liquidados.
-    let entries = state.finance_service.find_all(cid).await.unwrap_or_default();
-    for e in &entries {
-        let is_fiado =
-            e.notes.as_deref() == Some(letaf_core::finance::service::FIADO_AUTO_TAG);
-        match (e.kind, e.status) {
-            (FinanceKind::Receivable, FinanceStatus::Received) if !is_fiado => {
-                movements.push(MovementRaw {
-                    title: e.description.clone(),
-                    source: "Financeiro".into(),
-                    at: e.paid_at.unwrap_or(e.base.updated_at),
-                    amount: e.amount,
-                    positive: true,
-                })
-            }
-            (FinanceKind::Payable, FinanceStatus::Paid) => movements.push(MovementRaw {
-                title: e.description.clone(),
-                source: "Financeiro".into(),
-                at: e.paid_at.unwrap_or(e.base.updated_at),
-                amount: e.amount,
-                positive: false,
-            }),
-            _ => {}
-        }
-    }
-
-    // Aportes / retiradas manuais do caixa.
-    let manual = state
-        .treasury_service
-        .find_movements(cid, 9_999)
-        .await
-        .unwrap_or_default();
-    for m in &manual {
-        let positive = m.kind == TreasuryMovementKind::Deposit;
-        movements.push(MovementRaw {
-            title: m.notes.clone().unwrap_or_else(|| {
-                if positive { "Depósito no caixa".into() } else { "Retirada do caixa".into() }
-            }),
-            source: "Caixa".into(),
-            at: m.base.created_at,
-            amount: m.amount,
-            positive,
-        });
-    }
-
-    // A carteira começa a contar da ABERTURA: o saldo inicial já
-    // representa o dinheiro que existia até ali, então movimentações
-    // anteriores contariam o mesmo dinheiro duas vezes. `created_at` e
-    // `at` estão os dois em UTC.
-    let opened_at = treasury.base.created_at;
-    movements.retain(|m| m.at >= opened_at);
-
-    movements.sort_by_key(|m| std::cmp::Reverse(m.at));
-
-    // ── Totais ──
-    // O SALDO usa todo o histórico; entradas/saídas e o detalhamento
-    // mostram o DIA corrente. `m.at` está em UTC → converte para o fuso
-    // da loja antes de comparar a data (senão o dia vira 21h-21h).
-    let today = letaf_core::tz::today();
-    let in_period = |m: &MovementRaw| letaf_core::tz::to_local(m.at).date() == today;
-
-    let sum = |f: &dyn Fn(&MovementRaw) -> bool| -> Decimal {
-        movements.iter().filter(|m| f(m)).map(|m| m.amount).sum()
-    };
-    let by_source = |source: &str, positive: bool| -> Decimal {
-        movements
-            .iter()
-            .filter(|m| m.source == source && m.positive == positive && in_period(m))
-            .map(|m| m.amount)
-            .sum()
-    };
-
-    let total_in = sum(&|m| m.positive);
-    let total_out = sum(&|m| !m.positive);
-    let balance = treasury.initial_balance + total_in - total_out;
-
-    let inflow = sum(&|m| m.positive && in_period(m));
-    let outflow = sum(&|m| !m.positive && in_period(m));
-
-    // Reserva do mês (progresso da meta): resultado líquido do mês.
-    let month_start = first_of_month(today);
-    let in_month = |m: &MovementRaw| letaf_core::tz::to_local(m.at).date() >= month_start;
-    let month_in: Decimal = movements
-        .iter()
-        .filter(|m| m.positive && in_month(m))
-        .map(|m| m.amount)
-        .sum();
-    let month_out: Decimal = movements
-        .iter()
-        .filter(|m| !m.positive && in_month(m))
-        .map(|m| m.amount)
-        .sum();
-
-    let summary = SummaryRaw {
+/// Retrato do core → resumo do card.
+fn summary_of(s: &TreasurySnapshot) -> SummaryRaw {
+    SummaryRaw {
         has_account: true,
-        balance,
-        initial: treasury.initial_balance,
-        inflow,
-        outflow,
-        breakdown: vec![
-            BreakdownRaw {
-                label: "Pedidos pagos",
-                amount: by_source("Pedido", true),
-                negative: false,
-            },
-            BreakdownRaw {
-                label: "Depósitos na carteira de clientes",
-                amount: by_source("Carteira", true),
-                negative: false,
-            },
-            BreakdownRaw {
-                label: "Financeiro · recebimentos",
-                amount: by_source("Financeiro", true),
-                negative: false,
-            },
-            BreakdownRaw {
-                label: "Aportes no caixa",
-                amount: by_source("Caixa", true),
-                negative: false,
-            },
-            BreakdownRaw {
-                label: "Financeiro · pagamentos",
-                amount: by_source("Financeiro", false),
-                negative: true,
-            },
-            BreakdownRaw {
-                label: "Saques da carteira de clientes",
-                amount: by_source("Carteira", false),
-                negative: true,
-            },
-            BreakdownRaw {
-                label: "Retiradas do caixa",
-                amount: by_source("Caixa", false),
-                negative: true,
-            },
-        ],
-        movements_count: movements.len() as i32,
-        goal: treasury.reserve_goal,
-        reserved: month_in - month_out,
-    };
+        balance: s.balance,
+        initial: s.initial,
+        inflow: s.inflow,
+        outflow: s.outflow,
+        breakdown: breakdown_rows(&s.breakdown),
+        movements_count: s.movements.len() as i32,
+        goal: s.goal,
+        reserved: s.reserved,
+    }
+}
 
-    let chart = build_chart(&movements);
+/// Rótulos pt-BR de cada origem do detalhamento do dia.
+fn breakdown_rows(b: &DayBreakdown) -> Vec<BreakdownRaw> {
+    vec![
+        BreakdownRaw { label: "Pedidos pagos", amount: b.orders_in, negative: false },
+        BreakdownRaw {
+            label: "Depósitos na carteira de clientes",
+            amount: b.wallet_in,
+            negative: false,
+        },
+        BreakdownRaw {
+            label: "Financeiro · recebimentos",
+            amount: b.finance_in,
+            negative: false,
+        },
+        BreakdownRaw { label: "Aportes no caixa", amount: b.cashbox_in, negative: false },
+        BreakdownRaw {
+            label: "Financeiro · pagamentos",
+            amount: b.finance_out,
+            negative: true,
+        },
+        BreakdownRaw {
+            label: "Saques da carteira de clientes",
+            amount: b.wallet_out,
+            negative: true,
+        },
+        BreakdownRaw { label: "Retiradas do caixa", amount: b.cashbox_out, negative: true },
+    ]
+}
 
-    movements.truncate(MOVEMENTS_LIMIT);
-    (summary, movements, chart)
+/// Uma linha da lista: usa o texto do próprio movimento (observação do
+/// operador, descrição do lançamento) e cai no rótulo padrão da origem.
+fn movement_row(m: &CashMovement) -> MovementRaw {
+    let (source, default_title) = movement_labels(m.detail);
+    MovementRaw {
+        title: m.description.clone().unwrap_or(default_title),
+        source: source.to_string(),
+        at: m.at,
+        amount: m.amount,
+        positive: m.positive,
+    }
+}
+
+/// (origem, título padrão) de cada tipo de movimento.
+fn movement_labels(detail: CashDetail) -> (&'static str, String) {
+    match detail {
+        CashDetail::OrderPayment { number } => ("Pedido", format!("Pedido #{:04}", number)),
+        CashDetail::WalletDeposit => ("Carteira", "Depósito de cliente".into()),
+        CashDetail::WalletWithdraw => ("Carteira", "Saque de cliente".into()),
+        CashDetail::WalletAdjust => ("Carteira", "Ajuste de carteira".into()),
+        // Lançamento do Financeiro sempre tem descrição própria.
+        CashDetail::FinanceReceived | CashDetail::FinancePaid => ("Financeiro", String::new()),
+        CashDetail::CashboxDeposit => ("Caixa", "Depósito no caixa".into()),
+        CashDetail::CashboxWithdraw => ("Caixa", "Retirada do caixa".into()),
+    }
 }
 
 fn empty_summary() -> SummaryRaw {
@@ -364,68 +253,49 @@ fn empty_summary() -> SummaryRaw {
 /// negativo desce. A altura é relativa à maior movimentação da janela.
 /// Entradas, saídas e líquido já vão formatados para o card que a UI
 /// mostra ao passar o mouse (§1/§14).
-fn build_chart(movements: &[MovementRaw]) -> Vec<TreasuryChartBar> {
-    const SLOTS: i64 = 12;
+fn build_chart(movements: &[CashMovement]) -> Vec<TreasuryChartBar> {
+    const SLOTS: usize = 12;
     use rust_decimal::prelude::ToPrimitive;
 
-    // Hora cheia atual no fuso da loja — âncora da última barra.
-    let current = letaf_core::tz::current_hour();
-    let mut inflow = vec![Decimal::ZERO; SLOTS as usize];
-    let mut outflow = vec![Decimal::ZERO; SLOTS as usize];
-    for m in movements {
-        // `m.at` é UTC; a janela é contada no relógio da loja.
-        let local = letaf_core::tz::to_local(m.at);
-        let hour = match local.date().and_hms_opt(local.hour(), 0, 0) {
-            Some(h) => h,
-            None => continue,
-        };
-        let hours_back = (current - hour).num_hours();
-        if !(0..SLOTS).contains(&hours_back) {
-            continue;
-        }
-        let idx = (SLOTS - 1 - hours_back) as usize;
-        if m.positive {
-            inflow[idx] += m.amount;
-        } else {
-            outflow[idx] += m.amount;
-        }
-    }
-
-    let net: Vec<Decimal> = (0..SLOTS as usize)
-        .map(|i| inflow[i] - outflow[i])
-        .collect();
-    let max = net
+    // A janela de horas é contada no relógio da loja (o core recebe a
+    // hora cheia atual e faz o recorte).
+    let flows = analytics::hourly_flow(movements, letaf_core::tz::current_hour(), SLOTS);
+    let max = flows
         .iter()
-        .map(|v| v.abs().to_f64().unwrap_or(0.0))
+        .map(|f| f.net().abs().to_f64().unwrap_or(0.0))
         .fold(0.0_f64, f64::max);
-
-    (0..SLOTS as usize)
-        .map(|i| {
-            let start = current - Duration::hours(SLOTS - 1 - i as i64);
-            let v = net[i];
-            TreasuryChartBar {
-                progress: if max > 0.0 {
-                    (v.abs().to_f64().unwrap_or(0.0) / max) as f32
-                } else {
-                    0.0
-                },
-                positive: v >= Decimal::ZERO,
-                current: i + 1 == SLOTS as usize,
-                hour_label: SharedString::from(format!(
-                    "{} – {}",
-                    start.format("%H:00"),
-                    (start + Duration::hours(1)).format("%H:00")
-                )),
-                inflow_display: SharedString::from(format!("+ {}", money_br(inflow[i]))),
-                outflow_display: SharedString::from(format!("− {}", money_br(outflow[i]))),
-                net_display: SharedString::from(if v < Decimal::ZERO {
-                    format!("− {}", money_br(-v))
-                } else {
-                    format!("+ {}", money_br(v))
-                }),
-            }
-        })
+    flows
+        .iter()
+        .enumerate()
+        .map(|(i, f)| chart_bar(f, max, i + 1 == SLOTS))
         .collect()
+}
+
+/// Uma barra da série horária, já formatada.
+fn chart_bar(f: &HourFlow, max: f64, current: bool) -> TreasuryChartBar {
+    use rust_decimal::prelude::ToPrimitive;
+    let net = f.net();
+    TreasuryChartBar {
+        progress: if max > 0.0 {
+            (net.abs().to_f64().unwrap_or(0.0) / max) as f32
+        } else {
+            0.0
+        },
+        positive: net >= Decimal::ZERO,
+        current,
+        hour_label: SharedString::from(format!(
+            "{} – {}",
+            f.start.format("%H:00"),
+            (f.start + Duration::hours(1)).format("%H:00")
+        )),
+        inflow_display: SharedString::from(format!("+ {}", money_br(f.inflow))),
+        outflow_display: SharedString::from(format!("− {}", money_br(f.outflow))),
+        net_display: SharedString::from(if net < Decimal::ZERO {
+            format!("− {}", money_br(-net))
+        } else {
+            format!("+ {}", money_br(net))
+        }),
+    }
 }
 
 fn apply_to_ui(

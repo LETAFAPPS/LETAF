@@ -1,13 +1,13 @@
 use std::collections::HashMap;
 
-use chrono::{Datelike, Duration, NaiveDate};
 use slint::{Color, Image, ModelRc, SharedString, VecModel};
 use uuid::Uuid;
 
 use letaf_core::category::model::Category;
 use letaf_core::customer::model::Customer;
-use letaf_core::order::model::{Order, OrderStatus};
+use letaf_core::order::model::Order;
 use letaf_core::product::model::Product;
+use letaf_core::report::{self, ReportPeriod};
 
 use crate::{
     MainWindow, ReportCustomerRow, ReportDailyBar, ReportDreLine, ReportHBar, ReportHourlyBar,
@@ -74,97 +74,37 @@ pub(crate) struct Snapshot {
     pub(crate) new_vs_ret: ReportNewVsReturning,
 }
 
-pub(crate) fn build_snapshot<'a>(
+pub(crate) fn build_snapshot(
     s: &ReportState,
-    orders: &'a [Order],
+    orders: &[Order],
     products: &[Product],
     categories: &[Category],
     customers: &[Customer],
 ) -> Snapshot {
     let today = letaf_core::tz::today();
-    // weekly  = semana corrente (Seg → Dom), igual ao dashboard
-    // monthly = mês corrente (dia 1 até último dia do mês)
-    // yearly  = ano corrente (Jan a Dez do ano em curso, agregado por mês)
-    let (start, end, period_label, period_days, granularity) = match s.period.as_str() {
-        "daily" => (today, today, "Dia Corrente", 1, Granularity::Hourly),
-        "monthly" => {
-            let first = NaiveDate::from_ymd_opt(today.year(), today.month(), 1).unwrap_or(today);
-            // Último dia do mês = (1º do mês seguinte) - 1 dia. Trata
-            // dezembro virando para janeiro do ano seguinte.
-            let next_month_first = if today.month() == 12 {
-                NaiveDate::from_ymd_opt(today.year() + 1, 1, 1)
-            } else {
-                NaiveDate::from_ymd_opt(today.year(), today.month() + 1, 1)
-            };
-            let last = next_month_first
-                .and_then(|d| d.pred_opt())
-                .unwrap_or(today);
-            // `period_days` = dias DECORRIDOS (1 .. hoje), usado nos
-            // subtítulos dos KPIs. O gráfico ocupa o mês inteiro.
-            let days_in_period = (today - first).num_days() + 1;
-            (first, last, "Mês Corrente", days_in_period.max(1), Granularity::Daily)
-        }
-        "yearly" => {
-            let first = NaiveDate::from_ymd_opt(today.year(), 1, 1).unwrap_or(today);
-            (first, today, "Ano Corrente", 365, Granularity::Monthly)
-        }
-        _ => {
-            // Segunda-feira desta semana → domingo desta semana.
-            let monday = today - Duration::days(today.weekday().num_days_from_monday() as i64);
-            let sunday = monday + Duration::days(6);
-            (monday, sunday, "Semana Corrente", 7, Granularity::Daily)
-        }
+    // A janela do período (e a anterior equivalente) vem do core — a
+    // mesma regra do dashboard, sem reimplementar calendário na UI
+    // (§14: não duplicar lógica).
+    let period = ReportPeriod::from_str(&s.period);
+    let win = report::period_window(today, period);
+    let (period_label, granularity) = period_style(period);
+    let chart_window = ChartWindow {
+        start: win.start,
+        end: win.end,
+        today,
+        prev_start: win.prev_start,
+        granularity,
     };
 
-    // Período ANTERIOR equivalente (comparativo dos gráficos): mesmo
-    // recorte deslocado — ontem / semana passada / mês passado / ano
-    // passado. `prev_end` fecha a janela para o filtro dos pedidos.
-    let (prev_start, prev_end) = match s.period.as_str() {
-        "daily" => {
-            let y = today - Duration::days(1);
-            (y, y)
-        }
-        "monthly" => {
-            let prev_first = prev_month_first(start);
-            (prev_first, start - Duration::days(1))
-        }
-        "yearly" => (
-            NaiveDate::from_ymd_opt(today.year() - 1, 1, 1).unwrap_or(start),
-            NaiveDate::from_ymd_opt(today.year() - 1, 12, 31).unwrap_or(start),
-        ),
-        _ => (start - Duration::days(7), end - Duration::days(7)),
-    };
-    let chart_window = ChartWindow { start, end, today, prev_start, granularity };
+    // Recortes de pedidos (soft delete, fuso da loja e cancelados) são
+    // regra de domínio — vêm do core.
+    let in_window = report::in_window(orders, win.start, win.end);
+    let valid = report::non_cancelled(&in_window);
+    let prev_in_window = report::in_window(orders, win.prev_start, win.prev_end);
+    let prev_valid = report::non_cancelled(&prev_in_window);
 
-    let alive: Vec<&Order> = orders
-        .iter()
-        .filter(|o| o.base.deleted_at.is_none())
-        .collect();
-    let in_range = |from: NaiveDate, to: NaiveDate| -> Vec<&Order> {
-        alive
-            .iter()
-            .copied()
-            .filter(|o| {
-                // UTC → fuso da loja (§6): sem isso a janela do relatório
-                // ia das 21h às 21h e o pico do jantar caía no dia seguinte.
-                let d = letaf_core::tz::to_local(o.base.created_at).date();
-                d >= from && d <= to
-            })
-            .collect()
-    };
-    let not_cancelled = |list: &[&'a Order]| -> Vec<&'a Order> {
-        list.iter()
-            .copied()
-            .filter(|o| o.status != OrderStatus::Cancelled)
-            .collect()
-    };
-    let in_window = in_range(start, end);
-    let valid = not_cancelled(&in_window);
-    let prev_in_window = in_range(prev_start, prev_end);
-    let prev_valid = not_cancelled(&prev_in_window);
-
+    // Índices usados só para APRESENTAÇÃO (imagens e fotos).
     let product_by_id: HashMap<Uuid, &Product> = products.iter().map(|p| (p.base.id, p)).collect();
-    let category_by_id: HashMap<Uuid, &Category> = categories.iter().map(|c| (c.base.id, c)).collect();
     let customer_by_id: HashMap<Uuid, &Customer> = customers.iter().map(|c| (c.base.id, c)).collect();
 
     let types = vec![
@@ -234,29 +174,48 @@ pub(crate) fn build_snapshot<'a>(
         },
     };
 
+    // Cada sub-relatório: métricas do core → builder de apresentação.
     match s.kind.as_str() {
-        "financial" => {
-            use rust_decimal::prelude::ToPrimitive;
-            // FIADOS = pedidos pagos pela carteira ainda NÃO quitados
-            // (independe do período — dívida não expira).
-            let fiado_total: f64 = orders
-                .iter()
-                .filter(|o| {
-                    o.payment_method.as_deref() == Some("wallet")
-                        && !o.paid
-                        && o.status != letaf_core::order::model::OrderStatus::Cancelled
-                })
-                .map(|o| o.total.to_f64().unwrap_or(0.0))
-                .sum();
-            fill_financial(&mut snap, &valid, &prev_valid, &product_by_id, chart_window, period_days, fiado_total)
-        }
-        "orders" => fill_orders(&mut snap, &in_window, &valid, &prev_in_window, &prev_valid, chart_window),
-        "products" => fill_products(&mut snap, &valid, &product_by_id, &category_by_id),
-        "customers" => fill_customers(&mut snap, &valid, orders, &customer_by_id, start, end),
+        "financial" => fill_financial(
+            &mut snap,
+            &report::financial(&valid, products),
+            report::outstanding_fiado(orders),
+            &valid,
+            &prev_valid,
+            chart_window,
+            win.days,
+        ),
+        "orders" => fill_orders(
+            &mut snap,
+            &report::orders(&in_window, &valid, &prev_valid),
+            &in_window,
+            &prev_in_window,
+            chart_window,
+        ),
+        "products" => fill_products(
+            &mut snap,
+            &report::products(&valid, products, categories),
+            &product_by_id,
+        ),
+        "customers" => fill_customers(
+            &mut snap,
+            &report::customers(&valid, orders, win.start, win.end),
+            &customer_by_id,
+        ),
         _ => {}
     }
 
     snap
+}
+
+/// Rótulo do período e granularidade do gráfico — pura apresentação.
+fn period_style(period: ReportPeriod) -> (&'static str, Granularity) {
+    match period {
+        ReportPeriod::Daily => ("Dia Corrente", Granularity::Hourly),
+        ReportPeriod::Weekly => ("Semana Corrente", Granularity::Daily),
+        ReportPeriod::Monthly => ("Mês Corrente", Granularity::Daily),
+        ReportPeriod::Yearly => ("Ano Corrente", Granularity::Monthly),
+    }
 }
 
 pub(crate) fn apply_to_ui(ui: &MainWindow, s: &Snapshot) {
@@ -328,15 +287,4 @@ pub(crate) fn apply_to_ui(ui: &MainWindow, s: &Snapshot) {
         .collect();
     ui.set_report_top_customers(ModelRc::new(VecModel::from(customer_rows)));
     ui.set_report_new_vs_ret(s.new_vs_ret.clone());
-}
-
-
-/// Primeiro dia do mês anterior ao de `d`.
-fn prev_month_first(d: NaiveDate) -> NaiveDate {
-    let (y, m) = if d.month() == 1 {
-        (d.year() - 1, 12)
-    } else {
-        (d.year(), d.month() - 1)
-    };
-    NaiveDate::from_ymd_opt(y, m, 1).unwrap_or(d)
 }

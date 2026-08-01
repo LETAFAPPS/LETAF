@@ -10,6 +10,10 @@
 //! - Movimentos manuais (`TreasuryMovement`: aporte/retirada) são
 //!   append-only, com `amount > 0` e direção pelo `kind`.
 
+//! - A consolidação do caixa (o que é dinheiro NOVO entrando/saindo)
+//!   vive em [`analytics`] — regra de negócio pura, fora da UI (§1/§3).
+
+pub mod analytics;
 pub mod model;
 pub mod repository;
 pub mod service;

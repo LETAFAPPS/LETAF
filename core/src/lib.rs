@@ -44,6 +44,7 @@ pub mod permission;
 pub mod printer;
 pub mod product;
 pub mod reconcile;
+pub mod report;
 pub mod subcategory;
 pub mod subscription;
 pub mod treasury;

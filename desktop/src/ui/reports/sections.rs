@@ -1,64 +1,54 @@
+//! Builders de cada sub-relatório — SÓ APRESENTAÇÃO (§1/§3).
+//!
+//! Todo o cálculo (DRE, margens, ticket médio, rankings) vive em
+//! `letaf_core::report`; aqui a UI apenas formata os números em rótulos,
+//! cores e barras.
+
 use std::collections::HashMap;
 
-use chrono::{NaiveDate, Timelike};
+use rust_decimal::prelude::ToPrimitive;
+use rust_decimal::Decimal;
 use slint::{Color, SharedString};
 use uuid::Uuid;
 
-use letaf_core::category::model::Category;
 use letaf_core::customer::model::Customer;
-use letaf_core::order::model::{DeliveryType, Order, OrderStatus};
+use letaf_core::order::model::Order;
 use letaf_core::product::model::Product;
-
-use rust_decimal::prelude::ToPrimitive;
-
-fn money_br(v: f64) -> String {
-    crate::format::money_br_f64(v)
-}
-use crate::{
-    ReportHBar, ReportHourlyBar, ReportNewVsReturning,
+use letaf_core::report::{
+    CustomerMetrics, FinancialMetrics, OrdersMetrics, ProductMetrics,
 };
 
-use super::snapshot::{Snapshot, TopCustomerRaw, TopProductRaw};
+use crate::format::money_br;
+use crate::{ReportHBar, ReportHourlyBar, ReportNewVsReturning};
+
 use super::super::helpers::half_donut_arc;
 use super::helpers::{
-    avg_prep_sub, avg_prep_value, build_daily, color_for, dre, kpi, money_plain, progress_of,
-    series_max, ChartWindow,
+    build_daily, color_for, count_progress, dre, kpi, money_plain, prep_sub, prep_value,
+    progress_of, ChartWindow,
 };
+use super::snapshot::{Snapshot, TopCustomerRaw, TopProductRaw};
+
+/// Percentual arredondado como a UI mostra (`Decimal` → `{:.0}%`).
+fn pct(v: Decimal) -> String {
+    format!("{:.0}%", v.to_f64().unwrap_or(0.0))
+}
 
 // ── Builders por sub-relatório ───────────────────────────────────
 
-#[allow(clippy::too_many_arguments)]
 pub(crate) fn fill_financial(
     snap: &mut Snapshot,
+    m: &FinancialMetrics,
+    fiado_total: Decimal,
     valid: &[&Order],
     prev_valid: &[&Order],
-    product_by_id: &HashMap<Uuid, &Product>,
     win: ChartWindow,
     period_days: i64,
-    fiado_total: f64,
 ) {
-    let revenue: f64 = valid.iter().map(|o| o.total.to_f64().unwrap_or(0.0)).sum();
-    let cost: f64 = valid
-        .iter()
-        .flat_map(|o| &o.items)
-        .map(|it| {
-            product_by_id
-                .get(&it.product_id)
-                .and_then(|p| p.cost_price)
-                .map(|c| c.to_f64().unwrap_or(0.0) * it.quantity)
-                .unwrap_or(0.0)
-        })
-        .sum();
-    let net = revenue - cost;
-    let orders_count = valid.len();
-    let avg_ticket = if orders_count > 0 { revenue / orders_count as f64 } else { 0.0 };
-
-    // KPIs
     snap.kpis = vec![
         kpi(
             "RECEITA BRUTA",
-            &money_br(revenue),
-            &format!("{} Pedidos · {} Dias", orders_count, period_days),
+            &money_br(m.revenue),
+            &format!("{} Pedidos · {} Dias", m.orders_count, period_days),
             Color::from_rgb_u8(0x2E, 0x7D, 0x32),
             "neutral",
             "atividade",
@@ -76,7 +66,7 @@ pub(crate) fn fill_financial(
         ),
         kpi(
             "CUSTOS",
-            &money_br(cost),
+            &money_br(m.cost),
             "Custo Produtos",
             Color::from_rgb_u8(0xE5, 0x39, 0x35),
             "neutral",
@@ -85,11 +75,8 @@ pub(crate) fn fill_financial(
         ),
         kpi(
             "LUCRO LÍQUIDO",
-            &money_br(net),
-            &format!(
-                "Margem {:.0}%",
-                if revenue > 0.0 { net / revenue * 100.0 } else { 0.0 }
-            ),
+            &money_br(m.net),
+            &format!("Margem {}", pct(m.margin_pct)),
             Color::from_rgb_u8(0x43, 0xA0, 0x47),
             "neutral",
             "pay-carteira",
@@ -97,8 +84,8 @@ pub(crate) fn fill_financial(
         ),
         kpi(
             "TICKET MÉDIO",
-            &money_br(avg_ticket),
-            &format!("{} Pedidos no período", orders_count),
+            &money_br(m.avg_ticket),
+            &format!("{} Pedidos no período", m.orders_count),
             Color::from_rgb_u8(0x2E, 0x7D, 0x32),
             "neutral",
             "coupons",
@@ -112,7 +99,7 @@ pub(crate) fn fill_financial(
         win,
         valid,
         prev_valid,
-        |o| o.total.to_f64().unwrap_or(0.0),
+        |o| o.total,
         money_plain,
         Color::from_rgb_u8(0x66, 0xBB, 0x6A),
     );
@@ -121,85 +108,69 @@ pub(crate) fn fill_financial(
     // domínio. Despesas/Taxas/Impostos serão adicionadas quando
     // entrarem como entidades persistidas.
     snap.dre_lines = vec![
-        dre("Receita Bruta", &format!("+{}", money_br(revenue)), "pos"),
-        dre("Custo de Produtos", &format!("−{}", money_br(cost)), "neg"),
-        dre("LUCRO LÍQUIDO", &money_br(net), "total"),
+        dre("Receita Bruta", &format!("+{}", money_br(m.revenue)), "pos"),
+        dre("Custo de Produtos", &format!("−{}", money_br(m.cost)), "neg"),
+        dre("LUCRO LÍQUIDO", &money_br(m.net), "total"),
     ];
 
-    // Recebimentos por método
-    let mut method_sum: HashMap<String, f64> = HashMap::new();
-    for o in valid {
-        let k = o.payment_method.clone().unwrap_or_else(|| "outros".into());
-        *method_sum.entry(k).or_default() += o.total.to_f64().unwrap_or(0.0);
-    }
-    struct MethodDef {
-        key: &'static str,
-        label: &'static str,
-        icon: &'static str,
-        color: Color,
-    }
-    // Ordem solicitada: Dinheiro, PIX, Cartão Crédito, Cartão Débito.
-    // Cores iguais ao Dashboard: Dinheiro verde, PIX azul, Crédito
-    // vermelho, Débito amarelo.
+    fill_payment_methods(snap, m);
+}
+
+/// Gauge de recebimentos por forma de pagamento.
+///
+/// Ordem solicitada: Dinheiro, PIX, Cartão Crédito, Cartão Débito.
+/// Cores iguais ao Dashboard: Dinheiro verde, PIX azul, Crédito
+/// vermelho, Débito amarelo. O 100% do gauge é a soma das formas
+/// CONHECIDAS (pedidos sem método ficam fora).
+fn fill_payment_methods(snap: &mut Snapshot, m: &FinancialMetrics) {
     let palette = [
-        MethodDef { key: "cash", label: "Dinheiro", icon: "pay-dinheiro", color: Color::from_rgb_u8(0x2E, 0x7D, 0x32) },
-        MethodDef { key: "pix", label: "PIX", icon: "pay-pix", color: Color::from_rgb_u8(0x1E, 0x88, 0xE5) },
-        MethodDef { key: "credit", label: "Cartão Crédito", icon: "pay-cartao-credito", color: Color::from_rgb_u8(0xE5, 0x39, 0x35) },
-        MethodDef { key: "debit", label: "Cartão Débito", icon: "pay-cartao-debito", color: Color::from_rgb_u8(0xF9, 0xA8, 0x25) },
+        ("Dinheiro", "pay-dinheiro", Color::from_rgb_u8(0x2E, 0x7D, 0x32), m.methods.cash),
+        ("PIX", "pay-pix", Color::from_rgb_u8(0x1E, 0x88, 0xE5), m.methods.pix),
+        ("Cartão Crédito", "pay-cartao-credito", Color::from_rgb_u8(0xE5, 0x39, 0x35), m.methods.credit),
+        ("Cartão Débito", "pay-cartao-debito", Color::from_rgb_u8(0xF9, 0xA8, 0x25), m.methods.debit),
     ];
-    // Total = soma APENAS das formas conhecidas (gauge 100% preenchido,
-    // como na tela de Caixa) — pedidos sem método ("outros") ficam fora.
-    let total_method: f64 = palette
-        .iter()
-        .map(|m| method_sum.get(m.key).copied().unwrap_or(0.0))
-        .sum();
-    snap.method_total = money_br(total_method);
-    let mut method_bars = Vec::new();
+    let total = m.methods.total();
+    snap.method_total = money_br(total);
     // Acumulador de fração para encadear os arcos da meia-lua (gauge).
     let mut acc = 0.0_f64;
-    for m in &palette {
-        let v = method_sum.get(m.key).copied().unwrap_or(0.0);
-        if v > 0.0 || method_sum.is_empty() {
-            let frac = if total_method > 0.0 { v / total_method } else { 0.0 };
-            let arc = half_donut_arc(acc, acc + frac);
-            acc += frac;
-            method_bars.push(ReportHBar {
-                label: SharedString::from(m.label),
-                value_display: SharedString::from(money_br(v)),
-                progress: frac as f32,
-                bar_color: m.color,
-                icon_key: SharedString::from(m.icon),
-                arc_commands: SharedString::from(arc),
-            });
+    let mut bars = Vec::new();
+    for (label, icon, color, value) in palette {
+        // Sem NENHUM pedido no período as 4 formas aparecem zeradas
+        // (gauge vazio); havendo pedidos, só entra quem recebeu algo.
+        if value <= Decimal::ZERO && m.orders_count > 0 {
+            continue;
         }
+        let frac = if total > Decimal::ZERO {
+            (value / total).to_f64().unwrap_or(0.0)
+        } else {
+            0.0
+        };
+        let arc = half_donut_arc(acc, acc + frac);
+        acc += frac;
+        bars.push(ReportHBar {
+            label: SharedString::from(label),
+            value_display: SharedString::from(money_br(value)),
+            progress: frac as f32,
+            bar_color: color,
+            icon_key: SharedString::from(icon),
+            arc_commands: SharedString::from(arc),
+        });
     }
-    snap.method_bars = method_bars;
+    snap.method_bars = bars;
 }
 
 pub(crate) fn fill_orders(
     snap: &mut Snapshot,
+    m: &OrdersMetrics,
     in_window: &[&Order],
-    valid: &[&Order],
     prev_in_window: &[&Order],
-    prev_valid: &[&Order],
     win: ChartWindow,
 ) {
-    let total = in_window.len();
-    let cancel = in_window
-        .iter()
-        .filter(|o| o.status == OrderStatus::Cancelled)
-        .count();
-    let cancel_rate = if total > 0 { (cancel as f64 / total as f64) * 100.0 } else { 0.0 };
-    let avg_ticket = if !valid.is_empty() {
-        valid.iter().map(|o| o.total.to_f64().unwrap_or(0.0)).sum::<f64>() / valid.len() as f64
-    } else {
-        0.0
-    };
     snap.kpis = vec![
         kpi(
             "TOTAL DE PEDIDOS",
-            &total.to_string(),
-            &format!("{} Válidos · {} Cancelados", valid.len(), cancel),
+            &m.total.to_string(),
+            &format!("{} Válidos · {} Cancelados", m.valid, m.cancelled),
             Color::from_rgb_u8(0xE6, 0x51, 0x00),
             "neutral",
             "orders",
@@ -207,7 +178,7 @@ pub(crate) fn fill_orders(
         ),
         kpi(
             "TICKET MÉDIO",
-            &money_br(avg_ticket),
+            &money_br(m.avg_ticket),
             "Receita por pedido",
             Color::from_rgb_u8(0x2E, 0x7D, 0x32),
             "neutral",
@@ -216,8 +187,8 @@ pub(crate) fn fill_orders(
         ),
         kpi(
             "TAXA CANCELAMENTO",
-            &format!("{:.1}%", cancel_rate),
-            &format!("{} Cancelados", cancel),
+            &format!("{:.1}%", m.cancel_rate.to_f64().unwrap_or(0.0)),
+            &format!("{} Cancelados", m.cancelled),
             Color::from_rgb_u8(0xE5, 0x39, 0x35),
             "neutral",
             "nao-conformidade",
@@ -225,8 +196,8 @@ pub(crate) fn fill_orders(
         ),
         kpi(
             "TEMPO MÉDIO PREPARO",
-            &avg_prep_value(valid),
-            &avg_prep_sub(valid),
+            &prep_value(m.avg_prep_minutes),
+            &prep_sub(m.completed_count),
             Color::from_rgb_u8(0x1E, 0x88, 0xE5),
             "neutral",
             "relogio",
@@ -234,143 +205,85 @@ pub(crate) fn fill_orders(
         ),
     ];
 
-    // Pedidos por dia
+    // Pedidos por dia (cada pedido pesa 1).
     snap.orders_bars = build_daily(
         win,
         in_window,
         prev_in_window,
-        |_| 1.0,
-        |v| format!("{}", v.round() as i64),
+        |_| Decimal::ONE,
+        |v| format!("{}", v.round()),
         Color::from_rgb_u8(0xFB, 0x8C, 0x00),
     );
 
-    // Por canal
-    let mut delivery = 0;
-    let mut pickup = 0;
-    let mut pdv = 0;
-    for o in valid {
-        if o.payment_method.is_some() {
-            pdv += 1;
-        } else {
-            match o.delivery_type {
-                DeliveryType::Delivery => delivery += 1,
-                DeliveryType::Pickup => pickup += 1,
-            }
-        }
-    }
-    let max_ch = [delivery, pickup, pdv].iter().copied().max().unwrap_or(0).max(1) as f64;
-    // Ordem solicitada: Balcão, Entrega, Retirada.
-    // Cores: Balcão = verde, Entrega = azul, Retirada = laranja
-    // (Balcão e Retirada trocadas pelo usuário).
-    snap.channel_bars = vec![
-        ReportHBar {
-            label: SharedString::from("Balcão"),
-            value_display: SharedString::from(pdv.to_string()),
-            progress: (pdv as f64 / max_ch) as f32,
-            bar_color: Color::from_rgb_u8(0x2E, 0x7D, 0x32),
-            icon_key: SharedString::from("pdv"),
-            arc_commands: SharedString::new(),
-        },
-        ReportHBar {
-            label: SharedString::from("Entrega"),
-            value_display: SharedString::from(delivery.to_string()),
-            progress: (delivery as f64 / max_ch) as f32,
-            bar_color: Color::from_rgb_u8(0x1E, 0x88, 0xE5),
-            icon_key: SharedString::from("rastreamento"),
-            arc_commands: SharedString::new(),
-        },
-        ReportHBar {
-            label: SharedString::from("Retirada"),
-            value_display: SharedString::from(pickup.to_string()),
-            progress: (pickup as f64 / max_ch) as f32,
-            bar_color: Color::from_rgb_u8(0xE6, 0x51, 0x00),
-            icon_key: SharedString::from("recebimento"),
-            arc_commands: SharedString::new(),
-        },
-    ];
+    snap.channel_bars = channel_bars(m);
+    snap.hourly_bars = hourly_bars(m);
+}
 
-    // Pedidos por horário (08h..22h) — atual × período anterior, na
-    // mesma escala (o máximo considera as duas séries).
-    let by_hour = hour_counts(valid);
-    let prev_by_hour = hour_counts(prev_valid);
-    let max_h = series_max(&by_hour, &prev_by_hour);
-    let mut hourly = Vec::with_capacity(15);
-    for h in 8..23_usize {
-        let label = if h % 2 == 0 { format!("{:02}h", h) } else { String::new() };
-        let count = by_hour[h];
-        let prev = prev_by_hour[h];
-        hourly.push(ReportHourlyBar {
-            label: SharedString::from(label),
-            progress: progress_of(count, max_h),
-            value_display: SharedString::from(if count > 0.0 {
-                format!("{}", count as i64)
-            } else {
-                String::new()
-            }),
-            previous_progress: progress_of(prev, max_h),
-            previous_display: SharedString::from(if prev > 0.0 {
-                format!("{}", prev as i64)
-            } else {
-                String::new()
-            }),
-        });
+/// Barras "por canal" — ordem solicitada: Balcão, Entrega, Retirada.
+/// Cores: Balcão verde, Entrega azul, Retirada laranja.
+fn channel_bars(m: &OrdersMetrics) -> Vec<ReportHBar> {
+    let c = m.channels;
+    let max = c.pdv.max(c.delivery).max(c.pickup).max(1);
+    [
+        ("Balcão", "pdv", Color::from_rgb_u8(0x2E, 0x7D, 0x32), c.pdv),
+        ("Entrega", "rastreamento", Color::from_rgb_u8(0x1E, 0x88, 0xE5), c.delivery),
+        ("Retirada", "recebimento", Color::from_rgb_u8(0xE6, 0x51, 0x00), c.pickup),
+    ]
+    .into_iter()
+    .map(|(label, icon, color, count)| ReportHBar {
+        label: SharedString::from(label),
+        value_display: SharedString::from(count.to_string()),
+        progress: count_progress(count, max),
+        bar_color: color,
+        icon_key: SharedString::from(icon),
+        arc_commands: SharedString::new(),
+    })
+    .collect()
+}
+
+/// Pedidos por horário (08h..22h) — atual × período anterior, na mesma
+/// escala (o máximo considera as duas séries).
+fn hourly_bars(m: &OrdersMetrics) -> Vec<ReportHourlyBar> {
+    let max = m
+        .by_hour
+        .iter()
+        .chain(m.prev_by_hour.iter())
+        .copied()
+        .max()
+        .unwrap_or(0);
+    (8..23_usize)
+        .map(|h| {
+            let label = if h % 2 == 0 { format!("{:02}h", h) } else { String::new() };
+            let (count, prev) = (m.by_hour[h], m.prev_by_hour[h]);
+            ReportHourlyBar {
+                label: SharedString::from(label),
+                progress: count_progress(count, max),
+                value_display: SharedString::from(count_label(count)),
+                previous_progress: count_progress(prev, max),
+                previous_display: SharedString::from(count_label(prev)),
+            }
+        })
+        .collect()
+}
+
+/// Contagem exibida na barra — zero não escreve nada.
+fn count_label(count: u32) -> String {
+    if count > 0 {
+        count.to_string()
+    } else {
+        String::new()
     }
-    snap.hourly_bars = hourly;
 }
 
 pub(crate) fn fill_products(
     snap: &mut Snapshot,
-    valid: &[&Order],
+    m: &ProductMetrics,
     product_by_id: &HashMap<Uuid, &Product>,
-    category_by_id: &HashMap<Uuid, &Category>,
 ) {
-    // Agrega por produto.
-    struct Agg { qty: f64, revenue: f64, cost: f64, name: String, category: String, swatch: Color }
-    let mut by_pid: HashMap<Uuid, Agg> = HashMap::new();
-    for o in valid {
-        let subtotal_order: f64 = o.items.iter().map(|i| i.unit_price.to_f64().unwrap_or(0.0) * i.quantity).sum();
-        for it in &o.items {
-            let share = if subtotal_order > 0.0 {
-(it.unit_price.to_f64().unwrap_or(0.0) * it.quantity) / subtotal_order
-            } else {
-                0.0
-            };
-            let entry = by_pid.entry(it.product_id).or_insert_with(|| {
-                let p = product_by_id.get(&it.product_id);
-                let name = p.map(|p| p.name.clone()).unwrap_or_else(|| it.product_name.clone());
-                let cat_name = p
-                    .and_then(|p| p.category_id)
-                    .and_then(|cid| category_by_id.get(&cid))
-                    .map(|c| c.name.clone())
-                    .unwrap_or_else(|| "".into());
-                let swatch = color_for(&cat_name);
-                Agg { qty: 0.0, revenue: 0.0, cost: 0.0, name, category: cat_name, swatch }
-            });
-            entry.qty += it.quantity;
-            entry.revenue += o.total.to_f64().unwrap_or(0.0) * share;
-            if let Some(c) = product_by_id.get(&it.product_id).and_then(|p| p.cost_price) {
-                entry.cost += c.to_f64().unwrap_or(0.0) * it.quantity;
-            }
-        }
-    }
-
-    let total_units: f64 = by_pid.values().map(|a| a.qty).sum();
-    let total_revenue: f64 = by_pid.values().map(|a| a.revenue).sum();
-    let total_cost: f64 = by_pid.values().map(|a| a.cost).sum();
-    let margin_pct = if total_revenue > 0.0 {
-        (total_revenue - total_cost) / total_revenue * 100.0
-    } else {
-        0.0
-    };
-
-    // Top por qty (SKU mais vendido) e por receita.
-    let top_qty = by_pid.values().max_by(|a, b| a.qty.partial_cmp(&b.qty).unwrap_or(std::cmp::Ordering::Equal));
-    let top_rev = by_pid.values().max_by(|a, b| a.revenue.partial_cmp(&b.revenue).unwrap_or(std::cmp::Ordering::Equal));
-
     snap.kpis = vec![
         kpi(
             "ITENS VENDIDOS",
-            &format!("{}", total_units.round() as i64),
+            &format!("{}", m.total_units.round() as i64),
             "Unidades no período",
             Color::from_rgb_u8(0xE6, 0x51, 0x00),
             "neutral",
@@ -379,8 +292,11 @@ pub(crate) fn fill_products(
         ),
         kpi(
             "MAIS VENDIDO",
-            top_qty.map(|a| a.name.as_str()).unwrap_or(""),
-            &top_qty.map(|a| format!("{} Unidades", a.qty.round() as i64)).unwrap_or_else(|| "".into()),
+            m.top_by_quantity.as_ref().map(|a| a.name.as_str()).unwrap_or(""),
+            &m.top_by_quantity
+                .as_ref()
+                .map(|a| format!("{} Unidades", a.quantity.round() as i64))
+                .unwrap_or_default(),
             Color::from_rgb_u8(0x1E, 0x88, 0xE5),
             "neutral",
             "desempenho",
@@ -388,8 +304,11 @@ pub(crate) fn fill_products(
         ),
         kpi(
             "MAIOR RECEITA",
-            &top_rev.map(|a| money_br(a.revenue)).unwrap_or_else(|| "".into()),
-            top_rev.map(|a| a.name.as_str()).unwrap_or(""),
+            &m.top_by_revenue
+                .as_ref()
+                .map(|a| money_br(a.revenue))
+                .unwrap_or_default(),
+            m.top_by_revenue.as_ref().map(|a| a.name.as_str()).unwrap_or(""),
             Color::from_rgb_u8(0x2E, 0x7D, 0x32),
             "neutral",
             "atividade",
@@ -397,7 +316,7 @@ pub(crate) fn fill_products(
         ),
         kpi(
             "MARGEM MÉDIA",
-            &format!("{:.0}%", margin_pct),
+            &pct(m.margin_pct),
             "Ponderada por venda",
             Color::from_rgb_u8(0x8E, 0x24, 0xAA),
             "neutral",
@@ -406,100 +325,44 @@ pub(crate) fn fill_products(
         ),
     ];
 
-    // Top produtos por receita.
-    let mut all: Vec<(Uuid, Agg)> = by_pid.into_iter().collect();
-    all.sort_by(|a, b| b.1.revenue.partial_cmp(&a.1.revenue).unwrap_or(std::cmp::Ordering::Equal));
-    let max_rev = all.first().map(|(_, a)| a.revenue).unwrap_or(0.0).max(0.001);
-    snap.top_products = all
+    // Top produtos por receita (a escala mínima evita divisão por zero).
+    let max_rev = m
+        .ranking
+        .first()
+        .map(|a| a.revenue)
+        .unwrap_or(Decimal::ZERO)
+        .max(Decimal::new(1, 3));
+    snap.top_products = m
+        .ranking
         .iter()
         .take(9)
         .enumerate()
-        .map(|(i, (pid, a))| {
-            let image_b64 = product_by_id
-                .get(pid)
+        .map(|(i, a)| TopProductRaw {
+            rank: (i + 1) as i32,
+            name: a.name.clone(),
+            category: a.category_name.clone(),
+            qty_display: format!("{}", a.quantity.round() as i64),
+            revenue_display: money_br(a.revenue),
+            progress: progress_of(a.revenue, max_rev),
+            swatch_color: color_for(&a.category_name),
+            image_b64: product_by_id
+                .get(&a.product_id)
                 .and_then(|p| p.image_data.clone())
-                .filter(|s| !s.is_empty());
-            TopProductRaw {
-                rank: (i + 1) as i32,
-                name: a.name.clone(),
-                category: a.category.clone(),
-                qty_display: format!("{}", a.qty.round() as i64),
-                revenue_display: money_br(a.revenue),
-                progress: (a.revenue / max_rev) as f32,
-                swatch_color: a.swatch,
-                image_b64,
-            }
+                .filter(|s| !s.is_empty()),
         })
         .collect();
 }
 
 pub(crate) fn fill_customers(
     snap: &mut Snapshot,
-    valid: &[&Order],
-    all_orders: &[Order],
+    m: &CustomerMetrics,
     customer_by_id: &HashMap<Uuid, &Customer>,
-    start: NaiveDate,
-    end: NaiveDate,
 ) {
-    // Períodos para detectar "novos": cliente cujo PRIMEIRO pedido foi dentro [start..end].
-    let mut first_order: HashMap<Uuid, NaiveDate> = HashMap::new();
-    for o in all_orders {
-        if o.base.deleted_at.is_some() || o.status == OrderStatus::Cancelled { continue; }
-        if o.customer_id.is_nil() { continue; }
-        // UTC → fuso da loja (§6): sem isso o primeiro pedido de um
-        // cliente feito depois das 21h contava no dia seguinte.
-        let d = letaf_core::tz::to_local(o.base.created_at).date();
-        first_order
-            .entry(o.customer_id)
-            .and_modify(|cur| { if d < *cur { *cur = d; } })
-            .or_insert(d);
-    }
-
-    // Clientes ativos no período (com pedido no período).
-    let mut active: HashMap<Uuid, ()> = HashMap::new();
-    for o in valid {
-        if !o.customer_id.is_nil() {
-            active.insert(o.customer_id, ());
-        }
-    }
-    let active_count = active.len();
-
-    // Novos / recorrentes:
-    let mut new_count = 0;
-    let mut returning_count = 0;
-    for cid in active.keys() {
-        let first = first_order.get(cid).copied();
-        if let Some(d) = first {
-            if d >= start && d <= end {
-                new_count += 1;
-            } else {
-                returning_count += 1;
-            }
-        }
-    }
-    let return_rate = if active_count > 0 {
-        (returning_count as f64 / active_count as f64) * 100.0
-    } else {
-        0.0
-    };
-
-    // LTV total: soma de receita por cliente (todos os pedidos válidos).
-    let mut ltv: HashMap<Uuid, (f64, i64)> = HashMap::new();
-    for o in all_orders {
-        if o.base.deleted_at.is_some() || o.status == OrderStatus::Cancelled { continue; }
-        if o.customer_id.is_nil() { continue; }
-        let entry = ltv.entry(o.customer_id).or_insert((0.0, 0));
-        entry.0 += o.total.to_f64().unwrap_or(0.0);
-        entry.1 += 1;
-    }
-    let total_customers = ltv.len() as f64;
-    let total_ltv: f64 = ltv.values().map(|(r, _)| *r).sum();
-    let avg_ltv = if total_customers > 0.0 { total_ltv / total_customers } else { 0.0 };
-
+    let return_rate = m.return_rate.to_f64().unwrap_or(0.0);
     snap.kpis = vec![
         kpi(
             "CLIENTES ATIVOS",
-            &active_count.to_string(),
+            &m.active_count.to_string(),
             "Compram",
             Color::from_rgb_u8(0xE6, 0x51, 0x00),
             "neutral",
@@ -508,7 +371,7 @@ pub(crate) fn fill_customers(
         ),
         kpi(
             "NOVOS NO PERÍODO",
-            &new_count.to_string(),
+            &m.new_count.to_string(),
             "Primeira Compra",
             Color::from_rgb_u8(0x1E, 0x88, 0xE5),
             "neutral",
@@ -517,7 +380,7 @@ pub(crate) fn fill_customers(
         ),
         kpi(
             "TAXA DE RETORNO",
-            &format!("{:.0}%", return_rate),
+            &pct(m.return_rate),
             "Voltaram a Comprar",
             Color::from_rgb_u8(0x2E, 0x7D, 0x32),
             if return_rate > 30.0 { "pos" } else { "neutral" },
@@ -526,7 +389,7 @@ pub(crate) fn fill_customers(
         ),
         kpi(
             "LTV MÉDIO",
-            &money_br(avg_ltv),
+            &money_br(m.avg_ltv),
             "Receita por Cliente",
             Color::from_rgb_u8(0xC2, 0x18, 0x5B),
             "neutral",
@@ -535,59 +398,57 @@ pub(crate) fn fill_customers(
         ),
     ];
 
-    // Top clientes por LTV.
-    let mut top: Vec<(Uuid, f64, i64)> = ltv
-        .into_iter()
-        .map(|(k, (r, c))| (k, r, c))
-        .collect();
-    top.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
-    let max_top = top.first().map(|(_, r, _)| *r).unwrap_or(0.0).max(0.001);
-    snap.top_customers = top
-        .iter()
-        .take(8)
-        .map(|(cid, rev, count)| {
-            let cust = customer_by_id.get(cid);
-            let name = cust.map(|c| c.name.clone()).unwrap_or_else(|| "Sem nome".into());
-            let initial = name.chars().next().map(|c| c.to_ascii_uppercase().to_string()).unwrap_or_else(|| "?".into());
-            let photo_b64 = cust
-                .and_then(|c| c.profile_picture.clone())
-                .filter(|s| !s.is_empty());
-            TopCustomerRaw {
-                initial,
-                name: name.clone(),
-                orders_display: format!("{} Pedidos", count),
-                revenue_display: money_br(*rev),
-                progress: (*rev / max_top) as f32,
-                is_vip: *rev >= avg_ltv * 2.0,
-                initial_color: color_for(&name),
-                photo_b64,
-            }
-        })
-        .collect();
+    snap.top_customers = top_customers(m, customer_by_id);
 
     // Novos vs recorrentes
-    let total_seg = (new_count + returning_count).max(1) as f64;
-    let new_pct = (new_count as f64 / total_seg) * 100.0;
-    let ret_pct = (returning_count as f64 / total_seg) * 100.0;
+    let total_seg = (m.new_count + m.returning_count).max(1) as f64;
     snap.new_vs_ret = ReportNewVsReturning {
-        new_count,
-        new_pct: SharedString::from(format!("{:.0}%", new_pct)),
-        new_progress: (new_count as f64 / total_seg) as f32,
-        returning_count,
-        returning_pct: SharedString::from(format!("{:.0}%", ret_pct)),
-        returning_progress: (returning_count as f64 / total_seg) as f32,
+        new_count: m.new_count,
+        new_pct: SharedString::from(format!("{:.0}%", m.new_count as f64 / total_seg * 100.0)),
+        new_progress: (m.new_count as f64 / total_seg) as f32,
+        returning_count: m.returning_count,
+        returning_pct: SharedString::from(format!(
+            "{:.0}%",
+            m.returning_count as f64 / total_seg * 100.0
+        )),
+        returning_progress: (m.returning_count as f64 / total_seg) as f32,
     };
 }
 
-
-/// Pedidos por hora (0..23) — base dos gráficos "por horário".
-fn hour_counts(orders: &[&Order]) -> Vec<f64> {
-    let mut totals = vec![0.0_f64; 24];
-    for o in orders {
-        let h = letaf_core::tz::to_local(o.base.created_at).hour() as usize;
-        if h < 24 {
-            totals[h] += 1.0;
-        }
-    }
-    totals
+/// Top 8 clientes por LTV — nome, inicial e foto vêm do cadastro.
+fn top_customers(
+    m: &CustomerMetrics,
+    customer_by_id: &HashMap<Uuid, &Customer>,
+) -> Vec<TopCustomerRaw> {
+    let max = m
+        .ranking
+        .first()
+        .map(|a| a.revenue)
+        .unwrap_or(Decimal::ZERO)
+        .max(Decimal::new(1, 3));
+    m.ranking
+        .iter()
+        .take(8)
+        .map(|a| {
+            let cust = customer_by_id.get(&a.customer_id);
+            let name = cust.map(|c| c.name.clone()).unwrap_or_else(|| "Sem nome".into());
+            let initial = name
+                .chars()
+                .next()
+                .map(|c| c.to_ascii_uppercase().to_string())
+                .unwrap_or_else(|| "?".into());
+            TopCustomerRaw {
+                initial,
+                name: name.clone(),
+                orders_display: format!("{} Pedidos", a.orders),
+                revenue_display: money_br(a.revenue),
+                progress: progress_of(a.revenue, max),
+                is_vip: a.is_vip,
+                initial_color: color_for(&name),
+                photo_b64: cust
+                    .and_then(|c| c.profile_picture.clone())
+                    .filter(|s| !s.is_empty()),
+            }
+        })
+        .collect()
 }

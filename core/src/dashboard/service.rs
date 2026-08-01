@@ -343,7 +343,15 @@ fn best_day(ix: &Index, win_start: NaiveDate, today: NaiveDate) -> Option<NaiveD
 // ── Janela do período ────────────────────────────────────────────────────
 
 /// (início da janela atual, início e fim da janela anterior equivalente).
-fn period_window(today: NaiveDate, period: DashboardPeriod) -> (NaiveDate, NaiveDate, NaiveDate) {
+///
+/// PÚBLICA porque é a fonte ÚNICA da regra "período anterior equivalente"
+/// (§14 — não duplicar lógica): a tela de Relatórios (`crate::report`)
+/// consome esta mesma janela em vez de reimplementar início/fim de
+/// dia/semana/mês.
+pub fn period_window(
+    today: NaiveDate,
+    period: DashboardPeriod,
+) -> (NaiveDate, NaiveDate, NaiveDate) {
     match period {
         DashboardPeriod::Today => (today, today - Duration::days(1), today - Duration::days(1)),
         DashboardPeriod::Month => {
@@ -386,7 +394,11 @@ pub fn pct_delta(current: f64, baseline: f64) -> Option<f64> {
 }
 
 /// Segunda-feira da semana que contém `d`.
-fn monday_of(d: NaiveDate) -> NaiveDate {
+///
+/// PÚBLICA: é a primitiva de "início da semana" do sistema inteiro
+/// (dashboard e relatórios) — a semana começa na SEGUNDA, não no
+/// domingo do `chrono`.
+pub fn monday_of(d: NaiveDate) -> NaiveDate {
     d - Duration::days(d.weekday().num_days_from_monday() as i64)
 }
 

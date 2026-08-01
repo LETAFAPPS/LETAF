@@ -14,7 +14,8 @@ use letaf_core::product::model::Product;
 pub(crate) struct ReportState {
     /// "financial" | "orders" | "products" | "customers"
     pub(crate) kind: String,
-    /// "7d" | "30d" | "month"
+    /// "daily" | "weekly" | "monthly" | "yearly" — convertido em
+    /// `letaf_core::report::ReportPeriod` na hora de montar o retrato.
     pub(crate) period: String,
 }
 

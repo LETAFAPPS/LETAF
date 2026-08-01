@@ -1,16 +1,18 @@
 //! Callbacks da tela "Relatórios" (Central de análises).
 //!
 //! 4 sub-relatórios: financial, orders, products, customers.
-//! Períodos: 7d, 30d, month (mês corrente).
+//! Períodos: daily, weekly, monthly, yearly (sempre o período CORRENTE).
 //!
-//! AI_RULES §1/§11/§14: agregação em Rust, UI só pinta.
+//! AI_RULES §1/§3/§14: TODO o cálculo (DRE, margens, ticket médio,
+//! rankings, janela de período) vive em `letaf_core::report`; esta
+//! camada só busca dados, formata e pinta.
 //!
 //! Dividido por responsabilidade (§8, §9):
 //! - `state`: estado da tela, granularidade e caches compartilhados
 //! - `setup`: orquestrador (`setup_reports`), refresh e callbacks de filtro
-//! - `snapshot`: agregação (`build_snapshot`) e aplicação na UI (`apply_to_ui`)
+//! - `snapshot`: monta o retrato (`build_snapshot`) e aplica na UI (`apply_to_ui`)
 //! - `sections`: builders de cada sub-relatório (financial/orders/products/customers)
-//! - `helpers`: funções puras de KPI, buckets diários/mensais e formatação
+//! - `helpers`: rótulos, buckets do gráfico e formatação
 
 mod helpers;
 mod sections;
