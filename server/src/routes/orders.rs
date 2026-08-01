@@ -47,6 +47,13 @@ struct CreateOrderRequest {
     /// recalcula o desconto (§11 — nunca confiar no frontend).
     #[serde(default)]
     coupon_code: Option<String>,
+    /// Endereço de ENTREGA escolhido pelo cliente — só o id. O servidor
+    /// carrega o endereço do cadastro e confere que pertence a quem está
+    /// pedindo (§11: os campos nunca vêm da requisição). Obrigatório em
+    /// pedido de entrega; antes o cardápio web mandava pedido de entrega
+    /// SEM endereço e o operador não tinha para onde entregar.
+    #[serde(default)]
+    address_id: Option<Uuid>,
 }
 
 #[derive(Deserialize)]
@@ -212,6 +219,40 @@ async fn create_order(
         }
     };
 
+    // Endereço de entrega: resolvido pelo CADASTRO a partir do id, com
+    // conferência de dono (§11). Sem endereço não há entrega — recusa
+    // com mensagem clara em vez de gerar um pedido impossível de cumprir.
+    let endereco = if delivery_type == DeliveryType::Delivery {
+        let id = req.address_id.ok_or_else(|| {
+            ServerError::Core(CoreError::Validation(
+                "Escolha um endereço de entrega.".into(),
+            ))
+        })?;
+        let addr = state
+            .customer_address_service
+            .list(tenant.company_id, customer_id)
+            .await?
+            .into_iter()
+            .find(|a| a.base.id == id)
+            .ok_or_else(|| {
+                ServerError::Core(CoreError::Validation(
+                    "Endereço de entrega inválido.".into(),
+                ))
+            })?;
+        let complemento = addr
+            .apartment
+            .as_deref()
+            .filter(|c| !c.trim().is_empty())
+            .map(|c| format!(", {c}"))
+            .unwrap_or_default();
+        Some(format!(
+            "{}, {} — {}{}",
+            addr.street, addr.number, addr.neighborhood, complemento
+        ))
+    } else {
+        None
+    };
+
     // Taxa de entrega: só em pedido de ENTREGA e sempre do cadastro da
     // empresa (§11 — o valor nunca vem da requisição). Vai no
     // `additional_amount`, que o core soma ao total; a nota registra o
@@ -221,11 +262,19 @@ async fn create_order(
     } else {
         Decimal::ZERO
     };
-    let notes = match (&req.notes, delivery_fee > Decimal::ZERO) {
-        (Some(n), true) => Some(format!("{n} [Taxa de entrega: R$ {delivery_fee:.2}]")),
-        (None, true) => Some(format!("[Taxa de entrega: R$ {delivery_fee:.2}]")),
-        (n, false) => n.clone(),
-    };
+    // A nota carrega endereço e taxa, no mesmo formato que o PDV usa —
+    // é de onde a tela de Pedidos extrai os dois para exibir.
+    let mut partes: Vec<String> = Vec::new();
+    if let Some(n) = req.notes.as_deref().filter(|n| !n.trim().is_empty()) {
+        partes.push(n.to_string());
+    }
+    if let Some(e) = &endereco {
+        partes.push(format!("[Endereço: {e}]"));
+    }
+    if delivery_fee > Decimal::ZERO {
+        partes.push(format!("[Taxa de entrega: R$ {delivery_fee:.2}]"));
+    }
+    let notes = (!partes.is_empty()).then(|| partes.join(" "));
 
     let order = state
         .order_service

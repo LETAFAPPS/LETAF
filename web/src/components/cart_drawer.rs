@@ -27,6 +27,68 @@ pub fn CartDrawer() -> impl IntoView {
     let fee = use_context::<crate::components::catalog::DeliveryFee>()
         .map(|d| d.0)
         .unwrap_or(0.0);
+    // Modalidade e endereço. Antes o checkout web mandava sempre
+    // "entrega" (o default do backend) e NENHUM endereço — o operador
+    // recebia um pedido de entrega sem para onde entregar.
+    let (delivery, set_delivery) = signal(true);
+    let (addresses, set_addresses) = signal(Vec::<checkout::AddressOption>::new());
+    let (address_id, set_address_id) = signal(String::new());
+    let (novo_aberto, set_novo_aberto) = signal(false);
+    let (a_rua, set_a_rua) = signal(String::new());
+    let (a_numero, set_a_numero) = signal(String::new());
+    let (a_bairro, set_a_bairro) = signal(String::new());
+    let (a_compl, set_a_compl) = signal(String::new());
+
+    // Carrega os endereços salvos quando o cliente está logado.
+    let carregar_enderecos = move || {
+        let Some(token) = session.token() else { return };
+        spawn_local(async move {
+            if let Ok(list) = checkout::list_addresses(token).await {
+                if address_id.get_untracked().is_empty() {
+                    if let Some(first) = list.first() {
+                        set_address_id.set(first.id.clone());
+                    }
+                }
+                set_novo_aberto.set(list.is_empty());
+                set_addresses.set(list);
+            }
+        });
+    };
+    Effect::new(move |_| {
+        if session.is_logged() {
+            carregar_enderecos();
+        }
+    });
+
+    // Salva um endereço novo e já o seleciona.
+    let salvar_endereco = move |_: leptos::ev::MouseEvent| {
+        let Some(token) = session.token() else { return };
+        let (rua, num, bairro, compl) = (
+            a_rua.get_untracked(),
+            a_numero.get_untracked(),
+            a_bairro.get_untracked(),
+            a_compl.get_untracked(),
+        );
+        if rua.trim().is_empty() || num.trim().is_empty() || bairro.trim().is_empty() {
+            set_error.set("Preencha rua, número e bairro.".into());
+            return;
+        }
+        set_error.set(String::new());
+        spawn_local(async move {
+            match checkout::add_address(token, "Casa".into(), rua, num, bairro, compl).await {
+                Ok(novo) => {
+                    set_address_id.set(novo.id.clone());
+                    set_addresses.update(|v| v.push(novo));
+                    set_novo_aberto.set(false);
+                    set_a_rua.set(String::new());
+                    set_a_numero.set(String::new());
+                    set_a_bairro.set(String::new());
+                    set_a_compl.set(String::new());
+                }
+                Err(e) => set_error.set(e.to_string()),
+            }
+        });
+    };
 
     // Decide no clique: deslogado abre o login; logado envia o pedido.
     let on_checkout = move |_| {
@@ -52,10 +114,28 @@ pub fn CartDrawer() -> impl IntoView {
         let token = session.token().unwrap_or_default();
         let notes_v = notes.get_untracked();
         let coupon_v = coupon.get_untracked();
+        let entrega = delivery.get_untracked();
+        let addr = address_id.get_untracked();
+        // Espelha a regra do backend para dar o aviso ANTES de enviar —
+        // a autoridade continua sendo do servidor (§11).
+        if entrega && addr.is_empty() {
+            set_error.set("Escolha um endereço de entrega.".into());
+            return;
+        }
         set_error.set(String::new());
         set_submitting.set(true);
         spawn_local(async move {
-            match checkout::create_order(token, items, notes_v, coupon_v).await {
+            let modalidade = if entrega { "delivery" } else { "pickup" };
+            match checkout::create_order(
+                token,
+                items,
+                notes_v,
+                coupon_v,
+                modalidade.to_string(),
+                addr,
+            )
+            .await
+            {
                 Ok(conf) => {
                     cart.clear();
                     set_confirmation.set(Some(conf));
@@ -147,6 +227,68 @@ pub fn CartDrawer() -> impl IntoView {
                                 prop:value=move || notes.get()
                                 on:input=move |e| set_notes.set(event_target_value(&e))
                             ></textarea>
+                            // ── Entrega ou retirada ──
+                            <div class="cart-modal-row">
+                                <button
+                                    class=move || if delivery.get() { "chip chip-on" } else { "chip" }
+                                    on:click=move |_| set_delivery.set(true)
+                                >"Entrega"</button>
+                                <button
+                                    class=move || if delivery.get() { "chip" } else { "chip chip-on" }
+                                    on:click=move |_| set_delivery.set(false)
+                                >"Retirar no local"</button>
+                            </div>
+
+                            // ── Endereço (só em entrega) ──
+                            {move || delivery.get().then(|| view! {
+                                <div class="cart-address">
+                                    {move || (!addresses.get().is_empty()).then(|| view! {
+                                        <select
+                                            class="field"
+                                            on:change=move |e| set_address_id.set(event_target_value(&e))
+                                        >
+                                            <For
+                                                each=move || addresses.get()
+                                                key=|a| a.id.clone()
+                                                let:a
+                                            >
+                                                <option
+                                                    value=a.id.clone()
+                                                    selected=move || address_id.get() == a.id
+                                                >
+                                                    {format!("{} — {}", a.label, a.resumo)}
+                                                </option>
+                                            </For>
+                                        </select>
+                                    })}
+                                    {move || (!novo_aberto.get()).then(|| view! {
+                                        <button
+                                            class="link-btn"
+                                            on:click=move |_| set_novo_aberto.set(true)
+                                        >"+ Novo endereço"</button>
+                                    })}
+                                    {move || novo_aberto.get().then(|| view! {
+                                        <div class="cart-address-form">
+                                            <input class="field" placeholder="Rua"
+                                                prop:value=move || a_rua.get()
+                                                on:input=move |e| set_a_rua.set(event_target_value(&e)) />
+                                            <input class="field" placeholder="Número"
+                                                prop:value=move || a_numero.get()
+                                                on:input=move |e| set_a_numero.set(event_target_value(&e)) />
+                                            <input class="field" placeholder="Bairro"
+                                                prop:value=move || a_bairro.get()
+                                                on:input=move |e| set_a_bairro.set(event_target_value(&e)) />
+                                            <input class="field" placeholder="Complemento (opcional)"
+                                                prop:value=move || a_compl.get()
+                                                on:input=move |e| set_a_compl.set(event_target_value(&e)) />
+                                            <button class="link-btn" on:click=salvar_endereco>
+                                                "Salvar endereço"
+                                            </button>
+                                        </div>
+                                    })}
+                                </div>
+                            })}
+
                             <input
                                 class="field"
                                 placeholder="Cupom (opcional)"
@@ -156,7 +298,7 @@ pub fn CartDrawer() -> impl IntoView {
                             // Com taxa de entrega, o cliente vê a composição
                             // (subtotal + taxa) em vez de um total que não
                             // bate com a soma dos itens.
-                            {move || (fee > 0.0).then(|| view! {
+                            {move || (fee > 0.0 && delivery.get()).then(|| view! {
                                 <div class="cart-total-row">
                                     <span>"Subtotal"</span>
                                     <span>{format::money(cart.total())}</span>
@@ -168,7 +310,7 @@ pub fn CartDrawer() -> impl IntoView {
                             })}
                             <div class="cart-total-row">
                                 <span>"Total"</span>
-                                <strong>{move || format::money(cart.total() + fee)}</strong>
+                                <strong>{move || format::money(cart.total() + if delivery.get() { fee } else { 0.0 })}</strong>
                             </div>
                             {move || (!error.get().is_empty())
                                 .then(|| view! { <p class="auth-error">{error.get()}</p> })}

@@ -460,6 +460,49 @@ textarea.field {
 
     strong { font-size: 1.15rem; color: var(--price); }
 }
+
+/* ── Entrega x retirada e endereço do checkout ── */
+.cart-modal-row {
+    display: flex;
+    gap: 0.5rem;
+}
+.chip {
+    flex: 1;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: transparent;
+    color: inherit;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+
+    &.chip-on {
+        border-color: var(--brand);
+        color: var(--brand);
+        background: rgba(232, 115, 28, 0.08);
+    }
+}
+.cart-address {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+.cart-address-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+.link-btn {
+    align-self: flex-start;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--brand);
+    font-size: 0.88rem;
+    font-weight: 600;
+    cursor: pointer;
+}
 .cart-success {
     flex: 1;
     display: flex;

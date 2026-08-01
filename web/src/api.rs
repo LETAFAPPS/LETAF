@@ -25,6 +25,33 @@ pub struct CatalogInfo {
     pub delivery_fee: f64,
 }
 
+/// Endereço salvo do cliente (`/customer/addresses`).
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct CustomerAddress {
+    pub id: String,
+    pub label: String,
+    #[serde(default)]
+    pub custom_label: Option<String>,
+    pub street: String,
+    pub number: String,
+    pub neighborhood: String,
+    #[serde(default)]
+    pub apartment: Option<String>,
+}
+
+impl CustomerAddress {
+    /// Uma linha legível para o seletor do checkout.
+    pub fn resumo(&self) -> String {
+        let complemento = self
+            .apartment
+            .as_deref()
+            .filter(|c| !c.trim().is_empty())
+            .map(|c| format!(", {c}"))
+            .unwrap_or_default();
+        format!("{}, {} — {}{}", self.street, self.number, self.neighborhood, complemento)
+    }
+}
+
 /// `/catalog/categories`.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct CatalogCategory {
@@ -161,6 +188,7 @@ pub struct CatalogData {
 mod server {
     use super::{
         BusinessHours, CatalogBanner, CatalogCategory, CatalogData, CatalogInfo, CatalogProduct,
+        CustomerAddress,
     };
     use crate::account::{OrderSummary, ProfileInfo};
     use crate::checkout::{OrderConfirmation, OrderItemPayload};
@@ -312,6 +340,8 @@ mod server {
         items: Vec<OrderItemPayload>,
         notes: &str,
         coupon: &str,
+        delivery_type: &str,
+        address_id: &str,
     ) -> Result<OrderConfirmation, String> {
         let base = api_base();
         let th = host.split(':').next().unwrap_or(host).to_string();
@@ -335,6 +365,12 @@ mod server {
         }
         if !coupon.is_empty() {
             body["coupon_code"] = serde_json::json!(coupon);
+        }
+        if !delivery_type.is_empty() {
+            body["delivery_type"] = serde_json::json!(delivery_type);
+        }
+        if !address_id.is_empty() {
+            body["address_id"] = serde_json::json!(address_id);
         }
 
         let resp = client
@@ -383,6 +419,62 @@ mod server {
         } else {
             Err(format!("Falha ao carregar ({}).", resp.status().as_u16()))
         }
+    }
+
+    /// Endereços salvos do cliente (`GET /customer/addresses`).
+    pub async fn customer_addresses(
+        host: &str,
+        token: &str,
+    ) -> Result<Vec<CustomerAddress>, String> {
+        let base = api_base();
+        let th = host.split(':').next().unwrap_or(host).to_string();
+        let client = crate::http_client();
+        let resp = client
+            .get(format!("{base}/customer/addresses"))
+            .header("X-Tenant-Host", &th)
+            .bearer_auth(token)
+            .send()
+            .await
+            .map_err(|e| e.to_string())?;
+        if !resp.status().is_success() {
+            return Err(format!("Falha ao carregar endereços ({})", resp.status()));
+        }
+        resp.json::<Vec<CustomerAddress>>().await.map_err(|e| e.to_string())
+    }
+
+    /// Cadastra um endereço (`POST /customer/addresses`).
+    pub async fn create_customer_address(
+        host: &str,
+        token: &str,
+        label: &str,
+        street: &str,
+        number: &str,
+        neighborhood: &str,
+        apartment: &str,
+    ) -> Result<CustomerAddress, String> {
+        let base = api_base();
+        let th = host.split(':').next().unwrap_or(host).to_string();
+        let client = crate::http_client();
+        let body = serde_json::json!({
+            "label": label,
+            "street": street,
+            "number": number,
+            "neighborhood": neighborhood,
+            "apartment": (!apartment.is_empty()).then(|| apartment.to_string()),
+        });
+        let resp = client
+            .post(format!("{base}/customer/addresses"))
+            .header("X-Tenant-Host", &th)
+            .bearer_auth(token)
+            .json(&body)
+            .send()
+            .await
+            .map_err(|e| e.to_string())?;
+        if !resp.status().is_success() {
+            let msg = resp.text().await.unwrap_or_default();
+            return Err(if msg.is_empty() { "Falha ao salvar endereço".into() } else { msg });
+        }
+        resp.json::<CustomerAddress>().await.map_err(|e| e.to_string())
     }
 
     pub async fn customer_profile(host: &str, token: &str) -> Result<ProfileInfo, String> {
@@ -442,4 +534,5 @@ mod server {
 pub use server::{
     create_order, customer_login, customer_orders, customer_profile, customer_register,
     fetch_catalog, update_customer_profile,
+    customer_addresses, create_customer_address,
 };

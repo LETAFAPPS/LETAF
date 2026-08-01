@@ -30,6 +30,11 @@ pub async fn create_order(
     items: Vec<OrderItemPayload>,
     notes: String,
     coupon: String,
+    /// "delivery" ou "pickup".
+    delivery_type: String,
+    /// Id do endereço salvo — obrigatório em entrega. O servidor carrega
+    /// o endereço do cadastro e confere o dono (§11).
+    address_id: String,
 ) -> Result<OrderConfirmation, ServerFnError> {
     use axum::http::{header::HOST, HeaderMap};
     let headers: HeaderMap = leptos_axum::extract().await?;
@@ -38,7 +43,67 @@ pub async fn create_order(
         .and_then(|v| v.to_str().ok())
         .unwrap_or_default()
         .to_string();
-    crate::api::create_order(&host, &token, items, &notes, &coupon)
+    crate::api::create_order(&host, &token, items, &notes, &coupon, &delivery_type, &address_id)
         .await
         .map_err(ServerFnError::new)
+}
+
+/// GET /customer/addresses (proxy, Bearer).
+#[server]
+pub async fn list_addresses(token: String) -> Result<Vec<AddressOption>, ServerFnError> {
+    use axum::http::{header::HOST, HeaderMap};
+    let headers: HeaderMap = leptos_axum::extract().await?;
+    let host = headers
+        .get(HOST)
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or_default()
+        .to_string();
+    let list = crate::api::customer_addresses(&host, &token)
+        .await
+        .map_err(ServerFnError::new)?;
+    Ok(list
+        .into_iter()
+        .map(|a| AddressOption {
+            resumo: a.resumo(),
+            id: a.id,
+            label: a.label,
+        })
+        .collect())
+}
+
+/// POST /customer/addresses (proxy, Bearer).
+#[server]
+pub async fn add_address(
+    token: String,
+    label: String,
+    street: String,
+    number: String,
+    neighborhood: String,
+    apartment: String,
+) -> Result<AddressOption, ServerFnError> {
+    use axum::http::{header::HOST, HeaderMap};
+    let headers: HeaderMap = leptos_axum::extract().await?;
+    let host = headers
+        .get(HOST)
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or_default()
+        .to_string();
+    let a = crate::api::create_customer_address(
+        &host, &token, &label, &street, &number, &neighborhood, &apartment,
+    )
+    .await
+    .map_err(ServerFnError::new)?;
+    Ok(AddressOption {
+        resumo: a.resumo(),
+        id: a.id,
+        label: a.label,
+    })
+}
+
+/// Endereço como o seletor do checkout precisa (id + uma linha legível).
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct AddressOption {
+    pub id: String,
+    pub label: String,
+    pub resumo: String,
 }
