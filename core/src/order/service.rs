@@ -302,6 +302,15 @@ impl OrderService {
         self.repo.find_unpaid_wallet(company_id).await
     }
 
+    /// Pedidos do quadro operacional (ver o trait).
+    pub async fn find_board(
+        &self,
+        company_id: Uuid,
+        entregues_desde: chrono::NaiveDate,
+    ) -> Result<Vec<Order>, CoreError> {
+        self.repo.find_board(company_id, entregues_desde).await
+    }
+
     /// Pedidos sem os itens — para telas que só listam (ver o trait).
     pub async fn find_all_light(&self, company_id: Uuid) -> Result<Vec<Order>, CoreError> {
         self.repo.find_all_light(company_id).await

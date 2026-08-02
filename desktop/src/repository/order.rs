@@ -301,6 +301,27 @@ impl OrderRepository for SqliteOrderRepository {
         Ok(row.0)
     }
 
+    async fn find_board(
+        &self,
+        company_id: Uuid,
+        entregues_desde: chrono::NaiveDate,
+    ) -> Result<Vec<Order>, CoreError> {
+        let rows = sqlx::query_as::<_, OrderRow>(
+            "SELECT * FROM orders \
+             WHERE company_id = ?1 AND deleted_at IS NULL \
+               AND (status NOT IN ('delivered', 'cancelled') OR created_at >= ?2) \
+             ORDER BY created_at DESC",
+        )
+        .bind(company_id.to_string())
+        .bind(ts(entregues_desde.and_hms_opt(0, 0, 0).unwrap_or_default()))
+        .fetch_all(&self.pool)
+        .await
+        .map_err(map_db)?;
+        let mut orders: Vec<Order> = rows.into_iter().map(Order::try_from).collect::<Result<Vec<_>, _>>()?;
+        self.attach_items(&mut orders).await?;
+        Ok(orders)
+    }
+
     async fn find_all_light(&self, company_id: Uuid) -> Result<Vec<Order>, CoreError> {
         // Sem `attach_items`: `items` fica vazio de propósito.
         let rows = sqlx::query_as::<_, OrderRow>(

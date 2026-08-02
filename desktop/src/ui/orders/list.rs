@@ -236,6 +236,17 @@ pub(crate) fn setup_open_order(
     });
 }
 
+/// Janela de pedidos CONCLUÍDOS no quadro. Numa casa de 100 pedidos/dia são
+/// ~36 mil por ano: carregar tudo (com os itens de cada um) cresce sem limite
+/// para mostrar um painel operacional. 30 dias cobrem com folga a consulta do
+/// dia a dia; o histórico completo está em Relatórios.
+const DIAS_DE_CONCLUIDOS: i64 = 30;
+
+/// Subtítulo da coluna Entregue. A contagem e o total dela passam a refletir
+/// a janela, então o rótulo precisa dizer isso — número que muda de
+/// significado sem aviso é pior que número ausente.
+const CONCLUIDOS_SUBTITULO: &str = "Concluídos · últimos 30 dias";
+
 /// Carrega pedidos + clientes em paralelo e monta a lista de `OrderData`.
 async fn load_orders_with_customers(
     state: &DesktopState,
@@ -244,7 +255,13 @@ async fn load_orders_with_customers(
     // MANTÉM os itens: o card mostra a contagem, o resumo ("2× Coca, 1×
     // Pizza") e o subtotal somado das linhas — tudo derivado de `items`.
     // Trocar por `find_all_light` esvaziaria os três em silêncio.
-    let orders = state.order_service.find_all(company_id).await?;
+    //
+    // O QUADRO é o painel do dia: traz todo pedido em andamento (de
+    // qualquer data — esconder trabalho pendente seria trocar desempenho
+    // por erro de operação) e os concluídos dos últimos
+    // `DIAS_DE_CONCLUIDOS`. O histórico completo vive em Relatórios.
+    let desde = letaf_core::tz::today() - chrono::Duration::days(DIAS_DE_CONCLUIDOS);
+    let orders = state.order_service.find_board(company_id, desde).await?;
     let customers = state.customer_service.find_all(company_id).await?;
     let map: HashMap<Uuid, (String, String)> = customers
         .into_iter()
@@ -768,7 +785,7 @@ fn build_kanban_cols(orders: &[OrderData]) -> Vec<KanbanCol> {
         ("confirmed", "Confirmado", "Aceito"),
         ("preparing", "Preparando", "Em Produção"),
         ("ready", "Pronto", "Aguardando Retirada"),
-        ("delivered", "Entregue", "Concluído"),
+        ("delivered", "Entregue", CONCLUIDOS_SUBTITULO),
     ];
     COLS.iter()
         .map(|(key, label, subtitle)| {

@@ -44,6 +44,22 @@ pub trait OrderRepository: Send + Sync {
     /// Lista todos os pedidos de uma empresa (sem itens, para listagem).
     async fn find_all(&self, company_id: Uuid) -> Result<Vec<Order>, CoreError>;
 
+    /// Pedidos do QUADRO operacional: todo pedido em andamento (qualquer
+    /// data) mais os concluídos desde `entregues_desde`.
+    ///
+    /// A tela de Pedidos é o painel do dia, não o arquivo da loja. Carregar
+    /// todo o histórico com os itens hidratados de cada pedido cresce sem
+    /// limite — numa casa de 100 pedidos/dia são ~36 mil por ano.
+    ///
+    /// O recorte por data vale só para CONCLUÍDOS: pedido em andamento
+    /// aparece sempre, por mais antigo que seja. Esconder trabalho pendente
+    /// para economizar leitura seria trocar desempenho por erro de operação.
+    async fn find_board(
+        &self,
+        company_id: Uuid,
+        entregues_desde: chrono::NaiveDate,
+    ) -> Result<Vec<Order>, CoreError>;
+
     /// Pedidos SEM os itens (`items` vem vazio).
     ///
     /// `find_all` hidrata os itens de TODOS os pedidos — no dataset de teste,
