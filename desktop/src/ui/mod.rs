@@ -389,3 +389,103 @@ fn setup_confirm_delete(
         });
     });
 }
+
+#[cfg(test)]
+mod coerencia_de_carga {
+    //! Guarda estrutural: tela que USA os itens do pedido não pode carregar
+    //! os pedidos sem eles.
+    //!
+    //! `find_all_light` existe para telas que só mostram cabeçalho (número,
+    //! cliente, total, status) — economiza hidratar `order_items` de todos os
+    //! pedidos. Mas quem exibe contagem de itens, resumo ("2× Coca") ou
+    //! subtotal somado das linhas DEPENDE de `items`, e trocar o carregador
+    //! nesses lugares não quebra a compilação nem nenhum teste: a tela
+    //! simplesmente passa a mostrar zero e vazio.
+    //!
+    //! Foi exatamente o que quase entrou no kanban de Pedidos e na tela de
+    //! Clientes. Este teste encoda a lição: se um módulo lê `.items`, ele não
+    //! pode chamar `find_all_light`.
+
+    use std::path::Path;
+
+    /// Todos os `.rs` de um diretório, recursivamente.
+    fn arquivos_rs(dir: &Path, saida: &mut Vec<std::path::PathBuf>) {
+        let Ok(entradas) = std::fs::read_dir(dir) else { return };
+        for e in entradas.flatten() {
+            let p = e.path();
+            if p.is_dir() {
+                arquivos_rs(&p, saida);
+            } else if p.extension().is_some_and(|x| x == "rs") {
+                saida.push(p);
+            }
+        }
+    }
+
+    /// Nome do módulo de uma tela: o diretório logo abaixo de `src/ui`, ou o
+    /// próprio arquivo quando a tela é um `.rs` solto.
+    fn modulo(raiz: &Path, arquivo: &Path) -> String {
+        arquivo
+            .strip_prefix(raiz)
+            .ok()
+            .and_then(|r| r.components().next())
+            .map(|c| c.as_os_str().to_string_lossy().to_string())
+            .unwrap_or_default()
+    }
+
+    #[test]
+    fn tela_que_usa_itens_nao_carrega_pedidos_sem_eles() {
+        let raiz = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/ui");
+        let mut arquivos = Vec::new();
+        arquivos_rs(&raiz, &mut arquivos);
+        assert!(
+            arquivos.len() > 20,
+            "varredura não encontrou os arquivos da UI — caminho errado?"
+        );
+
+        let mut usa_itens: std::collections::HashSet<String> = Default::default();
+        let mut carrega_leve: std::collections::HashMap<String, String> = Default::default();
+
+        for arquivo in &arquivos {
+            let Ok(src) = std::fs::read_to_string(arquivo) else { continue };
+            // Só o código de PRODUÇÃO: o próprio corpo deste teste cita as
+            // duas expressões e se autodenunciava.
+            let src = src.split("#[cfg(test)]").next().unwrap_or("").to_string();
+            let m = modulo(&raiz, arquivo);
+            // `order.items` / `o.items` / `pedido.items` — sempre precedido de
+            // ponto, para não casar com `self.items` de outros domínios.
+            for linha in src.lines() {
+                let codigo = linha.split("//").next().unwrap_or(linha);
+                if codigo.contains("order.items")
+                    || codigo.contains("o.items")
+                    || codigo.contains("order_items")
+                {
+                    usa_itens.insert(m.clone());
+                }
+                if codigo.contains("find_all_light") {
+                    carrega_leve.insert(m.clone(), arquivo.display().to_string());
+                }
+            }
+        }
+
+        let conflitos: Vec<&String> = carrega_leve
+            .keys()
+            .filter(|m| usa_itens.contains(*m))
+            .collect();
+        assert!(
+            conflitos.is_empty(),
+            "módulo(s) da UI leem os itens do pedido MAS carregam com \
+             `find_all_light`, que devolve `items` vazio — a tela mostraria \
+             contagem zero e resumo em branco, sem erro nenhum: {conflitos:?}"
+        );
+
+        // Guarda contra o teste passar por não achar nada.
+        assert!(
+            !carrega_leve.is_empty(),
+            "nenhum uso de `find_all_light` encontrado — o teste perdeu o alvo"
+        );
+        assert!(
+            !usa_itens.is_empty(),
+            "nenhum uso de `.items` encontrado — o teste perdeu o alvo"
+        );
+    }
+}

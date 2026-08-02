@@ -37,7 +37,9 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.97.1"
       - uses: Swatinem/rust-cache@v2
 
       # Dependências de sistema do Linux: Slint (winit/fontconfig/xcb/

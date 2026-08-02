@@ -1,0 +1,14 @@
+# Versão do Rust fixada para TODA a equipe e para o CI.
+#
+# Sem isto, cada máquina usa o stable que tiver instalado e o CI usa o stable
+# do dia. A diferença não é teórica: o CI ficou semanas vermelho porque um
+# lint (`useless_borrows_in_formatting`) só existe a partir do clippy 1.97 e
+# a máquina de desenvolvimento estava no 1.96 — `cargo clippy` passava aqui e
+# reprovava lá, sem ninguém entender por quê.
+#
+# `rustup` respeita este arquivo automaticamente: basta entrar no diretório.
+# Para subir de versão, altere aqui e rode a suíte — a mudança fica no
+# histórico junto do commit que a exigiu.
+[toolchain]
+channel = "1.97.1"
+components = ["clippy", "rustfmt"]

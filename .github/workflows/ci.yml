@@ -31,7 +31,12 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - uses: dtolnay/rust-toolchain@stable
+      # Sem `@stable`: a versão vem do `rust-toolchain.toml` do repositório,
+      # para o CI e as máquinas de desenvolvimento usarem exatamente a mesma.
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.97.1"
+          components: clippy
         with:
           components: clippy
       - uses: Swatinem/rust-cache@v2
@@ -86,7 +91,12 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - uses: dtolnay/rust-toolchain@stable
+      # Sem `@stable`: a versão vem do `rust-toolchain.toml` do repositório,
+      # para o CI e as máquinas de desenvolvimento usarem exatamente a mesma.
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.97.1"
+          components: clippy
       - uses: Swatinem/rust-cache@v2
 
       - name: Deps de sistema
