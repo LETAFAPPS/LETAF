@@ -37,8 +37,6 @@ jobs:
         with:
           toolchain: "1.97.1"
           components: clippy
-        with:
-          components: clippy
       - uses: Swatinem/rust-cache@v2
 
       # Mesmas dependências do build de release: o workspace inclui o
