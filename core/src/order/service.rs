@@ -302,6 +302,24 @@ impl OrderService {
         self.repo.find_unpaid_wallet(company_id).await
     }
 
+    /// Busca paginada por número ou cliente, em todo o histórico.
+    ///
+    /// Termo vazio devolve lista vazia: quem não filtrou quer o quadro, não
+    /// o histórico inteiro.
+    pub async fn search(
+        &self,
+        company_id: Uuid,
+        termo: &str,
+        limite: i64,
+        deslocamento: i64,
+    ) -> Result<Vec<Order>, CoreError> {
+        let termo = termo.trim();
+        if termo.is_empty() {
+            return Ok(Vec::new());
+        }
+        self.repo.search(company_id, termo, limite, deslocamento).await
+    }
+
     /// Pedidos do quadro operacional (ver o trait).
     pub async fn find_board(
         &self,

@@ -60,6 +60,24 @@ pub trait OrderRepository: Send + Sync {
         entregues_desde: chrono::NaiveDate,
     ) -> Result<Vec<Order>, CoreError>;
 
+    /// Busca pedidos por número OU nome/telefone do cliente, em TODO o
+    /// histórico, devolvendo no máximo `limite` a partir de `deslocamento`.
+    ///
+    /// O quadro operacional só carrega os concluídos dos últimos 30 dias
+    /// (ver [`Self::find_board`]). Sem esta busca, digitar o número de um
+    /// pedido antigo na tela de Pedidos não acharia nada — e sem erro
+    /// nenhum, o que é pior que não ter busca.
+    ///
+    /// Paginada porque um termo curto ("1", "maria") casa com muita coisa
+    /// numa loja antiga, e a tela não tem como mostrar milhares de cards.
+    async fn search(
+        &self,
+        company_id: Uuid,
+        termo: &str,
+        limite: i64,
+        deslocamento: i64,
+    ) -> Result<Vec<Order>, CoreError>;
+
     /// Pedidos SEM os itens (`items` vem vazio).
     ///
     /// `find_all` hidrata os itens de TODOS os pedidos — no dataset de teste,

@@ -501,6 +501,38 @@ impl OrderRepository for PgOrderRepository {
         Ok(orders)
     }
 
+    async fn search(
+        &self,
+        company_id: Uuid,
+        termo: &str,
+        limite: i64,
+        deslocamento: i64,
+    ) -> Result<Vec<Order>, CoreError> {
+        let curinga = format!("%{}%", termo.to_lowercase());
+        let prefixo = format!("{termo}%");
+        let rows = sqlx::query_as::<_, OrderRow>(
+            "SELECT o.* FROM orders o
+             LEFT JOIN customers c ON c.id = o.customer_id
+             WHERE o.company_id = $1 AND o.deleted_at IS NULL
+               AND (o.number::text LIKE $2
+                    OR LOWER(c.name) LIKE $3
+                    OR c.phone LIKE $3)
+             ORDER BY o.created_at DESC
+             LIMIT $4 OFFSET $5",
+        )
+        .bind(company_id)
+        .bind(&prefixo)
+        .bind(&curinga)
+        .bind(limite)
+        .bind(deslocamento)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(map_db)?;
+        let mut orders: Vec<Order> = rows.into_iter().map(Order::from).collect();
+        self.attach_items(&mut orders).await?;
+        Ok(orders)
+    }
+
     async fn find_all_light(&self, company_id: Uuid) -> Result<Vec<Order>, CoreError> {
         let rows = sqlx::query_as::<_, OrderRow>(
             "SELECT * FROM orders WHERE company_id = $1 AND deleted_at IS NULL

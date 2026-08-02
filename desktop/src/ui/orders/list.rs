@@ -31,10 +31,23 @@ pub(crate) fn setup_refresh_orders(
     ui.global::<OrdersState>().on_refresh_orders(move || {
         let ui_weak = ui_weak.clone();
         let state = state.clone();
+        // Lido AQUI, no event loop: dentro da task não dá para tocar a UI.
+        let termo = ui_weak
+            .upgrade()
+            .map(|ui| ui.global::<OrdersState>().get_order_search_query().to_string())
+            .unwrap_or_default();
 
         handle.spawn(async move {
             let cid = state.company_id();
-            let result = load_orders_with_customers(&state, cid).await;
+            // Com termo digitado a busca vai ao BANCO e varre todo o
+            // histórico; sem termo, carrega o quadro operacional. O quadro só
+            // traz os concluídos dos últimos 30 dias, então filtrar sobre ele
+            // faria o número de um pedido antigo "não existir" em silêncio.
+            let result = if termo.trim().is_empty() {
+                load_orders_with_customers(&state, cid).await
+            } else {
+                buscar_pedidos(&state, cid, &termo).await
+            };
 
             let _ = slint::invoke_from_event_loop(move || {
                 let Some(ui) = ui_weak.upgrade() else { return };
@@ -67,15 +80,19 @@ fn apply_loaded_orders(ui: &MainWindow, all: Vec<OrderData>) {
     let mut all = all;
     all.sort_by_key(|o| o.number.as_str().parse::<u64>().unwrap_or(0));
 
-    // Badge da sidebar: ativos sobre a lista completa (OrderData da UI).
-    let active_count = all
-        .iter()
-        .filter(|o| {
-            let s = o.status.as_str();
-            s != "delivered" && s != "cancelled"
-        })
-        .count() as i32;
-    ui.set_orders_active_count(active_count);
+    // Badge da sidebar: ativos sobre a lista completa. NÃO atualiza durante
+    // uma busca — ali a lista são os resultados do termo, e o badge passaria
+    // a contar "ativos que casam com a busca", que não é o que ele significa.
+    if query.is_empty() {
+        let active_count = all
+            .iter()
+            .filter(|o| {
+                let s = o.status.as_str();
+                s != "delivered" && s != "cancelled"
+            })
+            .count() as i32;
+        ui.set_orders_active_count(active_count);
+    }
 
     // Busca textual (nº/cliente) + filtro por data, combinados.
     let searched: Vec<OrderData> = all
@@ -115,7 +132,16 @@ fn apply_loaded_orders(ui: &MainWindow, all: Vec<OrderData>) {
         items.reverse();
     }
     let count = items.len();
+    // Teto atingido: avisa para o operador refinar, em vez de concluir que o
+    // resto não existe. Só quando há termo — sem busca, o número é do quadro.
+    let no_teto = !query.is_empty() && count as i64 >= LIMITE_DA_BUSCA;
     ui.global::<OrdersState>().set_orders(ModelRc::new(VecModel::from(items)));
+    if no_teto {
+        ui.set_status_message(SharedString::from(format!(
+            "Mostrando os {count} mais recentes — refine a busca para ver outros"
+        )));
+        return;
+    }
     ui.set_status_message(SharedString::from(format!(
         "{count} pedido(s) carregado(s)"
     )));
@@ -236,6 +262,12 @@ pub(crate) fn setup_open_order(
     });
 }
 
+/// Teto de resultados da busca. Um termo curto ("1", "maria") casa com muita
+/// coisa numa loja antiga, e a tela não desenha milhares de cards. O aviso na
+/// barra de status diz quando o teto foi atingido, para o operador refinar em
+/// vez de achar que o resto não existe.
+const LIMITE_DA_BUSCA: i64 = 200;
+
 /// Janela de pedidos CONCLUÍDOS no quadro. Numa casa de 100 pedidos/dia são
 /// ~36 mil por ano: carregar tudo (com os itens de cada um) cresce sem limite
 /// para mostrar um painel operacional. 30 dias cobrem com folga a consulta do
@@ -246,6 +278,24 @@ const DIAS_DE_CONCLUIDOS: i64 = 30;
 /// a janela, então o rótulo precisa dizer isso — número que muda de
 /// significado sem aviso é pior que número ausente.
 const CONCLUIDOS_SUBTITULO: &str = "Concluídos · últimos 30 dias";
+
+/// Busca pedidos no banco (todo o histórico) e monta os `OrderData`.
+async fn buscar_pedidos(
+    state: &DesktopState,
+    company_id: Uuid,
+    termo: &str,
+) -> Result<Vec<OrderData>, letaf_core::error::CoreError> {
+    let orders = state
+        .order_service
+        .search(company_id, termo, LIMITE_DA_BUSCA, 0)
+        .await?;
+    let customers = state.customer_service.find_all(company_id).await?;
+    let map: HashMap<Uuid, (String, String)> = customers
+        .into_iter()
+        .map(|c| (c.base.id, (c.name, c.phone.unwrap_or_default())))
+        .collect();
+    Ok(orders.iter().map(|o| to_order_data(o, &map)).collect())
+}
 
 /// Carrega pedidos + clientes em paralelo e monta a lista de `OrderData`.
 async fn load_orders_with_customers(
