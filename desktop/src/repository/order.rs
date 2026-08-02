@@ -301,6 +301,19 @@ impl OrderRepository for SqliteOrderRepository {
         Ok(row.0)
     }
 
+    async fn find_all_light(&self, company_id: Uuid) -> Result<Vec<Order>, CoreError> {
+        // Sem `attach_items`: `items` fica vazio de propósito.
+        let rows = sqlx::query_as::<_, OrderRow>(
+            "SELECT * FROM orders WHERE company_id = ?1 AND deleted_at IS NULL \
+             ORDER BY created_at DESC",
+        )
+        .bind(company_id.to_string())
+        .fetch_all(&self.pool)
+        .await
+        .map_err(map_db)?;
+        rows.into_iter().map(Order::try_from).collect()
+    }
+
     async fn find_in_period(
         &self,
         company_id: Uuid,

@@ -44,6 +44,16 @@ pub trait OrderRepository: Send + Sync {
     /// Lista todos os pedidos de uma empresa (sem itens, para listagem).
     async fn find_all(&self, company_id: Uuid) -> Result<Vec<Order>, CoreError>;
 
+    /// Pedidos SEM os itens (`items` vem vazio).
+    ///
+    /// `find_all` hidrata os itens de TODOS os pedidos — no dataset de teste,
+    /// 90 mil linhas de `order_items` para 30 mil pedidos, 404 ms e 34,8 MB.
+    /// As telas que listam pedidos (kanban, tesouraria, clientes) mostram
+    /// número, cliente, total e status: nenhuma abre os itens, que só
+    /// aparecem no DETALHE, carregado um pedido por vez. Sem a hidratação:
+    /// 106 ms e 5,8 MB, sem mudar nada do que a tela exibe.
+    async fn find_all_light(&self, company_id: Uuid) -> Result<Vec<Order>, CoreError>;
+
     /// Conta os registros ATIVOS da empresa (para o painel do super admin).
     ///
     /// Implementação padrão carrega a lista — suficiente para o SQLite

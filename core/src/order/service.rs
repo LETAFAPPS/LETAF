@@ -302,6 +302,11 @@ impl OrderService {
         self.repo.find_unpaid_wallet(company_id).await
     }
 
+    /// Pedidos sem os itens — para telas que só listam (ver o trait).
+    pub async fn find_all_light(&self, company_id: Uuid) -> Result<Vec<Order>, CoreError> {
+        self.repo.find_all_light(company_id).await
+    }
+
     pub async fn find_all(&self, company_id: Uuid) -> Result<Vec<Order>, CoreError> {
         self.repo.find_all(company_id).await
     }

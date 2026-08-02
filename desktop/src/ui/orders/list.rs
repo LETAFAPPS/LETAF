@@ -241,6 +241,9 @@ async fn load_orders_with_customers(
     state: &DesktopState,
     company_id: Uuid,
 ) -> Result<Vec<OrderData>, letaf_core::error::CoreError> {
+    // MANTÉM os itens: o card mostra a contagem, o resumo ("2× Coca, 1×
+    // Pizza") e o subtotal somado das linhas — tudo derivado de `items`.
+    // Trocar por `find_all_light` esvaziaria os três em silêncio.
     let orders = state.order_service.find_all(company_id).await?;
     let customers = state.customer_service.find_all(company_id).await?;
     let map: HashMap<Uuid, (String, String)> = customers

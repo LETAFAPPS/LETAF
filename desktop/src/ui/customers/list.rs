@@ -41,6 +41,8 @@ pub(crate) fn setup_refresh_customers(
                 Err(e) => { tracing::error!("Failed to load customers: {e}"); return; }
             };
             // Carrega todos os pedidos uma vez e agrupa por cliente.
+            // MANTÉM os itens: `customers/data.rs` monta o resumo do último
+            // pedido do cliente a partir de `items`.
             let orders = state.order_service.find_all(cid).await.unwrap_or_default();
             // Endereços de TODOS os clientes numa única query (evita N+1)
             // e agrupa por customer_id em memória.

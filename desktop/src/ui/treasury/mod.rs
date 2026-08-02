@@ -112,7 +112,11 @@ async fn build_snapshot(
 
     // Carrega as fontes (§10: acesso a dados via service/repository) e
     // entrega ao core, que decide o que é dinheiro novo.
-    let orders = state.order_service.find_all(cid).await.unwrap_or_default();
+    // A consolidação lê número, data, total, `paid` e status — nunca os
+    // itens. O saldo continua somando TODOS os pedidos pagos (truncar por
+    // data mudaria um valor financeiro), só que sem carregar 90 mil linhas
+    // de `order_items` junto.
+    let orders = state.order_service.find_all_light(cid).await.unwrap_or_default();
     let wallet_movements = load_wallet_movements(state).await;
     let finance_entries = state.finance_service.find_all(cid).await.unwrap_or_default();
     let cashbox_movements = state
