@@ -33,7 +33,16 @@ pub(crate) fn setup_refresh(ui: &MainWindow, state: &DesktopState, handle: &toki
         let state = state.clone();
         handle.spawn(async move {
             let cid = state.company_id();
-            let orders = state.order_service.find_all(cid).await.unwrap_or_default();
+            // Os períodos do dashboard são hoje/semana/mês, e cada um
+            // compara com o anterior — o mais antigo que ele alcança é o 1º
+            // do mês passado. 90 dias cobrem com folga; antes carregava todo
+            // o histórico para mostrar "hoje".
+            let hoje = letaf_core::tz::today();
+            let orders = state
+                .order_service
+                .find_in_period(cid, hoje - chrono::Duration::days(90), hoje)
+                .await
+                .unwrap_or_default();
             // Fuso da LOJA (mesmo campo que o servidor usa em
             // `availability::local_now`): `created_at` é UTC, e sem converter
             // uma venda das 21h em BRT cairia no dia seguinte. `_light` não

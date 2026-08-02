@@ -138,11 +138,25 @@ pub(crate) fn setup_sync_listener(
             };
             if !visible { continue; }
             let cid = state.company_id();
-            let orders = state.order_service.find_all(cid).await.unwrap_or_default();
+            // Mesma janela do refresh manual (ver `setup_refresh`): só o que a
+            // tela pode pedir, não o histórico inteiro.
+            let hoje = letaf_core::tz::today();
+            let inicio = chrono::NaiveDate::from_ymd_opt(hoje.year() - 1, 1, 1).unwrap_or(hoje);
+            let orders = state
+                .order_service
+                .find_in_period(cid, inicio, hoje)
+                .await
+                .unwrap_or_default();
+            let fiado_aberto = state
+                .order_service
+                .find_unpaid_wallet(cid)
+                .await
+                .unwrap_or_default();
             let products = state.product_service.find_all(cid).await.unwrap_or_default();
             let categories = state.category_service.find_all(cid).await.unwrap_or_default();
             let customers = state.customer_service.find_all(cid).await.unwrap_or_default();
             if let Ok(mut g) = caches.orders.lock() { *g = orders; }
+            if let Ok(mut g) = caches.fiado_aberto.lock() { *g = fiado_aberto; }
             if let Ok(mut g) = caches.products.lock() { *g = products; }
             if let Ok(mut g) = caches.categories.lock() { *g = categories; }
             if let Ok(mut g) = caches.customers.lock() { *g = customers; }

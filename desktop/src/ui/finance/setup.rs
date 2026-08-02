@@ -257,7 +257,16 @@ pub(crate) async fn reapply(
         .unwrap_or_default();
     // Vendas pagas (PDV) entram no fluxo de caixa do dia em que foram
     // criadas — decisão do usuário na Fase 1 (AskUserQuestion).
-    let orders = state.order_service.find_all(cid).await.unwrap_or_default();
+    // O fluxo de caixa é PROJEÇÃO: `analytics::cash_flow` indexa por
+    // `dia - hoje` dentro de `0..30`, então pedido anterior a hoje não entra
+    // na conta. Uma semana cobre com folga qualquer borda de fuso, em vez de
+    // carregar todo o histórico para descartá-lo.
+    let hoje = letaf_core::tz::today();
+    let orders = state
+        .order_service
+        .find_in_period(cid, hoje - chrono::Duration::days(7), hoje)
+        .await
+        .unwrap_or_default();
     let cal_snapshot = cal.lock().ok().map(|g| g.clone()).unwrap_or_else(CalState::today);
     // Badge da sidebar: contas vencidas (mesmo critério do KPI "VENCIDOS").
     let overdue = overdue_count(&entries);

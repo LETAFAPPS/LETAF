@@ -46,7 +46,14 @@ fn seed_watcher_on_boot(state: &DesktopState, handle: &tokio::runtime::Handle) {
     let state = state.clone();
     handle.spawn(async move {
         let cid = state.company_id();
-        match state.order_service.find_all(cid).await {
+        // Só PENDENTES: o `seed` do watcher ignora qualquer outro status, e
+        // carregar todo o histórico (com os itens hidratados) para semear um
+        // punhado de pedidos era o custo mais desproporcional do boot.
+        match state
+            .order_service
+            .find_by_status(cid, &letaf_core::order::model::OrderStatus::Pending)
+            .await
+        {
             Ok(orders) => {
                 state.alarm_watcher.seed(orders.iter());
                 tracing::debug!(
@@ -80,10 +87,17 @@ fn setup_alarm_observer(
             // Conta pendentes em paralelo ao set/ativação do modal —
             // se falhar (DB offline), seguimos com 0 para não
             // bloquear o aviso visual.
-            let pending = match state.order_service.find_all(state.company_id()).await {
-                Ok(os) => os.iter()
-                    .filter(|o| matches!(o.status, letaf_core::order::model::OrderStatus::Pending))
-                    .count() as i32,
+            // Conta só o que interessa, no banco — antes carregava todos os
+            // pedidos já feitos para filtrar os pendentes em memória.
+            let pending = match state
+                .order_service
+                .find_by_status(
+                    state.company_id(),
+                    &letaf_core::order::model::OrderStatus::Pending,
+                )
+                .await
+            {
+                Ok(os) => os.len() as i32,
                 Err(_) => 0,
             };
             let ui_weak = ui_weak.clone();
