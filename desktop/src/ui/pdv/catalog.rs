@@ -141,7 +141,10 @@ pub(crate) fn setup_refresh(
             // são reprocessados.
             let mut new_cache: HashMap<Uuid, SharedPixelBuffer<slint::Rgba8Pixel>> = HashMap::new();
             for p in &products {
-                if let Some(b64) = p.image_data.as_deref().filter(|s| !s.is_empty()) {
+                // Miniatura primeiro: o `find_all` não traz mais `image_data`
+                // (economia); a lista do PDV desenha um quadradinho, que o thumb
+                // (~2 KB) cobre. Fallback para produto ainda sem miniatura.
+                if let Some(b64) = p.thumb_data.as_deref().or(p.image_data.as_deref()).filter(|s| !s.is_empty()) {
                     if let Some(buf) = super::super::image::decode_pixel_buffer(b64) {
                         new_cache.insert(p.base.id, buf);
                     }

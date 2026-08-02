@@ -347,7 +347,8 @@ pub(crate) fn fill_products(
             swatch_color: color_for(&a.category_name),
             image_b64: product_by_id
                 .get(&a.product_id)
-                .and_then(|p| p.image_data.clone())
+                // Miniatura da lista (o `find_all` não traz `image_data`).
+                .and_then(|p| p.thumb_data.clone().or_else(|| p.image_data.clone()))
                 .filter(|s| !s.is_empty()),
         })
         .collect();

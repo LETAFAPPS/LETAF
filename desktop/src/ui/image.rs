@@ -53,7 +53,11 @@ pub(crate) fn make_thumbnail(image_b64: &str) -> Option<String> {
     }
     let bytes = base64::engine::general_purpose::STANDARD.decode(image_b64).ok()?;
     let img = image::load_from_memory(&bytes).ok()?;
-    let saida = resize_decoded_to_jpeg(img, THUMB_PX, THUMB_QUALITY)?;
+    // `resize_decoded_for_storage` (não JPEG direto): preserva a transparência
+    // quando a imagem tem alpha — PNG com fundo transparente vira PNG. Gerar
+    // JPEG aqui pintava o fundo transparente de uma cor sólida, criando a
+    // "faixa/sombra" sob a miniatura na lista de produtos.
+    let saida = resize_decoded_for_storage(img, THUMB_PX, THUMB_QUALITY)?;
     Some(base64::engine::general_purpose::STANDARD.encode(saida))
 }
 
@@ -320,5 +324,51 @@ mod tests {
         let img = solid(Rgba([200, 100, 50, 128]));
         let bytes = resize_decoded_for_storage(img, 200, 80).expect("encoded");
         assert_eq!(&bytes[0..4], &[0x89, 0x50, 0x4E, 0x47]);
+    }
+
+    /// A miniatura de uma imagem TRANSPARENTE tem que sair PNG (com alpha),
+    /// não JPEG — senão o fundo transparente vira uma faixa sólida na lista
+    /// (a "sombra" reportada). Trava a regressão do `make_thumbnail`.
+    #[test]
+    fn miniatura_de_transparente_sai_png() {
+        use base64::Engine;
+        // PNG 20×20 totalmente transparente, em base64 (o que `make_thumbnail`
+        // recebe).
+        let mut buf = Vec::new();
+        let transp = DynamicImage::ImageRgba8(RgbaImage::from_pixel(20, 20, Rgba([0, 0, 0, 0])));
+        transp
+            .write_with_encoder(image::codecs::png::PngEncoder::new(std::io::Cursor::new(
+                &mut buf,
+            )))
+            .unwrap();
+        let b64 = base64::engine::general_purpose::STANDARD.encode(&buf);
+
+        let thumb_b64 = make_thumbnail(&b64).expect("miniatura gerada");
+        let thumb = base64::engine::general_purpose::STANDARD
+            .decode(&thumb_b64)
+            .unwrap();
+        assert_eq!(
+            &thumb[0..4],
+            &[0x89, 0x50, 0x4E, 0x47],
+            "miniatura de imagem transparente tem que ser PNG, não JPEG"
+        );
+    }
+
+    /// Imagem opaca vira miniatura JPEG (menor) — o caminho normal.
+    #[test]
+    fn miniatura_de_opaca_sai_jpeg() {
+        use base64::Engine;
+        let mut buf = Vec::new();
+        let opaca = solid(Rgba([200, 30, 30, 255]));
+        opaca
+            .write_with_encoder(image::codecs::png::PngEncoder::new(std::io::Cursor::new(
+                &mut buf,
+            )))
+            .unwrap();
+        let b64 = base64::engine::general_purpose::STANDARD.encode(&buf);
+        let thumb = base64::engine::general_purpose::STANDARD
+            .decode(make_thumbnail(&b64).unwrap())
+            .unwrap();
+        assert_eq!(&thumb[0..3], &[0xFF, 0xD8, 0xFF]);
     }
 }

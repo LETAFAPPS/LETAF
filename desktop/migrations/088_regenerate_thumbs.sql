@@ -1,0 +1,13 @@
+-- Regenera as miniaturas de produto.
+--
+-- A 1ª versão de `make_thumbnail` gerava JPEG, que não tem canal alpha: o
+-- fundo transparente do PNG (ex.: a foto de um produto recortado) virava uma
+-- faixa sólida — a "sombra" que aparecia sob a miniatura na lista. O
+-- `make_thumbnail` agora usa o mesmo pipeline da imagem grande, que preserva
+-- transparência (PNG quando há alpha).
+--
+-- Zerar `thumb_data` faz o preenchimento em segundo plano do boot
+-- (`thumbs::spawn_backfill` → `find_sem_miniatura`) regerar TODAS com o código
+-- novo. É barato (poucas dezenas de produtos por loja) e não gera sync: o
+-- `set_thumbnail` grava só a coluna, sem tocar `updated_at`.
+UPDATE products SET thumb_data = NULL WHERE thumb_data IS NOT NULL;

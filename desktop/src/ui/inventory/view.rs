@@ -173,7 +173,10 @@ pub(crate) fn product_to_row(p: &Product, categories: &[Category], max_qty: f64)
     };
     let initials = make_initials(&p.name);
     let avatar_color = color_for_name(&cat_name);
-    let (product_image, has_image) = decode_product_thumb(p.image_data.as_deref());
+    // Miniatura da lista (o `find_all` não traz `image_data`); fallback p/
+    // produto ainda sem miniatura gerada.
+    let (product_image, has_image) =
+        decode_product_thumb(p.thumb_data.as_deref().or(p.image_data.as_deref()));
     InventoryProductRow {
         id: SharedString::from(p.base.id.to_string()),
         name: SharedString::from(p.name.clone()),
