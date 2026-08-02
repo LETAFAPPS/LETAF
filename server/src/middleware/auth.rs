@@ -208,6 +208,20 @@ impl FromRequestParts<AppState> for AuthClaims {
                 }
                 Some(_) => {}
             }
+        } else if claims.role == ROLE_SUPER_ADMIN {
+            // Super admin desativado no painel perde acesso NO PRÓXIMO request,
+            // não só na expiração (24h) do token. O gate de login já barra a
+            // emissão; sem esta checagem, um token emitido ANTES da
+            // desativação (guardado) mantinha o painel cross-tenant — incluindo
+            // impersonation — pela janela inteira. O master é sempre ativo.
+            if !state
+                .admin_role_service
+                .is_user_active(claims.sub)
+                .await
+                .unwrap_or(false)
+            {
+                return Err(ServerError::Jwt("Conta desativada ou removida".into()));
+            }
         }
         Ok(AuthClaims(claims))
     }

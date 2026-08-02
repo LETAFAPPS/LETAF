@@ -342,6 +342,21 @@ pub(crate) async fn sync_job_role(
     // Funções (RBAC) definem permissões — criar/editar exige gestão de
     // colaboradores, senão um operador forjaria uma Função de acesso total (§11).
     auth.require_permission("collaborators.edit")?;
+    // Anti-escalada: o operador não pode CONCEDER uma permissão que ele
+    // mesmo não possui. Sem isto, um gerente com `collaborators.edit` fazia
+    // `POST /sync/job-roles` na PRÓPRIA função com o conjunto total e, no
+    // próximo login, o JWT vinha com `finance.*`, `cash.*`, etc. A rota REST
+    // (`routes/job_roles.rs`) já tem esse gate; o caminho de sync não tinha.
+    auth.require_can_grant(&role.permissions)?;
+    // E também sobre as permissões ATUAIS da função-alvo: senão daria para
+    // sequestrar uma função poderosa (rebaixá-la e reusar noutro login).
+    if let Some(atual) = state
+        .job_role_service
+        .find_by_id(auth.0.company_id, role.base.id)
+        .await?
+    {
+        auth.require_can_grant(&atual.permissions)?;
+    }
     state
         .job_role_service
         .sync_upsert(auth.0.company_id, role)

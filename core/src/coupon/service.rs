@@ -57,9 +57,7 @@ impl CouponService {
         total_uses: i64,
         user_uses: i64,
     ) -> Result<(Coupon, Decimal), CoreError> {
-        let code = code.trim()
-            .chars().filter(|c| !c.is_whitespace()).collect::<String>()
-            .to_uppercase();
+        let code = normalize_code(code);
         if code.is_empty() {
             return Err(CoreError::Validation("Informe um código de cupom".into()));
         }
@@ -231,8 +229,13 @@ impl CouponService {
     }
 }
 
-/// Normaliza o código: trim, sem espaços internos, MAIÚSCULAS.
-fn normalize_code(raw: &str) -> String {
+/// Normaliza o código do cupom: trim, sem espaços internos, MAIÚSCULAS.
+///
+/// Fonte ÚNICA de normalização — o handler de checkout usa a MESMA para
+/// CONTAR usos. Divergir (ex.: contar com só `to_uppercase`) deixava
+/// `"PROMO 10"` casar com `PROMO10` no evaluate mas contar 0 usos, burlando
+/// `usage_limit`/`per_user_limit` indefinidamente.
+pub fn normalize_code(raw: &str) -> String {
     raw.trim()
         .chars()
         .filter(|c| !c.is_whitespace())

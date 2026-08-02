@@ -147,9 +147,29 @@ impl AuthService {
         if password.trim().is_empty() {
             return Err(CoreError::Validation("Senha é obrigatória".into()));
         }
-        // Considera registros soft-deleted: e-mail de funcionário ATIVO é
-        // duplicado (erro); e-mail de funcionário EXCLUÍDO é reaproveitado
-        // (reativação) — senão o INSERT violaria a UNIQUE (company_id, email).
+        // Isolamento entre empresas: o e-mail NÃO pode já pertencer a OUTRA
+        // empresa. O login do desktop resolve o usuário pelo e-mail em escopo
+        // GLOBAL (`find_by_email_global`), e ele RECUSA quando o mesmo e-mail
+        // existe em mais de uma empresa. Sem esta checagem, a loja A cadastrava
+        // o e-mail do dono da loja B e travava o login (e a recuperação de
+        // senha) dele para sempre — DoS cross-tenant. `Err` = já está em duas
+        // empresas; barra também.
+        match self.repo.find_by_email_global(&email).await {
+            Ok(Some(u)) if u.base.company_id != company_id && u.base.deleted_at.is_none() => {
+                return Err(CoreError::Validation(
+                    "E-mail já cadastrado em outra empresa".into(),
+                ));
+            }
+            Err(_) => {
+                return Err(CoreError::Validation(
+                    "E-mail já cadastrado em outra empresa".into(),
+                ));
+            }
+            _ => {}
+        }
+        // Dentro do PRÓPRIO tenant: e-mail de funcionário ATIVO é duplicado
+        // (erro); de funcionário EXCLUÍDO é reaproveitado (reativação) — senão
+        // o INSERT violaria a UNIQUE (company_id, email).
         let existing = self.repo.find_by_email_any(company_id, &email).await?;
         if matches!(&existing, Some(u) if u.base.deleted_at.is_none()) {
             return Err(CoreError::Validation("E-mail já cadastrado".into()));

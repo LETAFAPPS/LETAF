@@ -533,6 +533,16 @@ async fn efi_pix_webhook(
             tracing::warn!("Webhook PIX rejeitado: hmac ausente ou inválido");
             return StatusCode::UNAUTHORIZED;
         }
+    } else {
+        // Sem HMAC configurado, este webhook é FORJÁVEL. Em produção o boot
+        // já barra (a menos de EFI_WEBHOOK_TRUST_PROXY); fora de produção
+        // deixamos processar para os testes de sandbox, mas registramos —
+        // um "pago" aqui não pode passar despercebido. A defesa de VALOR
+        // (fatura sempre pelo `terms`, não pelo corpo) vale mesmo assim.
+        tracing::warn!(
+            "Webhook PIX processado SEM autenticação de origem (HMAC não \
+             configurado) — só aceitável em sandbox/homologação"
+        );
     }
     let Some(svc) = state.pix_auto.as_ref() else {
         return StatusCode::SERVICE_UNAVAILABLE;

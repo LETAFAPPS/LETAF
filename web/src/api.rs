@@ -431,7 +431,7 @@ mod server {
         let client = crate::http_client();
         let resp = client
             .get(format!("{base}/customer/addresses"))
-            .header("X-Tenant-Host", &th)
+            .header(reqwest::header::HOST, &th)
             .bearer_auth(token)
             .send()
             .await
@@ -464,7 +464,7 @@ mod server {
         });
         let resp = client
             .post(format!("{base}/customer/addresses"))
-            .header("X-Tenant-Host", &th)
+            .header(reqwest::header::HOST, &th)
             .bearer_auth(token)
             .json(&body)
             .send()

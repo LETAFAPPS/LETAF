@@ -203,7 +203,10 @@ async fn create_order(
             // Contagens via COUNT dedicado (§13) — não materializa o histórico
             // do cliente só para contar (que também tornaria um LIMIT no
             // histórico perigoso para o limite por usuário do cupom).
-            let target = raw_code.to_uppercase();
+            // MESMA normalização do `evaluate` (remove espaços internos): se
+            // divergir, um código com espaço casa o cupom mas conta 0 usos,
+            // furando o limite. Fonte única no core.
+            let target = letaf_core::coupon::service::normalize_code(raw_code);
             let customer_prior_orders = state.order_service
                 .count_customer_orders(tenant.company_id, customer_id).await?;
             let user_uses = state.order_service

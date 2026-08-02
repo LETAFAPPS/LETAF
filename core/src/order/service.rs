@@ -750,6 +750,14 @@ impl OrderService {
         }
         order.base.synced = true;
         for item in &mut order.items {
+            // Normaliza o filho ao tenant e ao pai — NÃO confia no payload
+            // (§11). `OrderItem` tem `company_id` e `order_id` livres no JSON;
+            // sem isto, um operador de uma loja forjava um item com o
+            // `company_id`/`order_id` de OUTRA empresa e o upsert o gravava na
+            // partição dela (a guarda do `ON CONFLICT` comparava payload
+            // contra payload, não contra o tenant do JWT).
+            item.base.company_id = company_id;
+            item.order_id = order.base.id;
             item.base.synced = true;
         }
         self.repo.sync_upsert(&order).await

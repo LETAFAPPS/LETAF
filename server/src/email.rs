@@ -13,10 +13,23 @@ use crate::config::SmtpConfig;
 /// Envia o código de redefinição de senha para `to`.
 pub async fn send_reset_code(smtp: &Option<SmtpConfig>, to: &str, code: &str) -> Result<(), String> {
     let Some(cfg) = smtp else {
-        tracing::warn!(
-            "SMTP não configurado — código de redefinição para {to}: {code} \
-             (defina SMTP_HOST/PORT/USER/PASS/FROM no .env para enviar de verdade)"
-        );
+        // NUNCA logar o código: quem lê o log (journald, agregador) faria
+        // takeover de qualquer conta pedindo o reset e lendo o código ali.
+        // Em release, sem SMTP o reset FALHA — melhor negar o serviço que
+        // vazar o segredo. Só em debug o código vai ao log, para facilitar o
+        // desenvolvimento local sem servidor de e-mail.
+        #[cfg(debug_assertions)]
+        tracing::warn!("SMTP não configurado (DEBUG) — código de {to}: {code}");
+        #[cfg(not(debug_assertions))]
+        {
+            let _ = (to, code);
+            tracing::error!(
+                "SMTP não configurado — não foi possível enviar o código de \
+                 redefinição. Defina SMTP_HOST/PORT/USER/PASS/FROM."
+            );
+            return Err("Serviço de e-mail indisponível".into());
+        }
+        #[cfg(debug_assertions)]
         return Ok(());
     };
 

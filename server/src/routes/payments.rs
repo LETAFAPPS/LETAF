@@ -56,8 +56,29 @@ async fn create_pix_charge(
         .payment_service
         .as_ref()
         .ok_or(ServerError::ServiceUnavailable("Gateway de pagamento não configurado"))?;
+    // Quando a cobrança quita uma FATURA, o valor vem da fatura (fonte de
+    // verdade), NUNCA do corpo (§11). Sem isto, `{"invoice_id": <real>,
+    // "amount": 0.01}` gerava um QR de 1 centavo que, ao ser pago, marcava a
+    // fatura como paga integralmente e reativava a assinatura. Também
+    // confirma que a fatura pertence ao tenant — id de outra empresa não é
+    // aceito.
+    let amount = match body.invoice_id {
+        Some(invoice_id) => {
+            let fatura = state
+                .subscription_service
+                .find_invoices(tenant.company_id)
+                .await?
+                .into_iter()
+                .find(|i| i.base.id == invoice_id)
+                .ok_or_else(|| {
+                    ServerError::Core(CoreError::NotFound("Fatura não encontrada".into()))
+                })?;
+            fatura.amount
+        }
+        None => body.amount,
+    };
     let charge = svc
-        .create_pix_charge(tenant.company_id, body.invoice_id, body.amount, &body.description)
+        .create_pix_charge(tenant.company_id, body.invoice_id, amount, &body.description)
         .await?;
     Ok((StatusCode::CREATED, Json(ChargeView { charge })))
 }

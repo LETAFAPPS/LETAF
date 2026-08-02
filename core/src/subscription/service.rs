@@ -696,6 +696,23 @@ impl SubscriptionService {
             return self.apply_refund(sub, company_id).await;
         }
 
+        // O valor é SEMPRE o do plano (fonte de verdade), nunca o `amount`
+        // que veio no evento/webhook. O corpo do webhook PIX não é confiável
+        // (§11) e a rota de cobrança manual recebe `amount` do cliente — sem
+        // isto, um evento forjado com `amount: 0,01` criaria a fatura do ciclo
+        // por 1 centavo e a marcaria paga. O `amount` do parâmetro só serve
+        // para o LOG de conferência.
+        let terms = self.terms(sub);
+        // Divergência entre o cobrado e o esperado fica no log para
+        // conferência — pode indicar mudança de plano ou evento forjado.
+        if amount != terms.amount {
+            tracing::warn!(
+                "Cobrança recorrente ({method_note}) com valor {amount}                  divergente do plano ({}); usando o valor do plano",
+                terms.amount
+            );
+        }
+        let amount = terms.amount;
+
         // 1) Garante uma invoice no ciclo corrente (reusa se já existe).
         let invoice = match self
             .repo
@@ -704,7 +721,6 @@ impl SubscriptionService {
         {
             Some(inv) => inv,
             None => {
-                let terms = self.terms(sub);
                 let number =
                     generate_invoice_number(today, &self.repo, company_id).await?;
                 // "Consta" o desconto na descrição da fatura quando houver.

@@ -108,10 +108,18 @@ impl JobRoleService {
     }
 
     /// Upsert de sincronização (§7.7 — last-write-wins).
+    ///
+    /// `sanitize` das permissões é OBRIGATÓRIO aqui: uma Função define acesso
+    /// (RBAC), e o payload vem do cliente não-confiável (§11). Sem validar as
+    /// chaves contra o catálogo, o push gravaria permissões inexistentes; a
+    /// checagem anti-escalada (não conceder o que não se possui) é
+    /// responsabilidade do handler, que tem o `AuthClaims` — o core não
+    /// conhece o chamador.
     pub async fn sync_upsert(&self, company_id: Uuid, mut role: JobRole) -> Result<(), CoreError> {
         if role.base.company_id != company_id {
             return Err(CoreError::Validation("Operação não permitida para esta empresa".into()));
         }
+        role.permissions = sanitize(&role.name, std::mem::take(&mut role.permissions))?;
         role.base.synced = true;
         self.repo.sync_upsert(&role).await
     }

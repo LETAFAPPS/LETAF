@@ -446,6 +446,18 @@ async fn login(
         .authenticate(tenant.company_id, &body.email, &body.password)
         .await?;
 
+    // Gate: super admin desativado não loga (§11). Mesmo do `login_desktop` —
+    // sem isto, um ex-super-admin desativado ainda emitia token pela rota
+    // web usando `Host: <subdomínio da plataforma>`, contornando a
+    // desativação do painel.
+    if user.role.is_super_admin()
+        && !state.admin_role_service.is_user_active(user.base.id).await?
+    {
+        return Err(ServerError::Core(letaf_core::error::CoreError::Validation(
+            "Usuário desativado. Contate o administrador.".into(),
+        )));
+    }
+
     let perms = resolve_perms(&state, &user).await;
     let tv = state
         .auth_service

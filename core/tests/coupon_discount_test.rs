@@ -78,3 +78,19 @@ fn max_discount_zero_means_no_cap() {
     let c = coupon("standard", "percent", dec!(50), dec!(0));
     assert_eq!(c.discount_for(dec!(100)), dec!(50));
 }
+
+/// A normalização do código é a MESMA função exposta que o handler de
+/// checkout usa para CONTAR usos. Se divergir, um código com espaço
+/// (`"PROMO 10"`) casa o cupom mas conta 0 usos, furando `usage_limit` e
+/// `per_user_limit` indefinidamente. Trava a forma canônica.
+#[test]
+fn normalize_code_remove_espacos_internos_e_maiusculiza() {
+    use letaf_core::coupon::service::normalize_code;
+    assert_eq!(normalize_code("PROMO 10"), "PROMO10");
+    assert_eq!(normalize_code("  promo10  "), "PROMO10");
+    assert_eq!(normalize_code("pro\tmo\u{00A0}10"), "PROMO10");
+    assert_eq!(normalize_code("PROMO10"), "PROMO10");
+    // Idempotente: normalizar o já-normalizado não muda nada — é o que
+    // garante que a contagem (sobre o código gravado) case com o evaluate.
+    assert_eq!(normalize_code(&normalize_code("p r o m o")), normalize_code("p r o m o"));
+}
