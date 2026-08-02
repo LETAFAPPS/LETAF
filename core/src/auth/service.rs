@@ -117,6 +117,23 @@ impl AuthService {
         if password.trim().is_empty() {
             return Err(CoreError::Validation("Informe a senha".into()));
         }
+        // E-mail é identificador GLOBAL para o login do desktop
+        // (`find_by_email_global`, que recusa duplicado). Não pode já existir
+        // em outra empresa — senão o dono de outra loja fica sem conseguir
+        // logar. Mesmo critério de `create_employee`.
+        match self.repo.find_by_email_global(&email).await {
+            Ok(Some(u)) if u.base.company_id != company_id && u.base.deleted_at.is_none() => {
+                return Err(CoreError::Validation(
+                    "E-mail já cadastrado em outra empresa".into(),
+                ));
+            }
+            Err(_) => {
+                return Err(CoreError::Validation(
+                    "E-mail já cadastrado em outra empresa".into(),
+                ));
+            }
+            _ => {}
+        }
         if self.repo.find_by_email(company_id, &email).await?.is_some() {
             return Err(CoreError::Validation("E-mail já cadastrado".into()));
         }
@@ -519,6 +536,26 @@ impl AuthService {
                     return Err(CoreError::Forbidden(
                         "Apenas Admin pode criar usuário".into(),
                     ));
+                }
+                // Mesmo isolamento do `create_employee`: o e-mail não pode já
+                // pertencer a OUTRA empresa. Sem isto, um admin do tenant A
+                // criava por sync um usuário com o e-mail do dono do tenant B
+                // e travava o login global dele (DoS cross-tenant). `Err` do
+                // global = já em duas empresas; barra também.
+                match self.repo.find_by_email_global(&user.email).await {
+                    Ok(Some(u))
+                        if u.base.company_id != company_id && u.base.deleted_at.is_none() =>
+                    {
+                        return Err(CoreError::Validation(
+                            "E-mail já cadastrado em outra empresa".into(),
+                        ));
+                    }
+                    Err(_) => {
+                        return Err(CoreError::Validation(
+                            "E-mail já cadastrado em outra empresa".into(),
+                        ));
+                    }
+                    _ => {}
                 }
             }
         }

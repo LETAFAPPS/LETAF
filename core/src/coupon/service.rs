@@ -224,6 +224,11 @@ impl CouponService {
         if coupon.base.company_id != company_id {
             return Err(CoreError::Validation("Operação não permitida para esta empresa".into()));
         }
+        // Normaliza o código na MESMA forma do `evaluate`/contagem — senão um
+        // código com espaço gravado por sync (`"PROMO 10"`) nunca é encontrado
+        // por `find_by_code` (match exato da forma normalizada), virando cupom
+        // inutilizável. Paridade com os demais caminhos de escrita.
+        coupon.code = normalize_code(&coupon.code);
         coupon.base.synced = true;
         self.repo.sync_upsert(&coupon).await
     }

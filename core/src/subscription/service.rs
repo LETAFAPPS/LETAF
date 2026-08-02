@@ -1209,11 +1209,17 @@ impl SubscriptionService {
         if s.base.company_id != company_id {
             return Err(CoreError::Validation("Operação não permitida para esta empresa".into()));
         }
-        if let Some(stored) = self
-            .repo
-            .find_current(company_id)
-            .await?
-            .filter(|cur| cur.base.id == s.base.id)
+        // Assinatura é autoridade EXCLUSIVA do servidor (nasce no bootstrap da
+        // empresa, no subscribe e no webhook). O sync do cliente só ATUALIZA
+        // uma que já existe — nunca cria. Sem isto, um admin do tenant fazia
+        // `POST /sync/subscriptions` com id novo e `status: Active`/`plan_amount`
+        // à escolha, forjando assinatura paga contra a plataforma (§11).
+        let existente = self.repo.find_subscription_by_id(s.base.id).await?;
+        let Some(stored) = existente.filter(|st| st.base.company_id == company_id) else {
+            return Err(CoreError::Forbidden(
+                "Assinatura não pode ser criada pelo cliente".into(),
+            ));
+        };
         {
             s.status = stored.status;
             s.next_charge_date = stored.next_charge_date;
@@ -1244,18 +1250,26 @@ impl SubscriptionService {
         if inv.base.company_id != company_id {
             return Err(CoreError::Validation("Operação não permitida para esta empresa".into()));
         }
-        let stored = self
+        // Fatura é autoridade do servidor (billing loop, webhook, subscribe).
+        // O sync do cliente só ATUALIZA uma existente; não cria. Sem isto, o
+        // tenant fazia `POST /sync/subscription-invoices` com id novo,
+        // `status: paid` e `amount: 0,01`, forjando fatura própria quitada.
+        let Some(stored) = self
             .repo
             .find_invoices(company_id)
             .await?
             .into_iter()
-            .find(|i| i.base.id == inv.base.id);
-        if let Some(stored) = stored {
-            inv.status = stored.status;
-            inv.paid_at = stored.paid_at;
-            inv.amount = stored.amount;
-            inv.number = stored.number;
-        }
+            .find(|i| i.base.id == inv.base.id)
+        else {
+            return Err(CoreError::Forbidden(
+                "Fatura não pode ser criada pelo cliente".into(),
+            ));
+        };
+        // Estado e valor são do servidor — o cliente só pode ecoar.
+        inv.status = stored.status;
+        inv.paid_at = stored.paid_at;
+        inv.amount = stored.amount;
+        inv.number = stored.number;
         inv.base.synced = true;
         self.repo.sync_upsert_invoice(&inv).await
     }

@@ -527,6 +527,13 @@ pub(super) async fn impersonate_company(
         .find_token_version(id, owner.base.id)
         .await?
         .unwrap_or(0);
+    // Validade CURTA (1h, não 24h): o token de impersonation é emitido como o
+    // dono da loja (role=admin, tv do dono), então é indistinguível de um
+    // login legítimo dele — o middleware valida o dono, não o super admin de
+    // origem, e desativar o super admin NÃO revoga um token de impersonation
+    // já emitido. Encurtar a janela limita a exposição de um super admin
+    // removido a 1h em vez de 24h. Uma sessão de suporte cabe nisso; se
+    // precisar de mais, reemite (o que já exige estar ativo).
     let token = crate::jwt::create_token(
         owner.base.id,
         id,
@@ -534,7 +541,7 @@ pub(super) async fn impersonate_company(
         perms.clone(),
         tv,
         &state.config.jwt_secret,
-        24,
+        1,
     )?;
     audit(
         &state, &auth, "company.impersonate", "company", Some(id),
