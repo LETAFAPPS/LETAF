@@ -691,7 +691,6 @@ impl ProductRepository for PgProductRepository {
                  unlimited_stock = EXCLUDED.unlimited_stock,
                  barcode = EXCLUDED.barcode,
                  unit = EXCLUDED.unit,
-                 updated_at = EXCLUDED.updated_at,
                  deleted_at = EXCLUDED.deleted_at,
                  synced = EXCLUDED.synced,
                  active = EXCLUDED.active,
