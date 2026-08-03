@@ -46,6 +46,15 @@ pub struct Claims {
     /// = 0 para tokens legados (compat.: casa com o default 0 da coluna).
     #[serde(default)]
     pub tv: i32,
+    /// Id do SUPER ADMIN que emitiu este token por IMPERSONATION (`None` num
+    /// login normal). O token de impersonation é emitido como o dono da loja
+    /// (`role=admin`), então sem este campo o middleware validaria só o dono —
+    /// e desativar o super admin não revogaria a sessão que ele abriu. Com
+    /// ele, o middleware reconfere que o emissor ainda está ativo (§11).
+    /// `skip_serializing_if`: não incha o token normal nem quebra os legados
+    /// (ausente → `None` → sem impersonation).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub imp: Option<Uuid>,
     pub exp: usize,
 }
 
@@ -80,12 +89,50 @@ pub fn create_token(
         role: role.to_string(),
         perms,
         tv: token_version,
+        imp: None,
         exp: expiration,
     };
 
+    encode_claims(&claims, secret)
+}
+
+/// Emite um token de IMPERSONATION: sessão emitida como o dono da loja
+/// (`subject_id`/`role`/`token_version` do dono), mas carimbada com o super
+/// admin que a abriu (`impersonator_id`). O middleware valida os DOIS — o dono
+/// pelo `token_version` e o super admin pelo `is_user_active` —, então
+/// desativar o super admin revoga a sessão no próximo request, sem esperar o
+/// `exp`.
+#[allow(clippy::too_many_arguments)]
+pub fn create_impersonation_token(
+    subject_id: Uuid,
+    company_id: Uuid,
+    role: &str,
+    perms: Vec<String>,
+    token_version: i32,
+    impersonator_id: Uuid,
+    secret: &str,
+    expiration_hours: u64,
+) -> Result<String, ServerError> {
+    let expiration = chrono::Utc::now()
+        .checked_add_signed(chrono::Duration::hours(expiration_hours as i64))
+        .ok_or_else(|| ServerError::Jwt("Invalid expiration".into()))?
+        .timestamp() as usize;
+    let claims = Claims {
+        sub: subject_id,
+        company_id,
+        role: role.to_string(),
+        perms,
+        tv: token_version,
+        imp: Some(impersonator_id),
+        exp: expiration,
+    };
+    encode_claims(&claims, secret)
+}
+
+fn encode_claims(claims: &Claims, secret: &str) -> Result<String, ServerError> {
     encode(
         &Header::default(),
-        &claims,
+        claims,
         &EncodingKey::from_secret(secret.as_bytes()),
     )
     .map_err(|e| ServerError::Jwt(e.to_string()))

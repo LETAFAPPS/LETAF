@@ -111,3 +111,4 @@ jobs:
           cargo test -p letaf-server --test order_stock_invariant --locked
           cargo test -p letaf-server --test job_role_escalation --locked
           cargo test -p letaf-server --test product_sync_upsert --locked
+          cargo test -p letaf-server --test impersonation_revoke --locked

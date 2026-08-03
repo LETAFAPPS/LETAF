@@ -208,6 +208,23 @@ impl FromRequestParts<AppState> for AuthClaims {
                 }
                 Some(_) => {}
             }
+            // Sessão de IMPERSONATION: além do dono (acima), o SUPER ADMIN que
+            // a abriu precisa continuar ativo. Sem isto, um super admin
+            // desativado mantinha acesso à loja pela sessão que já tinha
+            // aberto (o dono continua ativo, então o `token_version` acima
+            // passa). Revoga no próximo request (§11).
+            if let Some(impersonator) = claims.imp {
+                if !state
+                    .admin_role_service
+                    .is_user_active(impersonator)
+                    .await
+                    .unwrap_or(false)
+                {
+                    return Err(ServerError::Jwt(
+                        "Sessão de impersonation revogada: super admin desativado".into(),
+                    ));
+                }
+            }
         } else if claims.role == ROLE_SUPER_ADMIN {
             // Super admin desativado no painel perde acesso NO PRÓXIMO request,
             // não só na expiração (24h) do token. O gate de login já barra a
@@ -240,6 +257,7 @@ mod tests {
             role: role.to_string(),
             perms: perms.iter().map(|s| s.to_string()).collect(),
             tv: 0,
+            imp: None,
             exp: 0,
         })
     }
