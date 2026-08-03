@@ -16,22 +16,26 @@ import { CashSessionRow, CashMovementRow, CashMethodTotalRow, CashSummaryData } 
 
 // Botão do filtro de movimentações — selecionado em CONTORNO, igual
 // aos filtros de Relatórios.
+// Chip de filtro no MESMO padrão das abas de tipo dos Relatórios: borda
+// arredondada, selecionado com tint + borda na cor de destaque; não
+// selecionado com borda cinza neutra. Abraça o conteúdo (sem largura fixa).
 component SegBtn inherits TouchArea {
     in property <string> label;
     in property <bool> selected;
-    in property <length> pad: 10px;
-    height: 28px;
+    in property <length> pad: 14px;
+    height: 34px;
     width: seg-t.preferred-width + root.pad * 2;
     Rectangle {
-        border-radius: 6px;
-        border-width: root.selected ? 1.5px : 0px;
-        border-color: Theme.sidebar-sel-bg;
-        background: root.selected ? transparent : (root.has-hover ? #00000008 : transparent);
+        border-radius: 10px;
+        border-width: root.selected ? 1.5px : 1px;
+        border-color: root.selected ? Theme.btn-accent : Theme.border;
+        background: root.selected ? Theme.btn-accent.transparentize(0.90)
+            : (root.has-hover ? Theme.row-hover : Theme.surface);
         seg-t := Text {
             width: parent.width; height: parent.height;
             text: root.label;
-            font-size: 11px; font-weight: 600;
-            color: root.selected ? Theme.sidebar-sel-bg : Theme.text-secondary;
+            font-size: 12px; font-weight: 700;
+            color: root.selected ? Theme.btn-accent : Theme.text-primary;
             horizontal-alignment: center; vertical-alignment: center;
         }
     }
@@ -194,14 +198,14 @@ export component CashPage inherits VerticalLayout {
                 spacing: 8px;
                 OutlineBtn {
                     label: "Sangria";
-                    btn-color: Theme.danger;
+                    neutral: true;
                     icon: @image-url("../assets/icons/saida-estoque.svg");
                     width: 128px; height: 38px;
                     clicked => { root.request-sangria(); }
                 }
                 OutlineBtn {
                     label: "Suprimento";
-                    btn-color: #1E88E5;
+                    neutral: true;
                     icon: @image-url("../assets/icons/entrada-estoque.svg");
                     width: 140px; height: 38px;
                     clicked => { root.request-suprimento(); }
@@ -428,10 +432,12 @@ export component CashPage inherits VerticalLayout {
                 StatCard { label: "SUPRIMENTOS"; value: root.summary.suprimentos-display; }
             }
 
-            Card {
+            // Sem `Card`: a lista de movimentações fica direto sobre o fundo
+            // da página (sem o retângulo grande com borda/sombra). Cada
+            // movimentação já é o próprio cartão.
+            Rectangle {
                 vertical-stretch: 1;
-                border-radius: 14px;
-                clip: true;
+                background: transparent;
                 VerticalLayout {
                     padding: 0px;
                     spacing: 0px;
@@ -475,20 +481,6 @@ export component CashPage inherits VerticalLayout {
                         }
                     }
 
-                    // Cabeçalho da tabela.
-                    Rectangle {
-                        height: 30px;
-                        background: transparent;
-                        HorizontalLayout {
-                            padding-left: 26px; padding-right: 26px;
-                            spacing: 12px;
-                            Text { text: "HORA"; font-size: 10px; font-weight: 800; letter-spacing: 1px; color: Theme.text-secondary; width: 54px; vertical-alignment: center; }
-                            Text { text: "TIPO"; font-size: 10px; font-weight: 800; letter-spacing: 1px; color: Theme.text-secondary; horizontal-stretch: 1; vertical-alignment: center; }
-                            Text { text: "MÉTODO"; font-size: 10px; font-weight: 800; letter-spacing: 1px; color: Theme.text-secondary; width: 140px; horizontal-alignment: right; vertical-alignment: center; }
-                            Text { text: "VALOR"; font-size: 10px; font-weight: 800; letter-spacing: 1px; color: Theme.text-secondary; width: 110px; horizontal-alignment: right; vertical-alignment: center; }
-                        }
-                    }
-                    Rectangle { height: 1px; background: Theme.border; }
 
                     if root.movements.length > 0: ScrollView {
                         vertical-scrollbar-policy: ScrollBarPolicy.as-needed;
