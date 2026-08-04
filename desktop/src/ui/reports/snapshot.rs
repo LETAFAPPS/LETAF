@@ -78,6 +78,10 @@ pub(crate) struct Snapshot {
     /// Extrato de movimentações (aba Estoque). Sem imagem → já é o struct
     /// final da UI (diferente de produtos/clientes, que carregam b64).
     pub(crate) stock_rows: Vec<ReportStockRow>,
+    /// Opções do dropdown de produto da aba Estoque ("Todos" + produtos).
+    pub(crate) stock_products: Vec<ReportOption>,
+    /// Rótulo do produto selecionado no filtro (botão do dropdown).
+    pub(crate) stock_product_label: String,
 }
 
 pub(crate) fn build_snapshot(
@@ -185,6 +189,8 @@ pub(crate) fn build_snapshot(
             returning_progress: 0.0,
         },
         stock_rows: Vec::new(),
+        stock_products: Vec::new(),
+        stock_product_label: "Todos os produtos".to_string(),
     };
 
     // Cada sub-relatório: métricas do core → builder de apresentação.
@@ -215,7 +221,7 @@ pub(crate) fn build_snapshot(
             &report::customers(&valid, orders, win.start, win.end),
             &customer_by_id,
         ),
-        "stock" => fill_stock(&mut snap, stock_movements, &product_by_id, win.start, win.end),
+        "stock" => fill_stock(&mut snap, stock_movements, products, &s.stock_product, win.start, win.end),
         _ => {}
     }
 
@@ -302,4 +308,6 @@ pub(crate) fn apply_to_ui(ui: &MainWindow, s: &Snapshot) {
     ui.global::<ReportsState>().set_report_top_customers(ModelRc::new(VecModel::from(customer_rows)));
     ui.global::<ReportsState>().set_report_new_vs_ret(s.new_vs_ret.clone());
     ui.global::<ReportsState>().set_report_stock_rows(ModelRc::new(VecModel::from(s.stock_rows.clone())));
+    ui.global::<ReportsState>().set_report_stock_products(ModelRc::new(VecModel::from(s.stock_products.clone())));
+    ui.global::<ReportsState>().set_report_stock_product_label(SharedString::from(s.stock_product_label.clone()));
 }

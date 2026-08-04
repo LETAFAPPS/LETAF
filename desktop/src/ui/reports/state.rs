@@ -13,11 +13,13 @@ use letaf_core::product::stock_movement::StockMovement;
 
 #[derive(Clone)]
 pub(crate) struct ReportState {
-    /// "financial" | "orders" | "products" | "customers"
+    /// "financial" | "orders" | "products" | "customers" | "stock"
     pub(crate) kind: String,
     /// "daily" | "weekly" | "monthly" | "yearly" — convertido em
     /// `letaf_core::report::ReportPeriod` na hora de montar o retrato.
     pub(crate) period: String,
+    /// Filtro da aba Estoque: id do produto (string) ou "" para todos.
+    pub(crate) stock_product: String,
 }
 
 impl Default for ReportState {
@@ -25,6 +27,7 @@ impl Default for ReportState {
         Self {
             kind: "financial".into(),
             period: "weekly".into(),
+            stock_product: String::new(),
         }
     }
 }

@@ -25,7 +25,7 @@ use crate::{ReportHBar, ReportHourlyBar, ReportNewVsReturning, ReportStockRow};
 
 use super::super::helpers::half_donut_arc;
 use super::helpers::{
-    build_daily, color_for, count_progress, dre, kpi, money_plain, prep_sub, prep_value,
+    build_daily, color_for, count_progress, dre, kpi, money_plain, opt, prep_sub, prep_value,
     progress_of, ChartWindow,
 };
 use super::snapshot::{Snapshot, TopCustomerRaw, TopProductRaw};
@@ -488,16 +488,38 @@ fn fmt_signed_qty(delta: f64) -> String {
 pub(crate) fn fill_stock(
     snap: &mut Snapshot,
     movements: &[StockMovement],
-    product_by_id: &HashMap<Uuid, &Product>,
+    products: &[Product],
+    product_filter: &str,
     start: NaiveDate,
     end: NaiveDate,
 ) {
-    // Recorte por data LOCAL da loja (o created_at é UTC).
+    let product_by_id: HashMap<Uuid, &Product> =
+        products.iter().map(|p| (p.base.id, p)).collect();
+
+    // Opções do dropdown: "Todos" + produtos por nome (case-insensitive).
+    let mut ordenados: Vec<&Product> = products.iter().collect();
+    ordenados.sort_by_key(|p| p.name.to_lowercase());
+    let mut opcoes = vec![opt("", "Todos os produtos", product_filter.is_empty())];
+    for p in &ordenados {
+        let id = p.base.id.to_string();
+        let sel = product_filter == id;
+        opcoes.push(opt(&id, &p.name, sel));
+    }
+    snap.stock_product_label = product_filter
+        .parse::<Uuid>()
+        .ok()
+        .and_then(|id| product_by_id.get(&id))
+        .map(|p| p.name.clone())
+        .unwrap_or_else(|| "Todos os produtos".to_string());
+    snap.stock_products = opcoes;
+
+    // Recorte por data LOCAL da loja (created_at é UTC) e por produto.
+    let filtro_id = product_filter.parse::<Uuid>().ok();
     let mut janela: Vec<&StockMovement> = movements
         .iter()
         .filter(|m| {
             let d = letaf_core::tz::to_local(m.base.created_at).date();
-            d >= start && d <= end
+            d >= start && d <= end && filtro_id.is_none_or(|id| m.product_id == id)
         })
         .collect();
     // Mais recente primeiro.

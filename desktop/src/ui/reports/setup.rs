@@ -31,6 +31,7 @@ pub(crate) fn setup_reports(
     setup_refresh(ui, state, handle, rs.clone(), caches.clone());
     setup_set_type(ui, rs.clone(), caches.clone());
     setup_set_period(ui, rs.clone(), caches.clone());
+    setup_set_stock_product(ui, rs.clone(), caches.clone());
     setup_export(ui);
     setup_sync_listener(ui, state, handle, sync_cycle_done, rs, caches);
 }
@@ -108,6 +109,16 @@ pub(crate) fn setup_set_period(ui: &MainWindow, rs: Shared<ReportState>, caches:
     let ui_weak = ui.as_weak();
     ui.global::<ReportsState>().on_report_set_period(move |key| {
         if let Ok(mut g) = rs.lock() { g.period = key.to_string(); }
+        reapply(&ui_weak, &rs, &caches);
+    });
+}
+
+// Filtro da aba Estoque: id do produto ("" = todos). Só re-renderiza (o
+// ledger já está no cache) — sem ir ao banco.
+pub(crate) fn setup_set_stock_product(ui: &MainWindow, rs: Shared<ReportState>, caches: Caches) {
+    let ui_weak = ui.as_weak();
+    ui.global::<ReportsState>().on_report_set_stock_product(move |id| {
+        if let Ok(mut g) = rs.lock() { g.stock_product = id.to_string(); }
         reapply(&ui_weak, &rs, &caches);
     });
 }

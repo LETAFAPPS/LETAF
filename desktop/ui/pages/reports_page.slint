@@ -490,9 +490,12 @@ export component ReportsPage inherits HorizontalLayout {
 
     // Estoque — extrato de movimentações.
     in property <[ReportStockRow]> stock-rows;
+    in property <[ReportOption]> stock-products;   // opções do filtro
+    in property <string> stock-product-label;      // produto selecionado
 
     callback set-type(string);
     callback set-period(string);
+    callback set-stock-product(string);
     callback export-report();
 
     spacing: 0px;
@@ -1266,10 +1269,101 @@ export component ReportsPage inherits HorizontalLayout {
                     if root.active-type == "stock": PanelCard {
                         VerticalLayout {
                             padding: 18px; spacing: 12px;
-                            VerticalLayout {
-                                spacing: 0px;
-                                Text { text: "Movimentações de Estoque"; font-size: 14px; font-weight: 700; color: Theme.text-primary; }
-                                Text { text: "Entradas e saídas no período"; font-size: 11px; color: Theme.text-secondary; }
+                            // Título (esquerda) + filtro de produto (direita).
+                            HorizontalLayout {
+                                spacing: 12px;
+                                VerticalLayout {
+                                    horizontal-stretch: 1;
+                                    alignment: center;
+                                    spacing: 0px;
+                                    Text { text: "Movimentações de Estoque"; font-size: 14px; font-weight: 700; color: Theme.text-primary; }
+                                    Text { text: "Entradas e saídas no período"; font-size: 11px; color: Theme.text-secondary; }
+                                }
+                                // Dropdown de produto (mesmo estilo do filtro de
+                                // Status da tela de Estoque).
+                                VerticalLayout {
+                                    alignment: center;
+                                    Rectangle {
+                                        width: 240px; height: 34px;
+                                        border-radius: 8px;
+                                        border-width: 1px;
+                                        border-color: prod-ta.has-hover ? Theme.primary : Theme.card-border;
+                                        background: Theme.surface;
+                                        prod-ta := TouchArea { clicked => { prod-popup.show(); } }
+                                        HorizontalLayout {
+                                            padding-left: 12px; padding-right: 12px; spacing: 8px;
+                                            VerticalLayout {
+                                                alignment: center; width: 14px;
+                                                AssetIcon {
+                                                    width: 14px; height: 14px; icon-size: 14px;
+                                                    icon-color: Theme.text-secondary;
+                                                    source: @image-url("../assets/icons/filtro.svg");
+                                                }
+                                            }
+                                            Text {
+                                                horizontal-stretch: 1;
+                                                text: root.stock-product-label;
+                                                font-size: 13px; font-weight: 600;
+                                                color: root.stock-product-label == "Todos os produtos" ? Theme.text-primary : Theme.btn-accent;
+                                                vertical-alignment: center; overflow: elide;
+                                            }
+                                            Text {
+                                                text: "▾"; font-size: 12px; color: Theme.text-secondary;
+                                                vertical-alignment: center;
+                                            }
+                                        }
+                                        prod-popup := PopupWindow {
+                                            x: 0; y: parent.height + 4px;
+                                            width: 260px;
+                                            close-policy: PopupClosePolicy.close-on-click-outside;
+                                            Rectangle {
+                                                border-radius: 10px;
+                                                background: Theme.surface;
+                                                border-width: 1px; border-color: Theme.card-border;
+                                                drop-shadow-blur: 16px; drop-shadow-color: #00000030;
+                                                VerticalLayout {
+                                                    padding: 6px; spacing: 2px;
+                                                    Text {
+                                                        text: "PRODUTO";
+                                                        font-size: 10px; font-weight: 800; letter-spacing: 1px;
+                                                        color: Theme.btn-accent;
+                                                        horizontal-alignment: left;
+                                                    }
+                                                    ScrollView {
+                                                        vertical-scrollbar-policy: ScrollBarPolicy.as-needed;
+                                                        horizontal-scrollbar-policy: ScrollBarPolicy.always-off;
+                                                        height: min(root.stock-products.length * 34px + 4px, 300px);
+                                                        VerticalLayout {
+                                                            spacing: 2px;
+                                                            for o in root.stock-products: opt-ta := TouchArea {
+                                                                height: 32px;
+                                                                clicked => {
+                                                                    root.set-stock-product(o.key);
+                                                                    prod-popup.close();
+                                                                }
+                                                                Rectangle {
+                                                                    border-radius: 6px;
+                                                                    background: o.selected
+                                                                        ? Theme.btn-accent.transparentize(0.90)
+                                                                        : (opt-ta.has-hover ? Theme.row-hover : transparent);
+                                                                    Text {
+                                                                        x: 10px;
+                                                                        width: parent.width - 20px; height: parent.height;
+                                                                        text: o.label;
+                                                                        font-size: 13px;
+                                                                        font-weight: o.selected ? 700 : 500;
+                                                                        color: o.selected ? Theme.btn-accent : Theme.text-primary;
+                                                                        vertical-alignment: center; overflow: elide;
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
                             }
                             // Cabeçalho de colunas.
                             if root.stock-rows.length > 0: HorizontalLayout {
