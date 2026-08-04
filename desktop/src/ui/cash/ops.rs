@@ -37,14 +37,20 @@ pub(crate) fn setup_open_confirm(
         } else {
             Some(notes)
         };
-        // Sem user_id persistido localmente — usamos rótulo da role
-        // como nome (snapshot) e Uuid::nil() como operator_id. O nome
-        // real do operador será carregado do servidor no pull.
-        let role_label = ui_ref.get_user_role().to_string();
-        let operator_name = if role_label.trim().is_empty() {
-            "Operador".to_string()
+        // Nome REAL do operador logado (salvo no login, `set_user_name`) —
+        // não o rótulo da role, que mostrava "Admin" em vez do nome. Cai no
+        // papel e depois em "Operador" só se o nome não estiver disponível.
+        // `operator_id` fica nil (não há user_id persistido localmente).
+        let nome = ui_ref.get_user_name().to_string();
+        let operator_name = if !nome.trim().is_empty() && nome != "Minha conta" {
+            nome
         } else {
-            role_label
+            let role_label = ui_ref.get_user_role().to_string();
+            if role_label.trim().is_empty() {
+                "Operador".to_string()
+            } else {
+                role_label
+            }
         };
         let operator_id = Uuid::nil();
 

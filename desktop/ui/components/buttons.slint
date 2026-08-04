@@ -250,8 +250,15 @@ export component OutlineBtn inherits TouchArea {
     // cor do texto (preto no claro / branco no escuro), SEM fundo. Distingue
     // esses botões dos de AÇÃO (que usam o estilo tênue laranja).
     in property <bool> neutral: false;
-    // Cor efetiva de destaque: neutro → cinza (borda/texto); senão → btn-color.
-    property <color> hl: root.neutral ? Theme.text-secondary : root.btn-color;
+    // Neutro no repouso, mas COLORIDO no hover (ex.: Sangria vermelho,
+    // Suprimento azul): o botão fica discreto até o mouse chegar, e aí revela
+    // a cor da ação. Opt-in para não mudar os demais neutros (Cancelar etc.).
+    in property <bool> tint-on-hover: false;
+    // Cor efetiva de destaque: neutro → cinza; exceto quando `tint-on-hover`
+    // e sob o mouse, aí usa a `btn-color`. Não-neutro → sempre `btn-color`.
+    property <color> hl: root.neutral
+        ? ((root.tint-on-hover && root.has-hover) ? root.btn-color : Theme.text-secondary)
+        : root.btn-color;
     height: 36px;
     // Espaçamento texto↔borda IGUAL nos 4 lados: o padding horizontal é a
     // própria folga vertical ((altura − altura da linha de texto) / 2). Usa
@@ -267,9 +274,12 @@ export component OutlineBtn inherits TouchArea {
         border-radius: 8px;
         border-width: 1.5px;
         border-color: root.hl;
-        // Neutro: sem fundo (leve realce no hover). Ação/destrutivo: tint fraco.
+        // Neutro: sem fundo, com realce no hover — cinza (`row-hover`) ou tint
+        // da cor quando `tint-on-hover`. Ação/destrutivo: tint fraco sempre.
         background: root.neutral
-            ? (root.has-hover ? Theme.row-hover : transparent)
+            ? (root.has-hover
+                ? (root.tint-on-hover ? root.btn-color.transparentize(0.85) : Theme.row-hover)
+                : transparent)
             : (root.has-hover ? root.hl.transparentize(0.80) : root.hl.transparentize(0.90));
 
         content := HorizontalLayout {

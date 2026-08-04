@@ -14,27 +14,25 @@ import { CashSessionRow, CashMovementRow, CashMethodTotalRow, CashSummaryData } 
 //
 // AI_RULES §1/§14: tudo já vem formatado de Rust; UI só pinta.
 
-// Botão do filtro de movimentações — selecionado em CONTORNO, igual
-// aos filtros de Relatórios.
-// Chip de filtro no MESMO padrão das abas de tipo dos Relatórios: borda
-// arredondada, selecionado com tint + borda na cor de destaque; não
-// selecionado com borda cinza neutra. Abraça o conteúdo (sem largura fixa).
+// Segmento do filtro de movimentações — um por opção dentro do "trilho"
+// (ver o container abaixo). MESMO padrão do controle de PERÍODO dos
+// Relatórios: sem borda quando inativo, tint + borda na cor de destaque
+// quando selecionado. O trilho externo é quem tem fundo/borda/sombra.
 component SegBtn inherits TouchArea {
     in property <string> label;
     in property <bool> selected;
-    in property <length> pad: 14px;
-    height: 34px;
+    in property <length> pad: 12px;
     width: seg-t.preferred-width + root.pad * 2;
     Rectangle {
-        border-radius: 10px;
-        border-width: root.selected ? 1.5px : 1px;
-        border-color: root.selected ? Theme.btn-accent : Theme.border;
+        border-radius: 7px;
+        border-width: root.selected ? 1.5px : 0px;
+        border-color: Theme.btn-accent;
         background: root.selected ? Theme.btn-accent.transparentize(0.90)
-            : (root.has-hover ? Theme.row-hover : Theme.surface);
+            : (root.has-hover ? Theme.row-hover : transparent);
         seg-t := Text {
             width: parent.width; height: parent.height;
             text: root.label;
-            font-size: 12px; font-weight: 700;
+            font-size: 13px; font-weight: 700;
             color: root.selected ? Theme.btn-accent : Theme.text-primary;
             horizontal-alignment: center; vertical-alignment: center;
         }
@@ -347,7 +345,7 @@ export component CashPage inherits VerticalLayout {
                             value: root.summary.sales-count-display;
                         }
                         HeroStat {
-                            label: "TICKET";
+                            label: "TICKET MÉDIO";
                             value: root.summary.ticket-display;
                         }
                     }
@@ -456,27 +454,39 @@ export component CashPage inherits VerticalLayout {
                                 color: Theme.text-primary;
                             }
                         }
-                        HorizontalLayout {
-                            spacing: 2px;
-                            SegBtn {
-                                label: "Tudo";
-                                selected: root.mv-filter == "all";
-                                clicked => { root.mv-filter = "all"; }
-                            }
-                            SegBtn {
-                                label: "Vendas";
-                                selected: root.mv-filter == "sale";
-                                clicked => { root.mv-filter = "sale"; }
-                            }
-                            SegBtn {
-                                label: "Sangrias";
-                                selected: root.mv-filter == "sangria";
-                                clicked => { root.mv-filter = "sangria"; }
-                            }
-                            SegBtn {
-                                label: "Suprim.";
-                                selected: root.mv-filter == "suprimento";
-                                clicked => { root.mv-filter = "suprimento"; }
+                        // Trilho segmentado — mesmo container do controle de
+                        // período dos Relatórios (fundo, borda e sombra no
+                        // trilho; o segmento ativo em pill laranja).
+                        Rectangle {
+                            height: 40px;
+                            border-radius: 10px;
+                            border-width: 1px; border-color: Theme.card-border;
+                            drop-shadow-blur: 12px;
+                            drop-shadow-offset-y: 0px;
+                            drop-shadow-color: Theme.card-shadow;
+                            background: Theme.surface;
+                            HorizontalLayout {
+                                padding: 4px; spacing: 4px;
+                                SegBtn {
+                                    label: "Tudo";
+                                    selected: root.mv-filter == "all";
+                                    clicked => { root.mv-filter = "all"; }
+                                }
+                                SegBtn {
+                                    label: "Vendas";
+                                    selected: root.mv-filter == "sale";
+                                    clicked => { root.mv-filter = "sale"; }
+                                }
+                                SegBtn {
+                                    label: "Sangrias";
+                                    selected: root.mv-filter == "sangria";
+                                    clicked => { root.mv-filter = "sangria"; }
+                                }
+                                SegBtn {
+                                    label: "Suprim.";
+                                    selected: root.mv-filter == "suprimento";
+                                    clicked => { root.mv-filter = "suprimento"; }
+                                }
                             }
                         }
                     }
