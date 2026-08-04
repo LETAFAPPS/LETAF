@@ -684,7 +684,15 @@ impl ProductRepository for SqliteProductRepository {
                  web_visible = excluded.web_visible,
                  balance_mode = excluded.balance_mode,
                  image_data = excluded.image_data,
-                 thumb_data = excluded.thumb_data,
+                 -- A miniatura é DERIVADA e local (§7): nunca adotar a do
+                 -- servidor, que pode estar num formato antigo (JPEG com fundo
+                 -- chapado sobre origem transparente). Se a imagem-fonte não
+                 -- mudou, mantém a miniatura local já regenerada; se mudou,
+                 -- zera para o backfill de boot regerar no formato correto.
+                 thumb_data = CASE
+                     WHEN excluded.image_data IS products.image_data
+                     THEN products.thumb_data
+                     ELSE NULL END,
                  cover_color = excluded.cover_color,
                  availability_schedule = excluded.availability_schedule,
                  discount_kind = excluded.discount_kind,

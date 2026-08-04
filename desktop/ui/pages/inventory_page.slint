@@ -1,6 +1,6 @@
 import { ScrollView } from "std-widgets.slint";
 import { Theme } from "../theme.slint";
-import { EditIcon, AssetIcon } from "../components/icons.slint";
+import { AssetIcon } from "../components/icons.slint";
 import { EmptyState } from "../components/empty_state.slint";
 import { InventoryHealthData, InventoryProductRow } from "../types.slint";
 
@@ -81,7 +81,9 @@ component KpiCard inherits Rectangle {
 // ── Linha de produto (lista agrupada) ─────────────────────────────
 component InventoryRow inherits Rectangle {
     in property <InventoryProductRow> data;
-    callback edit();
+    // Só admin ajusta estoque (adicionar/retirar); funcionário só consome.
+    // Autoridade real é o backend (§11); aqui é apenas visibilidade.
+    in property <bool> is-admin;
     callback add();
     callback consume();
 
@@ -188,26 +190,6 @@ component InventoryRow inherits Rectangle {
             }
         }
 
-        // Editar (lápis, contorno).
-        VerticalLayout {
-            alignment: center;
-            edit-ta := TouchArea {
-                width: 32px; height: 32px;
-                clicked => { root.edit(); }
-                Rectangle {
-                    border-radius: 8px;
-                    border-width: 1px;
-                    border-color: edit-ta.has-hover ? Theme.primary : Theme.border;
-                    background: edit-ta.has-hover ? #00000008 : transparent;
-                    EditIcon {
-                        icon-size: 15px;
-                        icon-color: edit-ta.has-hover ? Theme.primary : Theme.text-primary;
-                        icon-stroke: 1.6px;
-                    }
-                }
-            }
-        }
-
         // Consumo — saída de estoque de funcionário (ícone de saída, cinza).
         VerticalLayout {
             alignment: center;
@@ -228,8 +210,9 @@ component InventoryRow inherits Rectangle {
                 }
             }
         }
-        // Repor — botão quadrado só com o ícone "+", estilo outline (Relatórios).
-        VerticalLayout {
+        // Ajustar estoque — botão "+" (adicionar/retirar). SÓ admin: abre o
+        // modal com o seletor Adicionar/Retirar. Funcionário não vê.
+        if root.is-admin: VerticalLayout {
             alignment: center;
             repor-ta := TouchArea {
                 width: 32px; height: 32px;
@@ -257,6 +240,8 @@ component InventoryRow inherits Rectangle {
 export component InventoryPage inherits VerticalLayout {
     in property <InventoryHealthData> health;
     in property <[InventoryProductRow]> products;
+    // Admin vê o botão de ajuste (+/−); funcionário só o de consumo (§11).
+    in property <bool> is-admin;
     in-out property <string> search: "";
     in-out property <string> filter: "all";
     // Sincronização em andamento — gira o ícone do botão "Sincronizar".
@@ -270,7 +255,6 @@ export component InventoryPage inherits VerticalLayout {
     // Dispara a sincronização real (SyncWorker) — gira até concluir.
     callback sync();
     callback request-add-stock(string);
-    callback request-edit-stock(string);
     callback request-consume-stock(string);
 
     // Sem padding: a distância das paredes vem do wrapper (main.slint).
@@ -543,7 +527,7 @@ export component InventoryPage inherits VerticalLayout {
                 }
                 InventoryRow {
                     data: p;
-                    edit => { root.request-edit-stock(p.id); }
+                    is-admin: root.is-admin;
                     add => { root.request-add-stock(p.id); }
                     consume => { root.request-consume-stock(p.id); }
                 }

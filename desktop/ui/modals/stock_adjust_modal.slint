@@ -7,16 +7,16 @@ import { ActionBtn, OutlineBtn } from "../components/buttons.slint";
 // ── Modal: ajuste de estoque ────────────────────────────────────────
 //
 // Dois modos controlados por `mode`:
-// - "add":  soma `qty` ao estoque atual (entrada/saída).
-//           qty pode ser negativo (saída manual).
-// - "set":  override absoluto — UI mostra o valor atual e o novo;
-//           Rust calcula delta = novo - atual antes de chamar
-//           `ProductService::adjust_stock`.
+// - "add":     ajuste manual. Um seletor Adicionar/Retirar (`direction`
+//              = "in"/"out") define o sinal; a quantidade digitada é sempre
+//              positiva e o Rust aplica o sinal (delta = ±qty).
+// - "consume": consumo de funcionário — baixa `qty` com reason "consumo".
 //
 // AI_RULES §1/§14: UI só dispara `confirm`; o Rust valida e persiste.
 
 export component StockAdjustModal inherits Rectangle {
-    in property <string> mode;              // "add" | "set" | "consume"
+    in property <string> mode;              // "add" | "consume"
+    in-out property <string> direction;     // modo "add": "in" | "out"
     in property <string> product-name;
     in property <string> current-display;   // "5 un" / "1,250 kg"
     in-out property <string> qty-input;
@@ -43,7 +43,7 @@ export component StockAdjustModal inherits Rectangle {
 
                     ModalHeader {
                         icon: @image-url("../assets/icons-orange/data-management.svg");
-                        title: root.mode == "set" ? "Editar Estoque" : (root.mode == "consume" ? "Registrar Consumo" : "Adicionar Estoque");
+                        title: root.mode == "consume" ? "Registrar Consumo" : "Ajustar Estoque";
                         subtitle: root.product-name;
                     }
 
@@ -54,11 +54,49 @@ export component StockAdjustModal inherits Rectangle {
                         Text { text: root.current-display; font-size: 14px; font-weight: 700; color: Theme.text-primary; vertical-alignment: center; }
                     }
 
+                    // Seletor Adicionar / Retirar (só no modo "add"). Estilo
+                    // segmented: trilho cinza + pill colorida na opção ativa.
+                    if root.mode == "add": Rectangle {
+                        height: 40px;
+                        border-radius: 8px;
+                        background: #F1ECE4;
+                        HorizontalLayout {
+                            padding: 4px;
+                            spacing: 4px;
+                            in-ta := TouchArea {
+                                clicked => { root.direction = "in"; }
+                                Rectangle {
+                                    border-radius: 6px;
+                                    background: root.direction == "in" ? #2E7D32 : transparent;
+                                    Text {
+                                        text: "Adicionar";
+                                        font-size: 13px; font-weight: 700;
+                                        color: root.direction == "in" ? white : Theme.text-secondary;
+                                        horizontal-alignment: center; vertical-alignment: center;
+                                    }
+                                }
+                            }
+                            out-ta := TouchArea {
+                                clicked => { root.direction = "out"; }
+                                Rectangle {
+                                    border-radius: 6px;
+                                    background: root.direction == "out" ? #C62828 : transparent;
+                                    Text {
+                                        text: "Retirar";
+                                        font-size: 13px; font-weight: 700;
+                                        color: root.direction == "out" ? white : Theme.text-secondary;
+                                        horizontal-alignment: center; vertical-alignment: center;
+                                    }
+                                }
+                            }
+                        }
+                    }
+
                     // Campo quantidade
                     VerticalLayout {
                         spacing: 6px;
                         Text {
-                            text: root.mode == "set" ? "NOVO VALOR" : (root.mode == "consume" ? "QUANTIDADE CONSUMIDA" : "QUANTIDADE A ADICIONAR (− para retirada)");
+                            text: root.mode == "consume" ? "QUANTIDADE CONSUMIDA" : "QUANTIDADE";
                             font-size: 10px; font-weight: 700; color: Theme.text-secondary; letter-spacing: 1px;
                         }
                         Rectangle {
@@ -79,7 +117,7 @@ export component StockAdjustModal inherits Rectangle {
                             if root.qty-input == "": Text {
                                 x: 10px; y: 0;
                                 width: parent.width - 20px; height: parent.height;
-                                text: root.mode == "consume" ? "Ex.: 2" : (root.mode == "set" ? "0" : "Ex.: 12");
+                                text: root.mode == "consume" ? "Ex.: 2" : "Ex.: 12";
                                 font-size: 14px; color: #BDBDBD;
                                 vertical-alignment: center;
                             }

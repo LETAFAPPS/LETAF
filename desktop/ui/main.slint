@@ -1274,6 +1274,7 @@ export component MainWindow inherits Window {
             if root.active-tab == "inventory": InventoryPage {
                 health: InventoryState.inventory-health;
                 products: InventoryState.inventory-products;
+                is-admin: root.nav-perms.is-admin;
                 search <=> InventoryState.inventory-search;
                 filter <=> InventoryState.inventory-filter;
                 syncing <=> InventoryState.inventory-syncing;
@@ -1282,7 +1283,6 @@ export component MainWindow inherits Window {
                 refresh => { InventoryState.inventory-refresh(); }
                 sync => { InventoryState.inventory-sync(); }
                 request-add-stock(id) => { InventoryState.inventory-request-add(id); }
-                request-edit-stock(id) => { InventoryState.inventory-request-edit(id); }
                 request-consume-stock(id) => { InventoryState.inventory-request-consume(id); }
             }
 
@@ -2289,6 +2289,7 @@ export component MainWindow inherits Window {
     // Modal de ajuste de estoque (Controle de Estoque)
     if InventoryState.stock-adjust-show: StockAdjustModal {
         mode: InventoryState.stock-adjust-mode;
+        direction <=> InventoryState.stock-adjust-direction;
         product-name: InventoryState.stock-adjust-product-name;
         current-display: InventoryState.stock-adjust-current;
         qty-input <=> InventoryState.stock-adjust-qty;

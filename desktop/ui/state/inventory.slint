@@ -23,7 +23,10 @@ export global InventoryState {
     in-out property <bool> inventory-syncing: false;
     // Modal de ajuste
     in-out property <bool>   stock-adjust-show: false;
-    in-out property <string> stock-adjust-mode: "add";          // "add" | "set"
+    in-out property <string> stock-adjust-mode: "add";          // "add" | "consume"
+    // Direção do ajuste no modo "add": "in" (adicionar) | "out" (retirar).
+    // A quantidade digitada é sempre positiva; o Rust aplica o sinal.
+    in-out property <string> stock-adjust-direction: "in";
     in-out property <string> stock-adjust-product-id: "";
     in-out property <string> stock-adjust-product-name: "";
     in-out property <string> stock-adjust-current: "";
@@ -35,7 +38,6 @@ export global InventoryState {
     callback inventory-search-changed(string);
     callback inventory-filter-changed(string);
     callback inventory-request-add(string);
-    callback inventory-request-edit(string);
     callback inventory-request-consume(string);
     callback inventory-confirm-adjust();
 }

@@ -31,7 +31,6 @@ pub(crate) fn setup_inventory(
     setup_search(ui, cache.clone(), cats_cache.clone());
     setup_filter(ui, cache.clone(), cats_cache.clone());
     setup_request_add(ui, cache.clone());
-    setup_request_edit(ui, cache.clone());
     setup_request_consume(ui, cache.clone());
     setup_sync(ui, state, handle, sync_notify.clone());
     setup_confirm_adjust(ui, state, handle, sync_notify);
@@ -202,6 +201,8 @@ pub(crate) fn setup_request_add(ui: &MainWindow, cache: SharedCache) {
         let snapshot = cache.lock().ok().and_then(|g| g.iter().find(|p| p.base.id == id).cloned());
         let Some(p) = snapshot else { return };
         ui.global::<InventoryState>().set_stock_adjust_mode(SharedString::from("add"));
+        // Toda abertura começa em "Adicionar"; o usuário troca para "Retirar".
+        ui.global::<InventoryState>().set_stock_adjust_direction(SharedString::from("in"));
         ui.global::<InventoryState>().set_stock_adjust_product_id(SharedString::from(p.base.id.to_string()));
         ui.global::<InventoryState>().set_stock_adjust_product_name(SharedString::from(p.name.clone()));
         ui.global::<InventoryState>().set_stock_adjust_current(SharedString::from(format_stock(p.stock_quantity, &p.unit)));
@@ -230,24 +231,6 @@ pub(crate) fn setup_request_consume(ui: &MainWindow, cache: SharedCache) {
     });
 }
 
-pub(crate) fn setup_request_edit(ui: &MainWindow, cache: SharedCache) {
-    let ui_weak = ui.as_weak();
-    ui.global::<InventoryState>().on_inventory_request_edit(move |id_str| {
-        let Some(ui) = ui_weak.upgrade() else { return };
-        let Ok(id) = Uuid::parse_str(&id_str) else { return };
-        let snapshot = cache.lock().ok().and_then(|g| g.iter().find(|p| p.base.id == id).cloned());
-        let Some(p) = snapshot else { return };
-        ui.global::<InventoryState>().set_stock_adjust_mode(SharedString::from("set"));
-        ui.global::<InventoryState>().set_stock_adjust_product_id(SharedString::from(p.base.id.to_string()));
-        ui.global::<InventoryState>().set_stock_adjust_product_name(SharedString::from(p.name.clone()));
-        ui.global::<InventoryState>().set_stock_adjust_current(SharedString::from(format_stock(p.stock_quantity, &p.unit)));
-        ui.global::<InventoryState>().set_stock_adjust_qty(SharedString::from(format!("{}", p.stock_quantity)));
-        ui.global::<InventoryState>().set_stock_adjust_reason(SharedString::default());
-        ui.global::<InventoryState>().set_stock_adjust_error(SharedString::default());
-        ui.global::<InventoryState>().set_stock_adjust_show(true);
-    });
-}
-
 // ── Confirmar ajuste de estoque ──────────────────────────────────
 
 pub(crate) fn setup_confirm_adjust(
@@ -262,6 +245,7 @@ pub(crate) fn setup_confirm_adjust(
     ui.global::<InventoryState>().on_inventory_confirm_adjust(move || {
         let Some(ui_ref) = ui_weak.upgrade() else { return };
         let mode = ui_ref.global::<InventoryState>().get_stock_adjust_mode().to_string();
+        let direction = ui_ref.global::<InventoryState>().get_stock_adjust_direction().to_string();
         let pid_str = ui_ref.global::<InventoryState>().get_stock_adjust_product_id().to_string();
         let qty_str = ui_ref.global::<InventoryState>().get_stock_adjust_qty().to_string();
         let reason = ui_ref.global::<InventoryState>().get_stock_adjust_reason().to_string();
@@ -297,33 +281,19 @@ pub(crate) fn setup_confirm_adjust(
                 }
                 state.product_service.register_consumption(cid, pid, qty).await
             } else {
-                // "set" exige consultar o estoque atual no service pra calcular
-                // delta de forma robusta (não confiar no display da UI).
-                let delta = if mode == "set" {
-                    let Ok(Some(p)) = state.product_service.find_by_id(cid, pid).await else {
-                        let _ = slint::invoke_from_event_loop(move || {
-                            if let Some(ui) = ui_weak.upgrade() {
-                                ui.global::<InventoryState>().set_stock_adjust_error(SharedString::from("Produto não encontrado"));
-                            }
-                        });
-                        return;
-                    };
-                    qty - p.stock_quantity
-                } else {
-                    qty
-                };
-
-                if delta.abs() < 0.0005 {
+                // Modo "add": quantidade sempre positiva; o seletor decide o
+                // sinal — "out" (retirar) → delta negativo. O service valida e
+                // nunca deixa o estoque negativo.
+                if qty <= 0.0 {
                     let _ = slint::invoke_from_event_loop(move || {
                         if let Some(ui) = ui_weak.upgrade() {
-                            ui.global::<InventoryState>().set_stock_adjust_error(SharedString::from(
-                                "Nada a alterar (valor igual ao atual)",
-                            ));
+                            ui.global::<InventoryState>().set_stock_adjust_error(
+                                SharedString::from("Quantidade inválida"));
                         }
                     });
                     return;
                 }
-
+                let delta = if direction == "out" { -qty } else { qty };
                 state.product_service.adjust_stock(cid, pid, delta).await
             };
             let _ = slint::invoke_from_event_loop(move || {
