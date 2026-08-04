@@ -1283,6 +1283,7 @@ export component MainWindow inherits Window {
                 sync => { InventoryState.inventory-sync(); }
                 request-add-stock(id) => { InventoryState.inventory-request-add(id); }
                 request-edit-stock(id) => { InventoryState.inventory-request-edit(id); }
+                request-consume-stock(id) => { InventoryState.inventory-request-consume(id); }
             }
 
             // Pedidos

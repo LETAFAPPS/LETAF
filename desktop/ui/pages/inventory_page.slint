@@ -108,6 +108,7 @@ component InventoryRow inherits Rectangle {
     in property <InventoryProductRow> data;
     callback edit();
     callback add();
+    callback consume();
 
     property <color> st-color: root.data.status == "out" ? #C62828
         : (root.data.status == "low" ? #F57F17
@@ -230,6 +231,26 @@ component InventoryRow inherits Rectangle {
             }
         }
 
+        // Consumo — saída de estoque de funcionário (ícone de saída, cinza).
+        VerticalLayout {
+            alignment: center;
+            consume-ta := TouchArea {
+                width: 32px; height: 32px;
+                clicked => { root.consume(); }
+                Rectangle {
+                    border-radius: 8px;
+                    border-width: 1.5px;
+                    border-color: Theme.border;
+                    background: consume-ta.has-hover ? Theme.row-hover : transparent;
+                    AssetIcon {
+                        width: parent.width; height: parent.height;
+                        icon-size: 16px;
+                        icon-color: Theme.text-secondary;
+                        source: @image-url("../assets/icons/saida-estoque.svg");
+                    }
+                }
+            }
+        }
         // Repor — botão quadrado só com o ícone "+", estilo outline (Relatórios).
         VerticalLayout {
             alignment: center;
@@ -273,6 +294,7 @@ export component InventoryPage inherits VerticalLayout {
     callback sync();
     callback request-add-stock(string);
     callback request-edit-stock(string);
+    callback request-consume-stock(string);
 
     // Sem padding: a distância das paredes vem do wrapper (main.slint).
     padding: 0px;
@@ -478,6 +500,7 @@ export component InventoryPage inherits VerticalLayout {
                     data: p;
                     edit => { root.request-edit-stock(p.id); }
                     add => { root.request-add-stock(p.id); }
+                    consume => { root.request-consume-stock(p.id); }
                 }
             }
         }

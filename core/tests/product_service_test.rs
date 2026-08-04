@@ -149,7 +149,7 @@ impl ProductRepository for MockProductRepo {
             .unwrap_or_default())
     }
 
-    async fn try_adjust_stock(&self, company_id: Uuid, product_id: Uuid, delta: f64) -> Result<StockAdjustResult, CoreError> {
+    async fn try_adjust_stock(&self, company_id: Uuid, product_id: Uuid, delta: f64, _reason: &str) -> Result<StockAdjustResult, CoreError> {
         let mut items = self.items.lock().unwrap();
         let Some(p) = items.iter_mut()
             .find(|p| p.base.id == product_id && p.base.company_id == company_id && p.base.deleted_at.is_none())
@@ -354,4 +354,45 @@ async fn sync_upsert_validates_company() {
     let p = Product::new(cid, "X".into(), None, None, None, None, None, 0.0, 0.0, false, None, "un".into(), letaf_core::product::model::BalanceMode::Weight, None, None, None, None, None, None, None);
     let result = svc.sync_upsert(wrong_cid, p).await;
     assert_eq!(result.unwrap_err(), CoreError::Validation("Operação não permitida para esta empresa".into()));
+}
+
+// ── Consumo (funcionário consome estoque) ──────────────────────────
+
+#[tokio::test]
+async fn register_consumption_baixa_o_estoque() {
+    let (svc, cid) = make_service();
+    let p = svc.create(cid, "Refri".into(), None, None, None, Some(dec!(5.0)), None,
+        10.0, 0.0, false, None, "un".into(),
+        letaf_core::product::model::BalanceMode::Weight,
+        None, None, None, None, None, None, None, Vec::new(), None).await.unwrap();
+
+    // Consumir 3 baixa o estoque para 7.
+    svc.register_consumption(cid, p.base.id, 3.0).await.expect("consumo válido");
+    let atual = svc.find_by_id(cid, p.base.id).await.unwrap().unwrap();
+    assert_eq!(atual.stock_quantity, 7.0);
+}
+
+#[tokio::test]
+async fn register_consumption_qty_nao_positiva_falha() {
+    let (svc, cid) = make_service();
+    let p = svc.create(cid, "Refri".into(), None, None, None, Some(dec!(5.0)), None,
+        10.0, 0.0, false, None, "un".into(),
+        letaf_core::product::model::BalanceMode::Weight,
+        None, None, None, None, None, None, None, Vec::new(), None).await.unwrap();
+    assert!(svc.register_consumption(cid, p.base.id, 0.0).await.is_err());
+    assert!(svc.register_consumption(cid, p.base.id, -2.0).await.is_err());
+    // Estoque intacto.
+    assert_eq!(svc.find_by_id(cid, p.base.id).await.unwrap().unwrap().stock_quantity, 10.0);
+}
+
+#[tokio::test]
+async fn register_consumption_sem_estoque_suficiente_falha() {
+    let (svc, cid) = make_service();
+    let p = svc.create(cid, "Refri".into(), None, None, None, Some(dec!(5.0)), None,
+        2.0, 0.0, false, None, "un".into(),
+        letaf_core::product::model::BalanceMode::Weight,
+        None, None, None, None, None, None, None, Vec::new(), None).await.unwrap();
+    // Consumir 5 de um estoque de 2 é recusado (não deixa negativo).
+    assert!(svc.register_consumption(cid, p.base.id, 5.0).await.is_err());
+    assert_eq!(svc.find_by_id(cid, p.base.id).await.unwrap().unwrap().stock_quantity, 2.0);
 }

@@ -131,11 +131,15 @@ pub trait ProductRepository: Send + Sync {
     ///   entre `find` e `update` quando dois clientes vendem o mesmo
     ///   produto em paralelo.
     /// - Implementação atualiza `updated_at` para sync (§7).
+    /// `reason` é o motivo gravado no ledger: `"adjust"` para o ajuste
+    /// manual, `"consumo"` para consumo de funcionário. O delta segue a
+    /// convenção do ledger (negativo = saída).
     async fn try_adjust_stock(
         &self,
         company_id: Uuid,
         product_id: Uuid,
         delta: f64,
+        reason: &str,
     ) -> Result<StockAdjustResult, CoreError>;
 
     // ── Movimentos de estoque (ledger append-only — AI_RULES §6, §7) ──

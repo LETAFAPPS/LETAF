@@ -594,6 +594,7 @@ impl ProductRepository for SqliteProductRepository {
         company_id: Uuid,
         product_id: Uuid,
         delta: f64,
+        reason: &str,
     ) -> Result<StockAdjustResult, CoreError> {
         let now = ts(chrono::Utc::now().naive_utc());
         let mut tx = self.pool.begin().await.map_err(map_db)?;
@@ -623,7 +624,7 @@ impl ProductRepository for SqliteProductRepository {
         if result.rows_affected() == 1 {
             // Ledger append-only: registra o delta na MESMA transação (§7),
             // base do sync idempotente que substitui o LWW sobre o absoluto.
-            insert_stock_movement(&mut tx, company_id, product_id, delta, "adjust", None, None, &now)
+            insert_stock_movement(&mut tx, company_id, product_id, delta, reason, None, None, &now)
                 .await?;
             tx.commit().await.map_err(map_db)?;
             return Ok(StockAdjustResult::Adjusted);
@@ -982,7 +983,7 @@ mod tests {
             .await
             .unwrap();
 
-        let r = repo.try_adjust_stock(cid, id, 5.0).await.unwrap();
+        let r = repo.try_adjust_stock(cid, id, 5.0, "adjust").await.unwrap();
         assert!(matches!(r, StockAdjustResult::Adjusted));
 
         // Estoque local subiu.

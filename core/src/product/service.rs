@@ -654,8 +654,40 @@ impl ProductService {
         id: Uuid,
         delta: f64,
     ) -> Result<(), CoreError> {
+        self.apply_stock_delta(company_id, id, delta, "adjust").await
+    }
+
+    /// Registra o CONSUMO de um produto (funcionário que consome parte do
+    /// estoque). É uma saída avulsa: baixa `qty` do estoque e grava um
+    /// movimento no ledger com `reason = "consumo"`, para conciliar o físico
+    /// e deixar rastro auditável (o mesmo caminho da venda). Nunca deixa o
+    /// estoque negativo — se não houver o suficiente, o físico já divergia e
+    /// isso precisa de atenção, não de um lançamento silencioso.
+    pub async fn register_consumption(
+        &self,
+        company_id: Uuid,
+        id: Uuid,
+        qty: f64,
+    ) -> Result<(), CoreError> {
+        if qty <= 0.0 {
+            return Err(CoreError::Validation(
+                "Quantidade de consumo deve ser maior que zero".into(),
+            ));
+        }
+        self.apply_stock_delta(company_id, id, -qty, "consumo").await
+    }
+
+    /// Núcleo comum do ajuste e do consumo: aplica o `delta` (com o `reason`
+    /// gravado no ledger) e traduz o resultado do repositório em erro claro.
+    async fn apply_stock_delta(
+        &self,
+        company_id: Uuid,
+        id: Uuid,
+        delta: f64,
+        reason: &str,
+    ) -> Result<(), CoreError> {
         use super::repository::StockAdjustResult::*;
-        match self.repo.try_adjust_stock(company_id, id, delta).await? {
+        match self.repo.try_adjust_stock(company_id, id, delta, reason).await? {
             Adjusted | Unlimited => Ok(()),
             NotFound => Err(CoreError::NotFound("Product not found".into())),
             Insufficient => {

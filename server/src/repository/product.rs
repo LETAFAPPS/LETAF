@@ -625,6 +625,7 @@ impl ProductRepository for PgProductRepository {
         company_id: Uuid,
         product_id: Uuid,
         delta: f64,
+        reason: &str,
     ) -> Result<StockAdjustResult, CoreError> {
         let now = chrono::Utc::now().naive_utc();
         let mut tx = self.pool.begin().await.map_err(map_db)?;
@@ -650,7 +651,7 @@ impl ProductRepository for PgProductRepository {
         if rows_affected == 1 {
             // Ledger append-only na MESMA transação (§7): propaga o delta
             // aos desktops via pull idempotente.
-            insert_stock_movement(&mut tx, company_id, product_id, delta, "adjust", None, None, now)
+            insert_stock_movement(&mut tx, company_id, product_id, delta, reason, None, None, now)
                 .await?;
             tx.commit().await.map_err(map_db)?;
             return Ok(StockAdjustResult::Adjusted);

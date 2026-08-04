@@ -32,6 +32,7 @@ pub(crate) fn setup_inventory(
     setup_filter(ui, cache.clone(), cats_cache.clone());
     setup_request_add(ui, cache.clone());
     setup_request_edit(ui, cache.clone());
+    setup_request_consume(ui, cache.clone());
     setup_sync(ui, state, handle, sync_notify.clone());
     setup_confirm_adjust(ui, state, handle, sync_notify);
     setup_sync_listener(ui, state, handle, sync_cycle_done);
@@ -211,6 +212,24 @@ pub(crate) fn setup_request_add(ui: &MainWindow, cache: SharedCache) {
     });
 }
 
+pub(crate) fn setup_request_consume(ui: &MainWindow, cache: SharedCache) {
+    let ui_weak = ui.as_weak();
+    ui.global::<InventoryState>().on_inventory_request_consume(move |id_str| {
+        let Some(ui) = ui_weak.upgrade() else { return };
+        let Ok(id) = Uuid::parse_str(&id_str) else { return };
+        let snapshot = cache.lock().ok().and_then(|g| g.iter().find(|p| p.base.id == id).cloned());
+        let Some(p) = snapshot else { return };
+        ui.global::<InventoryState>().set_stock_adjust_mode(SharedString::from("consume"));
+        ui.global::<InventoryState>().set_stock_adjust_product_id(SharedString::from(p.base.id.to_string()));
+        ui.global::<InventoryState>().set_stock_adjust_product_name(SharedString::from(p.name.clone()));
+        ui.global::<InventoryState>().set_stock_adjust_current(SharedString::from(format_stock(p.stock_quantity, &p.unit)));
+        ui.global::<InventoryState>().set_stock_adjust_qty(SharedString::default());
+        ui.global::<InventoryState>().set_stock_adjust_reason(SharedString::default());
+        ui.global::<InventoryState>().set_stock_adjust_error(SharedString::default());
+        ui.global::<InventoryState>().set_stock_adjust_show(true);
+    });
+}
+
 pub(crate) fn setup_request_edit(ui: &MainWindow, cache: SharedCache) {
     let ui_weak = ui.as_weak();
     ui.global::<InventoryState>().on_inventory_request_edit(move |id_str| {
@@ -262,42 +281,59 @@ pub(crate) fn setup_confirm_adjust(
         let notify = sync_notify.clone();
         handle.spawn(async move {
             let cid = state.company_id();
-            // "set" exige consultar o estoque atual no service pra calcular delta
-            // de forma robusta (não confiar no display da UI).
-            let delta = if mode == "set" {
-                let Ok(Some(p)) = state.product_service.find_by_id(cid, pid).await else {
+            // Consumo: a quantidade digitada é POSITIVA (o quanto foi
+            // consumido); o service baixa `qty` e grava o movimento com
+            // reason "consumo". Caminho próprio — não passa pelo cálculo de
+            // delta do add/set.
+            let result = if mode == "consume" {
+                if qty <= 0.0 {
                     let _ = slint::invoke_from_event_loop(move || {
                         if let Some(ui) = ui_weak.upgrade() {
-                            ui.global::<InventoryState>().set_stock_adjust_error(SharedString::from("Produto não encontrado"));
+                            ui.global::<InventoryState>().set_stock_adjust_error(
+                                SharedString::from("Quantidade de consumo inválida"));
                         }
                     });
                     return;
-                };
-                qty - p.stock_quantity
+                }
+                state.product_service.register_consumption(cid, pid, qty).await
             } else {
-                qty
+                // "set" exige consultar o estoque atual no service pra calcular
+                // delta de forma robusta (não confiar no display da UI).
+                let delta = if mode == "set" {
+                    let Ok(Some(p)) = state.product_service.find_by_id(cid, pid).await else {
+                        let _ = slint::invoke_from_event_loop(move || {
+                            if let Some(ui) = ui_weak.upgrade() {
+                                ui.global::<InventoryState>().set_stock_adjust_error(SharedString::from("Produto não encontrado"));
+                            }
+                        });
+                        return;
+                    };
+                    qty - p.stock_quantity
+                } else {
+                    qty
+                };
+
+                if delta.abs() < 0.0005 {
+                    let _ = slint::invoke_from_event_loop(move || {
+                        if let Some(ui) = ui_weak.upgrade() {
+                            ui.global::<InventoryState>().set_stock_adjust_error(SharedString::from(
+                                "Nada a alterar (valor igual ao atual)",
+                            ));
+                        }
+                    });
+                    return;
+                }
+
+                state.product_service.adjust_stock(cid, pid, delta).await
             };
-
-            if delta.abs() < 0.0005 {
-                let _ = slint::invoke_from_event_loop(move || {
-                    if let Some(ui) = ui_weak.upgrade() {
-                        ui.global::<InventoryState>().set_stock_adjust_error(SharedString::from(
-                            "Nada a alterar (valor igual ao atual)",
-                        ));
-                    }
-                });
-                return;
-            }
-
-            let result = state.product_service.adjust_stock(cid, pid, delta).await;
             let _ = slint::invoke_from_event_loop(move || {
                 let Some(ui) = ui_weak.upgrade() else { return };
                 match result {
                     Ok(()) => {
                         if !reason.trim().is_empty() {
                             tracing::info!(
-                                "Stock adjusted (product {}, delta {}, reason: {})",
-                                pid, delta, reason.trim()
+                                "Stock movement (product {}, mode {}, qty {}, reason: {})",
+                                pid, mode, qty, reason.trim()
                             );
                         }
                         ui.global::<InventoryState>().set_stock_adjust_show(false);
