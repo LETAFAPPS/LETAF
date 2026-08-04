@@ -112,6 +112,10 @@ pub struct CashSession {
     /// Nome do operador no momento da abertura (snapshot — usuário
     /// pode trocar de nome depois).
     pub operator_name: String,
+    /// Nome do operador que FECHOU a sessão (snapshot). `None` enquanto
+    /// aberta; pode diferir de `operator_name` quando o turno troca de
+    /// operador entre a abertura e o fechamento.
+    pub closed_operator_name: Option<String>,
     pub opened_at: NaiveDateTime,
     pub closed_at: Option<NaiveDateTime>,
     pub initial_change: Decimal,
@@ -135,6 +139,7 @@ impl CashSession {
             base,
             operator_id,
             operator_name,
+            closed_operator_name: None,
             closed_at: None,
             initial_change,
             counted_cash: None,

@@ -17,6 +17,7 @@ struct CashSessionRow {
     company_id: String,
     operator_id: String,
     operator_name: String,
+    closed_operator_name: Option<String>,
     opened_at: String,
     closed_at: Option<String>,
     initial_change: f64,
@@ -37,6 +38,7 @@ impl TryFrom<CashSessionRow> for CashSession {
             base: parse_base(&r.id, &r.company_id, &r.created_at, &r.updated_at, r.deleted_at.as_deref(), r.synced)?,
             operator_id: parse_uuid(&r.operator_id)?,
             operator_name: r.operator_name,
+            closed_operator_name: r.closed_operator_name,
             opened_at: parse_timestamp(&r.opened_at)?,
             closed_at: r.closed_at.as_deref().map(parse_timestamp).transpose()?,
             initial_change: letaf_core::money::from_db_f64(r.initial_change),
@@ -110,15 +112,16 @@ impl CashSessionRepository for SqliteCashSessionRepository {
     async fn create(&self, s: &CashSession) -> Result<(), CoreError> {
         sqlx::query(
             "INSERT INTO cash_sessions
-             (id, company_id, operator_id, operator_name, opened_at, closed_at,
+             (id, company_id, operator_id, operator_name, closed_operator_name, opened_at, closed_at,
               initial_change, counted_cash, status, open_notes, close_notes,
               created_at, updated_at, deleted_at, synced)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         )
         .bind(s.base.id.to_string())
         .bind(s.base.company_id.to_string())
         .bind(s.operator_id.to_string())
         .bind(&s.operator_name)
+        .bind(&s.closed_operator_name)
         .bind(ts(s.opened_at))
         .bind(s.closed_at.map(ts))
         .bind(s.initial_change.to_f64().unwrap_or(0.0))
@@ -139,13 +142,14 @@ impl CashSessionRepository for SqliteCashSessionRepository {
     async fn update(&self, s: &CashSession) -> Result<(), CoreError> {
         sqlx::query(
             "UPDATE cash_sessions SET
-               operator_id = ?, operator_name = ?, opened_at = ?, closed_at = ?,
+               operator_id = ?, operator_name = ?, closed_operator_name = ?, opened_at = ?, closed_at = ?,
                initial_change = ?, counted_cash = ?, status = ?,
                open_notes = ?, close_notes = ?, updated_at = ?, deleted_at = ?, synced = ?
              WHERE company_id = ? AND id = ?",
         )
         .bind(s.operator_id.to_string())
         .bind(&s.operator_name)
+        .bind(&s.closed_operator_name)
         .bind(ts(s.opened_at))
         .bind(s.closed_at.map(ts))
         .bind(s.initial_change.to_f64().unwrap_or(0.0))
@@ -251,13 +255,14 @@ impl CashSessionRepository for SqliteCashSessionRepository {
         // SQLite UPSERT com guard de updated_at (last-write-wins).
         sqlx::query(
             "INSERT INTO cash_sessions
-             (id, company_id, operator_id, operator_name, opened_at, closed_at,
+             (id, company_id, operator_id, operator_name, closed_operator_name, opened_at, closed_at,
               initial_change, counted_cash, status, open_notes, close_notes,
               created_at, updated_at, deleted_at, synced)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
              ON CONFLICT(id) DO UPDATE SET
                operator_id = excluded.operator_id,
                operator_name = excluded.operator_name,
+               closed_operator_name = excluded.closed_operator_name,
                opened_at = excluded.opened_at,
                closed_at = excluded.closed_at,
                initial_change = excluded.initial_change,
@@ -274,6 +279,7 @@ impl CashSessionRepository for SqliteCashSessionRepository {
         .bind(s.base.company_id.to_string())
         .bind(s.operator_id.to_string())
         .bind(&s.operator_name)
+        .bind(&s.closed_operator_name)
         .bind(ts(s.opened_at))
         .bind(s.closed_at.map(ts))
         .bind(s.initial_change.to_f64().unwrap_or(0.0))

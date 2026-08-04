@@ -39,10 +39,14 @@ pub(crate) fn apply_to_ui(
         let subtitle = match last_closed {
             Some(s) => {
                 let closed = s.closed_at.map(to_local).unwrap_or_else(now_local);
+                // Quem fechou (fallback para quem abriu, em sessões antigas
+                // sem o registro de fechamento).
+                let por = s.closed_operator_name.as_deref().unwrap_or(&s.operator_name);
                 format!(
-                    "Última sessão encerrada em {} às {}",
+                    "Última sessão encerrada em {} às {} por {}",
                     closed.format("%d/%m"),
-                    closed.format("%H:%M")
+                    closed.format("%H:%M"),
+                    por
                 )
             }
             None => "Nenhuma sessão registrada ainda".into(),
@@ -128,6 +132,7 @@ pub(crate) fn apply_to_ui(
             CashSessionRow {
                 id: SharedString::from(s.base.id.to_string()),
                 operator_name: SharedString::from(s.operator_name.clone()),
+                closed_by: SharedString::from(s.closed_operator_name.clone().unwrap_or_default()),
                 opened_date: SharedString::from(opened.format("%d/%m/%Y").to_string()),
                 opened_time: SharedString::from(opened.format("%H:%M").to_string()),
                 closed_time: SharedString::from(

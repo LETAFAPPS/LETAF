@@ -104,6 +104,9 @@ export component CashPage inherits VerticalLayout {
     // Vive na UI porque é responsabilidade puramente visual (§14).
     in-out property <string> mv-filter: "all";
 
+    // Sessão escolhida na lista → detalhes no modal (estado puramente visual).
+    in-out property <CashSessionRow> detail-session;
+
     callback request-open();
     callback request-sangria();
     callback request-suprimento();
@@ -220,85 +223,160 @@ export component CashPage inherits VerticalLayout {
     }
 
     // ── Estado FECHADO: histórico de sessões ──────────────────────
-    if !root.summary.open: Card {
+    // Sem card grande envolvendo: só o título e, abaixo, CADA sessão em seu
+    // próprio card. Clicar num card abre o modal de detalhes.
+    if !root.summary.open: VerticalLayout {
         vertical-stretch: 1;
-        border-radius: 14px;
-        VerticalLayout {
-            padding: 0px;
-            spacing: 0px;
+        spacing: 12px;
 
-            // Cabeçalho do card — sem fundo próprio (o card já é surface):
-            // um fundo aqui teria cantos retos sobre as pontas arredondadas.
+        VerticalLayout {
+            spacing: 2px;
+            Text {
+                text: "SESSÕES ANTERIORES";
+                font-size: 11px; font-weight: 800; letter-spacing: 1px;
+                color: Theme.text-primary;
+            }
+            Text {
+                text: "Histórico dos últimos fechamentos · toque para ver os detalhes";
+                font-size: 11px; color: Theme.text-secondary;
+            }
+        }
+
+        if root.sessions.length > 0: ScrollView {
+            vertical-scrollbar-policy: ScrollBarPolicy.as-needed;
+            horizontal-scrollbar-policy: ScrollBarPolicy.always-off;
+            vertical-stretch: 1;
             VerticalLayout {
-                padding: 18px;
-                spacing: 2px;
-                Text {
-                    text: "SESSÕES ANTERIORES";
-                    font-size: 11px; font-weight: 800; letter-spacing: 1px;
-                    color: Theme.text-primary;
-                }
-                Text {
-                    text: "Histórico dos últimos fechamentos";
-                    font-size: 11px; color: Theme.text-secondary;
-                }
-            }
-            Rectangle { height: 1px; background: Theme.border; }
-            // Cabeçalho da tabela.
-            Rectangle {
-                height: 34px;
-                background: transparent;
-                HorizontalLayout {
-                    padding-left: 18px; padding-right: 18px;
-                    spacing: 8px;
-                    Text { text: "DATA"; font-size: 10px; font-weight: 800; color: Theme.text-secondary; letter-spacing: 1px; width: 100px; vertical-alignment: center; }
-                    Text { text: "ABERTURA"; font-size: 10px; font-weight: 800; color: Theme.text-secondary; letter-spacing: 1px; width: 90px; vertical-alignment: center; }
-                    Text { text: "FECHAMENTO"; font-size: 10px; font-weight: 800; color: Theme.text-secondary; letter-spacing: 1px; width: 100px; vertical-alignment: center; }
-                    Text { text: "OPERADOR"; font-size: 10px; font-weight: 800; color: Theme.text-secondary; letter-spacing: 1px; horizontal-stretch: 1; vertical-alignment: center; }
-                    Text { text: "TOTAL"; font-size: 10px; font-weight: 800; color: Theme.text-secondary; letter-spacing: 1px; width: 120px; horizontal-alignment: right; vertical-alignment: center; }
-                    Text { text: "DIFERENÇA"; font-size: 10px; font-weight: 800; color: Theme.text-secondary; letter-spacing: 1px; width: 130px; horizontal-alignment: right; vertical-alignment: center; }
-                    Text { text: "STATUS"; font-size: 10px; font-weight: 800; color: Theme.text-secondary; letter-spacing: 1px; width: 80px; horizontal-alignment: right; vertical-alignment: center; }
-                }
-            }
-            Rectangle { height: 1px; background: Theme.border; }
-            if root.sessions.length > 0: ScrollView {
-                vertical-scrollbar-policy: ScrollBarPolicy.as-needed;
-                horizontal-scrollbar-policy: ScrollBarPolicy.always-off;
-                vertical-stretch: 1;
-                VerticalLayout {
-                    alignment: start;
-                    for s in root.sessions: Rectangle {
-                        height: 46px;
-                        background: sess-ta.has-hover ? Theme.row-hover : transparent;
-                        sess-ta := TouchArea { }
-                        Rectangle { x: 0; y: parent.height - 1px; width: parent.width; height: 1px; background: Theme.border; }
+                alignment: start;
+                // Respiro entre os cards vai na altura do wrapper de cada um;
+                // o padding lateral evita a sombra ser recortada.
+                padding-left: 2px; padding-right: 2px;
+                for s in root.sessions: Rectangle {
+                    height: 76px;
+                    background: transparent;
+                    card-ta := TouchArea {
+                        clicked => {
+                            root.detail-session = s;
+                            detail-popup.show();
+                        }
+                    }
+                    Rectangle {
+                        x: 0; y: 0;
+                        width: parent.width; height: 66px;
+                        border-radius: 12px;
+                        border-width: 1px; border-color: Theme.card-border;
+                        drop-shadow-blur: 12px; drop-shadow-offset-y: 0px;
+                        drop-shadow-color: Theme.card-shadow;
+                        background: card-ta.has-hover ? Theme.row-hover : Theme.surface;
                         HorizontalLayout {
-                            padding-left: 18px; padding-right: 18px;
-                            spacing: 8px;
-                            Text { text: s.opened-date; font-size: 12px; color: Theme.text-primary; width: 100px; vertical-alignment: center; }
-                            Text { text: s.opened-time; font-size: 12px; color: Theme.text-primary; width: 90px; vertical-alignment: center; }
-                            Text { text: s.closed-time; font-size: 12px; color: Theme.text-primary; width: 100px; vertical-alignment: center; }
-                            Text { text: s.operator-name; font-size: 12px; color: Theme.text-primary; horizontal-stretch: 1; vertical-alignment: center; overflow: elide; }
-                            Text { text: s.total-display; font-size: 12px; font-weight: 700; color: Theme.text-primary; width: 120px; horizontal-alignment: right; vertical-alignment: center; }
-                            Text {
-                                text: s.difference-display;
-                                font-size: 12px; font-weight: 700;
-                                color: s.difference-display == "R$ 0,00" ? #2E7D32 : (s.difference-display == "" ? Theme.text-secondary : Theme.danger);
-                                width: 130px; horizontal-alignment: right; vertical-alignment: center;
+                            padding-left: 16px; padding-right: 16px;
+                            spacing: 12px;
+                            // Data + horários.
+                            VerticalLayout {
+                                alignment: center; spacing: 3px;
+                                horizontal-stretch: 1;
+                                Text {
+                                    text: s.opened-date;
+                                    font-size: 13px; font-weight: 700;
+                                    color: Theme.text-primary;
+                                }
+                                Text {
+                                    text: "Abertura " + s.opened-time
+                                        + (s.closed-time != "" ? " · Fechamento " + s.closed-time : "");
+                                    font-size: 11px; color: Theme.text-secondary;
+                                }
                             }
-                            Text { text: s.status-label; font-size: 11px; color: Theme.text-secondary; width: 80px; horizontal-alignment: right; vertical-alignment: center; }
+                            // Operador.
+                            VerticalLayout {
+                                alignment: center;
+                                width: 150px;
+                                Text {
+                                    text: s.operator-name;
+                                    font-size: 12px; color: Theme.text-primary;
+                                    overflow: elide;
+                                }
+                            }
+                            // Total.
+                            VerticalLayout {
+                                alignment: center;
+                                width: 120px;
+                                Text {
+                                    text: s.total-display;
+                                    font-size: 13px; font-weight: 700;
+                                    color: Theme.text-primary;
+                                    horizontal-alignment: right;
+                                    width: parent.width;
+                                }
+                            }
+                            // Diferença.
+                            VerticalLayout {
+                                alignment: center;
+                                width: 110px;
+                                Text {
+                                    text: s.difference-display == "" ? "—" : s.difference-display;
+                                    font-size: 12px; font-weight: 700;
+                                    color: s.difference-display == "R$ 0,00" ? #2E7D32
+                                        : (s.difference-display == "" ? Theme.text-secondary : Theme.danger);
+                                    horizontal-alignment: right;
+                                    width: parent.width;
+                                }
+                            }
                         }
                     }
                 }
             }
-            // Estado vazio centralizado na área abaixo do cabeçalho.
-            if root.sessions.length == 0: VerticalLayout {
-                vertical-stretch: 1;
-                alignment: center;
-                EmptyState {
-                    source: @image-url("../assets/illustrations/business-workflow.svg");
-                    title: "Caixa fechado";
-                    subtitle: "Abra o caixa para operar";
-                    art-size: 240px;
+        }
+        if root.sessions.length == 0: VerticalLayout {
+            vertical-stretch: 1;
+            alignment: center;
+            EmptyState {
+                source: @image-url("../assets/illustrations/business-workflow.svg");
+                title: "Caixa fechado";
+                subtitle: "Abra o caixa para operar";
+                art-size: 240px;
+            }
+        }
+    }
+
+    // ── Modal de detalhes da sessão (aberto ao tocar num card) ─────
+    detail-popup := PopupWindow {
+        width: 420px;
+        height: 360px;
+        x: (root.width - self.width) / 2;
+        y: 120px;
+        close-policy: PopupClosePolicy.close-on-click-outside;
+        Rectangle {
+            border-radius: 16px;
+            background: Theme.surface;
+            border-width: 1px; border-color: Theme.card-border;
+            drop-shadow-blur: 24px; drop-shadow-color: #00000040;
+            VerticalLayout {
+                padding: 22px;
+                spacing: 14px;
+                Text {
+                    text: "Sessão de " + root.detail-session.opened-date;
+                    font-size: 17px; font-weight: 800; color: Theme.text-primary;
+                }
+                Rectangle { height: 1px; background: Theme.border; }
+                // Linhas de detalhe (rótulo à esquerda, valor à direita).
+                for row in [
+                    { l: "Abertura", v: root.detail-session.opened-time },
+                    { l: "Fechamento", v: root.detail-session.closed-time == "" ? "—" : root.detail-session.closed-time },
+                    { l: "Abriu", v: root.detail-session.operator-name },
+                    { l: "Fechou", v: root.detail-session.closed-by == "" ? "—" : root.detail-session.closed-by },
+                    { l: "Total", v: root.detail-session.total-display },
+                    { l: "Diferença", v: root.detail-session.difference-display == "" ? "—" : root.detail-session.difference-display },
+                    { l: "Status", v: root.detail-session.status-label },
+                ]: HorizontalLayout {
+                    Text {
+                        text: row.l;
+                        font-size: 13px; color: Theme.text-secondary;
+                        horizontal-stretch: 1;
+                    }
+                    Text {
+                        text: row.v;
+                        font-size: 13px; font-weight: 600; color: Theme.text-primary;
+                    }
                 }
             }
         }

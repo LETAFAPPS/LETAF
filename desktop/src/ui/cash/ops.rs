@@ -301,6 +301,14 @@ pub(crate) fn setup_close_confirm(
         } else {
             Some(notes)
         };
+        // Nome REAL de quem está fechando (mesmo critério da abertura): o
+        // nome logado, com fallback para o papel.
+        let nome = ui_ref.get_user_name().to_string();
+        let closed_by = if !nome.trim().is_empty() && nome != "Minha conta" {
+            nome
+        } else {
+            ui_ref.get_user_role().to_string()
+        };
 
         let ui_weak = ui_weak.clone();
         let state = state.clone();
@@ -309,7 +317,7 @@ pub(crate) fn setup_close_confirm(
             let cid = state.company_id();
             let result = state
                 .cash_service
-                .close_session(cid, session_id, letaf_core::money::from_db_f64(counted), notes_opt)
+                .close_session(cid, session_id, letaf_core::money::from_db_f64(counted), notes_opt, closed_by)
                 .await;
             let _ = slint::invoke_from_event_loop(move || {
                 let Some(ui) = ui_weak.upgrade() else { return };

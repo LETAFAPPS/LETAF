@@ -110,6 +110,7 @@ impl CashService {
         session_id: Uuid,
         counted_cash: Decimal,
         notes: Option<String>,
+        closed_by: String,
     ) -> Result<CashSession, CoreError> {
         let mut session = self
             .sessions
@@ -129,6 +130,10 @@ impl CashService {
         session.counted_cash = Some(counted_cash);
         session.status = SessionStatus::Closed;
         session.close_notes = notes;
+        // Snapshot de quem fechou (pode diferir de quem abriu). Vazio cai em
+        // `None` — a UI mostra o operador de abertura como fallback.
+        let closed_by = closed_by.trim();
+        session.closed_operator_name = (!closed_by.is_empty()).then(|| closed_by.to_string());
         session.base.updated_at = now;
         session.base.synced = false;
         self.sessions.update(&session).await?;

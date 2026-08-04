@@ -18,6 +18,7 @@ struct CashSessionRow {
     company_id: Uuid,
     operator_id: Uuid,
     operator_name: String,
+    closed_operator_name: Option<String>,
     opened_at: NaiveDateTime,
     closed_at: Option<NaiveDateTime>,
     initial_change: Decimal,
@@ -44,6 +45,7 @@ impl From<CashSessionRow> for CashSession {
             },
             operator_id: r.operator_id,
             operator_name: r.operator_name,
+            closed_operator_name: r.closed_operator_name,
             opened_at: r.opened_at,
             closed_at: r.closed_at,
             initial_change: r.initial_change,
@@ -121,8 +123,8 @@ impl CashSessionRepository for PgCashSessionRepository {
             "INSERT INTO cash_sessions
              (id, company_id, operator_id, operator_name, opened_at, closed_at,
               initial_change, counted_cash, status, open_notes, close_notes,
-              created_at, updated_at, deleted_at, synced)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)",
+              created_at, updated_at, deleted_at, synced, closed_operator_name)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)",
         )
         .bind(s.base.id)
         .bind(s.base.company_id)
@@ -139,6 +141,7 @@ impl CashSessionRepository for PgCashSessionRepository {
         .bind(s.base.updated_at)
         .bind(s.base.deleted_at)
         .bind(s.base.synced)
+        .bind(&s.closed_operator_name)
         .execute(&self.pool)
         .await
         .map_err(map_db)?;
@@ -150,8 +153,9 @@ impl CashSessionRepository for PgCashSessionRepository {
             "UPDATE cash_sessions SET
                operator_id = $1, operator_name = $2, opened_at = $3, closed_at = $4,
                initial_change = $5, counted_cash = $6, status = $7,
-               open_notes = $8, close_notes = $9, updated_at = $10, deleted_at = $11, synced = $12
-             WHERE company_id = $13 AND id = $14",
+               open_notes = $8, close_notes = $9, updated_at = $10, deleted_at = $11, synced = $12,
+               closed_operator_name = $13
+             WHERE company_id = $14 AND id = $15",
         )
         .bind(s.operator_id)
         .bind(&s.operator_name)
@@ -165,6 +169,7 @@ impl CashSessionRepository for PgCashSessionRepository {
         .bind(s.base.updated_at)
         .bind(s.base.deleted_at)
         .bind(s.base.synced)
+        .bind(&s.closed_operator_name)
         .bind(s.base.company_id)
         .bind(s.base.id)
         .execute(&self.pool)
@@ -252,8 +257,8 @@ impl CashSessionRepository for PgCashSessionRepository {
             "INSERT INTO cash_sessions
              (id, company_id, operator_id, operator_name, opened_at, closed_at,
               initial_change, counted_cash, status, open_notes, close_notes,
-              created_at, updated_at, deleted_at, synced)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+              created_at, updated_at, deleted_at, synced, closed_operator_name)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
              ON CONFLICT (id) DO UPDATE SET
                operator_id = EXCLUDED.operator_id,
                operator_name = EXCLUDED.operator_name,
@@ -266,7 +271,8 @@ impl CashSessionRepository for PgCashSessionRepository {
                close_notes = EXCLUDED.close_notes,
                updated_at = EXCLUDED.updated_at,
                deleted_at = EXCLUDED.deleted_at,
-               synced = EXCLUDED.synced
+               synced = EXCLUDED.synced,
+               closed_operator_name = EXCLUDED.closed_operator_name
              WHERE EXCLUDED.updated_at > cash_sessions.updated_at AND cash_sessions.company_id = EXCLUDED.company_id",
         )
         .bind(s.base.id)
@@ -284,6 +290,7 @@ impl CashSessionRepository for PgCashSessionRepository {
         .bind(s.base.updated_at)
         .bind(s.base.deleted_at)
         .bind(s.base.synced)
+        .bind(&s.closed_operator_name)
         .execute(&self.pool)
         .await
         .map_err(map_db)?;

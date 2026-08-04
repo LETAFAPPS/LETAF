@@ -854,6 +854,8 @@ export struct VariationData {
 export struct CashSessionRow {
     id: string,
     operator-name: string,
+    /// Quem FECHOU a sessão (vazio se aberta ou sessão antiga).
+    closed-by: string,
     opened-date: string,        // "12/05/2026"
     opened-time: string,        // "08:00"
     closed-time: string,        // "23:00" ou "" se aberta
