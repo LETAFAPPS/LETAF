@@ -128,7 +128,10 @@ component ProductRow inherits TouchArea {
                 Rectangle {
                     width: 40px; height: 40px;
                     border-radius: 8px;
-                    background: root.data.has-cover-color ? root.data.cover-color-value : Theme.row-alt;
+                    // Sem fundo quando há foto (imagem transparente sobre a linha).
+                    background: root.data.product-image.width > 0
+                        ? transparent
+                        : (root.data.has-cover-color ? root.data.cover-color-value : Theme.row-alt);
                     clip: true;
                     if root.data.product-image.width > 0: Image {
                         source: root.data.product-image;
@@ -471,9 +474,13 @@ export component ProductsPage inherits Rectangle {
                                         width: parent.width;
                                         height: parent.height;
                                         border-radius: 16px;
-                                        background: root.detail-product.has-cover-color
-                                            ? root.detail-product.cover-color-value
-                                            : Theme.row-alt;
+                                        // Sem fundo quando há foto — a imagem
+                                        // do produto aparece sobre o card.
+                                        background: root.detail-product.product-image.width > 0
+                                            ? transparent
+                                            : (root.detail-product.has-cover-color
+                                                ? root.detail-product.cover-color-value
+                                                : Theme.row-alt);
                                         border-width: 1px;
                                         border-color: img-ta.has-hover ? Theme.primary : Theme.border;
                                         clip: true;

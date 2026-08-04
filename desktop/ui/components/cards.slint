@@ -105,9 +105,15 @@ export component ProductCard inherits Rectangle {
                 //   (Soda branca continua branca no dark mode).
                 // - Senão, cai no fundo do tema (igual ao placeholder), que
                 //   serve para PNGs transparentes aparecerem coerentes.
-                background: product.has-cover-color
-                    ? product.cover-color-value
-                    : (Theme.dark-mode ? #3A3A3A : white);
+                // COM imagem: fundo transparente — a foto do produto (PNG
+                // recortado) aparece sobre o card, sem retângulo colorido
+                // atrás. Sem imagem: cor de capa amostrada ou fundo do tema,
+                // para o placeholder não ficar solto.
+                background: product.product-image.width > 0
+                    ? transparent
+                    : (product.has-cover-color
+                        ? product.cover-color-value
+                        : (Theme.dark-mode ? #3A3A3A : white));
                 clip: true;
                 if product.product-image.width > 0: Image {
                     width: parent.width;
@@ -368,7 +374,8 @@ export component OrderItemCard inherits Rectangle {
                 width: 48px; height: 48px;
                 border-radius: 6px;
                 clip: true;
-                background: Theme.border;
+                // Sem fundo quando há foto (imagem transparente sobre o card).
+                background: item.product-image.width > 0 ? transparent : Theme.border;
                 if item.product-image.width > 0: Image {
                     width: 48px; height: 48px;
                     source: item.product-image;

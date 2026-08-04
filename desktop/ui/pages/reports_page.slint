@@ -268,7 +268,8 @@ component ProductCard inherits Rectangle {
         Rectangle {
             width: 96px;
             border-radius: 10px;
-            background: Theme.border;
+            // Sem fundo quando há foto do produto (imagem transparente).
+            background: root.data.has-image ? transparent : Theme.border;
             clip: true;
             if root.data.has-image: Image {
                 width: 100%; height: 100%;
