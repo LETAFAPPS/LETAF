@@ -10,7 +10,7 @@
 // Acesso: no Slint, `ReportsState.<prop>`; no Rust,
 // `ui.global::<ReportsState>().set_<prop>()` / `.on_<callback>()`.
 // Logica em desktop/src/ui/reports.
-import { ReportCustomerRow, ReportDailyBar, ReportDreLine, ReportHBar, ReportHourlyBar, ReportKpi, ReportNewVsReturning, ReportOption, ReportProductRow } from "../types.slint";
+import { ReportCustomerRow, ReportDailyBar, ReportDreLine, ReportHBar, ReportHourlyBar, ReportKpi, ReportNewVsReturning, ReportOption, ReportProductRow, ReportStockRow } from "../types.slint";
 
 export global ReportsState {
     // ── Relatórios (Central de análises) ────────────────────────
@@ -38,6 +38,8 @@ export global ReportsState {
     // Clientes
     in-out property <[ReportCustomerRow]> report-top-customers: [];
     in-out property <ReportNewVsReturning> report-new-vs-ret;
+    // Estoque — extrato de movimentações (ledger stock_movements).
+    in-out property <[ReportStockRow]> report-stock-rows: [];
     callback report-refresh();
     callback report-set-type(string);
     callback report-set-period(string);

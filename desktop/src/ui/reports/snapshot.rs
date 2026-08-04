@@ -7,16 +7,17 @@ use letaf_core::category::model::Category;
 use letaf_core::customer::model::Customer;
 use letaf_core::order::model::Order;
 use letaf_core::product::model::Product;
+use letaf_core::product::stock_movement::StockMovement;
 use letaf_core::report::{self, ReportPeriod};
 
 use crate::{
     MainWindow, ReportCustomerRow, ReportDailyBar, ReportDreLine, ReportHBar, ReportHourlyBar,
-    ReportKpi, ReportNewVsReturning, ReportOption, ReportProductRow,
+    ReportKpi, ReportNewVsReturning, ReportOption, ReportProductRow, ReportStockRow,
 };
 
 use super::state::{Granularity, ReportState};
 use super::helpers::ChartWindow;
-use super::sections::{fill_customers, fill_financial, fill_orders, fill_products};
+use super::sections::{fill_customers, fill_financial, fill_orders, fill_products, fill_stock};
 use super::helpers::opt;
 use super::super::image::decode_pixel_buffer;
 use slint::ComponentHandle;
@@ -74,6 +75,9 @@ pub(crate) struct Snapshot {
     pub(crate) top_products: Vec<TopProductRaw>,
     pub(crate) top_customers: Vec<TopCustomerRaw>,
     pub(crate) new_vs_ret: ReportNewVsReturning,
+    /// Extrato de movimentações (aba Estoque). Sem imagem → já é o struct
+    /// final da UI (diferente de produtos/clientes, que carregam b64).
+    pub(crate) stock_rows: Vec<ReportStockRow>,
 }
 
 pub(crate) fn build_snapshot(
@@ -85,6 +89,7 @@ pub(crate) fn build_snapshot(
     products: &[Product],
     categories: &[Category],
     customers: &[Customer],
+    stock_movements: &[StockMovement],
 ) -> Snapshot {
     let today = letaf_core::tz::today();
     // A janela do período (e a anterior equivalente) vem do core — a
@@ -117,6 +122,7 @@ pub(crate) fn build_snapshot(
         opt("orders", "Pedidos", s.kind == "orders"),
         opt("products", "Produtos", s.kind == "products"),
         opt("customers", "Clientes", s.kind == "customers"),
+        opt("stock", "Estoque", s.kind == "stock"),
     ];
     let periods = vec![
         opt("daily", "Diário", s.period == "daily"),
@@ -129,6 +135,7 @@ pub(crate) fn build_snapshot(
         "orders" => "Pedidos",
         "products" => "Produtos",
         "customers" => "Clientes",
+        "stock" => "Estoque",
         _ => "Financeiro",
     };
     // `header_title` alimenta o PILL DE STATUS ("Tipo · Período").
@@ -177,6 +184,7 @@ pub(crate) fn build_snapshot(
             returning_pct: SharedString::from("0%"),
             returning_progress: 0.0,
         },
+        stock_rows: Vec::new(),
     };
 
     // Cada sub-relatório: métricas do core → builder de apresentação.
@@ -207,6 +215,7 @@ pub(crate) fn build_snapshot(
             &report::customers(&valid, orders, win.start, win.end),
             &customer_by_id,
         ),
+        "stock" => fill_stock(&mut snap, stock_movements, &product_by_id, win.start, win.end),
         _ => {}
     }
 
@@ -292,4 +301,5 @@ pub(crate) fn apply_to_ui(ui: &MainWindow, s: &Snapshot) {
         .collect();
     ui.global::<ReportsState>().set_report_top_customers(ModelRc::new(VecModel::from(customer_rows)));
     ui.global::<ReportsState>().set_report_new_vs_ret(s.new_vs_ret.clone());
+    ui.global::<ReportsState>().set_report_stock_rows(ModelRc::new(VecModel::from(s.stock_rows.clone())));
 }

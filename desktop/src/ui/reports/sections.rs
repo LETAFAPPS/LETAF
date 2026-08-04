@@ -6,6 +6,7 @@
 
 use std::collections::HashMap;
 
+use chrono::NaiveDate;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use slint::{Color, SharedString};
@@ -14,12 +15,13 @@ use uuid::Uuid;
 use letaf_core::customer::model::Customer;
 use letaf_core::order::model::Order;
 use letaf_core::product::model::Product;
+use letaf_core::product::stock_movement::StockMovement;
 use letaf_core::report::{
     CustomerMetrics, FinancialMetrics, OrdersMetrics, ProductMetrics,
 };
 
 use crate::format::money_br;
-use crate::{ReportHBar, ReportHourlyBar, ReportNewVsReturning};
+use crate::{ReportHBar, ReportHourlyBar, ReportNewVsReturning, ReportStockRow};
 
 use super::super::helpers::half_donut_arc;
 use super::helpers::{
@@ -452,4 +454,110 @@ fn top_customers(
             }
         })
         .collect()
+}
+
+// ── ESTOQUE (extrato de movimentações) ───────────────────────────
+// Máximo de linhas renderizadas na lista. As KPIs contam TODAS as
+// movimentações do período; a lista mostra as mais recentes. Evita
+// materializar milhares de elementos Slint num período longo.
+const MAX_STOCK_ROWS: usize = 300;
+
+/// Rótulo e cor do selo de cada tipo de movimento (`reason`).
+fn stock_kind(reason: &str) -> (&'static str, Color) {
+    match reason {
+        "sale" => ("Venda", Color::from_rgb_u8(0x1E, 0x88, 0xE5)),
+        "cancel" => ("Cancelamento", Color::from_rgb_u8(0xF5, 0x7F, 0x17)),
+        "adjust" => ("Ajuste", Color::from_rgb_u8(0xE8, 0x73, 0x1C)),
+        "consumo" => ("Consumo", Color::from_rgb_u8(0x8E, 0x24, 0xAA)),
+        "edit" => ("Edição de venda", Color::from_rgb_u8(0x78, 0x90, 0x9C)),
+        _ => ("Movimento", Color::from_rgb_u8(0x9E, 0x9E, 0x9E)),
+    }
+}
+
+/// Quantidade com sinal e vírgula decimal: 5.0 → "+5", -1.5 → "−1,5".
+fn fmt_signed_qty(delta: f64) -> String {
+    let sign = if delta < 0.0 { "−" } else { "+" };
+    let abs = format!("{}", delta.abs()).replace('.', ",");
+    format!("{sign}{abs}")
+}
+
+/// Preenche o extrato de estoque: recorta o ledger pelo período (data
+/// local), ordena do mais recente ao mais antigo, resolve o nome do
+/// produto pelo índice e formata cada linha. As KPIs somam entradas e
+/// saídas de TODO o período (§1/§3 — só apresentação).
+pub(crate) fn fill_stock(
+    snap: &mut Snapshot,
+    movements: &[StockMovement],
+    product_by_id: &HashMap<Uuid, &Product>,
+    start: NaiveDate,
+    end: NaiveDate,
+) {
+    // Recorte por data LOCAL da loja (o created_at é UTC).
+    let mut janela: Vec<&StockMovement> = movements
+        .iter()
+        .filter(|m| {
+            let d = letaf_core::tz::to_local(m.base.created_at).date();
+            d >= start && d <= end
+        })
+        .collect();
+    // Mais recente primeiro.
+    janela.sort_by_key(|m| std::cmp::Reverse(m.base.created_at));
+
+    let entradas: f64 = janela.iter().filter(|m| m.delta > 0.0).map(|m| m.delta).sum();
+    let saidas: f64 = janela.iter().filter(|m| m.delta < 0.0).map(|m| -m.delta).sum();
+    let n_entradas = janela.iter().filter(|m| m.delta > 0.0).count();
+    let n_saidas = janela.iter().filter(|m| m.delta < 0.0).count();
+
+    snap.kpis = vec![
+        kpi(
+            "ENTRADAS",
+            &fmt_signed_qty(entradas),
+            &format!("{n_entradas} movimentos"),
+            Color::from_rgb_u8(0x2E, 0x7D, 0x32),
+            "neutral",
+            "atividade",
+            false,
+        ),
+        kpi(
+            "SAÍDAS",
+            &fmt_signed_qty(-saidas),
+            &format!("{n_saidas} movimentos"),
+            Color::from_rgb_u8(0xC6, 0x28, 0x28),
+            "neutral",
+            "saida-estoque",
+            false,
+        ),
+        kpi(
+            "MOVIMENTOS",
+            &format!("{}", janela.len()),
+            "No período",
+            Color::from_rgb_u8(0x1E, 0x88, 0xE5),
+            "neutral",
+            "inventory",
+            false,
+        ),
+    ];
+
+    let green = Color::from_rgb_u8(0x2E, 0x7D, 0x32);
+    let red = Color::from_rgb_u8(0xC6, 0x28, 0x28);
+    snap.stock_rows = janela
+        .iter()
+        .take(MAX_STOCK_ROWS)
+        .map(|m| {
+            let (label, kind_color) = stock_kind(&m.reason);
+            let name = product_by_id
+                .get(&m.product_id)
+                .map(|p| p.name.clone())
+                .unwrap_or_else(|| "Produto removido".into());
+            let local = letaf_core::tz::to_local(m.base.created_at);
+            ReportStockRow {
+                date_display: SharedString::from(local.format("%d/%m · %H:%M").to_string()),
+                product_name: SharedString::from(name),
+                kind_label: SharedString::from(label),
+                kind_color,
+                qty_display: SharedString::from(fmt_signed_qty(m.delta)),
+                qty_color: if m.delta < 0.0 { red } else { green },
+            }
+        })
+        .collect();
 }

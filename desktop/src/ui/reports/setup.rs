@@ -26,6 +26,7 @@ pub(crate) fn setup_reports(
         products: Arc::new(std::sync::Mutex::new(Vec::new())),
         categories: Arc::new(std::sync::Mutex::new(Vec::new())),
         customers: Arc::new(std::sync::Mutex::new(Vec::new())),
+        stock_movements: Arc::new(std::sync::Mutex::new(Vec::new())),
     };
     setup_refresh(ui, state, handle, rs.clone(), caches.clone());
     setup_set_type(ui, rs.clone(), caches.clone());
@@ -76,11 +77,20 @@ pub(crate) fn setup_refresh(
             let products = state.product_service.find_all(cid).await.unwrap_or_default();
             let categories = state.category_service.find_all(cid).await.unwrap_or_default();
             let customers = state.customer_service.find_all(cid).await.unwrap_or_default();
+            // Movimentos de estoque da mesma janela ampla (recorte por período
+            // acontece no builder). `updated_since` já cobre todo o ledger a
+            // partir do início da janela — sem novo método de banco.
+            let movements = state
+                .product_service
+                .find_stock_movements_updated_since(cid, inicio.and_hms_opt(0, 0, 0).unwrap_or_default())
+                .await
+                .unwrap_or_default();
             if let Ok(mut g) = caches.orders.lock() { *g = orders; }
             if let Ok(mut g) = caches.fiado_aberto.lock() { *g = fiado_aberto; }
             if let Ok(mut g) = caches.products.lock() { *g = products; }
             if let Ok(mut g) = caches.categories.lock() { *g = categories; }
             if let Ok(mut g) = caches.customers.lock() { *g = customers; }
+            if let Ok(mut g) = caches.stock_movements.lock() { *g = movements; }
             reapply(&ui_weak, &rs, &caches);
         });
     });
@@ -155,11 +165,17 @@ pub(crate) fn setup_sync_listener(
             let products = state.product_service.find_all(cid).await.unwrap_or_default();
             let categories = state.category_service.find_all(cid).await.unwrap_or_default();
             let customers = state.customer_service.find_all(cid).await.unwrap_or_default();
+            let movements = state
+                .product_service
+                .find_stock_movements_updated_since(cid, inicio.and_hms_opt(0, 0, 0).unwrap_or_default())
+                .await
+                .unwrap_or_default();
             if let Ok(mut g) = caches.orders.lock() { *g = orders; }
             if let Ok(mut g) = caches.fiado_aberto.lock() { *g = fiado_aberto; }
             if let Ok(mut g) = caches.products.lock() { *g = products; }
             if let Ok(mut g) = caches.categories.lock() { *g = categories; }
             if let Ok(mut g) = caches.customers.lock() { *g = customers; }
+            if let Ok(mut g) = caches.stock_movements.lock() { *g = movements; }
             reapply(&ui_weak, &rs, &caches);
         }
     });
@@ -174,11 +190,13 @@ pub(crate) fn reapply(ui_weak: &slint::Weak<MainWindow>, rs: &Shared<ReportState
     // inteiro (com os itens) a cada clique era um custo silencioso. Nada aqui
     // dá `.await`, então segurar os locks não trava o executor.
     let vazio: Vec<letaf_core::order::model::Order> = Vec::new();
+    let vazio_mov: Vec<letaf_core::product::stock_movement::StockMovement> = Vec::new();
     let orders = caches.orders.lock();
     let fiado = caches.fiado_aberto.lock();
     let products = caches.products.lock();
     let categories = caches.categories.lock();
     let customers = caches.customers.lock();
+    let movements = caches.stock_movements.lock();
     let snap = build_snapshot(
         &state,
         orders.as_deref().unwrap_or(&vazio),
@@ -186,6 +204,7 @@ pub(crate) fn reapply(ui_weak: &slint::Weak<MainWindow>, rs: &Shared<ReportState
         products.as_deref().map(|v| &v[..]).unwrap_or(&[]),
         categories.as_deref().map(|v| &v[..]).unwrap_or(&[]),
         customers.as_deref().map(|v| &v[..]).unwrap_or(&[]),
+        movements.as_deref().unwrap_or(&vazio_mov),
     );
     let ui_weak = ui_weak.clone();
     let _ = slint::invoke_from_event_loop(move || {

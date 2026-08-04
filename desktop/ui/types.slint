@@ -1133,6 +1133,17 @@ export struct ReportHourlyBar {
     previous-display: string,
 }
 
+/// Uma linha do extrato de movimentações de estoque (aba Estoque dos
+/// Relatórios). Tudo pronto do Rust — a UI só renderiza (§1/§14).
+export struct ReportStockRow {
+    date-display: string,        // "04/08 · 14:30"
+    product-name: string,
+    kind-label: string,          // "Venda" | "Ajuste" | "Consumo" | ...
+    kind-color: color,           // tom do selo do tipo
+    qty-display: string,         // "+5" | "−1,5"
+    qty-color: color,            // verde = entrada, vermelho = saída
+}
+
 /// Par (atual, anterior) do comparativo semanal — uma entrada por dia
 /// da semana.
 export struct DashboardComparePoint {

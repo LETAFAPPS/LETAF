@@ -12,6 +12,7 @@ import {
     ReportCustomerRow,
     ReportNewVsReturning,
     ReportHourlyBar,
+    ReportStockRow,
 } from "../types.slint";
 
 // ── Tela: Relatórios (Central de análises) ────────────────────────
@@ -48,6 +49,7 @@ component ReportTypeIcon inherits Rectangle {
     if root.key == "orders": AssetIcon { width: 100%; height: 100%; icon-size: 16px; icon-color: root.tint; source: @image-url("../assets/icons/orders.svg"); }
     if root.key == "products": AssetIcon { width: 100%; height: 100%; icon-size: 16px; icon-color: root.tint; source: @image-url("../assets/icons/products.svg"); }
     if root.key == "customers": AssetIcon { width: 100%; height: 100%; icon-size: 16px; icon-color: root.tint; source: @image-url("../assets/icons/customers.svg"); }
+    if root.key == "stock": AssetIcon { width: 100%; height: 100%; icon-size: 16px; icon-color: root.tint; source: @image-url("../assets/icons/inventory.svg"); }
 }
 
 // ── Ícone das barras horizontais (forma de pagamento / canal) ────
@@ -485,6 +487,9 @@ export component ReportsPage inherits HorizontalLayout {
     // Clientes
     in property <[ReportCustomerRow]> top-customers;
     in property <ReportNewVsReturning> new-vs-ret;
+
+    // Estoque — extrato de movimentações.
+    in property <[ReportStockRow]> stock-rows;
 
     callback set-type(string);
     callback set-period(string);
@@ -1250,6 +1255,79 @@ export component ReportsPage inherits HorizontalLayout {
                                     Text { text: root.new-vs-ret.new-count + " Clientes"; font-size: 11px; color: Theme.text-secondary; vertical-alignment: center; }
                                     Text { width: 40px; text: root.new-vs-ret.new-pct; font-size: 12px; font-weight: 700; color: Theme.text-primary; horizontal-alignment: right; vertical-alignment: center; }
                                 }
+                            }
+                        }
+                    }
+
+                    // ── ESTOQUE ───────────────────────────────
+                    // Extrato do ledger de movimentações (entradas/saídas).
+                    // Cada linha: data · produto · tipo (selo) · quantidade
+                    // (verde entrada / vermelho saída). Tudo pronto do Rust.
+                    if root.active-type == "stock": PanelCard {
+                        VerticalLayout {
+                            padding: 18px; spacing: 12px;
+                            VerticalLayout {
+                                spacing: 0px;
+                                Text { text: "Movimentações de Estoque"; font-size: 14px; font-weight: 700; color: Theme.text-primary; }
+                                Text { text: "Entradas e saídas no período"; font-size: 11px; color: Theme.text-secondary; }
+                            }
+                            // Cabeçalho de colunas.
+                            if root.stock-rows.length > 0: HorizontalLayout {
+                                spacing: 12px;
+                                padding-left: 4px; padding-right: 4px;
+                                Text { width: 128px; text: "DATA"; font-size: 10px; font-weight: 800; letter-spacing: 1px; color: Theme.text-secondary; }
+                                Text { horizontal-stretch: 1; text: "PRODUTO"; font-size: 10px; font-weight: 800; letter-spacing: 1px; color: Theme.text-secondary; }
+                                Text { width: 120px; text: "TIPO"; font-size: 10px; font-weight: 800; letter-spacing: 1px; color: Theme.text-secondary; }
+                                Text { width: 84px; text: "QTD"; font-size: 10px; font-weight: 800; letter-spacing: 1px; color: Theme.text-secondary; horizontal-alignment: right; }
+                            }
+                            // Linhas do extrato.
+                            for r in root.stock-rows: Rectangle {
+                                height: 44px;
+                                border-radius: 8px;
+                                background: srow-ta.has-hover ? Theme.row-hover : transparent;
+                                srow-ta := TouchArea { }
+                                HorizontalLayout {
+                                    padding-left: 4px; padding-right: 4px;
+                                    spacing: 12px;
+                                    Text {
+                                        width: 128px;
+                                        text: r.date-display;
+                                        font-size: 12px; color: Theme.text-secondary;
+                                        vertical-alignment: center;
+                                    }
+                                    Text {
+                                        horizontal-stretch: 1;
+                                        text: r.product-name;
+                                        font-size: 13px; font-weight: 600; color: Theme.text-primary;
+                                        vertical-alignment: center; overflow: elide;
+                                    }
+                                    // Selo do tipo (tint da cor do tipo).
+                                    VerticalLayout {
+                                        width: 120px;
+                                        alignment: center;
+                                        Rectangle {
+                                            height: 22px;
+                                            border-radius: 6px;
+                                            background: r.kind-color.transparentize(0.86);
+                                            Text {
+                                                text: r.kind-label;
+                                                font-size: 11px; font-weight: 700; color: r.kind-color;
+                                                horizontal-alignment: center; vertical-alignment: center;
+                                            }
+                                        }
+                                    }
+                                    Text {
+                                        width: 84px;
+                                        text: r.qty-display;
+                                        font-size: 14px; font-weight: 800; color: r.qty-color;
+                                        horizontal-alignment: right; vertical-alignment: center;
+                                    }
+                                }
+                            }
+                            if root.stock-rows.length == 0: EmptyState {
+                                art-size: 210px;
+                                source: @image-url("../assets/illustrations/online-shopping-store.svg");
+                                title: "Sem movimentações no período";
                             }
                         }
                     }

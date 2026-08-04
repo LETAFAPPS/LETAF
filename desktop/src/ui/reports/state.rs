@@ -5,6 +5,7 @@ use letaf_core::category::model::Category;
 use letaf_core::customer::model::Customer;
 use letaf_core::order::model::Order;
 use letaf_core::product::model::Product;
+use letaf_core::product::stock_movement::StockMovement;
 
 
 
@@ -51,6 +52,9 @@ pub(crate) struct Caches {
     pub(crate) products: Shared<Vec<Product>>,
     pub(crate) categories: Shared<Vec<Category>>,
     pub(crate) customers: Shared<Vec<Customer>>,
+    /// Movimentos de estoque (ledger) da mesma janela ampla dos pedidos —
+    /// recortados pelo período selecionado na hora de montar o extrato.
+    pub(crate) stock_movements: Shared<Vec<StockMovement>>,
 }
 
 impl Clone for Caches {
@@ -61,6 +65,7 @@ impl Clone for Caches {
             products: self.products.clone(),
             categories: self.categories.clone(),
             customers: self.customers.clone(),
+            stock_movements: self.stock_movements.clone(),
         }
     }
 }
