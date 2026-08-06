@@ -544,6 +544,7 @@ export component CustomersPage inherits Rectangle {
                     WalletCard {
                         summary: root.wallet-summary;
                         movements: root.wallet-movements;
+                        reset-key: root.selected-customer-id;
                         open-deposit => { root.wallet-open-deposit(); }
                         open-withdraw => { root.wallet-open-withdraw(); }
                         open-adjust => { root.wallet-open-adjust(); }
