@@ -131,8 +131,6 @@ fn company_form_valid(ui: &MainWindow, h: &CompanyFormHead) -> bool {
 fn build_company_body(ui: &MainWindow, h: &CompanyFormHead) -> serde_json::Value {
     let g = ui.global::<AdminState>();
     let discount = parse_money_br(&g.get_company_form_discount());
-    let latitude = parse_coord(g.get_company_form_latitude());
-    let longitude = parse_coord(g.get_company_form_longitude());
     serde_json::json!({
         "name": h.name,
         "subdomain": h.subdomain,
@@ -149,20 +147,13 @@ fn build_company_body(ui: &MainWindow, h: &CompanyFormHead) -> serde_json::Value
         "zip_code": g.get_company_form_zip().trim(),
         "city": g.get_company_form_city().trim(),
         "uf": g.get_company_form_uf().trim(),
-        "latitude": latitude,
-        "longitude": longitude,
+        "location_url": g.get_company_form_location_url().trim(),
         "plan": g.get_company_form_plan().to_string(),
         "trial_days": g.get_company_form_trial().trim().parse::<i32>().unwrap_or(0),
         "logo_data": g.get_company_form_logo_data().to_string(),
         "cover_data": g.get_company_form_cover_data().to_string(),
         "plan_discount": discount,
     })
-}
-
-/// Coordenada: string → f64 (aceita vírgula ou ponto); vazio → null.
-fn parse_coord(s: SharedString) -> Option<f64> {
-    let t = s.trim().replace(',', ".");
-    if t.is_empty() { None } else { t.parse::<f64>().ok() }
 }
 
 /// "+": abre um cadastro LIMPO (sem sobras de uma edição anterior nem

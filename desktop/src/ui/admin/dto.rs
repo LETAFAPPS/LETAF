@@ -105,9 +105,7 @@ pub(super) struct CompanyFormDto {
     pub(super) city: String,
     pub(super) uf: String,
     #[serde(default)]
-    pub(super) latitude: Option<f64>,
-    #[serde(default)]
-    pub(super) longitude: Option<f64>,
+    pub(super) location_url: Option<String>,
     pub(super) logo_data: String,
     pub(super) cover_data: String,
     pub(super) discount: f64,

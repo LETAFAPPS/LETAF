@@ -114,12 +114,8 @@ export global AdminState {
     in-out property <string> company-form-zip: "";
     in-out property <string> company-form-city: "";
     in-out property <string> company-form-uf: "";
-    // Coordenadas (mapa/entrega). Preenchidas manualmente ou pelo botão
-    // "Buscar do endereço" (geocodificação no Rust).
-    in-out property <string> company-form-latitude: "";
-    in-out property <string> company-form-longitude: "";
-    in-out property <bool> company-geocode-loading: false;
-    callback company-geocode();
+    // Link da localização do estabelecimento (ex.: URL do Google Maps).
+    in-out property <string> company-form-location-url: "";
     in-out property <string> company-form-logo-data: "";
     in-out property <string> company-form-cover-data: "";
     in-out property <image> company-form-logo-image;

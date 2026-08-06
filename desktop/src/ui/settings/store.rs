@@ -81,8 +81,9 @@ pub(crate) fn setup_save_store_info(
                 zip_code: some_if_filled(zip_digits),
                 city: some_if_filled(city),
                 uf: some_if_filled(uf),
-                latitude: current.as_ref().and_then(|c| c.latitude),
-                longitude: current.as_ref().and_then(|c| c.longitude),
+                // Link da localização é definido no painel do super admin;
+                // preserva o valor atual para não zerá-lo no save.
+                location_url: current.as_ref().and_then(|c| c.location_url.clone()),
                 logo_data: some_if_filled(logo),
                 cover_data: some_if_filled(cover),
                 products_per_page,

@@ -63,12 +63,11 @@ pub struct Company {
     /// Sigla da UF (2 letras). Não normalizamos aqui.
     #[serde(default)]
     pub uf: Option<String>,
-    /// Coordenadas geográficas do estabelecimento (mapa/entrega).
-    /// `None` = não informado. Geocodificadas do endereço no cadastro.
+    /// Link da localização do estabelecimento (ex.: URL do Google Maps).
+    /// `None` = não informado. Cadastrado manualmente — substitui as antigas
+    /// coordenadas latitude/longitude.
     #[serde(default)]
-    pub latitude: Option<f64>,
-    #[serde(default)]
-    pub longitude: Option<f64>,
+    pub location_url: Option<String>,
     #[serde(default)]
     pub logo_data: Option<String>,
     #[serde(default)]
@@ -122,8 +121,7 @@ impl Company {
             zip_code: None,
             city: None,
             uf: None,
-            latitude: None,
-            longitude: None,
+            location_url: None,
             logo_data: None,
             cover_data: None,
             products_per_page: 20,

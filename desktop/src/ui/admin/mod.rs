@@ -22,7 +22,7 @@
 //! - `company_form`: preenchimento, limpeza, imagens e máscaras do cadastro
 //! - `subscriptions`: assinatura e faturas de uma empresa
 //! - `plans`: catálogo de planos
-//! - `geo`: CEP (ViaCEP) e geocodificação (Nominatim)
+//! - `geo`: preenchimento de endereço por CEP (ViaCEP)
 //! - `impersonation`: entrar numa empresa e voltar ao super admin
 
 mod cache;
@@ -69,7 +69,6 @@ pub(crate) fn setup_admin(
     company_form::setup_company_pickers(ui, handle);
     company_form::setup_company_form_helpers(ui);
     geo::setup_company_cep(ui, handle);
-    geo::setup_company_geocode(ui, handle);
     plans::setup_plan_form(ui, &caches.plans);
     plans::setup_plan_persist(ui, handle, &auth_token, &server_url);
     impersonation::setup_impersonation(ui, state, handle, sync_notify, &auth_token, &server_url);

@@ -27,8 +27,7 @@ struct CompanyRow {
     zip_code: Option<String>,
     city: Option<String>,
     uf: Option<String>,
-    latitude: Option<f64>,
-    longitude: Option<f64>,
+    location_url: Option<String>,
     logo_data: Option<String>,
     cover_data: Option<String>,
     products_per_page: i32,
@@ -59,8 +58,7 @@ impl From<CompanyRow> for Company {
             zip_code: r.zip_code,
             city: r.city,
             uf: r.uf,
-            latitude: r.latitude,
-            longitude: r.longitude,
+            location_url: r.location_url,
             logo_data: r.logo_data,
             cover_data: r.cover_data,
             products_per_page: r.products_per_page,
@@ -112,7 +110,7 @@ impl CompanyRepository for PgCompanyRepository {
         sqlx::query_as::<_, CompanyRow>(
             "SELECT id, name, subdomain, store_override, address, phone, whatsapp, email,
                     instagram, document, neighborhood, zip_code, city, uf,
-                    latitude, longitude,
+                    location_url,
                     CASE WHEN logo_data IS NOT NULL THEN '1' END AS logo_data,
                     CASE WHEN cover_data IS NOT NULL THEN '1' END AS cover_data,
                     products_per_page, orders_per_page, utc_offset_minutes, active,
@@ -187,11 +185,11 @@ impl CompanyRepository for PgCompanyRepository {
             "UPDATE companies SET name = $1, subdomain = $2, store_override = $3,
              address = $4, phone = $5, whatsapp = $6, email = $7, instagram = $8,
              document = $9, neighborhood = $10, zip_code = $11, city = $12, uf = $13,
-             latitude = $14, longitude = $15,
-             logo_data = $16, cover_data = $17,
-             products_per_page = $18, orders_per_page = $19, active = $20, updated_at = $21, synced = $22,
-             delivery_fee = $23
-             WHERE id = $24 AND deleted_at IS NULL",
+             location_url = $14,
+             logo_data = $15, cover_data = $16,
+             products_per_page = $17, orders_per_page = $18, active = $19, updated_at = $20, synced = $21,
+             delivery_fee = $22
+             WHERE id = $23 AND deleted_at IS NULL",
         )
         .bind(&company.name)
         .bind(&company.subdomain)
@@ -206,8 +204,7 @@ impl CompanyRepository for PgCompanyRepository {
         .bind(&company.zip_code)
         .bind(&company.city)
         .bind(&company.uf)
-        .bind(company.latitude)
-        .bind(company.longitude)
+        .bind(&company.location_url)
         .bind(&company.logo_data)
         .bind(&company.cover_data)
         .bind(company.products_per_page)
@@ -283,12 +280,12 @@ impl CompanyRepository for PgCompanyRepository {
         sqlx::query(
             "INSERT INTO companies (id, name, subdomain, store_override,
                 address, phone, whatsapp, email, instagram, document,
-                neighborhood, zip_code, city, uf, latitude, longitude,
+                neighborhood, zip_code, city, uf, location_url,
                 logo_data, cover_data, products_per_page, orders_per_page,
                 created_at, updated_at, deleted_at, synced, delivery_fee,
                 utc_offset_minutes)
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12,
-                $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26)
+                $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25)
              ON CONFLICT (id) DO UPDATE SET
                  name = EXCLUDED.name,
                  -- subdomain NÃO é atualizado no conflito: é a CHAVE de
@@ -306,8 +303,7 @@ impl CompanyRepository for PgCompanyRepository {
                  zip_code = EXCLUDED.zip_code,
                  city = EXCLUDED.city,
                  uf = EXCLUDED.uf,
-                 latitude = EXCLUDED.latitude,
-                 longitude = EXCLUDED.longitude,
+                 location_url = EXCLUDED.location_url,
                  logo_data = EXCLUDED.logo_data,
                  cover_data = EXCLUDED.cover_data,
                  products_per_page = EXCLUDED.products_per_page,
@@ -340,8 +336,7 @@ impl CompanyRepository for PgCompanyRepository {
         .bind(&company.zip_code)
         .bind(&company.city)
         .bind(&company.uf)
-        .bind(company.latitude)
-        .bind(company.longitude)
+        .bind(&company.location_url)
         .bind(&company.logo_data)
         .bind(&company.cover_data)
         .bind(company.products_per_page)

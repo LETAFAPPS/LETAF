@@ -38,9 +38,8 @@ fn fill_identity(ui: &MainWindow, f: &CompanyFormDto) {
     g.set_company_form_zip(f.zip_code.clone().into());
     g.set_company_form_city(f.city.clone().into());
     g.set_company_form_uf(f.uf.clone().into());
-    // Coordenadas: número → texto; None fica vazio.
-    g.set_company_form_latitude(f.latitude.map(|v| v.to_string()).unwrap_or_default().into());
-    g.set_company_form_longitude(f.longitude.map(|v| v.to_string()).unwrap_or_default().into());
+    // Link da localização (URL do mapa); None fica vazio.
+    g.set_company_form_location_url(f.location_url.clone().unwrap_or_default().into());
 }
 
 /// Plano, período grátis e desconto.
@@ -110,8 +109,7 @@ pub(super) fn clear_company_form(ui: &MainWindow) {
     ui.global::<AdminState>().set_company_form_zip(SharedString::new());
     ui.global::<AdminState>().set_company_form_city(SharedString::new());
     ui.global::<AdminState>().set_company_form_uf(SharedString::new());
-    ui.global::<AdminState>().set_company_form_latitude(SharedString::new());
-    ui.global::<AdminState>().set_company_form_longitude(SharedString::new());
+    ui.global::<AdminState>().set_company_form_location_url(SharedString::new());
     // Plano: 1º plano ativo disponível (senão mensal).
     let default_plan = {
         let opts = ui.global::<AdminState>().get_company_form_plan_options();

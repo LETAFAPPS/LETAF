@@ -8,8 +8,6 @@ use slint::{ComponentHandle, SharedString};
 
 use crate::{AdminState, MainWindow, HTTP_CLIENT};
 
-use super::super::helpers::show_toast;
-
 /// Consulta o CEP (ViaCEP) e preenche cidade/UF. É conveniência de UX: o
 /// operador ainda pode editar; o backend não depende disto.
 /// Falha silenciosa (rede/CEP inexistente) — o operador digita manualmente.
@@ -74,75 +72,3 @@ fn apply_via_cep(ui: &MainWindow, v: &ViaCep) {
     }
 }
 
-/// Geocodifica o endereço preenchido → latitude/longitude, via
-/// OpenStreetMap/Nominatim (gratuito, sem chave; exige User-Agent). É só
-/// conveniência de UX: o backend apenas armazena as coordenadas (§11).
-pub(super) fn setup_company_geocode(ui: &MainWindow, handle: &tokio::runtime::Handle) {
-    let ui_weak = ui.as_weak();
-    let handle = handle.clone();
-    ui.global::<AdminState>().on_company_geocode(move || {
-        let Some(ui) = ui_weak.upgrade() else { return };
-        let query = address_query(&ui);
-        if query.is_empty() {
-            show_toast(&ui, "Preencha o endereço antes de buscar as coordenadas", "error");
-            return;
-        }
-        let query = format!("{query}, Brasil");
-        let ui_weak = ui_weak.clone();
-        handle.spawn(async move {
-            let uw = ui_weak.clone();
-            let _ = slint::invoke_from_event_loop(move || {
-                if let Some(ui) = uw.upgrade() {
-                    ui.global::<AdminState>().set_company_geocode_loading(true);
-                }
-            });
-            let hit = geocode(&query).await;
-            let _ = slint::invoke_from_event_loop(move || {
-                let Some(ui) = ui_weak.upgrade() else { return };
-                ui.global::<AdminState>().set_company_geocode_loading(false);
-                match hit {
-                    Some(h) if !h.lat.is_empty() && !h.lon.is_empty() => {
-                        ui.global::<AdminState>().set_company_form_latitude(h.lat.into());
-                        ui.global::<AdminState>().set_company_form_longitude(h.lon.into());
-                        show_toast(&ui, "Coordenadas encontradas", "success");
-                    }
-                    _ => show_toast(&ui, "Não foi possível localizar o endereço", "error"),
-                }
-            });
-        });
-    });
-}
-
-/// Monta o endereço a partir dos campos já preenchidos.
-fn address_query(ui: &MainWindow) -> String {
-    let g = ui.global::<AdminState>();
-    let parts = [
-        g.get_company_form_address().trim().to_string(),
-        g.get_company_form_neighborhood().trim().to_string(),
-        g.get_company_form_city().trim().to_string(),
-        g.get_company_form_uf().trim().to_string(),
-    ];
-    parts.iter().filter(|p| !p.is_empty()).cloned().collect::<Vec<_>>().join(", ")
-}
-
-#[derive(serde::Deserialize)]
-struct Hit {
-    #[serde(default)] lat: String,
-    #[serde(default)] lon: String,
-}
-
-/// Primeiro resultado do Nominatim para o endereço (`None` em falha).
-async fn geocode(query: &str) -> Option<Hit> {
-    let hits: Option<Vec<Hit>> = match HTTP_CLIENT
-        .get("https://nominatim.openstreetmap.org/search")
-        .query(&[("q", query), ("format", "json"), ("limit", "1")])
-        // Nominatim exige identificar o app no User-Agent.
-        .header("User-Agent", "LETAF-ERP/1.0 (suporte@letaf.app)")
-        .send()
-        .await
-    {
-        Ok(r) if r.status().is_success() => r.json::<Vec<Hit>>().await.ok(),
-        _ => None,
-    };
-    hits.and_then(|v| v.into_iter().next())
-}
