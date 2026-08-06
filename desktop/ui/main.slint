@@ -812,6 +812,8 @@ export component MainWindow inherits Window {
                     // Callbacks do form (encaminham aos do MainWindow).
                     add-product => { ProductsState.add-product(); }
                     update-product => { ProductsState.update-product(); }
+                    export-products => { ProductsState.export-products(); }
+                    import-products => { ProductsState.import-products(); }
                     pick-product-image => { ProductsState.pick-product-image(); }
                     remove-product-image => { ProductsState.remove-product-image(); }
                     add-discount-tier => { ProductsState.add-discount-tier(); }

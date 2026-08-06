@@ -16,6 +16,7 @@
 //! Re-exporta a API consumida por `ui::setup_callbacks`, preservando os
 //! caminhos `products::*` usados externamente.
 
+mod bulk;
 mod crud;
 mod data;
 mod editors;
@@ -41,6 +42,7 @@ pub(crate) use filter::{
     setup_filter_products, setup_reset_product_filters, setup_set_status_filter,
     setup_set_stock_filter, setup_toggle_category_filter, setup_toggle_subcategory_filter,
 };
+pub(crate) use bulk::setup_bulk;
 pub(crate) use crud::{setup_add, setup_delete, setup_update_product};
 pub(crate) use ops::{
     remove_product_from_model, setup_pick_product_image, setup_remove_product_image,

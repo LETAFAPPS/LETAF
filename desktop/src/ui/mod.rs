@@ -111,6 +111,7 @@ pub fn setup_callbacks(
     products::setup_reset_product_filters(ui, products_cache.clone(), products_filter.clone());
     products::setup_add(ui, state, handle, sync_notify.clone(), products_cache.clone());
     products::setup_update_product(ui, state, handle, sync_notify.clone(), products_cache.clone());
+    products::setup_bulk(ui, state, handle, sync_notify.clone());
     products::setup_pick_product_image(ui, handle, products_cache.clone());
     products::setup_remove_product_image(ui);
     products::setup_toggle_product_active(ui, state, handle, sync_notify.clone(), products_cache.clone());

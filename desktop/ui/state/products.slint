@@ -81,6 +81,11 @@ export global ProductsState {
     in-out property <string> product-save-error: "";
     callback add-product();
     callback update-product();
+    /// Cadastro em massa: exporta os produtos atuais para um CSV
+    /// (diálogo "salvar como") e importa um CSV fazendo upsert (atualiza
+    /// por id existente, cria os demais sem foto). Lógica no Rust (§1/§11).
+    callback export-products();
+    callback import-products();
     callback toggle-product-active(string);
     callback toggle-product-web-visible(string);
     callback delete-product(string);
