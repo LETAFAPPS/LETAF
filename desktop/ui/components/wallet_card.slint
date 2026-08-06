@@ -34,12 +34,7 @@ component WalletActionBtn inherits TouchArea {
 
 component MovementRow inherits Rectangle {
     in property <WalletMovementRow> data;
-    // Fora da página atual: colapsa (altura 0 + invisível). Mesmo padrão
-    // da lista paginada de pedidos.
-    in property <bool> hidden;
-    // Movimento com observação ganha uma linha extra.
-    height: root.hidden ? 0px : (root.data.notes == "" ? 56px : 72px);
-    visible: !root.hidden;
+    // Altura controlada pelo pai (paginação): o pai define height/visible.
     // Card próprio por movimento (padrão das listas do sistema).
     border-radius: 10px;
     border-width: 1px;
@@ -49,26 +44,29 @@ component MovementRow inherits Rectangle {
     HorizontalLayout {
         padding-left: 12px; padding-right: 12px;
         spacing: 10px;
-        // Ícone — neutro (cinza, "→") para mudança de limite.
+        // Ícone do movimento — só assets do projeto (§ sem ícones criados):
+        // entrada (verde) → entrada-estoque; saída (vermelho) → saida-estoque;
+        // limite de fiado / neutro → atividade.
         Rectangle {
             width: 30px; height: 30px;
             y: (parent.height - 30px) / 2;
             border-radius: 6px;
             background: root.data.amount-tone == "pos" ? #E8F5E9
                 : (root.data.amount-tone == "neutral" ? Theme.row-alt : #FFEBEE);
-            if root.data.amount-tone != "neutral": Text {
+            if root.data.amount-tone == "pos": AssetIcon {
                 width: parent.width; height: parent.height;
-                text: root.data.amount-tone == "pos" ? "↓" : "↑";
-                font-size: 14px; font-weight: 800;
-                color: root.data.amount-tone == "pos" ? #2E7D32 : #E53935;
-                horizontal-alignment: center; vertical-alignment: center;
+                icon-size: 15px; icon-color: #2E7D32;
+                source: @image-url("../assets/icons/entrada-estoque.svg");
             }
-            // Limite de fiado: ícone .svg (seta), neutro.
+            if root.data.amount-tone == "neg": AssetIcon {
+                width: parent.width; height: parent.height;
+                icon-size: 15px; icon-color: #E53935;
+                source: @image-url("../assets/icons/saida-estoque.svg");
+            }
             if root.data.amount-tone == "neutral": AssetIcon {
                 width: parent.width; height: parent.height;
-                icon-size: 14px;
-                icon-color: Theme.text-secondary;
-                source: @image-url("../assets/icons/seta-direita.svg");
+                icon-size: 15px; icon-color: Theme.text-secondary;
+                source: @image-url("../assets/icons/atividade.svg");
             }
         }
         VerticalLayout {
@@ -321,9 +319,32 @@ export component WalletCard inherits Rectangle {
                 // no estado vazio (moldura da ilustração).
                 if root.movements.length > 0: VerticalLayout {
                     spacing: 8px;
-                    for m[i] in root.movements: MovementRow {
-                        data: m;
-                        hidden: !(i >= root.win-start && i < root.win-start + 5);
+                    // Área com altura reservada p/ 5 linhas (5×56 + 4×8 =
+                    // 312px): a lista preenche de cima p/ baixo e a barra de
+                    // paginação fica FIXA mesmo com menos de 5 movimentos.
+                    Rectangle {
+                        min-height: 312px;
+                        VerticalLayout {
+                            // spacing 0: as linhas fora da página colapsam
+                            // para altura 0 sem deixar folga no topo — o gap
+                            // de 8px é aplicado por linha (menos a primeira).
+                            spacing: 0px;
+                            alignment: start;
+                            for m[i] in root.movements: Rectangle {
+                                property <bool> shown: i >= root.win-start && i < root.win-start + 5;
+                                property <bool> firstp: i == root.win-start;
+                                property <length> row-h: m.notes == "" ? 56px : 72px;
+                                height: shown ? (firstp ? row-h : row-h + 8px) : 0px;
+                                MovementRow {
+                                    x: 0;
+                                    y: parent.firstp ? 0px : 8px;
+                                    width: parent.width;
+                                    height: parent.row-h;
+                                    visible: parent.shown;
+                                    data: m;
+                                }
+                            }
+                        }
                     }
                     if root.total-pages > 1: PaginationBar {
                         total-pages: root.total-pages;
