@@ -18,8 +18,12 @@ pub(crate) struct ReportState {
     /// "daily" | "weekly" | "monthly" | "yearly" — convertido em
     /// `letaf_core::report::ReportPeriod` na hora de montar o retrato.
     pub(crate) period: String,
-    /// Filtro da aba Estoque: id do produto (string) ou "" para todos.
-    pub(crate) stock_product: String,
+    /// Filtro da aba Estoque por TIPO de movimento: "" (todos) | "sale" |
+    /// "adjust" | "consumo" | "cancel" | "edit".
+    pub(crate) stock_kind: String,
+    /// Busca por nome do produto na aba Estoque (case-insensitive; "" = sem
+    /// filtro).
+    pub(crate) stock_search: String,
 }
 
 impl Default for ReportState {
@@ -27,7 +31,8 @@ impl Default for ReportState {
         Self {
             kind: "financial".into(),
             period: "weekly".into(),
-            stock_product: String::new(),
+            stock_kind: String::new(),
+            stock_search: String::new(),
         }
     }
 }

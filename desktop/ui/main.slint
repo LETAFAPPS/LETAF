@@ -1195,11 +1195,12 @@ export component MainWindow inherits Window {
                 top-customers: ReportsState.report-top-customers;
                 new-vs-ret: ReportsState.report-new-vs-ret;
                 stock-rows: ReportsState.report-stock-rows;
-                stock-products: ReportsState.report-stock-products;
-                stock-product-label: ReportsState.report-stock-product-label;
+                stock-kind <=> ReportsState.report-stock-kind;
+                stock-search <=> ReportsState.report-stock-search;
                 set-type(k) => { ReportsState.report-set-type(k); }
                 set-period(k) => { ReportsState.report-set-period(k); }
-                set-stock-product(k) => { ReportsState.report-set-stock-product(k); }
+                set-stock-kind(k) => { ReportsState.report-set-stock-kind(k); }
+                set-stock-search(q) => { ReportsState.report-set-stock-search(q); }
                 export-report => { ReportsState.report-export(); }
             }
 

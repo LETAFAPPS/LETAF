@@ -25,7 +25,7 @@ use crate::{ReportHBar, ReportHourlyBar, ReportNewVsReturning, ReportStockRow};
 
 use super::super::helpers::half_donut_arc;
 use super::helpers::{
-    build_daily, color_for, count_progress, dre, kpi, money_plain, opt, prep_sub, prep_value,
+    build_daily, color_for, count_progress, dre, kpi, money_plain, prep_sub, prep_value,
     progress_of, ChartWindow,
 };
 use super::snapshot::{Snapshot, TopCustomerRaw, TopProductRaw};
@@ -457,10 +457,11 @@ fn top_customers(
 }
 
 // ── ESTOQUE (extrato de movimentações) ───────────────────────────
-// Máximo de linhas renderizadas na lista. As KPIs contam TODAS as
-// movimentações do período; a lista mostra as mais recentes. Evita
-// materializar milhares de elementos Slint num período longo.
-const MAX_STOCK_ROWS: usize = 300;
+// Teto de linhas enviadas à UI (a lista pagina de 20 em 20). As KPIs
+// contam TODAS as movimentações filtradas do período; a lista mostra as
+// mais recentes até o teto. Evita materializar milhares de elementos
+// Slint num período longo.
+const MAX_STOCK_ROWS: usize = 500;
 
 /// Rótulo e cor do selo de cada tipo de movimento (`reason`).
 fn stock_kind(reason: &str) -> (&'static str, Color) {
@@ -482,44 +483,43 @@ fn fmt_signed_qty(delta: f64) -> String {
 }
 
 /// Preenche o extrato de estoque: recorta o ledger pelo período (data
-/// local), ordena do mais recente ao mais antigo, resolve o nome do
-/// produto pelo índice e formata cada linha. As KPIs somam entradas e
-/// saídas de TODO o período (§1/§3 — só apresentação).
+/// local), por TIPO de movimento e por busca no nome do produto; ordena do
+/// mais recente ao mais antigo e formata cada linha. As KPIs somam entradas
+/// e saídas de TODO o conjunto filtrado (§1/§3 — só apresentação).
 pub(crate) fn fill_stock(
     snap: &mut Snapshot,
     movements: &[StockMovement],
     products: &[Product],
-    product_filter: &str,
+    kind_filter: &str,
+    search: &str,
     start: NaiveDate,
     end: NaiveDate,
 ) {
     let product_by_id: HashMap<Uuid, &Product> =
         products.iter().map(|p| (p.base.id, p)).collect();
+    let needle = search.trim().to_lowercase();
 
-    // Opções do dropdown: "Todos" + produtos por nome (case-insensitive).
-    let mut ordenados: Vec<&Product> = products.iter().collect();
-    ordenados.sort_by_key(|p| p.name.to_lowercase());
-    let mut opcoes = vec![opt("", "Todos os produtos", product_filter.is_empty())];
-    for p in &ordenados {
-        let id = p.base.id.to_string();
-        let sel = product_filter == id;
-        opcoes.push(opt(&id, &p.name, sel));
-    }
-    snap.stock_product_label = product_filter
-        .parse::<Uuid>()
-        .ok()
-        .and_then(|id| product_by_id.get(&id))
-        .map(|p| p.name.clone())
-        .unwrap_or_else(|| "Todos os produtos".to_string());
-    snap.stock_products = opcoes;
-
-    // Recorte por data LOCAL da loja (created_at é UTC) e por produto.
-    let filtro_id = product_filter.parse::<Uuid>().ok();
+    // Recorte por data LOCAL da loja (created_at é UTC), tipo e busca.
     let mut janela: Vec<&StockMovement> = movements
         .iter()
         .filter(|m| {
             let d = letaf_core::tz::to_local(m.base.created_at).date();
-            d >= start && d <= end && filtro_id.is_none_or(|id| m.product_id == id)
+            if d < start || d > end {
+                return false;
+            }
+            if !kind_filter.is_empty() && m.reason != kind_filter {
+                return false;
+            }
+            if !needle.is_empty() {
+                let name = product_by_id
+                    .get(&m.product_id)
+                    .map(|p| p.name.to_lowercase())
+                    .unwrap_or_default();
+                if !name.contains(&needle) {
+                    return false;
+                }
+            }
+            true
         })
         .collect();
     // Mais recente primeiro.

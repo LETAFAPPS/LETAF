@@ -31,7 +31,8 @@ pub(crate) fn setup_reports(
     setup_refresh(ui, state, handle, rs.clone(), caches.clone());
     setup_set_type(ui, rs.clone(), caches.clone());
     setup_set_period(ui, rs.clone(), caches.clone());
-    setup_set_stock_product(ui, rs.clone(), caches.clone());
+    setup_set_stock_kind(ui, rs.clone(), caches.clone());
+    setup_set_stock_search(ui, rs.clone(), caches.clone());
     setup_export(ui);
     setup_sync_listener(ui, state, handle, sync_cycle_done, rs, caches);
 }
@@ -113,12 +114,20 @@ pub(crate) fn setup_set_period(ui: &MainWindow, rs: Shared<ReportState>, caches:
     });
 }
 
-// Filtro da aba Estoque: id do produto ("" = todos). Só re-renderiza (o
-// ledger já está no cache) — sem ir ao banco.
-pub(crate) fn setup_set_stock_product(ui: &MainWindow, rs: Shared<ReportState>, caches: Caches) {
+// Filtros da aba Estoque (tipo e busca por produto): só re-renderizam sobre o
+// ledger já cacheado — sem ir ao banco.
+pub(crate) fn setup_set_stock_kind(ui: &MainWindow, rs: Shared<ReportState>, caches: Caches) {
     let ui_weak = ui.as_weak();
-    ui.global::<ReportsState>().on_report_set_stock_product(move |id| {
-        if let Ok(mut g) = rs.lock() { g.stock_product = id.to_string(); }
+    ui.global::<ReportsState>().on_report_set_stock_kind(move |k| {
+        if let Ok(mut g) = rs.lock() { g.stock_kind = k.to_string(); }
+        reapply(&ui_weak, &rs, &caches);
+    });
+}
+
+pub(crate) fn setup_set_stock_search(ui: &MainWindow, rs: Shared<ReportState>, caches: Caches) {
+    let ui_weak = ui.as_weak();
+    ui.global::<ReportsState>().on_report_set_stock_search(move |q| {
+        if let Ok(mut g) = rs.lock() { g.stock_search = q.to_string(); }
         reapply(&ui_weak, &rs, &caches);
     });
 }

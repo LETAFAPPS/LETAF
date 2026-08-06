@@ -40,12 +40,13 @@ export global ReportsState {
     in-out property <ReportNewVsReturning> report-new-vs-ret;
     // Estoque — extrato de movimentações (ledger stock_movements).
     in-out property <[ReportStockRow]> report-stock-rows: [];
-    // Filtro por produto: opções do dropdown + rótulo do selecionado.
-    in-out property <[ReportOption]> report-stock-products: [];
-    in-out property <string> report-stock-product-label: "Todos os produtos";
+    // Filtros: tipo de movimento ("" = todos) e busca por nome do produto.
+    in-out property <string> report-stock-kind: "";
+    in-out property <string> report-stock-search: "";
     callback report-refresh();
     callback report-set-type(string);
     callback report-set-period(string);
-    callback report-set-stock-product(string);
+    callback report-set-stock-kind(string);
+    callback report-set-stock-search(string);
     callback report-export();
 }

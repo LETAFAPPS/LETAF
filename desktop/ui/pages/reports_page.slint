@@ -2,6 +2,7 @@ import { ScrollView } from "std-widgets.slint";
 import { Theme } from "../theme.slint";
 import { AssetIcon } from "../components/icons.slint";
 import { EmptyState } from "../components/empty_state.slint";
+import { PaginationBar } from "../components/pagination.slint";
 import {
     ReportOption,
     ReportKpi,
@@ -490,13 +491,28 @@ export component ReportsPage inherits HorizontalLayout {
 
     // Estoque — extrato de movimentações.
     in property <[ReportStockRow]> stock-rows;
-    in property <[ReportOption]> stock-products;   // opções do filtro
-    in property <string> stock-product-label;      // produto selecionado
+    in-out property <string> stock-kind;      // filtro por tipo ("" = todos)
+    in-out property <string> stock-search;    // busca por nome do produto
 
     callback set-type(string);
     callback set-period(string);
-    callback set-stock-product(string);
+    callback set-stock-kind(string);
+    callback set-stock-search(string);
     callback export-report();
+
+    // Paginação client-side do extrato de estoque: 20 por página. Reinicia
+    // na página 1 quando o filtro/busca/conjunto muda.
+    property <int> stock-page: 1;
+    property <int> stock-total-pages:
+        root.stock-rows.length == 0 ? 0 : (root.stock-rows.length + 19) / 20;
+    property <int> stock-eff-page:
+        root.stock-total-pages == 0 ? 1
+        : (root.stock-page > root.stock-total-pages ? root.stock-total-pages
+            : (root.stock-page < 1 ? 1 : root.stock-page));
+    property <int> stock-win-start: (root.stock-eff-page - 1) * 20;
+    property <string> stock-reset-key:
+        root.stock-kind + "|" + root.stock-search + "|" + root.stock-rows.length;
+    changed stock-reset-key => { root.stock-page = 1; }
 
     spacing: 0px;
 
@@ -1266,97 +1282,132 @@ export component ReportsPage inherits HorizontalLayout {
                     // Extrato do ledger de movimentações (entradas/saídas).
                     // Cada linha: data · produto · tipo (selo) · quantidade
                     // (verde entrada / vermelho saída). Tudo pronto do Rust.
-                    if root.active-type == "stock": PanelCard {
-                        VerticalLayout {
-                            padding: 18px; spacing: 12px;
-                            // Título (esquerda) + filtro de produto (direita).
-                            HorizontalLayout {
-                                spacing: 12px;
-                                VerticalLayout {
-                                    horizontal-stretch: 1;
-                                    alignment: center;
-                                    spacing: 0px;
-                                    Text { text: "Movimentações de Estoque"; font-size: 14px; font-weight: 700; color: Theme.text-primary; }
-                                    Text { text: "Entradas e saídas no período"; font-size: 11px; color: Theme.text-secondary; }
-                                }
-                                // Dropdown de produto (mesmo estilo do filtro de
-                                // Status da tela de Estoque).
-                                VerticalLayout {
-                                    alignment: center;
-                                    Rectangle {
-                                        width: 240px; height: 34px;
-                                        border-radius: 8px;
-                                        border-width: 1px;
-                                        border-color: prod-ta.has-hover ? Theme.primary : Theme.card-border;
-                                        background: Theme.surface;
-                                        prod-ta := TouchArea { clicked => { prod-popup.show(); } }
-                                        HorizontalLayout {
-                                            padding-left: 12px; padding-right: 12px; spacing: 8px;
-                                            VerticalLayout {
-                                                alignment: center; width: 14px;
-                                                AssetIcon {
-                                                    width: 14px; height: 14px; icon-size: 14px;
-                                                    icon-color: Theme.text-secondary;
-                                                    source: @image-url("../assets/icons/filtro.svg");
-                                                }
-                                            }
-                                            Text {
-                                                horizontal-stretch: 1;
-                                                text: root.stock-product-label;
-                                                font-size: 13px; font-weight: 600;
-                                                color: root.stock-product-label == "Todos os produtos" ? Theme.text-primary : Theme.btn-accent;
-                                                vertical-alignment: center; overflow: elide;
-                                            }
-                                            Text {
-                                                text: "▾"; font-size: 12px; color: Theme.text-secondary;
-                                                vertical-alignment: center;
+                    // Extrato do ledger: cada movimento é um CARD próprio (sem
+                    // card envolvente). Filtro por TIPO + busca por produto;
+                    // paginação de 20 por página. Tudo pronto do Rust.
+                    if root.active-type == "stock": VerticalLayout {
+                        spacing: 12px;
+                        // Título (esquerda) + busca de produto + filtro de tipo.
+                        HorizontalLayout {
+                            spacing: 10px;
+                            VerticalLayout {
+                                horizontal-stretch: 1;
+                                alignment: center;
+                                spacing: 0px;
+                                Text { text: "Movimentações de Estoque"; font-size: 14px; font-weight: 700; color: Theme.text-primary; }
+                                Text { text: "Entradas e saídas no período"; font-size: 11px; color: Theme.text-secondary; }
+                            }
+                            // Busca por produto.
+                            VerticalLayout {
+                                alignment: center;
+                                Rectangle {
+                                    width: 240px; height: 34px;
+                                    border-radius: 8px; border-width: 1px;
+                                    border-color: stock-search-input.has-focus ? Theme.primary : Theme.card-border;
+                                    background: Theme.surface;
+                                    HorizontalLayout {
+                                        padding-left: 12px; padding-right: 12px; spacing: 8px;
+                                        VerticalLayout {
+                                            alignment: center; width: 15px;
+                                            AssetIcon {
+                                                width: 15px; height: 15px; icon-size: 15px;
+                                                icon-color: stock-search-input.has-focus ? Theme.primary : Theme.text-secondary;
+                                                source: @image-url("../assets/icons/busca.svg");
                                             }
                                         }
-                                        prod-popup := PopupWindow {
-                                            x: 0; y: parent.height + 4px;
-                                            width: 260px;
-                                            close-policy: PopupClosePolicy.close-on-click-outside;
-                                            Rectangle {
-                                                border-radius: 10px;
-                                                background: Theme.surface;
-                                                border-width: 1px; border-color: Theme.card-border;
-                                                drop-shadow-blur: 16px; drop-shadow-color: #00000030;
-                                                VerticalLayout {
-                                                    padding: 6px; spacing: 2px;
-                                                    Text {
-                                                        text: "PRODUTO";
-                                                        font-size: 10px; font-weight: 800; letter-spacing: 1px;
-                                                        color: Theme.btn-accent;
-                                                        horizontal-alignment: left;
+                                        Rectangle {
+                                            horizontal-stretch: 1;
+                                            stock-search-input := TextInput {
+                                                x: 0; y: 0; width: parent.width; height: parent.height;
+                                                text <=> root.stock-search;
+                                                font-size: 13px; color: Theme.text-primary;
+                                                vertical-alignment: center; single-line: true;
+                                                edited => { root.set-stock-search(self.text); }
+                                            }
+                                            if root.stock-search == "": Text {
+                                                x: 0; y: 0; width: parent.width; height: parent.height;
+                                                text: "Buscar produto..."; font-size: 13px;
+                                                color: #BDBDBD; vertical-alignment: center;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            // Filtro por tipo (dropdown).
+                            VerticalLayout {
+                                alignment: center;
+                                Rectangle {
+                                    width: 190px; height: 34px;
+                                    border-radius: 8px; border-width: 1px;
+                                    border-color: kind-ta.has-hover ? Theme.primary : Theme.card-border;
+                                    background: Theme.surface;
+                                    kind-ta := TouchArea { clicked => { kind-popup.show(); } }
+                                    HorizontalLayout {
+                                        padding-left: 12px; padding-right: 12px; spacing: 8px;
+                                        VerticalLayout {
+                                            alignment: center; width: 14px;
+                                            AssetIcon {
+                                                width: 14px; height: 14px; icon-size: 14px;
+                                                icon-color: Theme.text-secondary;
+                                                source: @image-url("../assets/icons/filtro.svg");
+                                            }
+                                        }
+                                        Text {
+                                            horizontal-stretch: 1;
+                                            text: root.stock-kind == "sale" ? "Venda"
+                                                : (root.stock-kind == "adjust" ? "Ajuste"
+                                                : (root.stock-kind == "consumo" ? "Consumo"
+                                                : (root.stock-kind == "cancel" ? "Cancelamento"
+                                                : (root.stock-kind == "edit" ? "Edição de venda" : "Todos os tipos"))));
+                                            font-size: 13px; font-weight: 600;
+                                            color: root.stock-kind == "" ? Theme.text-primary : Theme.btn-accent;
+                                            vertical-alignment: center; overflow: elide;
+                                        }
+                                        Text { text: "▾"; font-size: 12px; color: Theme.text-secondary; vertical-alignment: center; }
+                                    }
+                                    kind-popup := PopupWindow {
+                                        x: 0; y: parent.height + 4px;
+                                        width: 200px;
+                                        close-policy: PopupClosePolicy.close-on-click-outside;
+                                        Rectangle {
+                                            border-radius: 10px;
+                                            background: Theme.surface;
+                                            border-width: 1px; border-color: Theme.card-border;
+                                            drop-shadow-blur: 16px; drop-shadow-color: #00000030;
+                                            VerticalLayout {
+                                                padding: 6px; spacing: 2px;
+                                                Text {
+                                                    text: "TIPO";
+                                                    font-size: 10px; font-weight: 800; letter-spacing: 1px;
+                                                    color: Theme.btn-accent; horizontal-alignment: left;
+                                                }
+                                                for o in [
+                                                    { k: "", l: "Todos os tipos" },
+                                                    { k: "sale", l: "Venda" },
+                                                    { k: "adjust", l: "Ajuste" },
+                                                    { k: "consumo", l: "Consumo" },
+                                                    { k: "cancel", l: "Cancelamento" },
+                                                    { k: "edit", l: "Edição de venda" },
+                                                ]: kind-opt-ta := TouchArea {
+                                                    height: 32px;
+                                                    clicked => {
+                                                        root.stock-kind = o.k;
+                                                        root.set-stock-kind(o.k);
+                                                        kind-popup.close();
                                                     }
-                                                    ScrollView {
-                                                        vertical-scrollbar-policy: ScrollBarPolicy.as-needed;
-                                                        horizontal-scrollbar-policy: ScrollBarPolicy.always-off;
-                                                        height: min(root.stock-products.length * 34px + 4px, 300px);
-                                                        VerticalLayout {
-                                                            spacing: 2px;
-                                                            for o in root.stock-products: opt-ta := TouchArea {
-                                                                height: 32px;
-                                                                clicked => {
-                                                                    root.set-stock-product(o.key);
-                                                                    prod-popup.close();
-                                                                }
-                                                                Rectangle {
-                                                                    border-radius: 6px;
-                                                                    background: o.selected
-                                                                        ? Theme.btn-accent.transparentize(0.90)
-                                                                        : (opt-ta.has-hover ? Theme.row-hover : transparent);
-                                                                    Text {
-                                                                        x: 10px;
-                                                                        width: parent.width - 20px; height: parent.height;
-                                                                        text: o.label;
-                                                                        font-size: 13px;
-                                                                        font-weight: o.selected ? 700 : 500;
-                                                                        color: o.selected ? Theme.btn-accent : Theme.text-primary;
-                                                                        vertical-alignment: center; overflow: elide;
-                                                                    }
-                                                                }
-                                                            }
+                                                    Rectangle {
+                                                        border-radius: 6px;
+                                                        background: root.stock-kind == o.k
+                                                            ? Theme.btn-accent.transparentize(0.90)
+                                                            : (kind-opt-ta.has-hover ? Theme.row-hover : transparent);
+                                                        Text {
+                                                            x: 10px;
+                                                            width: parent.width - 20px; height: parent.height;
+                                                            text: o.l;
+                                                            font-size: 13px;
+                                                            font-weight: root.stock-kind == o.k ? 700 : 500;
+                                                            color: root.stock-kind == o.k ? Theme.btn-accent : Theme.text-primary;
+                                                            vertical-alignment: center;
                                                         }
                                                     }
                                                 }
@@ -1365,23 +1416,31 @@ export component ReportsPage inherits HorizontalLayout {
                                     }
                                 }
                             }
-                            // Cabeçalho de colunas.
-                            if root.stock-rows.length > 0: HorizontalLayout {
+                        }
+                        // Lista: cada movimento em CARD próprio; 20 por página.
+                        if root.stock-rows.length > 0: VerticalLayout {
+                            spacing: 8px;
+                            // Cabeçalho de colunas (alinhado ao padding dos cards).
+                            HorizontalLayout {
                                 spacing: 12px;
-                                padding-left: 4px; padding-right: 4px;
+                                padding-left: 14px; padding-right: 14px;
                                 Text { width: 128px; text: "DATA"; font-size: 10px; font-weight: 800; letter-spacing: 1px; color: Theme.text-secondary; }
                                 Text { horizontal-stretch: 1; text: "PRODUTO"; font-size: 10px; font-weight: 800; letter-spacing: 1px; color: Theme.text-secondary; }
                                 Text { width: 120px; text: "TIPO"; font-size: 10px; font-weight: 800; letter-spacing: 1px; color: Theme.text-secondary; }
                                 Text { width: 84px; text: "QTD"; font-size: 10px; font-weight: 800; letter-spacing: 1px; color: Theme.text-secondary; horizontal-alignment: right; }
                             }
-                            // Linhas do extrato.
-                            for r in root.stock-rows: Rectangle {
-                                height: 44px;
-                                border-radius: 8px;
-                                background: srow-ta.has-hover ? Theme.row-hover : transparent;
+                            // Uma linha = um card. Fora da página → colapsa.
+                            for r[i] in root.stock-rows: Rectangle {
+                                property <bool> shown: i >= root.stock-win-start && i < root.stock-win-start + 20;
+                                height: shown ? 52px : 0px;
+                                visible: shown;
+                                border-radius: 10px;
+                                border-width: 1px; border-color: Theme.card-border;
+                                drop-shadow-blur: 8px; drop-shadow-offset-y: 0px; drop-shadow-color: Theme.card-shadow;
+                                background: srow-ta.has-hover ? Theme.row-hover : Theme.surface;
                                 srow-ta := TouchArea { }
                                 HorizontalLayout {
-                                    padding-left: 4px; padding-right: 4px;
+                                    padding-left: 14px; padding-right: 14px;
                                     spacing: 12px;
                                     Text {
                                         width: 128px;
@@ -1395,7 +1454,6 @@ export component ReportsPage inherits HorizontalLayout {
                                         font-size: 13px; font-weight: 600; color: Theme.text-primary;
                                         vertical-alignment: center; overflow: elide;
                                     }
-                                    // Selo do tipo (tint da cor do tipo).
                                     VerticalLayout {
                                         width: 120px;
                                         alignment: center;
@@ -1418,11 +1476,16 @@ export component ReportsPage inherits HorizontalLayout {
                                     }
                                 }
                             }
-                            if root.stock-rows.length == 0: EmptyState {
-                                art-size: 210px;
-                                source: @image-url("../assets/illustrations/online-shopping-store.svg");
-                                title: "Sem movimentações no período";
+                            if root.stock-total-pages > 1: PaginationBar {
+                                total-pages: root.stock-total-pages;
+                                effective-page: root.stock-eff-page;
+                                change-page(p) => { root.stock-page = p; }
                             }
+                        }
+                        if root.stock-rows.length == 0: EmptyState {
+                            art-size: 210px;
+                            source: @image-url("../assets/illustrations/online-shopping-store.svg");
+                            title: "Sem movimentações no período";
                         }
                     }
                 }
