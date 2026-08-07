@@ -27,6 +27,7 @@ pub mod customer_address;
 pub mod dashboard;
 pub mod deterministic_id;
 pub mod discount;
+pub mod business_type;
 pub mod entity;
 pub mod error;
 pub mod finance;

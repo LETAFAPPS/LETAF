@@ -1,0 +1,75 @@
+// Modal do super admin: cadastro/edição de um tipo de empresa do catálogo.
+// UI sem lógica (§1/§3): salvar delega ao Rust (POST/PUT /admin/business-types).
+import { Theme } from "../theme.slint";
+import { FormField } from "../components/form_fields.slint";
+import { OutlineBtn } from "../components/buttons.slint";
+import { ModalShell } from "../components/modal_shell.slint";
+
+// Interruptor liga/desliga (padrão do sistema).
+component Toggle inherits TouchArea {
+    in property <bool> on;
+    callback toggled();
+    width: 46px; height: 26px;
+    clicked => { root.toggled(); }
+    Rectangle {
+        border-radius: 13px;
+        background: root.on ? Theme.sidebar-sel-bg : Theme.border;
+        Rectangle {
+            width: 20px; height: 20px; border-radius: 10px;
+            background: white;
+            x: root.on ? parent.width - self.width - 3px : 3px;
+            y: (parent.height - self.height) / 2;
+            animate x { duration: 120ms; easing: ease-in-out; }
+        }
+    }
+}
+
+export component AdminBusinessTypeModal inherits Rectangle {
+    in property <string> form-id;
+    in-out property <string> form-name;
+    in-out property <string> form-description;
+    in-out property <string> form-sort;
+    in-out property <bool> form-active;
+    callback save();
+    callback close();
+
+    width: 100%;
+    height: 100%;
+
+    ModalShell {
+        width: 100%;
+        height: 100%;
+        colored-icon: @image-url("../assets/icons-orange/content-management.svg");
+        title: root.form-id == "" ? "Novo Tipo de Empresa" : "Editar Tipo de Empresa";
+        message: "Ramo do estabelecimento (ex.: Restaurante, Loja).";
+        card-width: 460px;
+        close => { root.close(); }
+
+        VerticalLayout {
+            spacing: 12px;
+
+            FormField { label: "Nome"; value <=> root.form-name; placeholder: "Ex.: Restaurante"; }
+            FormField { label: "Descrição"; value <=> root.form-description; placeholder: "Opcional"; }
+            FormField { label: "Ordem"; value <=> root.form-sort; placeholder: "0"; }
+            HorizontalLayout {
+                spacing: 10px;
+                Text {
+                    text: "Ativo"; font-size: 13px; color: Theme.text-primary;
+                    vertical-alignment: center; horizontal-stretch: 1;
+                }
+                Toggle { on: root.form-active; toggled => { root.form-active = !root.form-active; } }
+            }
+            HorizontalLayout {
+                alignment: end;
+                padding-top: 2px;
+                OutlineBtn {
+                    label: "Salvar";
+                    accent: true;
+                    btn-color: Theme.btn-accent;
+                    width: 130px; height: 40px;
+                    clicked => { root.save(); }
+                }
+            }
+        }
+    }
+}

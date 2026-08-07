@@ -7,6 +7,7 @@ use letaf_core::addon_group::service::AddonGroupService;
 use letaf_core::auth::service::AuthService;
 use letaf_core::password_reset::service::PasswordResetService;
 use letaf_core::audit::service::AuditService;
+use letaf_core::business_type::service::BusinessTypeService;
 use letaf_core::plan::service::PlanService;
 use letaf_core::banner::service::BannerService;
 use letaf_core::business_hours::service::BusinessHoursService;
@@ -84,6 +85,8 @@ pub struct AppState {
     pub password_reset_service: Arc<PasswordResetService>,
     /// Catálogo de planos (gerido pelo super admin; lido pelas lojas).
     pub plan_service: Arc<PlanService>,
+    /// Catálogo de tipos de empresa (gerido pelo super admin) — construído do pool.
+    pub business_type_service: Arc<BusinessTypeService>,
     /// Trilha de auditoria do super admin (§11) — construída do pool.
     pub audit_service: Arc<AuditService>,
     /// Funções de administrador (RBAC do painel) — construída do pool.
@@ -142,6 +145,10 @@ impl AppState {
                 crate::repository::admin_role::PgAdminRoleRepository::new(pool.clone()),
             )),
         );
+        // Tipos de empresa — idem (só o pool).
+        let business_type_service = Arc::new(BusinessTypeService::new(Arc::new(
+            crate::repository::business_type::PgBusinessTypeRepository::new(pool.clone()),
+        )));
         Self {
             login_rate_limiter: Arc::new(crate::rate_limit::RateLimiter::new(
                 LOGIN_RATE_MAX,
@@ -177,6 +184,7 @@ impl AppState {
             card_sessions,
             password_reset_service,
             plan_service,
+            business_type_service,
             audit_service,
             admin_role_service,
         }

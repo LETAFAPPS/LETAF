@@ -7,6 +7,7 @@ pub mod password_reset;
 pub mod plan;
 pub mod banner;
 pub mod business_hours;
+pub mod business_type;
 pub mod cash_movement;
 pub mod cash_session;
 pub mod category;

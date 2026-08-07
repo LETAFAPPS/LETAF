@@ -9,10 +9,12 @@ use tokio::sync::RwLock;
 use crate::{AdminRevenuePoint, AdminState, MainWindow};
 
 use super::cache::AdminCaches;
-use super::dto::{AdminDto, AdminRoleDto, CompanyDto, OverviewDto, PlanDto, SubscriptionDto};
+use super::dto::{
+    AdminDto, AdminRoleDto, BusinessTypeDto, CompanyDto, OverviewDto, PlanDto, SubscriptionDto,
+};
 use super::filters::{
-    apply_company_filter, apply_plan_filter, apply_role_filter, apply_sub_filter, apply_user_filter,
-    set_plan_filter_options,
+    apply_business_type_filter, apply_company_filter, apply_plan_filter, apply_role_filter,
+    apply_sub_filter, apply_user_filter, set_plan_filter_options,
 };
 use super::http::get_json;
 
@@ -23,6 +25,7 @@ struct AdminData {
     subs: Vec<SubscriptionDto>,
     admins: Vec<AdminDto>,
     plans: Vec<PlanDto>,
+    business_types: Vec<BusinessTypeDto>,
     roles: Vec<AdminRoleDto>,
 }
 
@@ -47,9 +50,12 @@ pub(super) fn setup_refresh(
         handle.spawn(async move {
             let Some(token) = auth_token.read().await.clone() else { return };
             let data = fetch_all(&server_url, &token).await;
-            let AdminData { overview, companies, subs, admins, plans, roles } = data;
+            let AdminData { overview, companies, subs, admins, plans, business_types, roles } = data;
             if let Ok(mut g) = caches.plans.lock() {
                 *g = plans;
+            }
+            if let Ok(mut g) = caches.business_types.lock() {
+                *g = business_types;
             }
             if let Ok(mut g) = caches.roles.lock() {
                 *g = roles;
@@ -79,6 +85,9 @@ async fn fetch_all(server_url: &str, token: &str) -> AdminData {
             .await
             .unwrap_or_default(),
         plans: get_json(&format!("{server_url}/admin/plans"), token)
+            .await
+            .unwrap_or_default(),
+        business_types: get_json(&format!("{server_url}/admin/business-types"), token)
             .await
             .unwrap_or_default(),
         roles: get_json(&format!("{server_url}/admin/roles"), token)
@@ -117,6 +126,8 @@ fn apply_lists(
     if let Ok(g) = caches.plans.lock() {
         set_plan_filter_options(ui, &g);
     }
+    // Lista de tipos de empresa já filtrada pela busca corrente.
+    apply_business_type_filter(ui, &caches.business_types);
     // Funções + opções do seletor de função no usuário.
     apply_role_filter(ui, &caches.roles);
 }

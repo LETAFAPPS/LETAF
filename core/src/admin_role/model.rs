@@ -9,6 +9,7 @@ pub const SCREENS: &[(&str, &str)] = &[
     ("overview", "Dashboard"),
     ("companies", "Empresas"),
     ("plans", "Planos"),
+    ("business_types", "Tipos de Empresa"),
     ("admins", "Usuários"),
     ("roles", "Funções"),
 ];

@@ -34,6 +34,7 @@ const DEFAULT_ADMIN_EMAIL: &str = "admin@letaf.app";
 const DEFAULT_ADMIN_NAME: &str = "Super Admin";
 
 mod admins;
+mod business_types;
 mod companies;
 mod overview;
 mod plans;
@@ -72,6 +73,14 @@ pub fn routes() -> Router<AppState> {
         .route("/admin/admins/{id}/active", put(admins::set_admin_active))
         .route("/admin/plans", get(plans::list_plans).post(plans::create_plan))
         .route("/admin/plans/{id}", put(plans::update_plan).delete(plans::delete_plan))
+        .route(
+            "/admin/business-types",
+            get(business_types::list_business_types).post(business_types::create_business_type),
+        )
+        .route(
+            "/admin/business-types/{id}",
+            put(business_types::update_business_type).delete(business_types::delete_business_type),
+        )
         .route("/admin/roles", get(roles::list_roles).post(roles::create_role))
         .route("/admin/roles/{id}", put(roles::update_role).delete(roles::delete_role))
 }
@@ -253,6 +262,7 @@ mod tests {
             ("subscriptions.rs", include_str!("subscriptions.rs")),
             ("admins.rs", include_str!("admins.rs")),
             ("plans.rs", include_str!("plans.rs")),
+            ("business_types.rs", include_str!("business_types.rs")),
             ("roles.rs", include_str!("roles.rs")),
         ];
 

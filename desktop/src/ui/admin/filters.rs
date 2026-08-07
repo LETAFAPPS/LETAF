@@ -6,15 +6,17 @@
 use slint::{ComponentHandle, Model, ModelRc, VecModel};
 
 use crate::{
-    AdminCompanyRow, AdminPlanRow, AdminRoleRow, AdminState, AdminSubscriptionRow, AdminUserRow,
-    FilterOption, MainWindow,
+    AdminBusinessTypeRow, AdminCompanyRow, AdminPlanRow, AdminRoleRow, AdminState,
+    AdminSubscriptionRow, AdminUserRow, FilterOption, MainWindow,
 };
 
 use super::super::image::decode_pixel_buffer;
 use super::cache::{
-    AdminCaches, CompaniesCache, PlansCache, RolesCache, SubsCache, UsersCache,
+    AdminCaches, BusinessTypesCache, CompaniesCache, PlansCache, RolesCache, SubsCache, UsersCache,
 };
-use super::dto::{AdminDto, AdminRoleDto, CompanyDto, PlanDto, SubscriptionDto};
+use super::dto::{
+    AdminDto, AdminRoleDto, BusinessTypeDto, CompanyDto, PlanDto, SubscriptionDto,
+};
 use super::format::{brl, plan_features};
 use super::roles::screen_label;
 
@@ -274,6 +276,31 @@ fn cycle_display(p: &PlanDto) -> String {
             String::new()
         }
     )
+}
+
+// ── Tipos de empresa ───────────────────────────────────────────────────────
+
+/// Aplica busca (nome) aos tipos de empresa — reaplica sobre o cache.
+pub(super) fn apply_business_type_filter(ui: &MainWindow, cache: &BusinessTypesCache) {
+    let search = ui.global::<AdminState>().get_business_type_search().to_string();
+    let Ok(all) = cache.lock() else { return };
+    let rows: Vec<AdminBusinessTypeRow> = all
+        .iter()
+        .filter(|b| matches(&b.name, &search))
+        .map(business_type_row)
+        .collect();
+    ui.global::<AdminState>()
+        .set_business_types(ModelRc::new(VecModel::from(rows)));
+}
+
+fn business_type_row(b: &BusinessTypeDto) -> AdminBusinessTypeRow {
+    AdminBusinessTypeRow {
+        id: b.id.clone().into(),
+        name: b.name.clone().into(),
+        description: b.description.clone().into(),
+        active: b.active,
+        sort_order: b.sort_order,
+    }
 }
 
 /// Monta as opções de plano a partir do catálogo CADASTRADO (por plano, não

@@ -134,15 +134,22 @@ export component Sidebar inherits Rectangle {
                     clicked => { root.navigate("admin-companies"); }
                 }
 
-                // Financeiro: Planos
-                if root.nav.admin-plans:
-                    SidebarSection { title: "FINANCEIRO"; compact: !root.expanded; }
+                // Plataforma: Planos e Tipos de Empresa
+                if root.nav.admin-plans || root.nav.admin-business-types:
+                    SidebarSection { title: "PLATAFORMA"; compact: !root.expanded; }
                 if root.nav.admin-plans: SidebarItem {
                     icon-source: @image-url("../assets/icons/inventory.svg");
                     label: "Planos";
                     compact: !root.expanded;
                     active: root.active-tab == "admin-plans";
                     clicked => { root.navigate("admin-plans"); }
+                }
+                if root.nav.admin-business-types: SidebarItem {
+                    icon-source: @image-url("../assets/icons/empresa.svg");
+                    label: "Tipos de Empresa";
+                    compact: !root.expanded;
+                    active: root.active-tab == "admin-business-types";
+                    clicked => { root.navigate("admin-business-types"); }
                 }
 
                 // Permissões: Usuários e Funções

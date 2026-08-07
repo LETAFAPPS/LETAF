@@ -228,6 +228,18 @@ pub(super) struct PlanDto {
     pub(super) companies: i64,
 }
 
+/// Tipo de empresa (ramo do estabelecimento) do catálogo do super admin.
+#[derive(Deserialize, Clone, Default)]
+pub(super) struct BusinessTypeDto {
+    pub(super) id: String,
+    pub(super) name: String,
+    #[serde(default)]
+    pub(super) description: String,
+    pub(super) active: bool,
+    #[serde(default)]
+    pub(super) sort_order: i32,
+}
+
 /// Resposta de POST /admin/companies/{id}/impersonate (mesmo formato do
 /// login-desktop). Reaproveita o fluxo `apply_login`/`update_ui_after_login`.
 #[derive(Deserialize)]

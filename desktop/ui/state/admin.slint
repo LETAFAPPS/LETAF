@@ -11,8 +11,8 @@
 // Todo este estado é cross-tenant e ONLINE (rotas /admin/*), sem espelho
 // local — ver desktop/src/ui/admin.
 import { AdminCompanyRow, AdminCompanyDetail, AdminCompanyOrderRow, AdminSubscriptionRow,
-         AdminInvoiceRow, AdminUserRow, AdminPlanRow, AdminRoleRow, AdminScreenOption,
-         AdminRevenuePoint } from "../types.slint";
+         AdminInvoiceRow, AdminUserRow, AdminPlanRow, AdminBusinessTypeRow, AdminRoleRow,
+         AdminScreenOption, AdminRevenuePoint } from "../types.slint";
 import { FilterOption } from "../components/list_toolbar.slint";
 
 export global AdminState {
@@ -166,6 +166,25 @@ export global AdminState {
     callback plan-save();
     callback plan-delete(string);
     callback filter-plans();
+
+    // ── Tipos de empresa (catálogo do super admin) ──
+    in-out property <[AdminBusinessTypeRow]> business-types: [];
+    in-out property <string> business-type-search: "";
+    in-out property <bool> business-type-modal-open: false;
+    // Confirmação de exclusão (modal).
+    in-out property <bool> del-business-type-open: false;
+    in-out property <string> del-business-type-id: "";
+    in-out property <string> del-business-type-name: "";
+    in-out property <string> business-type-id: "";
+    in-out property <string> business-type-name: "";
+    in-out property <string> business-type-description: "";
+    in-out property <string> business-type-sort: "";
+    in-out property <bool> business-type-active: true;
+    callback business-type-new();
+    callback business-type-edit(string);
+    callback business-type-save();
+    callback business-type-delete(string);
+    callback filter-business-types();
 
     // ── Funções de administrador (RBAC do painel) ──
     in-out property <[AdminRoleRow]> admin-roles: [];
