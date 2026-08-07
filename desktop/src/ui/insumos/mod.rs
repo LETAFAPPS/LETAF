@@ -17,6 +17,8 @@ use crate::{InsumoData, InsumosState, MainWindow};
 
 use super::helpers::{friendly_error, show_toast};
 
+mod bulk;
+
 type Cache = Arc<std::sync::Mutex<Vec<Insumo>>>;
 
 pub(crate) fn setup_insumos(
@@ -32,7 +34,8 @@ pub(crate) fn setup_insumos(
     setup_select(ui, cache.clone());
     setup_save(ui, state, handle, sync_notify.clone(), cache.clone(), false);
     setup_save(ui, state, handle, sync_notify.clone(), cache.clone(), true);
-    setup_delete(ui, state, handle, sync_notify, cache);
+    setup_delete(ui, state, handle, sync_notify.clone(), cache);
+    bulk::setup_bulk(ui, state, handle, sync_notify);
 }
 
 // ── Refresh + busca ──────────────────────────────────────────────

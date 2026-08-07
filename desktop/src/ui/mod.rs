@@ -23,6 +23,7 @@ mod collaborators;
 mod dashboard;
 mod customers;
 mod finance;
+mod csv;
 mod helpers;
 pub(crate) mod image;
 mod insumos;
