@@ -32,6 +32,7 @@ const HEADER: &[&str] = &[
     "nome",
     "descricao",
     "categoria",
+    "subcategoria",
     "preco",
     "preco_custo",
     "estoque",
@@ -41,7 +42,17 @@ const HEADER: &[&str] = &[
     "estoque_ilimitado",
     "ativo",
     "visivel_web",
+    "desconto_tipo",
+    "desconto_valor",
+    "desconto_qtd_min",
+    "desconto_faixas",
+    "disponibilidade",
+    "adicionais",
+    "variacoes",
 ];
+
+/// Separador dos nomes de grupos de adicionais dentro de uma célula.
+const ADDON_SEP: char = '|';
 
 pub(crate) fn setup_bulk(
     ui: &MainWindow,
@@ -66,10 +77,16 @@ fn setup_export(ui: &MainWindow, state: &DesktopState, handle: &tokio::runtime::
             let cid = state.company_id();
             let products = state.product_service.find_all(cid).await.unwrap_or_default();
             let cats = state.category_service.find_all(cid).await.unwrap_or_default();
-            // id → nome de categoria (para exibir o nome no CSV).
+            let subs = state.subcategory_service.find_all(cid).await.unwrap_or_default();
+            let addons = state.addon_group_service.find_all(cid).await.unwrap_or_default();
+            // id → nome (para exibir nomes legíveis no CSV).
             let cat_name: HashMap<Uuid, String> =
                 cats.into_iter().map(|c| (c.base.id, c.name)).collect();
-            let csv = build_csv(&products, &cat_name);
+            let sub_name: HashMap<Uuid, String> =
+                subs.into_iter().map(|s| (s.base.id, s.name)).collect();
+            let addon_name: HashMap<Uuid, String> =
+                addons.into_iter().map(|a| (a.base.id, a.name)).collect();
+            let csv = build_csv(&products, &cat_name, &sub_name, &addon_name);
 
             let chosen = tokio::task::spawn_blocking(move || {
                 rfd::FileDialog::new()
@@ -99,21 +116,33 @@ fn setup_export(ui: &MainWindow, state: &DesktopState, handle: &tokio::runtime::
 }
 
 /// Monta o conteúdo CSV (com BOM) a partir dos produtos.
-fn build_csv(products: &[Product], cat_name: &HashMap<Uuid, String>) -> String {
+fn build_csv(
+    products: &[Product],
+    cat_name: &HashMap<Uuid, String>,
+    sub_name: &HashMap<Uuid, String>,
+    addon_name: &HashMap<Uuid, String>,
+) -> String {
     let mut out = String::from("\u{FEFF}"); // BOM: Excel abre em UTF-8.
     out.push_str(&HEADER.join(";"));
     out.push_str("\r\n");
     for p in products {
-        let cat = p
-            .category_id
-            .and_then(|id| cat_name.get(&id))
+        let name_of = |map: &HashMap<Uuid, String>, id: Option<Uuid>| {
+            id.and_then(|i| map.get(&i)).cloned().unwrap_or_default()
+        };
+        // Adicionais: nomes dos grupos separados por "|".
+        let adicionais = p
+            .addon_group_ids
+            .iter()
+            .filter_map(|id| addon_name.get(id))
             .cloned()
-            .unwrap_or_default();
+            .collect::<Vec<_>>()
+            .join(&ADDON_SEP.to_string());
         let row = [
             p.base.id.to_string(),
             p.name.clone(),
             p.description.clone().unwrap_or_default(),
-            cat,
+            name_of(cat_name, p.category_id),
+            name_of(sub_name, p.subcategory_id),
             fmt_dec(p.price),
             fmt_dec(p.cost_price),
             fmt_num(p.stock_quantity),
@@ -123,6 +152,13 @@ fn build_csv(products: &[Product], cat_name: &HashMap<Uuid, String>) -> String {
             bool_pt(p.unlimited_stock),
             bool_pt(p.active),
             bool_pt(p.web_visible),
+            p.discount_kind.clone().unwrap_or_default(),
+            fmt_dec(p.discount_value),
+            p.discount_min_qty.map(fmt_num).unwrap_or_default(),
+            p.discount_tiers.clone().unwrap_or_default(),
+            p.availability_schedule.clone().unwrap_or_default(),
+            adicionais,
+            p.variations.clone().unwrap_or_default(),
         ];
         let escaped: Vec<String> = row.iter().map(|f| csv_field(f)).collect();
         out.push_str(&escaped.join(";"));
@@ -203,10 +239,17 @@ async fn import_rows(state: &DesktopState, content: &str) -> Outcome {
     let existentes = state.product_service.find_all(cid).await.unwrap_or_default();
     let by_id: HashMap<Uuid, Product> =
         existentes.into_iter().map(|p| (p.base.id, p)).collect();
-    // nome (minúsculo) → id de categoria, para resolver a coluna "categoria".
+    // nome (minúsculo) → id, para resolver as colunas por nome.
     let cats = state.category_service.find_all(cid).await.unwrap_or_default();
     let cat_by_name: HashMap<String, Uuid> =
         cats.into_iter().map(|c| (c.name.trim().to_lowercase(), c.base.id)).collect();
+    let subs = state.subcategory_service.find_all(cid).await.unwrap_or_default();
+    let sub_by_name: HashMap<String, Uuid> =
+        subs.into_iter().map(|s| (s.name.trim().to_lowercase(), s.base.id)).collect();
+    let addons = state.addon_group_service.find_all(cid).await.unwrap_or_default();
+    let addon_by_name: HashMap<String, Uuid> =
+        addons.into_iter().map(|a| (a.name.trim().to_lowercase(), a.base.id)).collect();
+    let names = Names { cat: &cat_by_name, sub: &sub_by_name, addon: &addon_by_name };
 
     for cells in iter {
         let get = |key: &str| -> String {
@@ -215,6 +258,9 @@ async fn import_rows(state: &DesktopState, content: &str) -> Outcome {
                 .map(|s| s.trim().to_string())
                 .unwrap_or_default()
         };
+        // Coluna presente no cabeçalho? Distingue "célula vazia" (limpa) de
+        // "coluna ausente" (mantém o valor atual na atualização).
+        let has = |key: &str| -> bool { cols.contains_key(key) };
         let name = get("nome");
         if name.is_empty() {
             outcome.skipped += 1;
@@ -223,9 +269,9 @@ async fn import_rows(state: &DesktopState, content: &str) -> Outcome {
         let existing = get("id").parse::<Uuid>().ok().and_then(|id| by_id.get(&id));
 
         let ok = if let Some(p) = existing {
-            apply_update(state, cid, p, &get, &cat_by_name).await
+            apply_update(state, cid, p, &get, &has, &names).await
         } else {
-            apply_create(state, cid, &get, &cat_by_name).await
+            apply_create(state, cid, &get, &names).await
         };
         match (ok, existing.is_some()) {
             (true, true) => outcome.updated += 1,
@@ -236,19 +282,36 @@ async fn import_rows(state: &DesktopState, content: &str) -> Outcome {
     outcome
 }
 
-/// Resolve o id da categoria a partir do nome da célula.
-/// Vazio → `None`; encontrada → `Some`; não encontrada → `fallback`.
-fn resolve_category(
+/// Mapas nome→id para resolver categoria, subcategoria e adicionais.
+struct Names<'a> {
+    cat: &'a HashMap<String, Uuid>,
+    sub: &'a HashMap<String, Uuid>,
+    addon: &'a HashMap<String, Uuid>,
+}
+
+/// Resolve um id a partir do nome (case-insensitive).
+/// Vazio → `None`; encontrado → `Some`; não encontrado → `fallback`.
+fn resolve_id_by_name(
     cell: &str,
-    cat_by_name: &HashMap<String, Uuid>,
+    by_name: &HashMap<String, Uuid>,
     fallback: Option<Uuid>,
 ) -> Option<Uuid> {
     let key = cell.trim().to_lowercase();
     if key.is_empty() {
         None
     } else {
-        cat_by_name.get(&key).copied().or(fallback)
+        by_name.get(&key).copied().or(fallback)
     }
+}
+
+/// Nomes de grupos de adicionais (separados por `|`) → ids existentes.
+/// Nomes desconhecidos são ignorados.
+fn resolve_addons(cell: &str, by_name: &HashMap<String, Uuid>) -> Vec<Uuid> {
+    cell.split(ADDON_SEP)
+        .map(|n| n.trim().to_lowercase())
+        .filter(|n| !n.is_empty())
+        .filter_map(|n| by_name.get(&n).copied())
+        .collect()
 }
 
 /// Cria um produto novo (sem foto). `true` em sucesso.
@@ -256,7 +319,7 @@ async fn apply_create(
     state: &DesktopState,
     cid: Uuid,
     get: &impl Fn(&str) -> String,
-    cat_by_name: &HashMap<String, Uuid>,
+    names: &Names<'_>,
 ) -> bool {
     let unit = { let u = get("unidade"); if u.is_empty() { "un".to_string() } else { u } };
     let res = state
@@ -265,8 +328,8 @@ async fn apply_create(
             cid,
             get("nome"),
             opt(get("descricao")),
-            resolve_category(&get("categoria"), cat_by_name, None),
-            None, // subcategoria não vem no CSV
+            resolve_id_by_name(&get("categoria"), names.cat, None),
+            resolve_id_by_name(&get("subcategoria"), names.sub, None),
             dec_or_none(&get("preco")),
             dec_or_none(&get("preco_custo")),
             num_or(&get("estoque"), 0.0),
@@ -277,55 +340,100 @@ async fn apply_create(
             BalanceMode::Weight,
             None, // sem foto — cadastrada depois manualmente
             None, // cover_color
-            None, // availability_schedule
-            None, None, None, None, // descontos
-            Vec::new(), // addon groups
-            None,       // variações
+            opt(get("disponibilidade")),
+            opt(get("desconto_tipo")),
+            dec_or_none(&get("desconto_valor")),
+            num_or_none(&get("desconto_qtd_min")),
+            opt(get("desconto_faixas")),
+            resolve_addons(&get("adicionais"), names.addon),
+            opt(get("variacoes")),
         )
         .await;
     log_err("criar", &get("nome"), res.err())
 }
 
-/// Atualiza um produto existente, PRESERVANDO os campos fora do CSV
-/// (foto, variações, descontos, subcategoria, agenda, cor). Campos numéricos
-/// vazios mantêm o valor atual. `true` em sucesso.
+/// Atualiza um produto existente. Coluna AUSENTE do arquivo mantém o valor
+/// atual; coluna presente com célula vazia limpa o campo (opcionais). Foto,
+/// `balance_mode` e cor não estão no CSV e são sempre preservados.
 async fn apply_update(
     state: &DesktopState,
     cid: Uuid,
     p: &Product,
     get: &impl Fn(&str) -> String,
-    cat_by_name: &HashMap<String, Uuid>,
+    has: &impl Fn(&str) -> bool,
+    names: &Names<'_>,
 ) -> bool {
     let unit = { let u = get("unidade"); if u.is_empty() { p.unit.clone() } else { u } };
+    let category_id = if has("categoria") {
+        resolve_id_by_name(&get("categoria"), names.cat, p.category_id)
+    } else {
+        p.category_id
+    };
+    let subcategory_id = if has("subcategoria") {
+        resolve_id_by_name(&get("subcategoria"), names.sub, p.subcategory_id)
+    } else {
+        p.subcategory_id
+    };
+    let addon_group_ids = if has("adicionais") {
+        resolve_addons(&get("adicionais"), names.addon)
+    } else {
+        p.addon_group_ids.clone()
+    };
+    let discount_min_qty = if has("desconto_qtd_min") {
+        num_or_none(&get("desconto_qtd_min"))
+    } else {
+        p.discount_min_qty
+    };
     let res = state
         .product_service
         .update(
             cid,
             p.base.id,
             get("nome"),
-            opt(get("descricao")),
-            resolve_category(&get("categoria"), cat_by_name, p.category_id),
-            p.subcategory_id,
-            dec_or_none(&get("preco")),
-            dec_or_none(&get("preco_custo")),
+            cell_str(has, get, "descricao", p.description.clone()),
+            category_id,
+            subcategory_id,
+            cell_dec(has, get, "preco", p.price),
+            cell_dec(has, get, "preco_custo", p.cost_price),
             num_or(&get("estoque"), p.stock_quantity),
             num_or(&get("estoque_minimo"), p.min_stock),
             bool_or(&get("estoque_ilimitado"), p.unlimited_stock),
-            opt(get("codigo_barras")),
+            cell_str(has, get, "codigo_barras", p.barcode.clone()),
             unit,
             p.balance_mode,
             p.image_data.clone(),
             p.cover_color.clone(),
-            p.availability_schedule.clone(),
-            p.discount_kind.clone(),
-            p.discount_value,
-            p.discount_min_qty,
-            p.discount_tiers.clone(),
-            p.addon_group_ids.clone(),
-            p.variations.clone(),
+            cell_str(has, get, "disponibilidade", p.availability_schedule.clone()),
+            cell_str(has, get, "desconto_tipo", p.discount_kind.clone()),
+            cell_dec(has, get, "desconto_valor", p.discount_value),
+            discount_min_qty,
+            cell_str(has, get, "desconto_faixas", p.discount_tiers.clone()),
+            addon_group_ids,
+            cell_str(has, get, "variacoes", p.variations.clone()),
         )
         .await;
     log_err("atualizar", &get("nome"), res.err())
+}
+
+/// Campo texto opcional: coluna presente → valor da célula (vazio = limpa);
+/// ausente → mantém o atual.
+fn cell_str(
+    has: &impl Fn(&str) -> bool,
+    get: &impl Fn(&str) -> String,
+    key: &str,
+    existing: Option<String>,
+) -> Option<String> {
+    if has(key) { opt(get(key)) } else { existing }
+}
+
+/// Idem para campo `Decimal`.
+fn cell_dec(
+    has: &impl Fn(&str) -> bool,
+    get: &impl Fn(&str) -> String,
+    key: &str,
+    existing: Option<Decimal>,
+) -> Option<Decimal> {
+    if has(key) { dec_or_none(&get(key)) } else { existing }
 }
 
 fn log_err(acao: &str, nome: &str, err: Option<letaf_core::error::CoreError>) -> bool {
@@ -354,6 +462,11 @@ fn dec_or_none(s: &str) -> Option<Decimal> {
 /// Célula numérica → `f64`; vazia/ inválida → `default`.
 fn num_or(s: &str, default: f64) -> f64 {
     if s.trim().is_empty() { default } else { parse_money_br_f64(s).unwrap_or(default) }
+}
+
+/// Célula numérica → `Option<f64>`; vazia → `None`.
+fn num_or_none(s: &str) -> Option<f64> {
+    if s.trim().is_empty() { None } else { parse_money_br_f64(s) }
 }
 
 fn bool_or(s: &str, default: bool) -> bool {
