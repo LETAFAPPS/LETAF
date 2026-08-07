@@ -12,6 +12,71 @@ use letaf_core::order::repository::OrderRepository;
 
 use super::helpers::{parse_base, insert_stock_movement, map_db, parse_timestamp, parse_uuid, ts};
 
+/// Baixa/restitui os INSUMOS da ficha técnica de um produto dentro da mesma
+/// transação do pedido. `product_delta` tem o mesmo sinal do delta do produto
+/// (venda negativo, cancelamento positivo, edição com sinal). O insumo NÃO
+/// bloqueia: pode ficar negativo (sinal de reposição). Em `cancel`, o id do
+/// movimento é determinístico para não restituir em dobro entre terminais.
+#[allow(clippy::too_many_arguments)]
+async fn consume_recipe(
+    tx: &mut Transaction<'_, Sqlite>,
+    company_id: Uuid,
+    order_id: Uuid,
+    product_id: Uuid,
+    product_delta: f64,
+    reason: &str,
+    deterministic: bool,
+    now: &str,
+) -> Result<(), CoreError> {
+    let recipe: Vec<(String, f64)> = sqlx::query_as(
+        "SELECT insumo_id, quantity FROM product_ingredients
+         WHERE company_id = ?1 AND product_id = ?2 ORDER BY sort_order ASC",
+    )
+    .bind(company_id.to_string())
+    .bind(product_id.to_string())
+    .fetch_all(&mut **tx)
+    .await
+    .map_err(map_db)?;
+    for (iid, qty_per_unit) in recipe {
+        let insumo_id = parse_uuid(&iid)?;
+        let delta = qty_per_unit * product_delta;
+        if delta.abs() < f64::EPSILON { continue; }
+        // Materializado local (o movimento carrega a mudança no sync). Sem
+        // guarda de não-negativo: a venda não trava por falta de insumo.
+        sqlx::query(
+            "UPDATE insumos SET stock_quantity = stock_quantity + ?1
+              WHERE company_id = ?2 AND id = ?3 AND deleted_at IS NULL",
+        )
+        .bind(delta)
+        .bind(company_id.to_string())
+        .bind(insumo_id.to_string())
+        .execute(&mut **tx)
+        .await
+        .map_err(map_db)?;
+        let mv_id = if deterministic {
+            letaf_core::deterministic_id::insumo_movement_once(order_id, reason, product_id, insumo_id)
+        } else {
+            Uuid::new_v4()
+        };
+        sqlx::query(
+            "INSERT OR IGNORE INTO insumo_movements
+                (id, company_id, insumo_id, delta, reason, order_id, created_at, updated_at, deleted_at, synced)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?7, NULL, 0)",
+        )
+        .bind(mv_id.to_string())
+        .bind(company_id.to_string())
+        .bind(insumo_id.to_string())
+        .bind(delta)
+        .bind(reason)
+        .bind(order_id.to_string())
+        .bind(now)
+        .execute(&mut **tx)
+        .await
+        .map_err(map_db)?;
+    }
+    Ok(())
+}
+
 /// Implementação SQLite do `OrderRepository`.
 ///
 /// Regras aplicadas (AI_RULES.md §3, §5, §7, §10, §11):
@@ -174,6 +239,9 @@ impl OrderRepository for SqliteOrderRepository {
                     &now,
                 )
                 .await?;
+                // Ficha técnica: baixa os insumos consumidos (delta negativo,
+                // proporcional à quantidade vendida). Não bloqueia a venda.
+                consume_recipe(&mut tx, order.base.company_id, order.base.id, *product_id, -*qty, "sale", false, &now).await?;
             }
         }
 
@@ -520,6 +588,8 @@ impl OrderRepository for SqliteOrderRepository {
             } else {
                 insert_stock_movement(&mut tx, order.base.company_id, *product_id, *delta, "edit", Some(order.base.id), None, &now)
                     .await?;
+                // Ajusta os insumos pela diferença (mesmo sinal do delta do produto).
+                consume_recipe(&mut tx, order.base.company_id, order.base.id, *product_id, *delta, "edit", false, &now).await?;
             }
         }
 
@@ -607,6 +677,9 @@ impl OrderRepository for SqliteOrderRepository {
                     &now,
                 )
                     .await?;
+                // Restitui os insumos da receita (delta positivo). Id
+                // determinístico → cancelar em dois terminais não devolve em dobro.
+                consume_recipe(&mut tx, company_id, id, *product_id, *qty, "cancel", true, &now).await?;
             }
         }
 
@@ -1044,5 +1117,83 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(stock_and_movements(&pool, pid).await, (0.0, 0), "ilimitado: sem restituição");
+    }
+
+    async fn insert_company(pool: &SqlitePool, cid: Uuid) {
+        sqlx::query(
+            "INSERT INTO companies (id, name, subdomain, created_at, updated_at, synced) \
+             VALUES (?1, 'C', ?2, '2026-01-01 00:00:00.000000', '2026-01-01 00:00:00.000000', 1)",
+        )
+        .bind(cid.to_string()).bind(cid.to_string())
+        .execute(pool).await.unwrap();
+    }
+
+    async fn insert_insumo(pool: &SqlitePool, cid: Uuid, id: Uuid, stock: f64) {
+        sqlx::query(
+            "INSERT INTO insumos (id, company_id, name, unit, stock_quantity, min_stock, active, \
+             created_at, updated_at, synced) VALUES (?1, ?2, 'I', 'kg', ?3, 0, 1, \
+             '2026-01-01 00:00:00.000000', '2026-01-01 00:00:00.000000', 1)",
+        )
+        .bind(id.to_string()).bind(cid.to_string()).bind(stock)
+        .execute(pool).await.unwrap();
+    }
+
+    async fn insert_recipe(pool: &SqlitePool, cid: Uuid, pid: Uuid, iid: Uuid, qty: f64) {
+        sqlx::query(
+            "INSERT INTO product_ingredients (company_id, product_id, insumo_id, quantity, sort_order) \
+             VALUES (?1, ?2, ?3, ?4, 0)",
+        )
+        .bind(cid.to_string()).bind(pid.to_string()).bind(iid.to_string()).bind(qty)
+        .execute(pool).await.unwrap();
+    }
+
+    async fn insumo_stock(pool: &SqlitePool, id: Uuid) -> f64 {
+        sqlx::query_scalar("SELECT stock_quantity FROM insumos WHERE id = ?1")
+            .bind(id.to_string()).fetch_one(pool).await.unwrap()
+    }
+
+    /// A venda consome o insumo da ficha técnica (qtd × vendido) sem bloquear,
+    /// e o cancelamento restitui — via `consume_recipe`, na transação do pedido.
+    #[tokio::test]
+    async fn consume_recipe_baixa_e_restitui_insumo() {
+        let (cid, pid, iid) = (Uuid::new_v4(), Uuid::new_v4(), Uuid::new_v4());
+        let oid = Uuid::new_v4();
+        let pool = mem_pool().await;
+        insert_company(&pool, cid).await;
+        insert_product(&pool, cid, pid, 10.0, false).await;
+        insert_insumo(&pool, cid, iid, 100.0).await;
+        insert_recipe(&pool, cid, pid, iid, 2.0).await; // 2 kg por unidade
+        let now = "2026-01-02 00:00:00.000000";
+
+        // Venda de 3 unidades → baixa 6 kg.
+        let mut tx = pool.begin().await.unwrap();
+        consume_recipe(&mut tx, cid, oid, pid, -3.0, "sale", false, now).await.unwrap();
+        tx.commit().await.unwrap();
+        assert_eq!(insumo_stock(&pool, iid).await, 94.0, "100 - 2*3");
+
+        // Cancelamento → restitui 6 kg (id determinístico).
+        let mut tx = pool.begin().await.unwrap();
+        consume_recipe(&mut tx, cid, oid, pid, 3.0, "cancel", true, now).await.unwrap();
+        tx.commit().await.unwrap();
+        assert_eq!(insumo_stock(&pool, iid).await, 100.0, "restituído");
+
+        let moves: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM insumo_movements WHERE insumo_id = ?1")
+            .bind(iid.to_string()).fetch_one(&pool).await.unwrap();
+        assert_eq!(moves, 2, "1 sale + 1 cancel");
+    }
+
+    /// Não bloqueia: vender mais do que há de insumo deixa o estoque negativo.
+    #[tokio::test]
+    async fn consume_recipe_permite_insumo_negativo() {
+        let (cid, pid, iid) = (Uuid::new_v4(), Uuid::new_v4(), Uuid::new_v4());
+        let pool = mem_pool().await;
+        insert_company(&pool, cid).await;
+        insert_product(&pool, cid, pid, 10.0, false).await;
+        insert_insumo(&pool, cid, iid, 1.0).await;
+        insert_recipe(&pool, cid, pid, iid, 2.0).await;
+        let mut tx = pool.begin().await.unwrap();
+        consume_recipe(&mut tx, cid, Uuid::new_v4(), pid, -3.0, "sale", false, "2026-01-02 00:00:00.000000").await.unwrap();
+        tx.commit().await.unwrap();
+        assert_eq!(insumo_stock(&pool, iid).await, -5.0, "1 - 2*3 = -5 (não bloqueia)");
     }
 }

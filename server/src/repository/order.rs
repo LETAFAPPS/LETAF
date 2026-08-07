@@ -13,6 +13,71 @@ use letaf_core::order::repository::OrderRepository;
 
 use super::helpers::{insert_stock_movement, keyset_pull_sql, map_db};
 
+/// Baixa/restitui os INSUMOS da ficha técnica de um produto na mesma
+/// transação do pedido (venda/edição/cancelamento). `product_delta` segue o
+/// sinal do delta do produto. Não bloqueia (insumo pode ficar negativo).
+/// Bumpa `insumos.updated_at` para os desktops puxarem o novo estoque; o
+/// movimento nasce `synced = true` (o servidor é o hub). Em `cancel`, id
+/// determinístico evita restituir em dobro entre terminais.
+#[allow(clippy::too_many_arguments)]
+async fn consume_recipe(
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    company_id: Uuid,
+    order_id: Uuid,
+    product_id: Uuid,
+    product_delta: f64,
+    reason: &str,
+    deterministic: bool,
+    now: chrono::NaiveDateTime,
+) -> Result<(), CoreError> {
+    let recipe: Vec<(Uuid, f64)> = sqlx::query_as(
+        "SELECT insumo_id, quantity FROM product_ingredients
+         WHERE company_id = $1 AND product_id = $2 ORDER BY sort_order ASC",
+    )
+    .bind(company_id)
+    .bind(product_id)
+    .fetch_all(&mut **tx)
+    .await
+    .map_err(map_db)?;
+    for (insumo_id, qty_per_unit) in recipe {
+        let delta = qty_per_unit * product_delta;
+        if delta.abs() < f64::EPSILON { continue; }
+        sqlx::query(
+            "UPDATE insumos SET stock_quantity = stock_quantity + $1, updated_at = $2, synced = false
+              WHERE company_id = $3 AND id = $4 AND deleted_at IS NULL",
+        )
+        .bind(delta)
+        .bind(now)
+        .bind(company_id)
+        .bind(insumo_id)
+        .execute(&mut **tx)
+        .await
+        .map_err(map_db)?;
+        let mv_id = if deterministic {
+            letaf_core::deterministic_id::insumo_movement_once(order_id, reason, product_id, insumo_id)
+        } else {
+            Uuid::new_v4()
+        };
+        sqlx::query(
+            "INSERT INTO insumo_movements
+                (id, company_id, insumo_id, delta, reason, order_id, created_at, updated_at, deleted_at, synced)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $7, NULL, true)
+             ON CONFLICT (id) DO NOTHING",
+        )
+        .bind(mv_id)
+        .bind(company_id)
+        .bind(insumo_id)
+        .bind(delta)
+        .bind(reason)
+        .bind(order_id)
+        .bind(now)
+        .execute(&mut **tx)
+        .await
+        .map_err(map_db)?;
+    }
+    Ok(())
+}
+
 /// Converte sentinela `Uuid::nil()` (= sem cliente, vinda do desktop)
 /// em `None` para o bind do Postgres — evita FK violation em
 /// `customers.id`. Pedidos PDV anônimos chegam com `customer_id` nil.
@@ -272,6 +337,7 @@ impl OrderRepository for PgOrderRepository {
                     now,
                 )
                 .await?;
+                consume_recipe(&mut tx, order.base.company_id, order.base.id, *product_id, -*qty, "sale", false, now).await?;
             }
         }
 
@@ -700,6 +766,7 @@ impl OrderRepository for PgOrderRepository {
             } else {
                 insert_stock_movement(&mut tx, order.base.company_id, *product_id, *delta, "edit", Some(order.base.id), None, now)
                     .await?;
+                consume_recipe(&mut tx, order.base.company_id, order.base.id, *product_id, *delta, "edit", false, now).await?;
             }
         }
 
@@ -804,6 +871,7 @@ impl OrderRepository for PgOrderRepository {
                     now,
                 )
                     .await?;
+                consume_recipe(&mut tx, company_id, id, *product_id, *qty, "cancel", true, now).await?;
             }
         }
 

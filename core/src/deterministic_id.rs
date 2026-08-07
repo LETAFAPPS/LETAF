@@ -93,6 +93,19 @@ pub fn stock_movement_once(order_id: Uuid, reason: &str, product_id: Uuid) -> Uu
     )
 }
 
+/// Id do movimento de INSUMO de um evento ÚNICO do pedido (restituição da
+/// receita ao cancelar). Discrimina por `product_id` E `insumo_id`: dois
+/// produtos do mesmo pedido que usam o mesmo insumo geram movimentos
+/// distintos (ambos restituídos), e o mesmo pedido cancelado em dois
+/// terminais gera o MESMO id (o servidor aplica o delta uma vez só).
+/// Não use para `sale`/`edit` (podem repetir no mesmo pedido).
+pub fn insumo_movement_once(order_id: Uuid, reason: &str, product_id: Uuid, insumo_id: Uuid) -> Uuid {
+    Uuid::new_v5(
+        &NS_LETAF,
+        format!("insumo_movement:{order_id}:{reason}:{product_id}:{insumo_id}").as_bytes(),
+    )
+}
+
 /// Id do movimento de caixa de um evento ÚNICO do pedido (estorno de
 /// venda cancelada). Mesma razão do `stock_movement_once`.
 pub fn cash_movement_once(order_id: Uuid, kind: &str) -> Uuid {
