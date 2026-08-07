@@ -19,6 +19,8 @@ export global InventoryState {
     in-out property <string> inventory-search: "";
     // Filtro de status da lista: "all" | "ok" | "low" | "out".
     in-out property <string> inventory-filter: "all";
+    // Filtro de tipo: "all" | "product" | "insumo".
+    in-out property <string> inventory-type-filter: "all";
     // Sincronização manual em andamento (gira o ícone do botão).
     in-out property <bool> inventory-syncing: false;
     // Modal de ajuste
@@ -37,6 +39,7 @@ export global InventoryState {
     callback inventory-sync();
     callback inventory-search-changed(string);
     callback inventory-filter-changed(string);
+    callback inventory-type-filter-changed(string);
     callback inventory-request-add(string);
     callback inventory-request-consume(string);
     callback inventory-confirm-adjust();

@@ -58,6 +58,37 @@ impl SyncWorker {
         Ok(())
     }
 
+    /// Push de insumos pendentes (matéria-prima). Espelha `sync_products`.
+    pub(super) async fn sync_insumos(&self, token: &str) -> Result<(), CoreError> {
+        let cid = self.state.company_id();
+        let items = self.state.insumo_service.find_unsynced(cid).await?;
+        for item in &items {
+            if self.send_one(token, "/sync/insumos", item.base.id, item).await {
+                if let Err(e) = self.state.insumo_service
+                    .mark_synced(cid, item.base.id, item.base.updated_at).await {
+                    tracing::warn!("mark_synced insumo {}: {e}", item.base.id);
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// Push do ledger de insumo pendente (idempotente). Espelha
+    /// `sync_stock_movements`; empurrado ANTES dos insumos (ver run_pushes).
+    pub(super) async fn sync_insumo_movements(&self, token: &str) -> Result<(), CoreError> {
+        let cid = self.state.company_id();
+        let items = self.state.insumo_service.find_unsynced_movements(cid).await?;
+        for item in &items {
+            if self.send_one(token, "/sync/insumo-movements", item.base.id, item).await {
+                if let Err(e) = self.state.insumo_service
+                    .mark_movement_synced(cid, item.base.id, item.base.updated_at).await {
+                    tracing::warn!("mark_synced insumo_movement {}: {e}", item.base.id);
+                }
+            }
+        }
+        Ok(())
+    }
+
     /// Sincroniza usuários pendentes com o servidor.
     ///
     /// Usa SyncUserPayload para incluir password_hash na serialização

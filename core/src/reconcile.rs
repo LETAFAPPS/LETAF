@@ -57,6 +57,9 @@ pub const RECONCILE_TABLES: &[&str] = &[
     // servidor é idempotente por id) e o servidor→local traz só o histórico —
     // a quantidade continua vindo da linha do produto.
     "stock_movements",
+    // Insumo (matéria-prima) + seu ledger, espelhando products/stock_movements.
+    "insumos",
+    "insumo_movements",
     "categories",
     "subcategories",
     "customers",

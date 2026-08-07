@@ -25,6 +25,7 @@ mod customers;
 mod finance;
 mod helpers;
 pub(crate) mod image;
+mod insumos;
 mod inventory;
 pub(crate) mod orders;
 mod pdv;
@@ -112,6 +113,7 @@ pub fn setup_callbacks(
     products::setup_add(ui, state, handle, sync_notify.clone(), products_cache.clone());
     products::setup_update_product(ui, state, handle, sync_notify.clone(), products_cache.clone());
     products::setup_bulk(ui, state, handle, sync_notify.clone());
+    insumos::setup_insumos(ui, state, handle, sync_notify.clone());
     products::setup_pick_product_image(ui, handle, products_cache.clone());
     products::setup_remove_product_image(ui);
     products::setup_toggle_product_active(ui, state, handle, sync_notify.clone(), products_cache.clone());

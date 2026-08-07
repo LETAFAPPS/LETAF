@@ -2,13 +2,14 @@
 use slint::{Color, Image, ModelRc, SharedString, VecModel};
 
 use letaf_core::category::model::Category;
-use letaf_core::product::model::Product;
+use letaf_core::insumo::model::Insumo;
+use letaf_core::product::model::{BalanceMode, Product};
 
 use crate::format::format_stock;
 use crate::{InventoryHealthData, InventoryProductRow, MainWindow};
 
 use super::super::image::decode_pixel_buffer;
-use super::setup::{SharedCache, SharedCategories};
+use super::setup::{SharedCache, SharedCategories, SharedInsumos};
 use slint::ComponentHandle;
 use crate::InventoryState;
 
@@ -18,17 +19,67 @@ pub(crate) fn apply_to_ui_from_cache(
     ui_weak: &slint::Weak<MainWindow>,
     cache: &SharedCache,
     cats_cache: &SharedCategories,
+    insumos_cache: &SharedInsumos,
 ) {
     let ui_weak = ui_weak.clone();
     let cache_snapshot = cache.lock().ok().map(|g| g.clone()).unwrap_or_default();
     let cats_snapshot = cats_cache.lock().ok().map(|g| g.clone()).unwrap_or_default();
+    let insumos_snapshot = insumos_cache.lock().ok().map(|g| g.clone()).unwrap_or_default();
     let _ = slint::invoke_from_event_loop(move || {
         let Some(ui) = ui_weak.upgrade() else { return };
-        apply_to_ui(&ui, &cache_snapshot, &cats_snapshot);
+        apply_to_ui(&ui, &cache_snapshot, &cats_snapshot, &insumos_snapshot);
     });
 }
 
-pub(crate) fn apply_to_ui(ui: &MainWindow, products: &[Product], categories: &[Category]) {
+/// Converte um insumo num `Product` sintético para reaproveitar toda a
+/// pipeline de estoque (status, agrupamento, barra). Só os campos que o
+/// estoque lê importam; o resto fica no default. A linha resultante é
+/// marcada como insumo (`is_insumo`) para esconder as ações de produto.
+fn insumo_as_product(i: &Insumo) -> Product {
+    let mut p = Product::new(
+        i.base.company_id,
+        i.name.clone(),
+        None,
+        None,
+        None,
+        None,
+        i.cost_price,
+        i.stock_quantity,
+        i.min_stock,
+        false,
+        i.barcode.clone(),
+        i.unit.clone(),
+        BalanceMode::Weight,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+    );
+    p.base.id = i.base.id;
+    p.base.synced = i.base.synced;
+    p.active = i.active;
+    p
+}
+
+pub(crate) fn apply_to_ui(ui: &MainWindow, products: &[Product], categories: &[Category], insumos: &[Insumo]) {
+    // Filtro de TIPO (Produto/Insumos/Todos): monta o conjunto exibido a
+    // partir de produtos e/ou insumos (estes convertidos em Product sintético).
+    let type_filter = ui.global::<InventoryState>().get_inventory_type_filter().to_string();
+    let mut items: Vec<(Product, bool)> = Vec::new();
+    if type_filter != "insumo" {
+        items.extend(products.iter().cloned().map(|p| (p, false)));
+    }
+    if type_filter != "product" {
+        items.extend(insumos.iter().map(|i| (insumo_as_product(i), true)));
+    }
+    let products: Vec<Product> = items.iter().map(|(p, _)| p.clone()).collect();
+    let is_insumo_by_id: std::collections::HashMap<uuid::Uuid, bool> =
+        items.iter().map(|(p, ins)| (p.base.id, *ins)).collect();
+    let products = &products[..];
+
     // Métricas (sobre o conjunto completo — não filtrado).
     let total = products.len();
     let mut out_count = 0_i64;
@@ -115,6 +166,7 @@ pub(crate) fn apply_to_ui(ui: &MainWindow, products: &[Product], categories: &[C
     for p in &filtered {
         let group = group_of(status_key(p));
         let mut row = product_to_row(p, categories, max_qty);
+        row.is_insumo = is_insumo_by_id.get(&p.base.id).copied().unwrap_or(false);
         if group != prev_group {
             let (label, color) = group_meta(group);
             row.group_first = true;
@@ -195,6 +247,7 @@ pub(crate) fn product_to_row(p: &Product, categories: &[Category], max_qty: f64)
         group_label: SharedString::default(),
         group_count: 0,
         group_color: Color::default(),
+        is_insumo: false,
     }
 }
 

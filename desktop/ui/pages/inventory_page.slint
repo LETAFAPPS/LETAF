@@ -191,7 +191,8 @@ component InventoryRow inherits Rectangle {
         }
 
         // Consumo — saída de estoque de funcionário (ícone de saída, cinza).
-        VerticalLayout {
+        // Insumo não tem ações aqui (o estoque é gerido na tela Insumos).
+        if !root.data.is-insumo: VerticalLayout {
             alignment: center;
             consume-ta := TouchArea {
                 width: 32px; height: 32px;
@@ -212,7 +213,7 @@ component InventoryRow inherits Rectangle {
         }
         // Ajustar estoque — botão "+" (adicionar/retirar). SÓ admin: abre o
         // modal com o seletor Adicionar/Retirar. Funcionário não vê.
-        if root.is-admin: VerticalLayout {
+        if root.is-admin && !root.data.is-insumo: VerticalLayout {
             alignment: center;
             repor-ta := TouchArea {
                 width: 32px; height: 32px;
@@ -244,6 +245,8 @@ export component InventoryPage inherits VerticalLayout {
     in property <bool> is-admin;
     in-out property <string> search: "";
     in-out property <string> filter: "all";
+    // Filtro de tipo: "all" | "product" | "insumo".
+    in-out property <string> type-filter: "all";
     // Sincronização em andamento — gira o ícone do botão "Sincronizar".
     in-out property <bool> syncing: false;
     // Ângulo do giro do ícone (avançado por um Timer enquanto `syncing`).
@@ -251,6 +254,7 @@ export component InventoryPage inherits VerticalLayout {
 
     callback search-changed(string);
     callback filter-changed(string);
+    callback type-filter-changed(string);
     callback refresh();
     // Dispara a sincronização real (SyncWorker) — gira até concluir.
     callback sync();
@@ -353,9 +357,41 @@ export component InventoryPage inherits VerticalLayout {
         }
     }
 
-    // ── Busca (largura cheia) + filtro de Status (dropdown) ────────
+    // ── Busca + filtro de Tipo (Produto/Insumos) + filtro de Status ──
     HorizontalLayout {
         spacing: 10px;
+        // Segmented Produto / Insumos / Todos.
+        Rectangle {
+            width: 228px; height: 32px;
+            border-radius: 8px;
+            background: #F1ECE4;
+            HorizontalLayout {
+                padding: 3px; spacing: 3px;
+                for opt in [
+                    { k: "all", l: "Todos" },
+                    { k: "product", l: "Produtos" },
+                    { k: "insumo", l: "Insumos" },
+                ]: tseg := TouchArea {
+                    clicked => {
+                        root.type-filter = opt.k;
+                        root.type-filter-changed(opt.k);
+                    }
+                    Rectangle {
+                        border-radius: 6px;
+                        background: root.type-filter == opt.k ? Theme.surface : transparent;
+                        border-width: root.type-filter == opt.k ? 1px : 0px;
+                        border-color: Theme.btn-accent;
+                        Text {
+                            text: opt.l;
+                            font-size: 12px; font-weight: 700;
+                            color: root.type-filter == opt.k ? Theme.btn-accent : Theme.text-secondary;
+                            horizontal-alignment: center; vertical-alignment: center;
+                            width: parent.width; height: parent.height;
+                        }
+                    }
+                }
+            }
+        }
         // Busca (lupa + auto-focus).
         Rectangle {
             horizontal-stretch: 1;

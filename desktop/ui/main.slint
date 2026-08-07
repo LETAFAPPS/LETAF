@@ -13,6 +13,8 @@ import { CollaboratorsPage } from "pages/collaborators_page.slint";
 // `ui.global::<XState>()`.
 import { BannersState } from "state/banners.slint";
 import { ProductsState } from "state/products.slint";
+import { InsumosState } from "state/insumos.slint";
+import { InsumosPage } from "pages/insumos_page.slint";
 import { CustomersState } from "state/customers.slint";
 import { CategoriesState } from "state/categories.slint";
 import { AddonsState } from "state/addons.slint";
@@ -32,7 +34,7 @@ import { SettingsState } from "state/settings.slint";
 import { PrintersState } from "state/printers.slint";
 import { CollaboratorsState } from "state/collaborators.slint";
 import { AdminState } from "state/admin.slint";
-export { BannersState, ProductsState, CustomersState, CategoriesState, AddonsState, CouponsState, OrdersState, ProductConfigState, PdvUiState, CashState, InventoryState, DashboardState, ReportsState, FinanceState, WalletState, TreasuryState, SubscriptionState, SettingsState, PrintersState, CollaboratorsState, AdminState }
+export { BannersState, ProductsState, InsumosState, CustomersState, CategoriesState, AddonsState, CouponsState, OrdersState, ProductConfigState, PdvUiState, CashState, InventoryState, DashboardState, ReportsState, FinanceState, WalletState, TreasuryState, SubscriptionState, SettingsState, PrintersState, CollaboratorsState, AdminState }
 import { CustomersPage } from "pages/customers_page.slint";
 import { OrdersPage, CalendarPopup } from "pages/orders_page.slint";
 import { SettingsPage } from "pages/settings_page.slint";
@@ -406,6 +408,8 @@ export component MainWindow inherits Window {
                     ProductsState.refresh-products();
                     CategoriesState.refresh-categories();
                     CategoriesState.refresh-subcategories();
+                } else if tab == "insumos" {
+                    InsumosState.refresh-insumos();
                 } else if tab == "categories" {
                     CategoriesState.subcategory-filter-category-id = "all";
                     CategoriesState.refresh-categories();
@@ -825,6 +829,9 @@ export component MainWindow inherits Window {
                     remove-variation-option(vidx, oidx) => { ProductsState.remove-variation-option(vidx, oidx); }
                     apply-time-mask(t) => { SettingsState.apply-time-mask(t) }
                 }
+
+            // Insumos (matéria-prima) — lê/escreve direto no InsumosState.
+            if root.active-tab == "insumos": InsumosPage { }
 
             // Categorias
             if root.active-tab == "categories": CategoriesPage {
@@ -1281,9 +1288,11 @@ export component MainWindow inherits Window {
                 is-admin: root.nav-perms.is-admin;
                 search <=> InventoryState.inventory-search;
                 filter <=> InventoryState.inventory-filter;
+                type-filter <=> InventoryState.inventory-type-filter;
                 syncing <=> InventoryState.inventory-syncing;
                 search-changed(q) => { InventoryState.inventory-search-changed(q); }
                 filter-changed(k) => { InventoryState.inventory-filter-changed(k); }
+                type-filter-changed(k) => { InventoryState.inventory-type-filter-changed(k); }
                 refresh => { InventoryState.inventory-refresh(); }
                 sync => { InventoryState.inventory-sync(); }
                 request-add-stock(id) => { InventoryState.inventory-request-add(id); }

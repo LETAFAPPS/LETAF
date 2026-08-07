@@ -413,6 +413,9 @@ async fn init_state() -> DesktopState {
     let product_service = Arc::new(ProductService::new(
         Arc::new(SqliteProductRepository::new(pool.clone())),
     ));
+    let insumo_service = Arc::new(letaf_core::insumo::service::InsumoService::new(
+        Arc::new(crate::repository::insumo::SqliteInsumoRepository::new(pool.clone())),
+    ));
     let auth_service = Arc::new(AuthService::new(
         Arc::new(SqliteUserRepository::new(pool.clone())),
     ));
@@ -529,6 +532,7 @@ async fn init_state() -> DesktopState {
     DesktopState::new(
         company_id,
         product_service,
+        insumo_service,
         auth_service,
         company_service,
         customer_service,

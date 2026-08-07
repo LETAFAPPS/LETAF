@@ -79,6 +79,9 @@ pub fn build_state(pool: PgPool, config: AppConfig) -> AppState {
     let product_service = Arc::new(ProductService::new(
         Arc::new(PgProductRepository::new(pool.clone())),
     ));
+    let insumo_service = Arc::new(letaf_core::insumo::service::InsumoService::new(
+        Arc::new(crate::repository::insumo::PgInsumoRepository::new(pool.clone())),
+    ));
     let auth_service = Arc::new(AuthService::new(
         Arc::new(PgUserRepository::new(pool.clone())),
     ));
@@ -188,6 +191,7 @@ pub fn build_state(pool: PgPool, config: AppConfig) -> AppState {
         pool,
         config,
         product_service,
+        insumo_service,
         auth_service,
         company_service,
         customer_service,

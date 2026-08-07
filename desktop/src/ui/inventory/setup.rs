@@ -16,6 +16,7 @@ use crate::InventoryState;
 
 pub(crate) type SharedCache = Arc<std::sync::Mutex<Vec<Product>>>;
 pub(crate) type SharedCategories = Arc<std::sync::Mutex<Vec<Category>>>;
+pub(crate) type SharedInsumos = Arc<std::sync::Mutex<Vec<letaf_core::insumo::model::Insumo>>>;
 
 pub(crate) fn setup_inventory(
     ui: &MainWindow,
@@ -26,10 +27,11 @@ pub(crate) fn setup_inventory(
 ) {
     let cache: SharedCache = Arc::new(std::sync::Mutex::new(Vec::new()));
     let cats_cache: SharedCategories = Arc::new(std::sync::Mutex::new(Vec::new()));
+    let insumos_cache: SharedInsumos = Arc::new(std::sync::Mutex::new(Vec::new()));
 
-    setup_refresh(ui, state, handle, cache.clone(), cats_cache.clone());
-    setup_search(ui, cache.clone(), cats_cache.clone());
-    setup_filter(ui, cache.clone(), cats_cache.clone());
+    setup_refresh(ui, state, handle, cache.clone(), cats_cache.clone(), insumos_cache.clone());
+    setup_search(ui, cache.clone(), cats_cache.clone(), insumos_cache.clone());
+    setup_filter(ui, cache.clone(), cats_cache.clone(), insumos_cache.clone());
     setup_request_add(ui, cache.clone());
     setup_request_consume(ui, cache.clone());
     setup_sync(ui, state, handle, sync_notify.clone());
@@ -133,22 +135,31 @@ pub(crate) fn setup_sync_listener(
 
 // ── Search (filtra por nome, sem ir ao banco) ─────────────────────
 
-pub(crate) fn setup_search(ui: &MainWindow, cache: SharedCache, cats_cache: SharedCategories) {
+pub(crate) fn setup_search(ui: &MainWindow, cache: SharedCache, cats_cache: SharedCategories, insumos_cache: SharedInsumos) {
     let ui_weak = ui.as_weak();
     ui.global::<InventoryState>().on_inventory_search_changed(move |_q| {
         // O texto fica em `inventory-search` (Slint property), lido pelo
         // `apply_to_ui` direto. Re-renderiza com o cache atual.
-        apply_to_ui_from_cache(&ui_weak, &cache, &cats_cache);
+        apply_to_ui_from_cache(&ui_weak, &cache, &cats_cache, &insumos_cache);
     });
 }
 
-// ── Filtro de status (abas Todos/Saudável/Baixo/Sem Estoque) ──────
-// Mesmo padrão da busca: o valor fica em `inventory-filter` (Slint),
-// lido pelo `apply_to_ui`. Re-renderiza a lista com o cache atual.
-pub(crate) fn setup_filter(ui: &MainWindow, cache: SharedCache, cats_cache: SharedCategories) {
+// ── Filtros: status (Todos/Saudável/Baixo/Sem Estoque) e tipo
+// (Produto/Insumos). O valor fica no Slint; `apply_to_ui` lê e re-renderiza
+// a lista com o cache atual (sem ir ao banco).
+pub(crate) fn setup_filter(ui: &MainWindow, cache: SharedCache, cats_cache: SharedCategories, insumos_cache: SharedInsumos) {
     let ui_weak = ui.as_weak();
-    ui.global::<InventoryState>().on_inventory_filter_changed(move |_k| {
-        apply_to_ui_from_cache(&ui_weak, &cache, &cats_cache);
+    {
+        let ui_weak = ui_weak.clone();
+        let cache = cache.clone();
+        let cats_cache = cats_cache.clone();
+        let insumos_cache = insumos_cache.clone();
+        ui.global::<InventoryState>().on_inventory_filter_changed(move |_k| {
+            apply_to_ui_from_cache(&ui_weak, &cache, &cats_cache, &insumos_cache);
+        });
+    }
+    ui.global::<InventoryState>().on_inventory_type_filter_changed(move |_k| {
+        apply_to_ui_from_cache(&ui_weak, &cache, &cats_cache, &insumos_cache);
     });
 }
 
@@ -160,6 +171,7 @@ pub(crate) fn setup_refresh(
     handle: &tokio::runtime::Handle,
     cache: SharedCache,
     cats_cache: SharedCategories,
+    insumos_cache: SharedInsumos,
 ) {
     let ui_weak = ui.as_weak();
     let state = state.clone();
@@ -169,10 +181,12 @@ pub(crate) fn setup_refresh(
         let state = state.clone();
         let cache = cache.clone();
         let cats_cache = cats_cache.clone();
+        let insumos_cache = insumos_cache.clone();
         handle.spawn(async move {
             let cid = state.company_id();
             let products = state.product_service.find_all(cid).await.unwrap_or_default();
             let categories = state.category_service.find_all(cid).await.unwrap_or_default();
+            let insumos = state.insumo_service.find_all(cid).await.unwrap_or_default();
             // Badge da sidebar: produtos ativos esgotados (fora de estoque).
             let out = products
                 .iter()
@@ -180,7 +194,8 @@ pub(crate) fn setup_refresh(
                 .count() as i32;
             if let Ok(mut g) = cache.lock() { *g = products; }
             if let Ok(mut g) = cats_cache.lock() { *g = categories; }
-            apply_to_ui_from_cache(&ui_weak, &cache, &cats_cache);
+            if let Ok(mut g) = insumos_cache.lock() { *g = insumos; }
+            apply_to_ui_from_cache(&ui_weak, &cache, &cats_cache, &insumos_cache);
             let ui_weak = ui_weak.clone();
             let _ = slint::invoke_from_event_loop(move || {
                 if let Some(ui) = ui_weak.upgrade() {

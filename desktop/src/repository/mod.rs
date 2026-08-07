@@ -13,6 +13,7 @@ pub mod customer_address;
 pub mod finance;
 pub mod finance_category;
 pub mod helpers;
+pub mod insumo;
 pub mod job_role;
 pub mod order;
 pub mod payment_method;

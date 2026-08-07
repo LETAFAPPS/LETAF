@@ -22,6 +22,7 @@ use letaf_core::payment_gateway::service::PaymentService;
 use letaf_core::payment_method::service::PaymentMethodService;
 use letaf_core::company::service::CompanyService;
 use letaf_core::customer::service::CustomerService;
+use letaf_core::insumo::service::InsumoService;
 use letaf_core::product::service::ProductService;
 use letaf_core::customer_address::service::CustomerAddressService;
 use letaf_core::finance::service::FinanceService;
@@ -46,6 +47,7 @@ pub struct AppState {
     pub pool: PgPool,
     pub config: AppConfig,
     pub product_service: Arc<ProductService>,
+    pub insumo_service: Arc<InsumoService>,
     pub auth_service: Arc<AuthService>,
     pub company_service: Arc<CompanyService>,
     pub customer_service: Arc<CustomerService>,
@@ -102,6 +104,7 @@ impl AppState {
         pool: PgPool,
         config: AppConfig,
         product_service: Arc<ProductService>,
+        insumo_service: Arc<InsumoService>,
         auth_service: Arc<AuthService>,
         company_service: Arc<CompanyService>,
         customer_service: Arc<CustomerService>,
@@ -147,6 +150,7 @@ impl AppState {
             pool,
             config,
             product_service,
+            insumo_service,
             auth_service,
             company_service,
             customer_service,

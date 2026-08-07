@@ -24,6 +24,7 @@ use letaf_core::order::service::OrderService;
 use letaf_core::treasury::service::TreasuryService;
 use letaf_core::wallet::service::WalletService;
 use letaf_core::printer::service::PrinterService;
+use letaf_core::insumo::service::InsumoService;
 use letaf_core::product::service::ProductService;
 
 use crate::alarm::{AlarmPlayer, AlarmWatcher};
@@ -42,6 +43,7 @@ use crate::sync::status::SyncStatusHandle;
 pub struct DesktopState {
     company_id: Arc<RwLock<Uuid>>,
     pub product_service: Arc<ProductService>,
+    pub insumo_service: Arc<InsumoService>,
     pub auth_service: Arc<AuthService>,
     pub company_service: Arc<CompanyService>,
     pub customer_service: Arc<CustomerService>,
@@ -102,6 +104,7 @@ impl DesktopState {
     pub fn new(
         company_id: Uuid,
         product_service: Arc<ProductService>,
+        insumo_service: Arc<InsumoService>,
         auth_service: Arc<AuthService>,
         company_service: Arc<CompanyService>,
         customer_service: Arc<CustomerService>,
@@ -135,6 +138,7 @@ impl DesktopState {
         Self {
             company_id: Arc::new(RwLock::new(company_id)),
             product_service,
+            insumo_service,
             auth_service,
             company_service,
             customer_service,

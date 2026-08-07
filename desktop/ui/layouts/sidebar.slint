@@ -229,7 +229,7 @@ export component Sidebar inherits Rectangle {
                 }
 
                 // ── CADASTROS ─────────────────────────────
-                if root.store-access || root.nav.products || root.nav.inventory || root.nav.addons || root.nav.categories:
+                if root.store-access || root.nav.products || root.nav.insumos || root.nav.inventory || root.nav.addons || root.nav.categories:
                     SidebarSection { title: "CADASTROS"; compact: !root.expanded; }
                 if root.store-access || root.nav.products: SidebarItem {
                     icon-source: @image-url("../assets/icons/products.svg");
@@ -237,6 +237,13 @@ export component Sidebar inherits Rectangle {
                     compact: !root.expanded;
                     active: root.active-tab == "products";
                     clicked => { root.navigate("products"); }
+                }
+                if root.store-access || root.nav.insumos: SidebarItem {
+                    icon-source: @image-url("../assets/icons/entrada-estoque.svg");
+                    label: "Insumos";
+                    compact: !root.expanded;
+                    active: root.active-tab == "insumos";
+                    clicked => { root.navigate("insumos"); }
                 }
                 if root.store-access || root.nav.inventory: SidebarItem {
                     icon-source: @image-url("../assets/icons/lote.svg");

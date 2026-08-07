@@ -23,6 +23,7 @@ export struct NavPerms {
     cash: bool,
     finance: bool,
     products: bool,
+    insumos: bool,
     inventory: bool,
     addons: bool,
     categories: bool,
@@ -211,6 +212,26 @@ export struct CollabEmployeeRow {
     avatar-color: color,    // cor determinística do avatar
 }
 // Opção de Função no dropdown do formulário de Funcionário.
+
+// Linha/registro de Insumo (matéria-prima) — já formatado para a UI.
+export struct InsumoData {
+    id: string,
+    name: string,
+    description: string,
+    unit: string,
+    // Cru (para os TextInputs do form) e formatado (para o card).
+    stock: string,
+    stock-display: string,      // "12 un"
+    min-stock: string,
+    min-display: string,        // "mín. 5 un"
+    cost: string,               // valor cru p/ edição
+    cost-display: string,       // "R$ 2,00" ou "—"
+    barcode: string,
+    active: bool,
+    // Situação do estoque (cor do card): "ok" | "low" | "out".
+    status: string,
+    status-color: color,
+}
 
 export struct ProductData {
     id: string,
@@ -986,6 +1007,10 @@ export struct InventoryProductRow {
     group-count: int,
     /// Cor do cabeçalho/ponto do grupo.
     group-color: color,
+    /// `true` quando a linha é um INSUMO (matéria-prima), não um produto.
+    /// A UI esconde os botões de ação (o estoque de insumo é gerido na tela
+    /// Insumos nesta fase).
+    is-insumo: bool,
 }
 
 /// Mini-célula colorida no "Mapa por categoria" — 1 SKU.

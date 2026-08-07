@@ -51,6 +51,9 @@ pub fn nav_perms_from(is_admin: bool, is_super_admin: bool, perms: &[String]) ->
         cash: has("cash.view"),
         finance: has("finance.view"),
         products: has("products.view"),
+        // Insumos reaproveitam a permissão de produtos nesta fase (§11 — sem
+        // nova feature de RBAC por enquanto).
+        insumos: has("products.view"),
         inventory: has("stock.view"),
         addons: has("addons.view"),
         categories: has("categories.view"),

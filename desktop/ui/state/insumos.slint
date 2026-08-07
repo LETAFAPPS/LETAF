@@ -1,0 +1,31 @@
+// Estado da feature INSUMOS (matéria-prima), isolado do MainWindow.
+// Mesmo padrão dos demais globals (Theme, ProductsState, InventoryState).
+// Lógica em desktop/src/ui/insumos.
+import { InsumoData } from "../types.slint";
+
+export global InsumosState {
+    in-out property <[InsumoData]> insumos: [];
+    in-out property <string> insumos-search: "";
+    in-out property <int> insumos-active-count: 0;
+    // Seleção master-detail.
+    in-out property <string> selected-insumo-id: "";
+    in-out property <string> editing-insumo-id: "";     // "" = novo cadastro
+    // Campos do formulário (crus).
+    in-out property <string> insumo-name: "";
+    in-out property <string> insumo-unit: "un";
+    in-out property <string> insumo-description: "";
+    in-out property <string> insumo-cost: "";
+    in-out property <string> insumo-barcode: "";
+    in-out property <string> insumo-stock: "";
+    in-out property <string> insumo-min-stock: "";
+    in-out property <bool>   insumo-active: true;
+    in-out property <string> insumo-save-error: "";
+
+    callback refresh-insumos();
+    callback search-insumos(string);
+    callback request-new-insumo();
+    callback select-insumo(string);
+    callback add-insumo();
+    callback update-insumo();
+    callback delete-insumo(string);
+}

@@ -11,6 +11,7 @@ use letaf_core::job_role::model::JobRole;
 use letaf_core::subcategory::model::Subcategory;
 use letaf_core::product::model::Product;
 use letaf_core::product::stock_movement::StockMovement;
+use letaf_core::insumo::model::{Insumo, InsumoMovement};
 
 use letaf_core::reconcile::{ManifestEntry, ReconcileRepository, MANIFEST_PAGE};
 
@@ -159,6 +160,61 @@ pub(crate) async fn pull_stock_movements(
             params.after_id(),
             params.page_limit(),
         )
+        .await?;
+    Ok(Json(items))
+}
+
+// ── Insumos (matéria-prima) — espelha products/stock-movements ──────
+
+/// POST /sync/insumos — upsert de insumo sincronizado.
+pub(crate) async fn sync_insumo(
+    State(state): State<AppState>,
+    auth: AuthClaims,
+    Json(insumo): Json<Insumo>,
+) -> Result<Json<Value>, ServerError> {
+    auth.verify_any_role(ROLES_OPERATORS)?;
+    auth.require_permission("products.edit")?;
+    state.insumo_service.sync_upsert(auth.0.company_id, insumo).await?;
+    Ok(Json(json!({ "synced": true })))
+}
+
+/// GET /sync/pull/insumos?since=<timestamp>
+pub(crate) async fn pull_insumos(
+    State(state): State<AppState>,
+    auth: AuthClaims,
+    Query(params): Query<PullQuery>,
+) -> Result<Json<Vec<Insumo>>, ServerError> {
+    auth.verify_any_role(ROLES_OPERATORS)?;
+    let items = state
+        .insumo_service
+        .find_updated_since_paged(auth.0.company_id, params.since, params.after_id(), params.page_limit())
+        .await?;
+    Ok(Json(items))
+}
+
+/// POST /sync/insumo-movements — ingest idempotente do ledger de insumo.
+pub(crate) async fn sync_insumo_movement(
+    State(state): State<AppState>,
+    auth: AuthClaims,
+    Json(movement): Json<InsumoMovement>,
+) -> Result<Json<Value>, ServerError> {
+    auth.verify_any_role(ROLES_OPERATORS)?;
+    // Mesmas permissões do ledger de estoque de produtos (delta idempotente).
+    auth.require_any_permission(&["stock.edit", "products.edit", "pdv.view", "orders.edit"])?;
+    state.insumo_service.apply_movement(auth.0.company_id, movement).await?;
+    Ok(Json(json!({ "synced": true })))
+}
+
+/// GET /sync/pull/insumo-movements?since=<timestamp>
+pub(crate) async fn pull_insumo_movements(
+    State(state): State<AppState>,
+    auth: AuthClaims,
+    Query(params): Query<PullQuery>,
+) -> Result<Json<Vec<InsumoMovement>>, ServerError> {
+    auth.verify_any_role(ROLES_OPERATORS)?;
+    let items = state
+        .insumo_service
+        .find_movements_updated_since_paged(auth.0.company_id, params.since, params.after_id(), params.page_limit())
         .await?;
     Ok(Json(items))
 }
