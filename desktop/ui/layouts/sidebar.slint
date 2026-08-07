@@ -239,7 +239,7 @@ export component Sidebar inherits Rectangle {
                     clicked => { root.navigate("products"); }
                 }
                 if root.store-access || root.nav.insumos: SidebarItem {
-                    icon-source: @image-url("../assets/icons/entrada-estoque.svg");
+                    icon-source: @image-url("../assets/icons/recebimento.svg");
                     label: "Insumos";
                     compact: !root.expanded;
                     active: root.active-tab == "insumos";
