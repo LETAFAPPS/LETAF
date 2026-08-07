@@ -1,7 +1,6 @@
 import { ScrollView } from "std-widgets.slint";
 import { Theme } from "../theme.slint";
 import { AssetIcon } from "../components/icons.slint";
-import { EmptyState } from "../components/empty_state.slint";
 import { FormCard } from "../components/form_card.slint";
 import { FormField } from "../components/form_fields.slint";
 import { ActionBtn, OutlineBtn } from "../components/buttons.slint";
@@ -9,315 +8,375 @@ import { InsumoData } from "../types.slint";
 import { InsumosState } from "../state/insumos.slint";
 
 // ── Tela: Insumos (matéria-prima) ─────────────────────────────────
-// Mesmo estilo master-detail da tela de Produtos: lista à esquerda
-// (busca + cards), formulário à direita. Toda a lógica vive no Rust
-// (desktop/src/ui/insumos) — a UI só renderiza e dispara callbacks (§1/§3).
+// Mesmo estilo master-detail da tela de Produtos: card mestre à esquerda
+// (busca + linhas) e painel de detalhe à direita (prompt até selecionar/
+// criar; senão o formulário). Toda a lógica vive no Rust (§1/§3).
 
-export component InsumosPage inherits HorizontalLayout {
-    spacing: 0px;
+// Linha de insumo na lista mestra — espelha `ProductRow` dos produtos.
+component InsumoRow inherits TouchArea {
+    in property <InsumoData> data;
+    in property <bool> selected: false;
+    callback open();
 
-    // ── Painel mestre (lista) ──────────────────────────────────────
+    height: 60px;
+    clicked => { root.open(); }
     Rectangle {
-        width: 330px;
-        background: Theme.surface;
-        border-width: 1px;
-        border-color: Theme.card-border;
-        VerticalLayout {
-            padding: 16px;
-            spacing: 12px;
-
-            HorizontalLayout {
-                spacing: 8px;
-                VerticalLayout {
-                    horizontal-stretch: 1;
-                    spacing: 2px;
-                    Text { text: "Insumos"; font-size: 22px; font-weight: 700; color: Theme.text-primary; overflow: elide; }
-                    Text {
-                        text: InsumosState.insumos-active-count + " cadastrados";
-                        font-size: 11px; color: Theme.text-secondary; overflow: elide;
-                    }
-                }
-                // Exportar CSV de insumos.
-                VerticalLayout {
-                    alignment: center;
-                    exp-ta := TouchArea {
-                        width: 34px; height: 34px;
-                        clicked => { InsumosState.export-insumos(); }
-                        Rectangle {
-                            border-radius: 8px; border-width: 1.5px; border-color: Theme.border;
-                            background: exp-ta.has-hover ? Theme.row-hover : transparent;
-                            AssetIcon {
-                                width: 100%; height: 100%; icon-size: 16px;
-                                icon-color: Theme.text-secondary;
-                                source: @image-url("../assets/icons/exportar.svg");
-                            }
-                        }
-                    }
-                }
-                // Importar CSV de insumos.
-                VerticalLayout {
-                    alignment: center;
-                    imp-ta := TouchArea {
-                        width: 34px; height: 34px;
-                        clicked => { InsumosState.import-insumos(); }
-                        Rectangle {
-                            border-radius: 8px; border-width: 1.5px; border-color: Theme.border;
-                            background: imp-ta.has-hover ? Theme.row-hover : transparent;
-                            AssetIcon {
-                                width: 100%; height: 100%; icon-size: 16px;
-                                icon-color: Theme.text-secondary;
-                                source: @image-url("../assets/icons/download.svg");
-                            }
-                        }
-                    }
-                }
-                VerticalLayout {
-                    alignment: center;
-                    new-ta := TouchArea {
-                        width: 34px; height: 34px;
-                        clicked => { InsumosState.request-new-insumo(); }
-                        Rectangle {
-                            border-radius: 8px;
-                            border-width: 1.5px;
-                            border-color: Theme.btn-accent;
-                            background: new-ta.has-hover ? Theme.btn-accent.transparentize(0.80) : Theme.btn-accent.transparentize(0.90);
-                            AssetIcon {
-                                width: 100%; height: 100%; icon-size: 16px;
-                                icon-color: Theme.btn-accent;
-                                source: @image-url("../assets/icons/adicionar.svg");
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Busca
-            Rectangle {
-                height: 36px;
-                border-radius: 8px;
-                border-width: 1px;
-                border-color: search-input.has-focus ? Theme.primary : Theme.card-border;
-                background: Theme.surface;
-                HorizontalLayout {
-                    padding-left: 12px; padding-right: 12px; spacing: 8px;
-                    VerticalLayout {
-                        alignment: center; width: 15px;
-                        AssetIcon {
-                            width: 15px; height: 15px; icon-size: 15px;
-                            icon-color: search-input.has-focus ? Theme.primary : Theme.text-secondary;
-                            source: @image-url("../assets/icons/busca.svg");
-                        }
-                    }
-                    Rectangle {
-                        horizontal-stretch: 1;
-                        search-input := TextInput {
-                            x: 0; y: 0; width: parent.width; height: parent.height;
-                            text <=> InsumosState.insumos-search;
-                            font-size: 13px; color: Theme.text-primary;
-                            vertical-alignment: center; single-line: true;
-                            edited => { InsumosState.search-insumos(self.text); }
-                        }
-                        if InsumosState.insumos-search == "": Text {
-                            x: 0; y: 0; width: parent.width; height: parent.height;
-                            text: "Buscar insumo..."; font-size: 13px;
-                            color: #BDBDBD; vertical-alignment: center;
-                        }
-                    }
-                }
-            }
-
-            // Lista
-            if InsumosState.insumos.length > 0: ScrollView {
-                vertical-scrollbar-policy: ScrollBarPolicy.always-off;
-                horizontal-scrollbar-policy: ScrollBarPolicy.always-off;
-                vertical-stretch: 1;
-                VerticalLayout {
-                    spacing: 8px;
-                    alignment: start;
-                    padding: 2px;
-                    for it in InsumosState.insumos: row-ta := TouchArea {
-                        height: 60px;
-                        clicked => { InsumosState.select-insumo(it.id); }
-                        Rectangle {
-                            border-radius: 10px;
-                            border-width: 1px;
-                            border-color: it.id == InsumosState.selected-insumo-id ? Theme.btn-accent : Theme.card-border;
-                            background: it.id == InsumosState.selected-insumo-id
-                                ? Theme.btn-accent.transparentize(0.92)
-                                : (row-ta.has-hover ? Theme.row-hover : Theme.surface);
-                            HorizontalLayout {
-                                padding-left: 12px; padding-right: 12px; spacing: 10px;
-                                VerticalLayout {
-                                    alignment: center;
-                                    Rectangle {
-                                        width: 8px; height: 8px; border-radius: 4px;
-                                        background: it.status-color;
-                                    }
-                                }
-                                VerticalLayout {
-                                    horizontal-stretch: 1;
-                                    alignment: center;
-                                    spacing: 2px;
-                                    Text { text: it.name; font-size: 13px; font-weight: 700; color: Theme.text-primary; overflow: elide; }
-                                    Text { text: it.cost-display; font-size: 11px; color: Theme.text-secondary; overflow: elide; }
-                                }
-                                VerticalLayout {
-                                    alignment: center;
-                                    Text { text: it.stock-display; font-size: 13px; font-weight: 700; color: it.status-color; horizontal-alignment: right; }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            if InsumosState.insumos.length == 0: VerticalLayout {
-                vertical-stretch: 1;
+        border-radius: 10px;
+        background: root.selected ? Theme.accent.transparentize(0.90)
+            : (root.has-hover ? #00000008 : transparent);
+        border-width: root.selected ? 1px : 0px;
+        border-color: Theme.accent;
+        HorizontalLayout {
+            padding-left: 14px;
+            padding-right: 12px;
+            spacing: 10px;
+            // Avatar: insumo não tem foto → ícone da matéria-prima.
+            VerticalLayout {
                 alignment: center;
-                EmptyState {
-                    source: @image-url("../assets/illustrations/online-shopping-store.svg");
-                    title: "Nenhum insumo";
-                    art-size: 160px;
+                Rectangle {
+                    width: 40px; height: 40px;
+                    border-radius: 8px;
+                    background: Theme.row-alt;
+                    AssetIcon {
+                        width: 100%; height: 100%; icon-size: 20px;
+                        icon-color: Theme.text-secondary;
+                        source: @image-url("../assets/icons/recebimento.svg");
+                    }
+                }
+            }
+            VerticalLayout {
+                horizontal-stretch: 1;
+                alignment: center;
+                spacing: 2px;
+                Text {
+                    text: root.data.name;
+                    font-size: 13px; font-weight: 600;
+                    color: root.selected ? Theme.primary : Theme.text-primary;
+                    overflow: elide;
+                }
+                Text {
+                    text: root.data.cost-display;
+                    font-size: 11px; color: Theme.text-secondary;
+                    overflow: elide;
+                }
+            }
+            VerticalLayout {
+                alignment: center;
+                spacing: 3px;
+                Text {
+                    text: root.data.status-label;
+                    font-size: 11px; font-weight: 600;
+                    horizontal-alignment: right;
+                    color: root.data.status == "out" ? #C62828
+                        : (root.data.status == "low" ? #FF9E40
+                        : #2E7D32);
+                }
+                if !root.data.active: Rectangle {
+                    width: 7px; height: 7px;
+                    border-radius: 3.5px;
+                    background: #BDBDBD;
                 }
             }
         }
     }
+}
 
-    // ── Painel de detalhe (formulário) ─────────────────────────────
-    Rectangle {
-        horizontal-stretch: 1;
-        background: Theme.bg;
-        ScrollView {
-            vertical-scrollbar-policy: ScrollBarPolicy.as-needed;
-            horizontal-scrollbar-policy: ScrollBarPolicy.always-off;
+export component InsumosPage inherits Rectangle {
+    background: Theme.bg;
+    HorizontalLayout {
+        spacing: 8px;
+
+        // ═══ MASTER: lista de insumos à esquerda ═══
+        Rectangle {
+            width: 248px;
+            background: Theme.surface;
+            border-radius: 12px;
+            border-width: 1px;
+            border-color: Theme.card-border;
+            drop-shadow-blur: 12px;
+            drop-shadow-offset-y: 0px;
+            drop-shadow-color: Theme.card-shadow;
             VerticalLayout {
-                padding: 24px;
-                spacing: 16px;
-                alignment: start;
+                padding: 16px;
+                spacing: 12px;
 
-                Text {
-                    text: InsumosState.editing-insumo-id == "" ? "Novo insumo" : "Editar insumo";
-                    font-size: 20px; font-weight: 800; color: Theme.text-primary;
-                }
-
-                FormCard {
-                    title: "Identificação";
+                HorizontalLayout {
+                    spacing: 8px;
                     VerticalLayout {
-                        spacing: 10px;
-                        HorizontalLayout {
-                            spacing: 10px;
-                            FormField {
-                                horizontal-stretch: 2;
-                                label: "Nome";
-                                value <=> InsumosState.insumo-name;
-                                placeholder: "Ex.: Farinha de trigo";
-                            }
-                            FormField {
-                                horizontal-stretch: 1;
-                                label: "Unidade";
-                                value <=> InsumosState.insumo-unit;
-                                placeholder: "un, kg, g, L...";
+                        horizontal-stretch: 1;
+                        spacing: 2px;
+                        Text { text: "Insumos"; font-size: 22px; font-weight: 700; color: Theme.text-primary; overflow: elide; }
+                        Text {
+                            text: InsumosState.insumos-active-count + " ativos · " + InsumosState.insumos-inactive-count + " inativos";
+                            font-size: 11px; color: Theme.text-secondary; overflow: elide;
+                        }
+                    }
+                    // Exportar CSV de insumos.
+                    VerticalLayout {
+                        alignment: center;
+                        exp-ta := TouchArea {
+                            width: 34px; height: 34px;
+                            clicked => { InsumosState.export-insumos(); }
+                            Rectangle {
+                                border-radius: 8px; border-width: 1.5px; border-color: Theme.border;
+                                background: exp-ta.has-hover ? Theme.row-hover : transparent;
+                                AssetIcon {
+                                    width: 100%; height: 100%; icon-size: 16px;
+                                    icon-color: Theme.text-secondary;
+                                    source: @image-url("../assets/icons/exportar.svg");
+                                }
                             }
                         }
-                        FormField {
-                            label: "Descrição";
-                            value <=> InsumosState.insumo-description;
-                            placeholder: "Observações (opcional)";
+                    }
+                    // Importar CSV de insumos.
+                    VerticalLayout {
+                        alignment: center;
+                        imp-ta := TouchArea {
+                            width: 34px; height: 34px;
+                            clicked => { InsumosState.import-insumos(); }
+                            Rectangle {
+                                border-radius: 8px; border-width: 1.5px; border-color: Theme.border;
+                                background: imp-ta.has-hover ? Theme.row-hover : transparent;
+                                AssetIcon {
+                                    width: 100%; height: 100%; icon-size: 16px;
+                                    icon-color: Theme.text-secondary;
+                                    source: @image-url("../assets/icons/download.svg");
+                                }
+                            }
                         }
-                        FormField {
-                            label: "Código de barras";
-                            value <=> InsumosState.insumo-barcode;
-                            placeholder: "Opcional";
+                    }
+                    VerticalLayout {
+                        alignment: center;
+                        new-ta := TouchArea {
+                            width: 34px; height: 34px;
+                            clicked => { InsumosState.request-new-insumo(); }
+                            Rectangle {
+                                border-radius: 8px;
+                                border-width: 1.5px;
+                                border-color: Theme.btn-accent;
+                                background: new-ta.has-hover ? Theme.btn-accent.transparentize(0.80) : Theme.btn-accent.transparentize(0.90);
+                                AssetIcon {
+                                    width: 100%; height: 100%; icon-size: 16px;
+                                    icon-color: Theme.btn-accent;
+                                    source: @image-url("../assets/icons/adicionar.svg");
+                                }
+                            }
                         }
                     }
                 }
 
-                FormCard {
-                    title: "Estoque & custo";
-                    VerticalLayout {
-                        spacing: 10px;
-                        HorizontalLayout {
-                            spacing: 10px;
-                            FormField {
-                                horizontal-stretch: 1;
-                                label: "Estoque";
-                                value <=> InsumosState.insumo-stock;
-                                placeholder: "0";
-                            }
-                            FormField {
-                                horizontal-stretch: 1;
-                                label: "Estoque mínimo";
-                                value <=> InsumosState.insumo-min-stock;
-                                placeholder: "0";
-                            }
-                            FormField {
-                                horizontal-stretch: 1;
-                                label: "Preço de custo";
-                                value <=> InsumosState.insumo-cost;
-                                placeholder: "R$ 0,00";
+                // Busca (ícone + input; placeholder absoluto).
+                Rectangle {
+                    height: 36px;
+                    border-radius: 8px;
+                    border-width: 1px;
+                    border-color: search-input.has-focus ? Theme.primary : Theme.border;
+                    background: Theme.bg;
+                    HorizontalLayout {
+                        padding-left: 12px; padding-right: 12px; spacing: 8px;
+                        VerticalLayout {
+                            alignment: center; width: 15px;
+                            AssetIcon {
+                                width: 15px; height: 15px; icon-size: 15px;
+                                icon-color: search-input.has-focus ? Theme.primary : Theme.text-secondary;
+                                source: @image-url("../assets/icons/busca.svg");
                             }
                         }
-                        // Ativo (toggle simples)
-                        HorizontalLayout {
-                            spacing: 10px;
-                            VerticalLayout {
-                                horizontal-stretch: 1;
-                                spacing: 2px;
-                                Text { text: "Ativo"; font-size: 12px; font-weight: 700; color: Theme.text-primary; }
-                                Text { text: "Insumo inativo some das listas de seleção de receita."; font-size: 11px; color: Theme.text-secondary; }
+                        Rectangle {
+                            horizontal-stretch: 1;
+                            search-input := TextInput {
+                                x: 0; y: 0; width: parent.width; height: parent.height;
+                                text <=> InsumosState.insumos-search;
+                                font-size: 13px; color: Theme.text-primary;
+                                vertical-alignment: center; single-line: true;
+                                edited => { InsumosState.search-insumos(self.text); }
                             }
-                            VerticalLayout {
-                                alignment: center;
-                                toggle-ta := TouchArea {
-                                    width: 56px; height: 28px;
-                                    clicked => { InsumosState.insumo-active = !InsumosState.insumo-active; }
-                                    Rectangle {
-                                        border-radius: 14px;
-                                        background: InsumosState.insumo-active ? #2E7D32 : Theme.border;
+                            if InsumosState.insumos-search == "": Text {
+                                x: 0; y: 0; width: parent.width; height: parent.height;
+                                text: "Buscar insumo…"; font-size: 13px;
+                                color: Theme.text-secondary; vertical-alignment: center;
+                            }
+                        }
+                    }
+                }
+
+                ScrollView {
+                    vertical-scrollbar-policy: ScrollBarPolicy.always-off;
+                    horizontal-scrollbar-policy: ScrollBarPolicy.always-off;
+                    vertical-stretch: 1;
+                    VerticalLayout {
+                        alignment: start;
+                        spacing: 2px;
+                        for it in InsumosState.insumos: InsumoRow {
+                            data: it;
+                            selected: it.id == InsumosState.selected-insumo-id;
+                            open => { InsumosState.select-insumo(it.id); }
+                        }
+                    }
+                }
+            }
+        }
+
+        // ═══ DETALHE à direita ═══
+        Rectangle {
+            horizontal-stretch: 1;
+            background: Theme.bg;
+
+            // Nada selecionado → prompt (igual à tela de Produtos).
+            if InsumosState.selected-insumo-id == "": VerticalLayout {
+                alignment: center;
+                spacing: 14px;
+                HorizontalLayout {
+                    alignment: center;
+                    Text {
+                        text: "Selecione um insumo à esquerda para ver os detalhes.";
+                        font-size: 14px; color: Theme.text-secondary;
+                    }
+                }
+                HorizontalLayout {
+                    alignment: center;
+                    ActionBtn {
+                        label: "+ Novo insumo";
+                        bg-color: Theme.btn-accent;
+                        width: 160px; height: 36px;
+                        clicked => { InsumosState.request-new-insumo(); }
+                    }
+                }
+            }
+
+            // Selecionado/novo → formulário.
+            if InsumosState.selected-insumo-id != "": ScrollView {
+                vertical-scrollbar-policy: ScrollBarPolicy.as-needed;
+                horizontal-scrollbar-policy: ScrollBarPolicy.always-off;
+                VerticalLayout {
+                    padding: 24px;
+                    spacing: 16px;
+                    alignment: start;
+
+                    Text {
+                        text: InsumosState.editing-insumo-id == "" ? "Novo insumo" : "Editar insumo";
+                        font-size: 20px; font-weight: 800; color: Theme.text-primary;
+                    }
+
+                    FormCard {
+                        title: "Identificação";
+                        VerticalLayout {
+                            spacing: 10px;
+                            HorizontalLayout {
+                                spacing: 10px;
+                                FormField {
+                                    horizontal-stretch: 2;
+                                    label: "Nome";
+                                    value <=> InsumosState.insumo-name;
+                                    placeholder: "Ex.: Farinha de trigo";
+                                }
+                                FormField {
+                                    horizontal-stretch: 1;
+                                    label: "Unidade";
+                                    value <=> InsumosState.insumo-unit;
+                                    placeholder: "un, kg, g, L...";
+                                }
+                            }
+                            FormField {
+                                label: "Descrição";
+                                value <=> InsumosState.insumo-description;
+                                placeholder: "Observações (opcional)";
+                            }
+                            FormField {
+                                label: "Código de barras";
+                                value <=> InsumosState.insumo-barcode;
+                                placeholder: "Opcional";
+                            }
+                        }
+                    }
+
+                    FormCard {
+                        title: "Estoque & custo";
+                        VerticalLayout {
+                            spacing: 10px;
+                            HorizontalLayout {
+                                spacing: 10px;
+                                FormField {
+                                    horizontal-stretch: 1;
+                                    label: "Estoque";
+                                    value <=> InsumosState.insumo-stock;
+                                    placeholder: "0";
+                                }
+                                FormField {
+                                    horizontal-stretch: 1;
+                                    label: "Estoque mínimo";
+                                    value <=> InsumosState.insumo-min-stock;
+                                    placeholder: "0";
+                                }
+                                FormField {
+                                    horizontal-stretch: 1;
+                                    label: "Preço de custo";
+                                    value <=> InsumosState.insumo-cost;
+                                    placeholder: "R$ 0,00";
+                                }
+                            }
+                            HorizontalLayout {
+                                spacing: 10px;
+                                VerticalLayout {
+                                    horizontal-stretch: 1;
+                                    spacing: 2px;
+                                    Text { text: "Ativo"; font-size: 12px; font-weight: 700; color: Theme.text-primary; }
+                                    Text { text: "Insumo inativo some das listas de seleção de receita."; font-size: 11px; color: Theme.text-secondary; }
+                                }
+                                VerticalLayout {
+                                    alignment: center;
+                                    toggle-ta := TouchArea {
+                                        width: 56px; height: 28px;
+                                        clicked => { InsumosState.insumo-active = !InsumosState.insumo-active; }
                                         Rectangle {
-                                            width: 22px; height: 22px; border-radius: 11px;
-                                            y: 3px;
-                                            x: InsumosState.insumo-active ? parent.width - self.width - 3px : 3px;
-                                            background: white;
+                                            border-radius: 14px;
+                                            background: InsumosState.insumo-active ? #2E7D32 : Theme.border;
+                                            Rectangle {
+                                                width: 22px; height: 22px; border-radius: 11px;
+                                                y: 3px;
+                                                x: InsumosState.insumo-active ? parent.width - self.width - 3px : 3px;
+                                                background: white;
+                                            }
                                         }
                                     }
                                 }
                             }
                         }
                     }
-                }
 
-                if InsumosState.insumo-save-error != "": Rectangle {
-                    background: #FFEBEE;
-                    border-radius: 8px;
-                    VerticalLayout {
-                        padding: 10px;
-                        Text {
-                            text: "⚠ " + InsumosState.insumo-save-error;
-                            font-size: 12px; font-weight: 600; color: #C62828;
-                            wrap: word-wrap;
-                        }
-                    }
-                }
-
-                HorizontalLayout {
-                    spacing: 8px;
-                    ActionBtn {
-                        label: InsumosState.editing-insumo-id == "" ? "Cadastrar" : "Salvar alterações";
-                        bg-color: Theme.btn-accent;
-                        width: 180px; height: 36px;
-                        clicked => {
-                            if InsumosState.editing-insumo-id == "" {
-                                InsumosState.add-insumo();
-                            } else {
-                                InsumosState.update-insumo();
+                    if InsumosState.insumo-save-error != "": Rectangle {
+                        background: #FFEBEE;
+                        border-radius: 8px;
+                        VerticalLayout {
+                            padding: 10px;
+                            Text {
+                                text: "⚠ " + InsumosState.insumo-save-error;
+                                font-size: 12px; font-weight: 600; color: #C62828;
+                                wrap: word-wrap;
                             }
                         }
                     }
-                    if InsumosState.editing-insumo-id != "": OutlineBtn {
-                        label: "Excluir";
-                        btn-color: Theme.danger;
-                        height: 36px;
-                        clicked => { InsumosState.delete-insumo(InsumosState.editing-insumo-id); }
+
+                    HorizontalLayout {
+                        spacing: 8px;
+                        ActionBtn {
+                            label: InsumosState.editing-insumo-id == "" ? "Cadastrar" : "Salvar alterações";
+                            bg-color: Theme.btn-accent;
+                            width: 180px; height: 36px;
+                            clicked => {
+                                if InsumosState.editing-insumo-id == "" {
+                                    InsumosState.add-insumo();
+                                } else {
+                                    InsumosState.update-insumo();
+                                }
+                            }
+                        }
+                        if InsumosState.editing-insumo-id != "": OutlineBtn {
+                            label: "Excluir";
+                            btn-color: Theme.danger;
+                            height: 36px;
+                            clicked => { InsumosState.delete-insumo(InsumosState.editing-insumo-id); }
+                        }
                     }
                 }
             }

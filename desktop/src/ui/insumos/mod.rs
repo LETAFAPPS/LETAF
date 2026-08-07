@@ -72,6 +72,7 @@ fn apply_to_ui(ui_weak: &slint::Weak<MainWindow>, cache: &Cache) {
         let Some(ui) = ui_weak.upgrade() else { return };
         let needle = ui.global::<InsumosState>().get_insumos_search().to_string().trim().to_lowercase();
         let active_count = snapshot.iter().filter(|i| i.active).count() as i32;
+        let inactive_count = snapshot.len() as i32 - active_count;
         let rows: Vec<InsumoData> = snapshot
             .iter()
             .filter(|i| needle.is_empty() || i.name.to_lowercase().contains(&needle))
@@ -79,6 +80,7 @@ fn apply_to_ui(ui_weak: &slint::Weak<MainWindow>, cache: &Cache) {
             .collect();
         ui.global::<InsumosState>().set_insumos(ModelRc::new(VecModel::from(rows)));
         ui.global::<InsumosState>().set_insumos_active_count(active_count);
+        ui.global::<InsumosState>().set_insumos_inactive_count(inactive_count);
     });
 }
 
@@ -95,6 +97,11 @@ fn status_of(i: &Insumo) -> (&'static str, Color) {
 
 fn to_data(i: &Insumo) -> InsumoData {
     let (status, color) = status_of(i);
+    let status_label = match status {
+        "out" => "Sem Estoque",
+        "low" => "Estoque Baixo",
+        _ => "Em Estoque",
+    };
     let cost_display = i.cost_price.map(money_br).unwrap_or_else(|| "—".to_string());
     InsumoData {
         id: SharedString::from(i.base.id.to_string()),
@@ -110,6 +117,7 @@ fn to_data(i: &Insumo) -> InsumoData {
         barcode: SharedString::from(i.barcode.clone().unwrap_or_default()),
         active: i.active,
         status: SharedString::from(status),
+        status_label: SharedString::from(status_label),
         status_color: color,
     }
 }
@@ -126,7 +134,9 @@ fn setup_new(ui: &MainWindow) {
         let Some(ui) = ui_weak.upgrade() else { return };
         let g = ui.global::<InsumosState>();
         g.set_editing_insumo_id(SharedString::default());
-        g.set_selected_insumo_id(SharedString::default());
+        // Sentinela "new": o painel direito mostra o FORM (não o prompt),
+        // sem ser um id real — igual ao "new" dos produtos.
+        g.set_selected_insumo_id(SharedString::from("new"));
         g.set_insumo_name(SharedString::default());
         g.set_insumo_unit(SharedString::from("un"));
         g.set_insumo_description(SharedString::default());
