@@ -6,7 +6,7 @@ use serde::Deserialize;
 use uuid::Uuid;
 
 use letaf_core::error::CoreError;
-use letaf_core::product::model::{BalanceMode, Product};
+use letaf_core::product::model::{BalanceMode, Product, ProductIngredient};
 
 use crate::context::AppState;
 use crate::error::ServerError;
@@ -67,6 +67,9 @@ struct CreateProductRequest {
     /// `[]` (default) limpa todas as associações no update.
     #[serde(default)]
     addon_group_ids: Vec<Uuid>,
+    /// Ficha técnica (receita): insumos + quantidades. `[]` limpa a receita.
+    #[serde(default)]
+    ingredients: Vec<ProductIngredient>,
     /// Variações (Fase 5) — JSON array `[{title, selection, required, options}]`.
     #[serde(default)]
     variations: Option<String>,
@@ -107,6 +110,9 @@ struct UpdateProductRequest {
     discount_tiers: Option<String>,
     #[serde(default)]
     addon_group_ids: Vec<Uuid>,
+    /// Ficha técnica (receita): insumos + quantidades. `[]` limpa a receita.
+    #[serde(default)]
+    ingredients: Vec<ProductIngredient>,
     /// Variações (Fase 5) — JSON array `[{title, selection, required, options}]`.
     #[serde(default)]
     variations: Option<String>,
@@ -164,6 +170,7 @@ async fn create(
             body.discount_kind, body.discount_value, body.discount_min_qty,
             body.discount_tiers,
             body.addon_group_ids,
+            body.ingredients,
             body.variations,
         )
         .await?;
@@ -191,6 +198,7 @@ async fn update(
             body.discount_kind, body.discount_value, body.discount_min_qty,
             body.discount_tiers,
             body.addon_group_ids,
+            body.ingredients,
             body.variations,
         )
         .await?;

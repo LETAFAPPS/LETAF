@@ -40,6 +40,7 @@ fn make_product(price: rust_decimal::Decimal) -> Product {
         discount_min_qty: None,
         discount_tiers: None,
         addon_group_ids: Vec::new(),
+        ingredients: Vec::new(),
         variations: None,
     }
 }

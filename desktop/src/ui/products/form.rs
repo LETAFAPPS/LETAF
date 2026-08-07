@@ -37,6 +37,8 @@ pub(crate) struct ProductFormData {
     pub(crate) category_id: Option<Uuid>,
     pub(crate) subcategory_id: Option<Uuid>,
     pub(crate) addon_group_ids: Vec<Uuid>,
+    /// Ficha técnica (receita): insumos consumidos + quantidade.
+    pub(crate) ingredients: Vec<letaf_core::product::model::ProductIngredient>,
     /// JSON cru das variações (Fase 5). `None` quando não há.
     /// Fase 5B vai ligar a UI; por ora só passa adiante.
     pub(crate) variations: Option<String>,
@@ -121,6 +123,8 @@ pub(crate) fn read_product_form(ui: &MainWindow) -> ProductFormData {
         // Lê IDs já selecionados via UI (Fase 4B popula esta lista; aqui
         // ela vem vazia até a UI ser ligada — produto fica sem addons).
         addon_group_ids: ui_addon_group_ids(ui),
+        // Ficha técnica: lê as linhas (insumo + quantidade) do editor.
+        ingredients: super::editors::read_ingredients(ui),
         // Fase 5B vai popular esse JSON a partir do card "Variações"
         // do form; por ora vem `None` (produto sem variações).
         variations: ui_variations_json(ui),

@@ -1,10 +1,11 @@
 import { ScrollView } from "std-widgets.slint";
 import { Theme } from "../theme.slint";
-import { CategoryData, SubcategoryData, BusinessHoursData, DiscountTierData, AddonGroupData, VariationData, VariationOptionData } from "../types.slint";
+import { CategoryData, SubcategoryData, BusinessHoursData, DiscountTierData, AddonGroupData, VariationData, VariationOptionData, IngredientRowData, IngredientOption } from "../types.slint";
 import { Card } from "../components/cards.slint";
 import { FormField } from "../components/form_fields.slint";
 import { ActionBtn, OutlineBtn, DeleteBtn } from "../components/buttons.slint";
 import { EmptyState } from "../components/empty_state.slint";
+import { ProductsState } from "../state/products.slint";
 
 // ── Chip de grupo de adicional (Fase 4B) ─────────────────────────────
 //
@@ -1281,6 +1282,115 @@ export component ProductFormPage inherits VerticalLayout {
             //   monta a lista final ao salvar.
             // - Sem este card o produto sai sem adicionais (caminho
             //   padrão para itens sem complementos).
+            // ── Ficha técnica (Insumos) ──────────────────────────────
+            // Acessa o ProductsState direto (sem prop-drilling): lista de
+            // linhas insumo+quantidade + dropdown alimentado pelas opções.
+            Card {
+                vertical-stretch: 0;
+                border-radius: 10px;
+                VerticalLayout {
+                    padding: 16px;
+                    spacing: 10px;
+
+                    Text { text: "Insumos (ficha técnica)"; font-size: 14px; font-weight: 700; color: Theme.text-primary; }
+                    Text {
+                        text: "Insumos consumidos a cada unidade vendida — o estoque da matéria-prima baixa junto na venda.";
+                        font-size: 11px; color: Theme.text-secondary; wrap: word-wrap;
+                    }
+                    if ProductsState.product-ingredients.length == 0: Text {
+                        text: "Nenhum insumo na ficha técnica.";
+                        font-size: 12px; color: Theme.text-secondary;
+                    }
+                    for row[idx] in ProductsState.product-ingredients: Rectangle {
+                        height: 40px;
+                        HorizontalLayout {
+                            spacing: 8px;
+                            // Dropdown de insumo.
+                            Rectangle {
+                                horizontal-stretch: 1; height: 36px;
+                                border-radius: 8px; border-width: 1px;
+                                border-color: ing-ta.has-hover ? Theme.primary : Theme.border;
+                                background: Theme.surface;
+                                ing-ta := TouchArea { clicked => { ing-pop.show(); } }
+                                HorizontalLayout {
+                                    padding-left: 10px; padding-right: 10px; spacing: 6px;
+                                    Text {
+                                        horizontal-stretch: 1;
+                                        text: row.insumo-name == "" ? "Selecione o insumo" : row.insumo-name;
+                                        color: row.insumo-name == "" ? #BDBDBD : Theme.text-primary;
+                                        font-size: 13px; vertical-alignment: center; overflow: elide;
+                                    }
+                                    Text { text: "▾"; font-size: 12px; color: Theme.text-secondary; vertical-alignment: center; }
+                                }
+                                ing-pop := PopupWindow {
+                                    x: 0; y: parent.height + 4px; width: 260px;
+                                    close-policy: PopupClosePolicy.close-on-click-outside;
+                                    Rectangle {
+                                        border-radius: 10px; background: Theme.surface;
+                                        border-width: 1px; border-color: Theme.card-border;
+                                        drop-shadow-blur: 16px; drop-shadow-color: #00000030;
+                                        ScrollView {
+                                            height: min(ProductsState.product-insumo-options.length * 32px + 12px, 260px);
+                                            VerticalLayout {
+                                                padding: 6px; spacing: 2px;
+                                                for opt in ProductsState.product-insumo-options: opt-ta := TouchArea {
+                                                    height: 30px;
+                                                    clicked => { ProductsState.set-ingredient-insumo(idx, opt.id); ing-pop.close(); }
+                                                    Rectangle {
+                                                        border-radius: 6px;
+                                                        background: opt-ta.has-hover ? Theme.row-hover : transparent;
+                                                        Text {
+                                                            x: 10px; width: parent.width - 20px; height: parent.height;
+                                                            text: opt.name + " (" + opt.unit + ")";
+                                                            font-size: 13px; color: Theme.text-primary;
+                                                            vertical-alignment: center; overflow: elide;
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            // Quantidade (texto: aceita vírgula; parse no Rust).
+                            Rectangle {
+                                width: 96px; height: 36px;
+                                border-radius: 8px; border-width: 1px;
+                                border-color: qty-in.has-focus ? Theme.primary : Theme.border;
+                                background: Theme.surface;
+                                qty-in := TextInput {
+                                    x: 8px; width: parent.width - 16px; height: parent.height;
+                                    text: row.quantity;
+                                    font-size: 13px; color: Theme.text-primary;
+                                    vertical-alignment: center; single-line: true;
+                                    edited => { ProductsState.product-ingredients[idx].quantity = self.text; }
+                                }
+                                if row.quantity == "": Text {
+                                    x: 8px; width: parent.width - 16px; height: parent.height;
+                                    text: "Qtd"; font-size: 13px; color: #BDBDBD; vertical-alignment: center;
+                                }
+                            }
+                            VerticalLayout {
+                                alignment: center; width: 28px;
+                                Text { text: row.unit; font-size: 12px; color: Theme.text-secondary; vertical-alignment: center; }
+                            }
+                            VerticalLayout {
+                                alignment: center;
+                                DeleteBtn { clicked => { ProductsState.remove-ingredient(idx); } }
+                            }
+                        }
+                    }
+                    HorizontalLayout {
+                        alignment: start;
+                        OutlineBtn {
+                            label: "+ Adicionar insumo";
+                            height: 34px;
+                            clicked => { ProductsState.add-ingredient(); }
+                        }
+                    }
+                }
+            }
+
             Card {
                 vertical-stretch: 0;
                 border-radius: 10px;

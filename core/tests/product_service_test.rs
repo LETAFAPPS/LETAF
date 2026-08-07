@@ -66,6 +66,7 @@ impl ProductRepository for MockProductRepo {
         product: &Product,
         stock_delta: f64,
         group_ids: &[Uuid],
+        ingredients: &[letaf_core::product::model::ProductIngredient],
     ) -> Result<(), CoreError> {
         let mut items = self.items.lock().unwrap();
         if let Some(existing) = items.iter_mut().find(|p| p.base.id == product.base.id) {
@@ -80,6 +81,7 @@ impl ProductRepository for MockProductRepo {
                 existing.stock_quantity = new_qty;
             }
             existing.addon_group_ids = group_ids.to_vec();
+            existing.ingredients = ingredients.to_vec();
         }
         Ok(())
     }
@@ -177,6 +179,22 @@ impl ProductRepository for MockProductRepo {
         Ok(())
     }
 
+    async fn find_ingredients(&self, company_id: Uuid, product_id: Uuid) -> Result<Vec<letaf_core::product::model::ProductIngredient>, CoreError> {
+        let items = self.items.lock().unwrap();
+        Ok(items.iter()
+            .find(|p| p.base.id == product_id && p.base.company_id == company_id)
+            .map(|p| p.ingredients.clone())
+            .unwrap_or_default())
+    }
+
+    async fn replace_ingredients(&self, company_id: Uuid, product_id: Uuid, ingredients: &[letaf_core::product::model::ProductIngredient]) -> Result<(), CoreError> {
+        let mut items = self.items.lock().unwrap();
+        if let Some(p) = items.iter_mut().find(|p| p.base.id == product_id && p.base.company_id == company_id) {
+            p.ingredients = ingredients.to_vec();
+        }
+        Ok(())
+    }
+
     // Ledger de estoque — stubs suficientes para os testes do service.
     async fn find_unsynced_stock_movements(&self, _company_id: Uuid) -> Result<Vec<StockMovement>, CoreError> {
         Ok(Vec::new())
@@ -218,7 +236,7 @@ fn make_service() -> (ProductService, Uuid) {
 #[tokio::test]
 async fn create_product_ok() {
     let (svc, cid) = make_service();
-    let result = svc.create(cid, "Notebook".into(), Some("Desc".into()), None, None, Some(dec!(2999.90)), None, 10.0, 0.0, false, Some("NB-001".into()), "un".into(), letaf_core::product::model::BalanceMode::Weight, None, None, None, None, None, None, None, Vec::new(), None).await;
+    let result = svc.create(cid, "Notebook".into(), Some("Desc".into()), None, None, Some(dec!(2999.90)), None, 10.0, 0.0, false, Some("NB-001".into()), "un".into(), letaf_core::product::model::BalanceMode::Weight, None, None, None, None, None, None, None, Vec::new(), Vec::new(), None).await;
     assert!(result.is_ok());
     let p = result.unwrap();
     assert_eq!(p.name, "Notebook");
@@ -234,7 +252,7 @@ async fn create_product_ok() {
 #[tokio::test]
 async fn create_product_empty_name_fails() {
     let (svc, cid) = make_service();
-    let result = svc.create(cid, "".into(), None, None, None, Some(dec!(10.0)), None, 0.0, 0.0, false, None, "un".into(), letaf_core::product::model::BalanceMode::Weight, None, None, None, None, None, None, None, Vec::new(), None).await;
+    let result = svc.create(cid, "".into(), None, None, None, Some(dec!(10.0)), None, 0.0, 0.0, false, None, "un".into(), letaf_core::product::model::BalanceMode::Weight, None, None, None, None, None, None, None, Vec::new(), Vec::new(), None).await;
     assert!(result.is_err());
     assert_eq!(result.unwrap_err(), CoreError::Validation("Informe o nome do produto".into()));
 }
@@ -242,7 +260,7 @@ async fn create_product_empty_name_fails() {
 #[tokio::test]
 async fn create_product_negative_price_fails() {
     let (svc, cid) = make_service();
-    let result = svc.create(cid, "X".into(), None, None, None, Some(dec!(-1.0)), None, 0.0, 0.0, false, None, "un".into(), letaf_core::product::model::BalanceMode::Weight, None, None, None, None, None, None, None, Vec::new(), None).await;
+    let result = svc.create(cid, "X".into(), None, None, None, Some(dec!(-1.0)), None, 0.0, 0.0, false, None, "un".into(), letaf_core::product::model::BalanceMode::Weight, None, None, None, None, None, None, None, Vec::new(), Vec::new(), None).await;
     assert!(result.is_err());
     assert_eq!(result.unwrap_err(), CoreError::Validation("O preço não pode ser negativo".into()));
 }
@@ -250,7 +268,7 @@ async fn create_product_negative_price_fails() {
 #[tokio::test]
 async fn create_product_negative_stock_fails() {
     let (svc, cid) = make_service();
-    let result = svc.create(cid, "X".into(), None, None, None, Some(dec!(10.0)), None, -5.0, 0.0, false, None, "un".into(), letaf_core::product::model::BalanceMode::Weight, None, None, None, None, None, None, None, Vec::new(), None).await;
+    let result = svc.create(cid, "X".into(), None, None, None, Some(dec!(10.0)), None, -5.0, 0.0, false, None, "un".into(), letaf_core::product::model::BalanceMode::Weight, None, None, None, None, None, None, None, Vec::new(), Vec::new(), None).await;
     assert!(result.is_err());
     assert_eq!(result.unwrap_err(), CoreError::Validation("A quantidade em estoque não pode ser negativa".into()));
 }
@@ -260,9 +278,9 @@ async fn create_product_negative_stock_fails() {
 #[tokio::test]
 async fn update_product_ok() {
     let (svc, cid) = make_service();
-    let created = svc.create(cid, "Old".into(), None, None, None, Some(dec!(10.0)), None, 1.0, 0.0, false, None, "un".into(), letaf_core::product::model::BalanceMode::Weight, None, None, None, None, None, None, None, Vec::new(), None).await.unwrap();
+    let created = svc.create(cid, "Old".into(), None, None, None, Some(dec!(10.0)), None, 1.0, 0.0, false, None, "un".into(), letaf_core::product::model::BalanceMode::Weight, None, None, None, None, None, None, None, Vec::new(), Vec::new(), None).await.unwrap();
 
-    let updated = svc.update(cid, created.base.id, "New".into(), Some("Updated desc".into()), None, None, Some(dec!(20.0)), None, 5.0, 0.0, false, Some("SKU-1".into()), "kg".into(), letaf_core::product::model::BalanceMode::Weight, None, None, None, None, None, None, None, Vec::new(), None).await.unwrap();
+    let updated = svc.update(cid, created.base.id, "New".into(), Some("Updated desc".into()), None, None, Some(dec!(20.0)), None, 5.0, 0.0, false, Some("SKU-1".into()), "kg".into(), letaf_core::product::model::BalanceMode::Weight, None, None, None, None, None, None, None, Vec::new(), Vec::new(), None).await.unwrap();
 
     assert_eq!(updated.name, "New");
     assert_eq!(updated.description.as_deref(), Some("Updated desc"));
@@ -277,7 +295,7 @@ async fn update_product_ok() {
 #[tokio::test]
 async fn update_product_not_found_fails() {
     let (svc, cid) = make_service();
-    let result = svc.update(cid, Uuid::new_v4(), "X".into(), None, None, None, Some(dec!(1.0)), None, 0.0, 0.0, false, None, "un".into(), letaf_core::product::model::BalanceMode::Weight, None, None, None, None, None, None, None, Vec::new(), None).await;
+    let result = svc.update(cid, Uuid::new_v4(), "X".into(), None, None, None, Some(dec!(1.0)), None, 0.0, 0.0, false, None, "un".into(), letaf_core::product::model::BalanceMode::Weight, None, None, None, None, None, None, None, Vec::new(), Vec::new(), None).await;
     assert!(result.is_err());
     assert_eq!(result.unwrap_err(), CoreError::NotFound("Product not found".into()));
 }
@@ -285,8 +303,8 @@ async fn update_product_not_found_fails() {
 #[tokio::test]
 async fn update_product_empty_name_fails() {
     let (svc, cid) = make_service();
-    let created = svc.create(cid, "Test".into(), None, None, None, Some(dec!(10.0)), None, 1.0, 0.0, false, None, "un".into(), letaf_core::product::model::BalanceMode::Weight, None, None, None, None, None, None, None, Vec::new(), None).await.unwrap();
-    let result = svc.update(cid, created.base.id, "".into(), None, None, None, Some(dec!(10.0)), None, 1.0, 0.0, false, None, "un".into(), letaf_core::product::model::BalanceMode::Weight, None, None, None, None, None, None, None, Vec::new(), None).await;
+    let created = svc.create(cid, "Test".into(), None, None, None, Some(dec!(10.0)), None, 1.0, 0.0, false, None, "un".into(), letaf_core::product::model::BalanceMode::Weight, None, None, None, None, None, None, None, Vec::new(), Vec::new(), None).await.unwrap();
+    let result = svc.update(cid, created.base.id, "".into(), None, None, None, Some(dec!(10.0)), None, 1.0, 0.0, false, None, "un".into(), letaf_core::product::model::BalanceMode::Weight, None, None, None, None, None, None, None, Vec::new(), Vec::new(), None).await;
     assert_eq!(result.unwrap_err(), CoreError::Validation("Informe o nome do produto".into()));
 }
 
@@ -295,7 +313,7 @@ async fn update_product_empty_name_fails() {
 #[tokio::test]
 async fn soft_delete_product_ok() {
     let (svc, cid) = make_service();
-    let created = svc.create(cid, "ToDelete".into(), None, None, None, None, None, 0.0, 0.0, false, None, "un".into(), letaf_core::product::model::BalanceMode::Weight, None, None, None, None, None, None, None, Vec::new(), None).await.unwrap();
+    let created = svc.create(cid, "ToDelete".into(), None, None, None, None, None, 0.0, 0.0, false, None, "un".into(), letaf_core::product::model::BalanceMode::Weight, None, None, None, None, None, None, None, Vec::new(), Vec::new(), None).await.unwrap();
     assert!(svc.soft_delete(cid, created.base.id).await.is_ok());
     let all = svc.find_all(cid).await.unwrap();
     assert!(all.is_empty());
@@ -315,8 +333,8 @@ async fn product_isolation_between_companies() {
     let (svc, cid1) = make_service();
     let cid2 = Uuid::new_v4();
 
-    svc.create(cid1, "Company1 Product".into(), None, None, None, Some(dec!(10.0)), None, 1.0, 0.0, false, None, "un".into(), letaf_core::product::model::BalanceMode::Weight, None, None, None, None, None, None, None, Vec::new(), None).await.unwrap();
-    svc.create(cid2, "Company2 Product".into(), None, None, None, Some(dec!(20.0)), None, 2.0, 0.0, false, None, "un".into(), letaf_core::product::model::BalanceMode::Weight, None, None, None, None, None, None, None, Vec::new(), None).await.unwrap();
+    svc.create(cid1, "Company1 Product".into(), None, None, None, Some(dec!(10.0)), None, 1.0, 0.0, false, None, "un".into(), letaf_core::product::model::BalanceMode::Weight, None, None, None, None, None, None, None, Vec::new(), Vec::new(), None).await.unwrap();
+    svc.create(cid2, "Company2 Product".into(), None, None, None, Some(dec!(20.0)), None, 2.0, 0.0, false, None, "un".into(), letaf_core::product::model::BalanceMode::Weight, None, None, None, None, None, None, None, Vec::new(), Vec::new(), None).await.unwrap();
 
     let items_c1 = svc.find_all(cid1).await.unwrap();
     let items_c2 = svc.find_all(cid2).await.unwrap();
@@ -332,7 +350,7 @@ async fn product_isolation_between_companies() {
 #[tokio::test]
 async fn product_created_as_unsynced() {
     let (svc, cid) = make_service();
-    let p = svc.create(cid, "X".into(), None, None, None, None, None, 0.0, 0.0, false, None, "un".into(), letaf_core::product::model::BalanceMode::Weight, None, None, None, None, None, None, None, Vec::new(), None).await.unwrap();
+    let p = svc.create(cid, "X".into(), None, None, None, None, None, 0.0, 0.0, false, None, "un".into(), letaf_core::product::model::BalanceMode::Weight, None, None, None, None, None, None, None, Vec::new(), Vec::new(), None).await.unwrap();
     assert!(!p.base.synced);
     let unsynced = svc.find_unsynced(cid).await.unwrap();
     assert_eq!(unsynced.len(), 1);
@@ -341,7 +359,7 @@ async fn product_created_as_unsynced() {
 #[tokio::test]
 async fn mark_synced_works() {
     let (svc, cid) = make_service();
-    let p = svc.create(cid, "X".into(), None, None, None, None, None, 0.0, 0.0, false, None, "un".into(), letaf_core::product::model::BalanceMode::Weight, None, None, None, None, None, None, None, Vec::new(), None).await.unwrap();
+    let p = svc.create(cid, "X".into(), None, None, None, None, None, 0.0, 0.0, false, None, "un".into(), letaf_core::product::model::BalanceMode::Weight, None, None, None, None, None, None, None, Vec::new(), Vec::new(), None).await.unwrap();
     svc.mark_synced(cid, p.base.id, p.base.updated_at).await.unwrap();
     let unsynced = svc.find_unsynced(cid).await.unwrap();
     assert!(unsynced.is_empty());
@@ -364,7 +382,7 @@ async fn register_consumption_baixa_o_estoque() {
     let p = svc.create(cid, "Refri".into(), None, None, None, Some(dec!(5.0)), None,
         10.0, 0.0, false, None, "un".into(),
         letaf_core::product::model::BalanceMode::Weight,
-        None, None, None, None, None, None, None, Vec::new(), None).await.unwrap();
+        None, None, None, None, None, None, None, Vec::new(), Vec::new(), None).await.unwrap();
 
     // Consumir 3 baixa o estoque para 7.
     svc.register_consumption(cid, p.base.id, 3.0).await.expect("consumo válido");
@@ -378,7 +396,7 @@ async fn register_consumption_qty_nao_positiva_falha() {
     let p = svc.create(cid, "Refri".into(), None, None, None, Some(dec!(5.0)), None,
         10.0, 0.0, false, None, "un".into(),
         letaf_core::product::model::BalanceMode::Weight,
-        None, None, None, None, None, None, None, Vec::new(), None).await.unwrap();
+        None, None, None, None, None, None, None, Vec::new(), Vec::new(), None).await.unwrap();
     assert!(svc.register_consumption(cid, p.base.id, 0.0).await.is_err());
     assert!(svc.register_consumption(cid, p.base.id, -2.0).await.is_err());
     // Estoque intacto.
@@ -391,7 +409,7 @@ async fn register_consumption_sem_estoque_suficiente_falha() {
     let p = svc.create(cid, "Refri".into(), None, None, None, Some(dec!(5.0)), None,
         2.0, 0.0, false, None, "un".into(),
         letaf_core::product::model::BalanceMode::Weight,
-        None, None, None, None, None, None, None, Vec::new(), None).await.unwrap();
+        None, None, None, None, None, None, None, Vec::new(), Vec::new(), None).await.unwrap();
     // Consumir 5 de um estoque de 2 é recusado (não deixa negativo).
     assert!(svc.register_consumption(cid, p.base.id, 5.0).await.is_err());
     assert_eq!(svc.find_by_id(cid, p.base.id).await.unwrap().unwrap().stock_quantity, 2.0);

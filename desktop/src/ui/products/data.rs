@@ -178,6 +178,7 @@ pub(crate) fn to_decoded_product(
         ),
         discount_tiers: SharedString::from(p.discount_tiers.as_deref().unwrap_or("")),
         addon_group_ids: SharedString::from(addon_group_ids_to_csv(&p.addon_group_ids)),
+        ingredients: SharedString::from(ingredients_to_csv(&p.ingredients)),
         variations: SharedString::from(p.variations.as_deref().unwrap_or("")),
         // Miniatura primeiro: a LISTA não lê `image_data` (o `find_all` do
         // repositório devolve NULL nessa coluna), então o thumb de ~2 KB é a
@@ -203,6 +204,12 @@ pub(crate) fn parse_addon_group_ids_csv(csv: &str) -> Vec<Uuid> {
         .filter(|s| !s.is_empty())
         .filter_map(|s| Uuid::parse_str(s).ok())
         .collect()
+}
+
+/// Ficha técnica → CSV `insumo_id:qtd,insumo_id:qtd` (o editor resolve os
+/// nomes/unidades ao abrir o form via `load-product-ingredients`).
+pub(crate) fn ingredients_to_csv(items: &[letaf_core::product::model::ProductIngredient]) -> String {
+    items.iter().map(|i| format!("{}:{}", i.insumo_id, i.quantity)).collect::<Vec<_>>().join(",")
 }
 
 /// Parseia `#RRGGBB` → `(r, g, b)`. Retorna `None` em qualquer formato inválido.
@@ -262,6 +269,7 @@ pub(crate) fn decoded_to_product_data_ref(d: &DecodedProduct) -> ProductData {
         discount_min_qty: d.discount_min_qty.clone(),
         discount_tiers: d.discount_tiers.clone(),
         addon_group_ids: d.addon_group_ids.clone(),
+        ingredients: d.ingredients.clone(),
         variations: d.variations.clone(),
         product_image: d.pixel_buffer.clone()
             .map(slint::Image::from_rgba8)
@@ -326,6 +334,7 @@ pub(crate) fn build_product_data_from_product(
         ),
         discount_tiers: SharedString::from(p.discount_tiers.as_deref().unwrap_or("")),
         addon_group_ids: SharedString::from(addon_group_ids_to_csv(&p.addon_group_ids)),
+        ingredients: SharedString::from(ingredients_to_csv(&p.ingredients)),
         variations: SharedString::from(p.variations.as_deref().unwrap_or("")),
         product_image: pixel_buf.map(slint::Image::from_rgba8).unwrap_or_default(),
     }

@@ -346,6 +346,7 @@ async fn apply_create(
             num_or_none(&get("desconto_qtd_min")),
             opt(get("desconto_faixas")),
             resolve_addons(&get("adicionais"), names.addon),
+            Vec::new(), // ficha técnica não vem do CSV nesta fase
             opt(get("variacoes")),
         )
         .await;
@@ -409,6 +410,7 @@ async fn apply_update(
             discount_min_qty,
             cell_str(has, get, "desconto_faixas", p.discount_tiers.clone()),
             addon_group_ids,
+            p.ingredients.clone(), // preserva a ficha técnica (não vem do CSV)
             cell_str(has, get, "variacoes", p.variations.clone()),
         )
         .await;

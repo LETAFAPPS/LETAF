@@ -6,7 +6,7 @@ use uuid::Uuid;
 
 use letaf_core::entity::BaseFields;
 use letaf_core::error::CoreError;
-use letaf_core::product::model::{BalanceMode, Product};
+use letaf_core::product::model::{BalanceMode, Product, ProductIngredient};
 use letaf_core::product::repository::{ProductRepository, StockAdjustResult};
 use letaf_core::product::stock_movement::StockMovement;
 
@@ -86,6 +86,7 @@ impl TryFrom<ProductRow> for Product {
             discount_min_qty: r.discount_min_qty,
             discount_tiers: r.discount_tiers,
             addon_group_ids: Vec::new(),
+            ingredients: Vec::new(),
             variations: r.variations,
         })
     }
@@ -161,6 +162,31 @@ impl SqliteProductRepository {
         }
         Ok(())
     }
+
+    /// Carrega a ficha técnica (insumo_id + quantidade) para uma lista de
+    /// produtos em 1 query. Espelha `hydrate_addon_group_ids`.
+    async fn hydrate_ingredients(&self, company_id: Uuid, products: &mut [Product]) -> Result<(), CoreError> {
+        if products.is_empty() { return Ok(()); }
+        let rows: Vec<(String, String, f64)> = sqlx::query_as(
+            "SELECT product_id, insumo_id, quantity FROM product_ingredients
+             WHERE company_id = ?1 ORDER BY sort_order ASC",
+        )
+        .bind(company_id.to_string())
+        .fetch_all(&self.pool)
+        .await
+        .map_err(map_db)?;
+        let mut parsed: Vec<(Uuid, ProductIngredient)> = Vec::with_capacity(rows.len());
+        for (pid, iid, qty) in rows {
+            parsed.push((parse_uuid(&pid)?, ProductIngredient { insumo_id: parse_uuid(&iid)?, quantity: qty }));
+        }
+        for p in products.iter_mut() {
+            p.ingredients = parsed.iter()
+                .filter(|(pid, _)| *pid == p.base.id)
+                .map(|(_, ing)| ing.clone())
+                .collect();
+        }
+        Ok(())
+    }
 }
 
 #[async_trait]
@@ -178,6 +204,7 @@ impl ProductRepository for SqliteProductRepository {
         let Some(row) = row else { return Ok(None); };
         let mut product = Product::try_from(row)?;
         product.addon_group_ids = self.find_addon_group_ids(company_id, product.base.id).await?;
+        product.ingredients = self.find_ingredients(company_id, product.base.id).await?;
         Ok(Some(product))
     }
 
@@ -203,6 +230,7 @@ impl ProductRepository for SqliteProductRepository {
             .map(Product::try_from)
             .collect::<Result<_, _>>()?;
         self.hydrate_addon_group_ids(company_id, &mut products).await?;
+        self.hydrate_ingredients(company_id, &mut products).await?;
         Ok(products)
     }
 
@@ -239,6 +267,7 @@ impl ProductRepository for SqliteProductRepository {
             .map(Product::try_from)
             .collect::<Result<_, _>>()?;
         self.hydrate_addon_group_ids(company_id, &mut products).await?;
+        self.hydrate_ingredients(company_id, &mut products).await?;
         Ok(products)
     }
 
@@ -326,6 +355,7 @@ impl ProductRepository for SqliteProductRepository {
         product: &Product,
         stock_delta: f64,
         group_ids: &[Uuid],
+        ingredients: &[ProductIngredient],
     ) -> Result<(), CoreError> {
         let updated = ts(product.base.updated_at);
         let cid = product.base.company_id.to_string();
@@ -421,6 +451,28 @@ impl ProductRepository for SqliteProductRepository {
             .map_err(map_db)?;
         }
 
+        // 4. Reescreve a ficha técnica (receita).
+        sqlx::query("DELETE FROM product_ingredients WHERE company_id = ?1 AND product_id = ?2")
+            .bind(&cid)
+            .bind(&pid)
+            .execute(&mut *tx)
+            .await
+            .map_err(map_db)?;
+        for (idx, ing) in ingredients.iter().enumerate() {
+            sqlx::query(
+                "INSERT OR REPLACE INTO product_ingredients (company_id, product_id, insumo_id, quantity, sort_order)
+                 VALUES (?1, ?2, ?3, ?4, ?5)",
+            )
+            .bind(&cid)
+            .bind(&pid)
+            .bind(ing.insumo_id.to_string())
+            .bind(ing.quantity)
+            .bind(idx as i32)
+            .execute(&mut *tx)
+            .await
+            .map_err(map_db)?;
+        }
+
         tx.commit().await.map_err(map_db)?;
         Ok(())
     }
@@ -455,6 +507,7 @@ impl ProductRepository for SqliteProductRepository {
             .map(Product::try_from)
             .collect::<Result<_, _>>()?;
         self.hydrate_addon_group_ids(company_id, &mut products).await?;
+        self.hydrate_ingredients(company_id, &mut products).await?;
         Ok(products)
     }
 
@@ -483,6 +536,7 @@ impl ProductRepository for SqliteProductRepository {
             .map(Product::try_from)
             .collect::<Result<_, _>>()?;
         self.hydrate_addon_group_ids(company_id, &mut products).await?;
+        self.hydrate_ingredients(company_id, &mut products).await?;
         Ok(products)
     }
 
@@ -534,6 +588,7 @@ impl ProductRepository for SqliteProductRepository {
             .map(Product::try_from)
             .collect::<Result<_, _>>()?;
         self.hydrate_addon_group_ids(company_id, &mut products).await?;
+        self.hydrate_ingredients(company_id, &mut products).await?;
         Ok(products)
     }
 
@@ -577,6 +632,54 @@ impl ProductRepository for SqliteProductRepository {
             .bind(company_id.to_string())
             .bind(product_id.to_string())
             .bind(gid.to_string())
+            .bind(idx as i32)
+            .execute(&mut *tx)
+            .await
+            .map_err(map_db)?;
+        }
+        tx.commit().await.map_err(map_db)?;
+        Ok(())
+    }
+
+    async fn find_ingredients(&self, company_id: Uuid, product_id: Uuid) -> Result<Vec<ProductIngredient>, CoreError> {
+        let rows: Vec<(String, f64)> = sqlx::query_as(
+            "SELECT insumo_id, quantity FROM product_ingredients
+             WHERE company_id = ?1 AND product_id = ?2 ORDER BY sort_order ASC",
+        )
+        .bind(company_id.to_string())
+        .bind(product_id.to_string())
+        .fetch_all(&self.pool)
+        .await
+        .map_err(map_db)?;
+        let mut out = Vec::with_capacity(rows.len());
+        for (iid, qty) in rows {
+            out.push(ProductIngredient { insumo_id: parse_uuid(&iid)?, quantity: qty });
+        }
+        Ok(out)
+    }
+
+    async fn replace_ingredients(
+        &self,
+        company_id: Uuid,
+        product_id: Uuid,
+        ingredients: &[ProductIngredient],
+    ) -> Result<(), CoreError> {
+        let mut tx = self.pool.begin().await.map_err(map_db)?;
+        sqlx::query("DELETE FROM product_ingredients WHERE company_id = ?1 AND product_id = ?2")
+            .bind(company_id.to_string())
+            .bind(product_id.to_string())
+            .execute(&mut *tx)
+            .await
+            .map_err(map_db)?;
+        for (idx, ing) in ingredients.iter().enumerate() {
+            sqlx::query(
+                "INSERT OR REPLACE INTO product_ingredients (company_id, product_id, insumo_id, quantity, sort_order)
+                 VALUES (?1, ?2, ?3, ?4, ?5)",
+            )
+            .bind(company_id.to_string())
+            .bind(product_id.to_string())
+            .bind(ing.insumo_id.to_string())
+            .bind(ing.quantity)
             .bind(idx as i32)
             .execute(&mut *tx)
             .await

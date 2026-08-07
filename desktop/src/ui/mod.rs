@@ -96,6 +96,10 @@ pub fn setup_callbacks(
     products::setup_filter_products(ui, products_cache.clone(), products_filter.clone());
     products::setup_load_product_availability(ui);
     products::setup_load_product_addon_groups(ui, state, handle);
+    products::setup_load_product_ingredients(ui, state, handle);
+    products::setup_add_ingredient(ui);
+    products::setup_remove_ingredient(ui);
+    products::setup_set_ingredient_insumo(ui);
     products::setup_load_product_variations(ui);
     products::setup_add_variation(ui);
     products::setup_remove_variation(ui);

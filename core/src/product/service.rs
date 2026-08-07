@@ -4,7 +4,7 @@ use rust_decimal_macros::dec;
 
 use uuid::Uuid;
 
-use super::model::{BalanceMode, Product};
+use super::model::{BalanceMode, Product, ProductIngredient};
 use super::repository::ProductRepository;
 use super::stock_movement::StockMovement;
 use crate::error::CoreError;
@@ -81,11 +81,13 @@ impl ProductService {
         discount_min_qty: Option<f64>,
         discount_tiers: Option<String>,
         addon_group_ids: Vec<Uuid>,
+        ingredients: Vec<ProductIngredient>,
         variations: Option<String>,
     ) -> Result<Product, CoreError> {
         Self::validate_product(&name, price, cost_price, stock_quantity, min_stock, unlimited_stock)?;
         Self::validate_discount(&discount_kind, discount_value, discount_min_qty, &discount_tiers)?;
         Self::validate_variations(&variations)?;
+        Self::validate_ingredients(&ingredients)?;
         Self::validate_cover_color(&cover_color)?;
         // Produto ilimitado força stock_quantity = 0 (campo deixa de ser
         // semântico). Mantemos 0 em vez de None para reaproveitar a coluna
@@ -105,7 +107,11 @@ impl ProductService {
         if !addon_group_ids.is_empty() {
             self.repo.replace_addon_groups(company_id, product.base.id, &addon_group_ids).await?;
         }
+        if !ingredients.is_empty() {
+            self.repo.replace_ingredients(company_id, product.base.id, &ingredients).await?;
+        }
         product.addon_group_ids = addon_group_ids;
+        product.ingredients = ingredients;
         Ok(product)
     }
 
@@ -137,9 +143,11 @@ impl ProductService {
         discount_min_qty: Option<f64>,
         discount_tiers: Option<String>,
         addon_group_ids: Vec<Uuid>,
+        ingredients: Vec<ProductIngredient>,
         variations: Option<String>,
     ) -> Result<Product, CoreError> {
         Self::validate_product(&name, price, cost_price, stock_quantity, min_stock, unlimited_stock)?;
+        Self::validate_ingredients(&ingredients)?;
         Self::validate_discount(&discount_kind, discount_value, discount_min_qty, &discount_tiers)?;
         Self::validate_variations(&variations)?;
         let mut product = self.repo.find_by_id(company_id, id).await?
@@ -180,11 +188,24 @@ impl ProductService {
             product.stock_quantity = old_stock; // o UPDATE de metadados mantém o estoque; o delta é aplicado à parte
         }
         self.repo
-            .update_atomic(&product, stock_delta, &addon_group_ids)
+            .update_atomic(&product, stock_delta, &addon_group_ids, &ingredients)
             .await?;
         product.stock_quantity = target_stock;
         product.addon_group_ids = addon_group_ids;
+        product.ingredients = ingredients;
         Ok(product)
+    }
+
+    /// Valida a ficha técnica: quantidades estritamente positivas.
+    fn validate_ingredients(ingredients: &[ProductIngredient]) -> Result<(), CoreError> {
+        for ing in ingredients {
+            if ing.quantity <= 0.0 {
+                return Err(CoreError::Validation(
+                    "A quantidade de cada insumo na ficha técnica deve ser maior que zero".into(),
+                ));
+            }
+        }
+        Ok(())
     }
 
     /// Validação centralizada dos campos de produto.
@@ -726,13 +747,14 @@ impl ProductService {
         }
         product.base.synced = true;
         let group_ids = product.addon_group_ids.clone();
+        let ingredients = product.ingredients.clone();
         let product_id = product.base.id;
         let incoming_updated_at = product.base.updated_at;
         // Lê o existente ANTES do upsert para comparar.
         let existing_updated_at = self.repo.find_by_id(company_id, product_id).await?
             .map(|p| p.base.updated_at);
         self.repo.sync_upsert(&product).await?;
-        // Reescreve junção apenas se a nossa versão venceu o
+        // Reescreve junções apenas se a nossa versão venceu o
         // last-write-wins do repo. Caso contrário, mantemos o estado
         // local (que reflete a versão vencedora).
         let won = existing_updated_at
@@ -740,6 +762,7 @@ impl ProductService {
             .unwrap_or(true); // produto novo: sempre escreve
         if won {
             self.repo.replace_addon_groups(company_id, product_id, &group_ids).await?;
+            self.repo.replace_ingredients(company_id, product_id, &ingredients).await?;
         }
         Ok(())
     }

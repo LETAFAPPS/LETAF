@@ -33,10 +33,11 @@ pub(crate) use list::{
     setup_select_product,
 };
 pub(crate) use editors::{
-    init_product_availability_default, setup_add_discount_tier, setup_add_variation,
-    setup_add_variation_option, setup_load_discount_tiers, setup_load_product_addon_groups,
-    setup_load_product_availability, setup_load_product_variations, setup_remove_discount_tier,
-    setup_remove_variation, setup_remove_variation_option,
+    init_product_availability_default, setup_add_discount_tier, setup_add_ingredient,
+    setup_add_variation, setup_add_variation_option, setup_load_discount_tiers,
+    setup_load_product_addon_groups, setup_load_product_availability, setup_load_product_ingredients,
+    setup_load_product_variations, setup_remove_discount_tier, setup_remove_ingredient,
+    setup_remove_variation, setup_remove_variation_option, setup_set_ingredient_insumo,
 };
 pub(crate) use filter::{
     setup_filter_products, setup_reset_product_filters, setup_set_status_filter,

@@ -233,6 +233,21 @@ export struct InsumoData {
     status-color: color,
 }
 
+// Opção do dropdown de insumo na ficha técnica do produto.
+export struct IngredientOption {
+    id: string,
+    name: string,
+    unit: string,
+}
+
+// Linha da ficha técnica (receita): um insumo + quantidade consumida.
+export struct IngredientRowData {
+    insumo-id: string,
+    insumo-name: string,
+    quantity: string,   // texto (reaproveita TextInput); parse no Rust
+    unit: string,
+}
+
 export struct ProductData {
     id: string,
     name: string,
@@ -309,6 +324,9 @@ export struct ProductData {
     /// CSV de UUIDs dos grupos de adicionais associados ao produto.
     /// O Rust parseia em `load-product-addon-groups` no request-edit.
     addon-group-ids: string,
+    /// CSV `insumo_id:qtd,...` da ficha técnica. O Rust resolve nomes em
+    /// `load-product-ingredients` no request-edit.
+    ingredients: string,
     /// JSON cru das variações (Fase 5). O Rust parseia em
     /// `load-product-variations` no request-edit.
     variations: string,

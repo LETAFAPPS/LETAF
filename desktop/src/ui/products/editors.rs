@@ -3,7 +3,8 @@ use slint::{ComponentHandle, Model, ModelRc, SharedString, VecModel};
 
 
 use crate::context::DesktopState;
-use crate::{DiscountTierData, MainWindow, VariationData, VariationOptionData};
+use crate::{DiscountTierData, IngredientOption, IngredientRowData, MainWindow, VariationData, VariationOptionData};
+use letaf_core::product::model::ProductIngredient;
 
 use super::state::{availability_to_ui, default_availability_entries, parse_availability};
 use super::form::{parse_decimal, parse_variations_for_ui};
@@ -140,6 +141,126 @@ pub(crate) fn setup_remove_variation_option(ui: &MainWindow) {
             opts_vm.remove(o_idx as usize);
         }
     });
+}
+
+// ── Ficha técnica (receita): insumo + quantidade ─────────────────
+
+/// Abre o form: busca os insumos (para o dropdown) e popula as linhas da
+/// receita a partir do CSV `insumo_id:qtd,insumo_id:qtd` do produto.
+pub(crate) fn setup_load_product_ingredients(
+    ui: &MainWindow,
+    state: &DesktopState,
+    handle: &tokio::runtime::Handle,
+) {
+    let state = state.clone();
+    let handle = handle.clone();
+    let ui_weak = ui.as_weak();
+    ui.global::<ProductsState>().on_load_product_ingredients(move |csv| {
+        let state = state.clone();
+        let ui_weak = ui_weak.clone();
+        let csv = csv.to_string();
+        handle.spawn(async move {
+            let cid = state.company_id();
+            let insumos = state.insumo_service.find_all(cid).await.unwrap_or_default();
+            let options: Vec<IngredientOption> = insumos
+                .iter()
+                .map(|i| IngredientOption {
+                    id: SharedString::from(i.base.id.to_string()),
+                    name: SharedString::from(i.name.clone()),
+                    unit: SharedString::from(i.unit.clone()),
+                })
+                .collect();
+            // Resolve nome/unidade de cada linha pelo id.
+            let rows: Vec<IngredientRowData> = csv
+                .split(',')
+                .filter(|s| !s.trim().is_empty())
+                .filter_map(|pair| {
+                    let (id, qty) = pair.split_once(':')?;
+                    let ins = insumos.iter().find(|i| i.base.id.to_string() == id.trim())?;
+                    Some(IngredientRowData {
+                        insumo_id: SharedString::from(id.trim()),
+                        insumo_name: SharedString::from(ins.name.clone()),
+                        quantity: SharedString::from(qty.trim().replace('.', ",")),
+                        unit: SharedString::from(ins.unit.clone()),
+                    })
+                })
+                .collect();
+            let _ = slint::invoke_from_event_loop(move || {
+                let Some(ui) = ui_weak.upgrade() else { return };
+                ui.global::<ProductsState>().set_product_insumo_options(ModelRc::new(VecModel::from(options)));
+                ui.global::<ProductsState>().set_product_ingredients(ModelRc::new(VecModel::from(rows)));
+            });
+        });
+    });
+}
+
+/// Adiciona uma linha de receita em branco (o usuário escolhe o insumo).
+pub(crate) fn setup_add_ingredient(ui: &MainWindow) {
+    let ui_weak = ui.as_weak();
+    ui.global::<ProductsState>().on_add_ingredient(move || {
+        let Some(ui) = ui_weak.upgrade() else { return };
+        let model = ui.global::<ProductsState>().get_product_ingredients();
+        let blank = IngredientRowData {
+            insumo_id: SharedString::default(),
+            insumo_name: SharedString::default(),
+            quantity: SharedString::default(),
+            unit: SharedString::default(),
+        };
+        if let Some(vm) = model.as_any().downcast_ref::<VecModel<IngredientRowData>>() {
+            vm.push(blank);
+        } else {
+            let mut acc: Vec<IngredientRowData> = (0..model.row_count()).filter_map(|i| model.row_data(i)).collect();
+            acc.push(blank);
+            ui.global::<ProductsState>().set_product_ingredients(ModelRc::new(VecModel::from(acc)));
+        }
+    });
+}
+
+pub(crate) fn setup_remove_ingredient(ui: &MainWindow) {
+    let ui_weak = ui.as_weak();
+    ui.global::<ProductsState>().on_remove_ingredient(move |idx| {
+        let Some(ui) = ui_weak.upgrade() else { return };
+        let model = ui.global::<ProductsState>().get_product_ingredients();
+        if idx < 0 || (idx as usize) >= model.row_count() { return; }
+        if let Some(vm) = model.as_any().downcast_ref::<VecModel<IngredientRowData>>() {
+            vm.remove(idx as usize);
+        }
+    });
+}
+
+/// Define o insumo de uma linha (resolvendo nome/unidade nas opções).
+pub(crate) fn setup_set_ingredient_insumo(ui: &MainWindow) {
+    let ui_weak = ui.as_weak();
+    ui.global::<ProductsState>().on_set_ingredient_insumo(move |idx, insumo_id| {
+        let Some(ui) = ui_weak.upgrade() else { return };
+        let model = ui.global::<ProductsState>().get_product_ingredients();
+        if idx < 0 || (idx as usize) >= model.row_count() { return; }
+        let opts = ui.global::<ProductsState>().get_product_insumo_options();
+        let found = (0..opts.row_count()).filter_map(|i| opts.row_data(i)).find(|o| o.id == insumo_id);
+        let Some(row) = model.row_data(idx as usize) else { return };
+        let (name, unit) = found.map(|o| (o.name, o.unit)).unwrap_or_default();
+        model.set_row_data(idx as usize, IngredientRowData {
+            insumo_id,
+            insumo_name: name,
+            quantity: row.quantity,
+            unit,
+        });
+    });
+}
+
+/// Lê as linhas da receita da UI → `Vec<ProductIngredient>`. Descarta linhas
+/// sem insumo escolhido ou com quantidade inválida/≤0.
+pub(crate) fn read_ingredients(ui: &MainWindow) -> Vec<ProductIngredient> {
+    let model = ui.global::<ProductsState>().get_product_ingredients();
+    (0..model.row_count())
+        .filter_map(|i| model.row_data(i))
+        .filter_map(|r| {
+            let insumo_id = uuid::Uuid::parse_str(r.insumo_id.as_str()).ok()?;
+            let quantity = parse_decimal(&r.quantity)?;
+            if quantity <= 0.0 { return None; }
+            Some(ProductIngredient { insumo_id, quantity })
+        })
+        .collect()
 }
 
 /// Inicializa `product-availability` com 7 entradas default ao subir a

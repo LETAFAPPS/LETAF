@@ -55,6 +55,17 @@ impl fmt::Display for BalanceMode {
     }
 }
 
+/// Item da ficha técnica (receita) de um produto: um insumo consumido e a
+/// quantidade baixada por unidade vendida. A ligação produto↔insumo viaja
+/// junto do produto no sync (como `addon_group_ids`), gravada na tabela
+/// `product_ingredients`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProductIngredient {
+    pub insumo_id: Uuid,
+    /// Quantidade do insumo consumida por 1 unidade do produto.
+    pub quantity: f64,
+}
+
 /// Entidade Produto — item comercializado pela empresa.
 ///
 /// Regras aplicadas (AI_RULES.md §6, §11):
@@ -171,6 +182,11 @@ pub struct Product {
     /// no JOIN.
     #[serde(default)]
     pub addon_group_ids: Vec<Uuid>,
+    /// Ficha técnica (receita): insumos consumidos por unidade vendida.
+    /// Persistida na tabela de junção `product_ingredients` (viaja junto do
+    /// produto no sync, como `addon_group_ids`). Vazia = produto sem receita.
+    #[serde(default)]
+    pub ingredients: Vec<ProductIngredient>,
     /// Variações do produto (Fase 5): "Tamanho", "Sabor" etc. JSON
     /// `[{title, selection, required, options:[{name, price}]}]`.
     /// Diferente dos adicionais, é **per-produto** (não compartilhada),
@@ -242,6 +258,7 @@ impl Product {
             // Associações N:M são definidas via repo `replace_addon_groups`
             // após o create — não cabem no construtor in-memory.
             addon_group_ids: Vec::new(),
+            ingredients: Vec::new(),
             variations: None,
         }
     }

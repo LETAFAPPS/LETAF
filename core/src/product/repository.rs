@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use chrono::NaiveDateTime;
 use uuid::Uuid;
 
-use super::model::Product;
+use super::model::{Product, ProductIngredient};
 use super::stock_movement::StockMovement;
 use crate::error::CoreError;
 
@@ -59,6 +59,7 @@ pub trait ProductRepository: Send + Sync {
         product: &Product,
         stock_delta: f64,
         addon_group_ids: &[Uuid],
+        ingredients: &[ProductIngredient],
     ) -> Result<(), CoreError>;
     async fn soft_delete(&self, company_id: Uuid, id: Uuid) -> Result<(), CoreError>;
     async fn find_unsynced(&self, company_id: Uuid) -> Result<Vec<Product>, CoreError>;
@@ -115,6 +116,18 @@ pub trait ProductRepository: Send + Sync {
         company_id: Uuid,
         product_id: Uuid,
         group_ids: &[Uuid],
+    ) -> Result<(), CoreError>;
+
+    /// Lê a ficha técnica (receita) do produto: insumos + quantidades.
+    async fn find_ingredients(&self, company_id: Uuid, product_id: Uuid) -> Result<Vec<ProductIngredient>, CoreError>;
+
+    /// Substitui completamente a ficha técnica do produto (DELETE + INSERT),
+    /// preservando a ordem do vetor como `sort_order`.
+    async fn replace_ingredients(
+        &self,
+        company_id: Uuid,
+        product_id: Uuid,
+        ingredients: &[ProductIngredient],
     ) -> Result<(), CoreError>;
 
     /// Aplica `delta` ao estoque em uma única `UPDATE` atômica.

@@ -10,7 +10,7 @@
 // Acesso: no Slint, `ProductsState.<prop>`; no Rust,
 // `ui.global::<ProductsState>().set_<prop>()` / `.on_<callback>()`.
 // Logica em desktop/src/ui/products.
-import { AddonGroupData, BusinessHoursData, CategoryFilterEntry, DiscountTierData, ProductData, SubcategoryFilterEntry, VariationData } from "../types.slint";
+import { AddonGroupData, BusinessHoursData, CategoryFilterEntry, DiscountTierData, ProductData, SubcategoryFilterEntry, VariationData, IngredientRowData, IngredientOption } from "../types.slint";
 
 export global ProductsState {
     // ── Produtos ────────────────────────────────────
@@ -79,6 +79,14 @@ export global ProductsState {
     in-out property <string> product-error-price: "";
     in-out property <string> product-error-stock: "";
     in-out property <string> product-save-error: "";
+    // Ficha técnica (receita): linhas insumo+quantidade e opções do dropdown.
+    in-out property <[IngredientRowData]> product-ingredients: [];
+    in-out property <[IngredientOption]> product-insumo-options: [];
+    callback add-ingredient();
+    callback remove-ingredient(int);
+    callback set-ingredient-insumo(int, string);
+    callback load-product-ingredients(string);
+
     callback add-product();
     callback update-product();
     /// Cadastro em massa: exporta os produtos atuais para um CSV

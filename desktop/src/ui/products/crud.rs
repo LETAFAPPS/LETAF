@@ -59,6 +59,7 @@ pub(crate) fn setup_add(
                     form.discount_kind, form.discount_value.map(letaf_core::money::from_db_f64), form.discount_min_qty,
                     form.discount_tiers,
                     form.addon_group_ids,
+                    form.ingredients,
                     form.variations,
                 )
                 .await;
@@ -151,6 +152,7 @@ pub(crate) fn setup_update_product(
                     form.discount_kind, form.discount_value.map(letaf_core::money::from_db_f64), form.discount_min_qty,
                     form.discount_tiers,
                     form.addon_group_ids,
+                    form.ingredients,
                     form.variations,
                 )
                 .await;

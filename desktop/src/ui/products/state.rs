@@ -166,6 +166,7 @@ pub(crate) struct DecodedProduct {
     pub(crate) discount_min_qty: SharedString,
     pub(crate) discount_tiers: SharedString,
     pub(crate) addon_group_ids: SharedString,
+    pub(crate) ingredients: SharedString,
     pub(crate) variations: SharedString,
     pub(crate) pixel_buffer: Option<slint::SharedPixelBuffer<slint::Rgba8Pixel>>,
 }

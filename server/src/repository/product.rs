@@ -7,7 +7,7 @@ use uuid::Uuid;
 
 use letaf_core::entity::BaseFields;
 use letaf_core::error::CoreError;
-use letaf_core::product::model::{BalanceMode, Product};
+use letaf_core::product::model::{BalanceMode, Product, ProductIngredient};
 use letaf_core::product::repository::{ProductRepository, StockAdjustResult};
 use letaf_core::product::stock_movement::StockMovement;
 
@@ -125,6 +125,7 @@ impl From<ProductRow> for Product {
             // Carregado sob demanda pelo repo via `find_addon_group_ids`
             // — não vem na linha de products.
             addon_group_ids: Vec::new(),
+            ingredients: Vec::new(),
             variations: r.variations,
         }
     }
@@ -175,6 +176,32 @@ impl PgProductRepository {
         }
         Ok(())
     }
+
+    /// Carrega a ficha técnica (insumo_id + quantidade) para uma lista de
+    /// produtos em 1 query. Espelha `hydrate_addon_group_ids`.
+    async fn hydrate_ingredients(&self, company_id: Uuid, products: &mut [Product]) -> Result<(), CoreError> {
+        if products.is_empty() { return Ok(()); }
+        let ids: Vec<Uuid> = products.iter().map(|p| p.base.id).collect();
+        let rows: Vec<(Uuid, Uuid, f64)> = sqlx::query_as(
+            "SELECT product_id, insumo_id, quantity FROM product_ingredients
+             WHERE company_id = $1 AND product_id = ANY($2)
+             ORDER BY sort_order ASC",
+        )
+        .bind(company_id)
+        .bind(&ids)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(map_db)?;
+        let mut by_product: std::collections::HashMap<Uuid, Vec<ProductIngredient>> =
+            std::collections::HashMap::new();
+        for (pid, iid, qty) in rows {
+            by_product.entry(pid).or_default().push(ProductIngredient { insumo_id: iid, quantity: qty });
+        }
+        for p in products.iter_mut() {
+            p.ingredients = by_product.remove(&p.base.id).unwrap_or_default();
+        }
+        Ok(())
+    }
 }
 
 #[async_trait]
@@ -191,6 +218,7 @@ impl ProductRepository for PgProductRepository {
         let Some(row) = row else { return Ok(None); };
         let mut product = Product::from(row);
         product.addon_group_ids = self.find_addon_group_ids(company_id, product.base.id).await?;
+        product.ingredients = self.find_ingredients(company_id, product.base.id).await?;
         Ok(Some(product))
     }
 
@@ -217,6 +245,7 @@ impl ProductRepository for PgProductRepository {
 
         let mut products: Vec<Product> = rows.into_iter().map(Product::from).collect();
         self.hydrate_addon_group_ids(company_id, &mut products).await?;
+        self.hydrate_ingredients(company_id, &mut products).await?;
         Ok(products)
     }
 
@@ -232,6 +261,7 @@ impl ProductRepository for PgProductRepository {
         .map_err(map_db)?;
         let mut products: Vec<Product> = rows.into_iter().map(Product::from).collect();
         self.hydrate_addon_group_ids(company_id, &mut products).await?;
+        self.hydrate_ingredients(company_id, &mut products).await?;
         Ok(products)
     }
 
@@ -317,6 +347,7 @@ impl ProductRepository for PgProductRepository {
         product: &Product,
         stock_delta: f64,
         group_ids: &[Uuid],
+        ingredients: &[ProductIngredient],
     ) -> Result<(), CoreError> {
         let mut tx = self.pool.begin().await.map_err(map_db)?;
         // 1. Metadados (mantém `stock_quantity` atual; o delta vem no passo 2).
@@ -408,6 +439,30 @@ impl ProductRepository for PgProductRepository {
             .map_err(map_db)?;
         }
 
+        // Ficha técnica (receita): DELETE + reinsert na mesma transação.
+        sqlx::query("DELETE FROM product_ingredients WHERE company_id = $1 AND product_id = $2")
+            .bind(product.base.company_id)
+            .bind(product.base.id)
+            .execute(&mut *tx)
+            .await
+            .map_err(map_db)?;
+        for (idx, ing) in ingredients.iter().enumerate() {
+            sqlx::query(
+                "INSERT INTO product_ingredients (company_id, product_id, insumo_id, quantity, sort_order)
+                 VALUES ($1, $2, $3, $4, $5)
+                 ON CONFLICT (company_id, product_id, insumo_id) DO UPDATE SET
+                     quantity = EXCLUDED.quantity, sort_order = EXCLUDED.sort_order",
+            )
+            .bind(product.base.company_id)
+            .bind(product.base.id)
+            .bind(ing.insumo_id)
+            .bind(ing.quantity)
+            .bind(idx as i32)
+            .execute(&mut *tx)
+            .await
+            .map_err(map_db)?;
+        }
+
         tx.commit().await.map_err(map_db)?;
         Ok(())
     }
@@ -440,6 +495,7 @@ impl ProductRepository for PgProductRepository {
 
         let mut products: Vec<Product> = rows.into_iter().map(Product::from).collect();
         self.hydrate_addon_group_ids(company_id, &mut products).await?;
+        self.hydrate_ingredients(company_id, &mut products).await?;
         Ok(products)
     }
 
@@ -483,6 +539,7 @@ impl ProductRepository for PgProductRepository {
 
         let mut products: Vec<Product> = rows.into_iter().map(Product::from).collect();
         self.hydrate_addon_group_ids(company_id, &mut products).await?;
+        self.hydrate_ingredients(company_id, &mut products).await?;
         Ok(products)
     }
 
@@ -544,6 +601,7 @@ impl ProductRepository for PgProductRepository {
 
         let mut products: Vec<Product> = rows.into_iter().map(Product::from).collect();
         self.hydrate_addon_group_ids(company_id, &mut products).await?;
+        self.hydrate_ingredients(company_id, &mut products).await?;
         Ok(products)
     }
 
@@ -565,6 +623,7 @@ impl ProductRepository for PgProductRepository {
 
         let mut products: Vec<Product> = rows.into_iter().map(Product::from).collect();
         self.hydrate_addon_group_ids(company_id, &mut products).await?;
+        self.hydrate_ingredients(company_id, &mut products).await?;
         Ok(products)
     }
 
@@ -608,6 +667,53 @@ impl ProductRepository for PgProductRepository {
             .bind(company_id)
             .bind(product_id)
             .bind(gid)
+            .bind(idx as i32)
+            .execute(&mut *tx)
+            .await
+            .map_err(map_db)?;
+        }
+        tx.commit().await.map_err(map_db)?;
+        Ok(())
+    }
+
+    async fn find_ingredients(&self, company_id: Uuid, product_id: Uuid) -> Result<Vec<ProductIngredient>, CoreError> {
+        let rows: Vec<(Uuid, f64)> = sqlx::query_as(
+            "SELECT insumo_id, quantity FROM product_ingredients
+             WHERE company_id = $1 AND product_id = $2
+             ORDER BY sort_order ASC",
+        )
+        .bind(company_id)
+        .bind(product_id)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(map_db)?;
+        Ok(rows.into_iter().map(|(insumo_id, quantity)| ProductIngredient { insumo_id, quantity }).collect())
+    }
+
+    async fn replace_ingredients(
+        &self,
+        company_id: Uuid,
+        product_id: Uuid,
+        ingredients: &[ProductIngredient],
+    ) -> Result<(), CoreError> {
+        let mut tx = self.pool.begin().await.map_err(map_db)?;
+        sqlx::query("DELETE FROM product_ingredients WHERE company_id = $1 AND product_id = $2")
+            .bind(company_id)
+            .bind(product_id)
+            .execute(&mut *tx)
+            .await
+            .map_err(map_db)?;
+        for (idx, ing) in ingredients.iter().enumerate() {
+            sqlx::query(
+                "INSERT INTO product_ingredients (company_id, product_id, insumo_id, quantity, sort_order)
+                 VALUES ($1, $2, $3, $4, $5)
+                 ON CONFLICT (company_id, product_id, insumo_id) DO UPDATE SET
+                     quantity = EXCLUDED.quantity, sort_order = EXCLUDED.sort_order",
+            )
+            .bind(company_id)
+            .bind(product_id)
+            .bind(ing.insumo_id)
+            .bind(ing.quantity)
             .bind(idx as i32)
             .execute(&mut *tx)
             .await

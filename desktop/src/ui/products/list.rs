@@ -238,6 +238,7 @@ fn fill_form_from_decoded(ui: &MainWindow, d: &DecodedProduct) {
     ui.global::<ProductsState>().set_product_discount_min_qty(d.discount_min_qty.clone());
     ui.global::<ProductsState>().invoke_load_discount_tiers(d.discount_tiers.clone());
     ui.global::<ProductsState>().invoke_load_product_addon_groups(d.addon_group_ids.clone());
+    ui.global::<ProductsState>().invoke_load_product_ingredients(d.ingredients.clone());
     ui.global::<ProductsState>().invoke_load_product_variations(d.variations.clone());
     ui.global::<ProductsState>().set_product_barcode(d.barcode.clone());
     ui.global::<ProductsState>().set_product_unit(d.unit.clone());
@@ -359,6 +360,7 @@ pub(crate) fn decoded_from_components(
         ),
         discount_tiers: SharedString::from(p.discount_tiers.as_deref().unwrap_or("")),
         addon_group_ids: SharedString::from(addon_group_ids_to_csv(&p.addon_group_ids)),
+        ingredients: SharedString::from(super::data::ingredients_to_csv(&p.ingredients)),
         variations: SharedString::from(p.variations.as_deref().unwrap_or("")),
         pixel_buffer: pixel_buf,
     }
@@ -437,6 +439,7 @@ fn clone_decoded_basics(d: &DecodedProduct) -> DecodedProduct {
         discount_min_qty: d.discount_min_qty.clone(),
         discount_tiers: d.discount_tiers.clone(),
         addon_group_ids: d.addon_group_ids.clone(),
+        ingredients: d.ingredients.clone(),
         variations: d.variations.clone(),
         pixel_buffer: d.pixel_buffer.clone(),
     }
@@ -530,6 +533,7 @@ pub(crate) fn setup_duplicate_product(
                 original.discount_min_qty,
                 original.discount_tiers.clone(),
                 original.addon_group_ids.clone(),
+                original.ingredients.clone(),
                 original.variations.clone(),
             ).await;
 
