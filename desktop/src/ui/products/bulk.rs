@@ -21,7 +21,7 @@ use crate::context::DesktopState;
 use crate::MainWindow;
 use crate::ui::csv::{
     bool_or, bool_pt, cell_dec, cell_str, csv_field, dec_or_none, fmt_dec, fmt_num, header_index,
-    log_err, num_or, num_or_none, opt, parse_bool, parse_csv, toast_import,
+    log_err, num_or, num_or_none, opt, parse_bool, parse_csv, strip_formula_guard, toast_import,
 };
 
 use super::super::helpers::show_toast;
@@ -257,7 +257,9 @@ async fn import_rows(state: &DesktopState, content: &str) -> Outcome {
         let get = |key: &str| -> String {
             cols.get(key)
                 .and_then(|&i| cells.get(i))
-                .map(|s| s.trim().to_string())
+                // Remove o prefixo defensivo `'` do export (round-trip), inclusive
+                // para números negativos como `'-1,5`.
+                .map(|s| strip_formula_guard(s.trim()).to_string())
                 .unwrap_or_default()
         };
         // Coluna presente no cabeçalho? Distingue "célula vazia" (limpa) de

@@ -15,7 +15,7 @@ use letaf_core::insumo::model::Insumo;
 use crate::context::DesktopState;
 use crate::ui::csv::{
     bool_or, bool_pt, cell_dec, cell_str, csv_field, dec_or_none, fmt_dec, fmt_num, header_index,
-    log_err, num_or, opt, parse_csv, toast_import,
+    log_err, num_or, opt, parse_csv, strip_formula_guard, toast_import,
 };
 use crate::MainWindow;
 
@@ -178,7 +178,7 @@ async fn import_rows(state: &DesktopState, content: &str) -> Outcome {
 
     for cells in iter {
         let get = |key: &str| -> String {
-            cols.get(key).and_then(|&idx| cells.get(idx)).map(|s| s.trim().to_string()).unwrap_or_default()
+            cols.get(key).and_then(|&idx| cells.get(idx)).map(|s| strip_formula_guard(s.trim()).to_string()).unwrap_or_default()
         };
         let has = |key: &str| -> bool { cols.contains_key(key) };
         let name = get("nome");

