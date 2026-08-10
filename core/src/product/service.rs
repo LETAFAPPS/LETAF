@@ -47,6 +47,18 @@ impl ProductService {
         self.repo.find_images(company_id, product_id).await
     }
 
+    /// Produz `quantity` unidades do produto (recurso da "fábrica"): consome a
+    /// ficha técnica e dá entrada no estoque, atomicamente (ver repositório).
+    /// Valida a quantidade aqui (§11 — regra no backend). `production_id` novo
+    /// a cada produção (movimentos idempotentes no sync via id derivado).
+    pub async fn produce(&self, company_id: Uuid, product_id: Uuid, quantity: f64) -> Result<(), CoreError> {
+        if quantity <= 0.0 || !quantity.is_finite() {
+            return Err(CoreError::Validation("Quantidade a produzir deve ser positiva".into()));
+        }
+        let production_id = Uuid::new_v4();
+        self.repo.produce(company_id, product_id, quantity, production_id).await
+    }
+
     /// Total de registros ativos da empresa (painel do super admin).
     pub async fn count_all(&self, company_id: Uuid) -> Result<i64, CoreError> {
         self.repo.count_all(company_id).await

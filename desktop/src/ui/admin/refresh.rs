@@ -13,7 +13,7 @@ use super::dto::{
     AdminDto, AdminRoleDto, BusinessTypeDto, CompanyDto, OverviewDto, PlanDto, SubscriptionDto,
 };
 use super::filters::{
-    apply_business_type_filter, apply_company_filter, apply_plan_filter, apply_role_filter,
+    apply_company_filter, apply_plan_filter, apply_role_filter,
     apply_sub_filter, apply_user_filter, set_company_form_business_type_options,
     set_plan_filter_options,
 };
@@ -127,8 +127,6 @@ fn apply_lists(
     if let Ok(g) = caches.plans.lock() {
         set_plan_filter_options(ui, &g);
     }
-    // Lista de tipos de empresa já filtrada pela busca corrente.
-    apply_business_type_filter(ui, &caches.business_types);
     // Opções do seletor "Tipo de empresa" no form de empresa (só ativos).
     if let Ok(g) = caches.business_types.lock() {
         set_company_form_business_type_options(ui, &g);

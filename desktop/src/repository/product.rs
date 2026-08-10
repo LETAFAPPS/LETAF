@@ -823,6 +823,94 @@ impl ProductRepository for SqliteProductRepository {
         }
     }
 
+    async fn produce(
+        &self,
+        company_id: Uuid,
+        product_id: Uuid,
+        quantity: f64,
+        production_id: Uuid,
+    ) -> Result<(), CoreError> {
+        use letaf_core::deterministic_id::{insumo_movement_once, stock_movement_once};
+        let now = ts(chrono::Utc::now().naive_utc());
+        let mut tx = self.pool.begin().await.map_err(map_db)?;
+
+        // 1) Entrada no estoque do produto (+quantity). Guarda: não ilimitado
+        // e existente. Falha → descobre o motivo e aborta (nada consumido).
+        let res = sqlx::query(
+            "UPDATE products SET stock_quantity = stock_quantity + ?1
+              WHERE company_id = ?2 AND id = ?3 AND deleted_at IS NULL AND unlimited_stock = 0",
+        )
+        .bind(quantity)
+        .bind(company_id.to_string())
+        .bind(product_id.to_string())
+        .execute(&mut *tx)
+        .await
+        .map_err(map_db)?;
+        if res.rows_affected() != 1 {
+            tx.rollback().await.map_err(map_db)?;
+            return Err(CoreError::Validation(
+                "Produto não encontrado ou com estoque ilimitado (não produzível)".into(),
+            ));
+        }
+        insert_stock_movement(
+            &mut tx, company_id, product_id, quantity, "production",
+            Some(production_id),
+            Some(stock_movement_once(production_id, "production", product_id)),
+            &now,
+        ).await?;
+
+        // 2) Consome a ficha técnica: -quantidade×quantity de cada insumo,
+        // com guarda de estoque ≥ 0 (bloqueia a produção se faltar insumo).
+        let recipe: Vec<(String, f64)> = sqlx::query_as(
+            "SELECT insumo_id, quantity FROM product_ingredients
+              WHERE company_id = ?1 AND product_id = ?2 ORDER BY sort_order ASC",
+        )
+        .bind(company_id.to_string())
+        .bind(product_id.to_string())
+        .fetch_all(&mut *tx)
+        .await
+        .map_err(map_db)?;
+        for (iid, qty_per_unit) in recipe {
+            let insumo_id = parse_uuid(&iid)?;
+            let delta = -(qty_per_unit * quantity);
+            if delta.abs() < f64::EPSILON { continue; }
+            let r = sqlx::query(
+                "UPDATE insumos SET stock_quantity = stock_quantity + ?1
+                  WHERE company_id = ?2 AND id = ?3 AND deleted_at IS NULL
+                    AND stock_quantity + ?1 >= 0",
+            )
+            .bind(delta)
+            .bind(company_id.to_string())
+            .bind(insumo_id.to_string())
+            .execute(&mut *tx)
+            .await
+            .map_err(map_db)?;
+            if r.rows_affected() != 1 {
+                tx.rollback().await.map_err(map_db)?;
+                return Err(CoreError::Validation(
+                    "Estoque de insumo insuficiente para produzir esta quantidade".into(),
+                ));
+            }
+            let mv_id = insumo_movement_once(production_id, "production", product_id, insumo_id);
+            sqlx::query(
+                "INSERT OR IGNORE INTO insumo_movements
+                    (id, company_id, insumo_id, delta, reason, order_id, created_at, updated_at, deleted_at, synced)
+                 VALUES (?1, ?2, ?3, ?4, 'production', ?5, ?6, ?6, NULL, 0)",
+            )
+            .bind(mv_id.to_string())
+            .bind(company_id.to_string())
+            .bind(insumo_id.to_string())
+            .bind(delta)
+            .bind(production_id.to_string())
+            .bind(&now)
+            .execute(&mut *tx)
+            .await
+            .map_err(map_db)?;
+        }
+        tx.commit().await.map_err(map_db)?;
+        Ok(())
+    }
+
     async fn sync_upsert(&self, product: &Product) -> Result<(), CoreError> {
         sqlx::query(
             "INSERT INTO products (id, company_id, name, description, category_id, subcategory_id, price, cost_price, stock_quantity, unlimited_stock, barcode, unit, created_at, updated_at, deleted_at, synced, active, web_visible, balance_mode, image_data, cover_color, availability_schedule, discount_kind, discount_value, discount_min_qty, discount_tiers, variations, min_stock, thumb_data)

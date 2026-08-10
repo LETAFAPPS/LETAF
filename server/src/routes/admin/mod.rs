@@ -73,14 +73,9 @@ pub fn routes() -> Router<AppState> {
         .route("/admin/admins/{id}/active", put(admins::set_admin_active))
         .route("/admin/plans", get(plans::list_plans).post(plans::create_plan))
         .route("/admin/plans/{id}", put(plans::update_plan).delete(plans::delete_plan))
-        .route(
-            "/admin/business-types",
-            get(business_types::list_business_types).post(business_types::create_business_type),
-        )
-        .route(
-            "/admin/business-types/{id}",
-            put(business_types::update_business_type).delete(business_types::delete_business_type),
-        )
+        // Só a listagem: alimenta o seletor de tipo no cadastro de empresas.
+        // Os tipos são fixos (semeados) — sem CRUD pelo painel.
+        .route("/admin/business-types", get(business_types::list_business_types))
         .route("/admin/roles", get(roles::list_roles).post(roles::create_role))
         .route("/admin/roles/{id}", put(roles::update_role).delete(roles::delete_role))
 }

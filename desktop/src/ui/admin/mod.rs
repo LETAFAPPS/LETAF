@@ -22,11 +22,9 @@
 //! - `company_form`: preenchimento, limpeza, imagens e máscaras do cadastro
 //! - `subscriptions`: assinatura e faturas de uma empresa
 //! - `plans`: catálogo de planos
-//! - `business_types`: catálogo de tipos de empresa
 //! - `geo`: preenchimento de endereço por CEP (ViaCEP)
 //! - `impersonation`: entrar numa empresa e voltar ao super admin
 
-mod business_types;
 mod cache;
 mod companies;
 mod company_form;
@@ -73,7 +71,5 @@ pub(crate) fn setup_admin(
     geo::setup_company_cep(ui, handle);
     plans::setup_plan_form(ui, &caches.plans);
     plans::setup_plan_persist(ui, handle, &auth_token, &server_url);
-    business_types::setup_business_type_form(ui, &caches.business_types);
-    business_types::setup_business_type_persist(ui, handle, &auth_token, &server_url);
     impersonation::setup_impersonation(ui, state, handle, sync_notify, &auth_token, &server_url);
 }

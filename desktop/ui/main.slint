@@ -58,6 +58,7 @@ import { ProductConfiguratorModal } from "modals/product_configurator_modal.slin
 import { UpdateModal } from "modals/update_modal.slint";
 import { LogoutConfirmModal } from "modals/logout_confirm_modal.slint";
 import { DeleteConfirmModal } from "modals/delete_confirm_modal.slint";
+import { ProduceModal } from "modals/produce_modal.slint";
 import { NewOrderAlarmModal } from "modals/new_order_alarm_modal.slint";
 import { PrinterModal } from "modals/printer_modal.slint";
 import { PdvPage } from "pages/pdv_page.slint";
@@ -66,13 +67,11 @@ import { AdminCompaniesPage } from "pages/admin_companies_page.slint";
 import { AdminCompanyDetailModal } from "modals/admin_company_detail_modal.slint";
 import { AdminSubscriptionModal } from "modals/admin_subscription_modal.slint";
 import { AdminPlanModal } from "modals/admin_plan_modal.slint";
-import { AdminBusinessTypeModal } from "modals/admin_business_type_modal.slint";
 import { AdminUserModal } from "modals/admin_user_modal.slint";
 import { AdminRolesPage } from "pages/admin_roles_page.slint";
 import { AdminRoleModal } from "modals/admin_role_modal.slint";
 import { AdminAdminsPage } from "pages/admin_admins_page.slint";
 import { AdminPlansPage } from "pages/admin_plans_page.slint";
-import { AdminBusinessTypesPage } from "pages/admin_business_types_page.slint";
 import { PdvSoldModal } from "modals/pdv_sold_modal.slint";
 import { PdvCustomerPickerModal } from "modals/pdv_customer_picker_modal.slint";
 import { PdvCartModal } from "modals/pdv_cart_modal.slint";
@@ -228,8 +227,7 @@ export component MainWindow inherits Window {
             // (qualquer aba de plataforma).
             if root.active-tab == "admin-overview" || root.active-tab == "admin-companies"
                || root.active-tab == "admin-admins"
-               || root.active-tab == "admin-plans" || root.active-tab == "admin-business-types"
-               || root.active-tab == "admin-roles" {
+               || root.active-tab == "admin-plans" || root.active-tab == "admin-roles" {
                 AdminState.refresh();
             }
         }
@@ -459,8 +457,7 @@ export component MainWindow inherits Window {
                     SubscriptionState.subscription-refresh();
                 } else if tab == "admin-overview" || tab == "admin-companies"
                        || tab == "admin-admins"
-                       || tab == "admin-plans" || tab == "admin-business-types"
-                       || tab == "admin-roles" {
+                       || tab == "admin-plans" || tab == "admin-roles" {
                     AdminState.refresh();
                 }
                 // Importante: NÃO disparar cash-refresh ao entrar no
@@ -718,16 +715,6 @@ export component MainWindow inherits Window {
                         AdminState.del-plan-open = true;
                     }
                     filters-changed => { AdminState.filter-plans(); }
-                }
-                if root.active-tab == "admin-business-types": AdminBusinessTypesPage {
-                    business-types: AdminState.business-types;
-                    new-type => { AdminState.business-type-new(); }
-                    edit-type(id) => { AdminState.business-type-edit(id); }
-                    delete-type(id, name) => {
-                        AdminState.del-business-type-id = id;
-                        AdminState.del-business-type-name = name;
-                        AdminState.del-business-type-open = true;
-                    }
                 }
 
                 // Produtos — master-detail com editor inline (não há mais
@@ -1715,13 +1702,12 @@ export component MainWindow inherits Window {
         }
     }
 
-    if AdminState.del-business-type-open: DeleteConfirmModal {
-        delete-target-name <=> AdminState.del-business-type-name;
-        close => { AdminState.del-business-type-open = false; }
-        confirm-delete => {
-            AdminState.del-business-type-open = false;
-            AdminState.business-type-delete(AdminState.del-business-type-id);
-        }
+    if ProductsState.produce-modal-open: ProduceModal {
+        product-name: ProductsState.product-name;
+        form-quantity <=> ProductsState.produce-quantity;
+        error: ProductsState.produce-error;
+        confirm => { ProductsState.produce-confirm(); }
+        close => { ProductsState.produce-modal-open = false; }
     }
 
     if AdminState.user-modal-open: AdminUserModal {
@@ -1773,17 +1759,6 @@ export component MainWindow inherits Window {
         form-active <=> AdminState.plan-active;
         save => { AdminState.plan-save(); }
         close => { AdminState.plan-modal-open = false; }
-    }
-
-    if AdminState.business-type-modal-open: AdminBusinessTypeModal {
-        form-id: AdminState.business-type-id;
-        form-name <=> AdminState.business-type-name;
-        form-description <=> AdminState.business-type-description;
-        form-theme <=> AdminState.business-type-theme;
-        form-sort <=> AdminState.business-type-sort;
-        form-active <=> AdminState.business-type-active;
-        save => { AdminState.business-type-save(); }
-        close => { AdminState.business-type-modal-open = false; }
     }
 
     if AdminState.sub-edit-open: AdminSubscriptionModal {

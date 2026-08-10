@@ -42,7 +42,6 @@ pub fn nav_perms_from(is_admin: bool, is_super_admin: bool, perms: &[String]) ->
         admin_overview: has_screen("overview"),
         admin_companies: has_screen("companies"),
         admin_plans: has_screen("plans"),
-        admin_business_types: has_screen("business_types"),
         admin_admins: has_screen("admins"),
         admin_roles: has_screen("roles"),
         dashboard: has("dashboard.view"),
@@ -80,7 +79,6 @@ pub fn first_accessible_tab(is_admin: bool, is_super_admin: bool, perms: &[Strin
             ("overview", "admin-overview"),
             ("companies", "admin-companies"),
             ("plans", "admin-plans"),
-            ("business_types", "admin-business-types"),
             ("admins", "admin-admins"),
             ("roles", "admin-roles"),
         ];

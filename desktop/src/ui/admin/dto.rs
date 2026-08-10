@@ -232,18 +232,14 @@ pub(super) struct PlanDto {
 }
 
 /// Tipo de empresa (ramo do estabelecimento) do catálogo do super admin.
+/// Tipo de empresa — só o necessário para o seletor no cadastro de empresa
+/// (id/nome/ativo). Campos extras do JSON (tema, descrição, ordem) são
+/// ignorados: o desktop não gerencia mais tipos, só os associa à empresa.
 #[derive(Deserialize, Clone, Default)]
 pub(super) struct BusinessTypeDto {
     pub(super) id: String,
     pub(super) name: String,
-    #[serde(default)]
-    pub(super) description: String,
-    /// Tema visual do site (slug); "" cai no default no preenchimento.
-    #[serde(default)]
-    pub(super) theme: String,
     pub(super) active: bool,
-    #[serde(default)]
-    pub(super) sort_order: i32,
 }
 
 /// Resposta de POST /admin/companies/{id}/impersonate (mesmo formato do

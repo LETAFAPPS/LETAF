@@ -14,7 +14,6 @@ export struct NavPerms {
     admin-overview: bool,
     admin-companies: bool,
     admin-plans: bool,
-    admin-business-types: bool,
     admin-admins: bool,
     admin-roles: bool,
     dashboard: bool,
@@ -182,15 +181,6 @@ export struct AdminPlanRow {
     highlight-label: string,
     active: bool,
     companies: int,                // empresas usando o plano
-}
-
-// Linha do catálogo de tipos de empresa (painel super admin).
-export struct AdminBusinessTypeRow {
-    id: string,
-    name: string,
-    description: string,
-    active: bool,
-    sort-order: int,
 }
 
 // ── Colaboradores (RBAC) ────────────────────────────────────────────────────

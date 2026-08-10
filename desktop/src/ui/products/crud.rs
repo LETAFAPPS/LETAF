@@ -28,6 +28,62 @@ fn read_gallery_images(ui: &MainWindow) -> Vec<ProductImage> {
         .collect()
 }
 
+/// Callback: PRODUZIR (recurso da "fábrica"). Produz a quantidade informada
+/// do produto em edição — consome a ficha técnica e dá entrada no estoque
+/// (backend `ProductService::produce`, atômico). Erros (qtd inválida, insumo
+/// insuficiente) voltam para o modal.
+pub(crate) fn setup_produce(
+    ui: &MainWindow,
+    state: &DesktopState,
+    handle: &tokio::runtime::Handle,
+    sync_notify: Arc<Notify>,
+) {
+    let ui_weak = ui.as_weak();
+    let state = state.clone();
+    let handle = handle.clone();
+    ui.global::<ProductsState>().on_produce_confirm(move || {
+        let Some(ui) = ui_weak.upgrade() else { return };
+        let id_str = ui.get_editing_id().to_string();
+        let Ok(id) = Uuid::parse_str(&id_str) else { return };
+        // Aceita vírgula (pt-BR). Validação forte fica no backend (§11).
+        let qty: f64 = ui
+            .global::<ProductsState>()
+            .get_produce_quantity()
+            .replace(',', ".")
+            .trim()
+            .parse()
+            .unwrap_or(0.0);
+        if qty <= 0.0 || !qty.is_finite() {
+            ui.global::<ProductsState>().set_produce_error("Informe uma quantidade válida".into());
+            return;
+        }
+        let ui_weak = ui.as_weak();
+        let state = state.clone();
+        let notify = sync_notify.clone();
+        handle.spawn(async move {
+            let result = state.product_service.produce(state.company_id(), id, qty).await;
+            let _ = slint::invoke_from_event_loop(move || {
+                let Some(ui) = ui_weak.upgrade() else { return };
+                match result {
+                    Ok(()) => {
+                        ui.global::<ProductsState>().set_produce_modal_open(false);
+                        ui.global::<ProductsState>().set_produce_error(SharedString::default());
+                        show_toast(&ui, &format!("Produzido: {qty}"), "success");
+                        // Estoque mudou (produto + insumos) — recarrega a lista.
+                        ui.global::<ProductsState>().invoke_refresh_products();
+                    }
+                    Err(e) => {
+                        let msg = SharedString::from(friendly_error(&e));
+                        ui.global::<ProductsState>().set_produce_error(msg.clone());
+                        show_toast(&ui, msg.as_str(), "error");
+                    }
+                }
+            });
+            notify.notify_one(); // empurra os movimentos (ledger) no sync
+        });
+    });
+}
+
 /// Callback: cria um novo produto e atualiza a lista.
 ///
 /// Regras aplicadas (AI_RULES.md §7.3, §7.4, §8):

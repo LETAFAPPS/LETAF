@@ -162,6 +162,23 @@ pub trait ProductRepository: Send + Sync {
         Ok(None)
     }
 
+    /// Produz `quantity` unidades do produto (recurso da "fábrica"): numa
+    /// ÚNICA transação, dá entrada de `+quantity` no estoque do produto
+    /// (ledger `StockMovement` reason="production") e CONSOME a ficha técnica
+    /// (`-quantidade×quantity` de cada insumo, com guarda de estoque ≥ 0 e
+    /// ledger `InsumoMovement`). `production_id` torna os movimentos
+    /// idempotentes no sync. Erro se o produto for de estoque ilimitado, não
+    /// existir, ou faltar insumo. Default: não implementado.
+    async fn produce(
+        &self,
+        _company_id: Uuid,
+        _product_id: Uuid,
+        _quantity: f64,
+        _production_id: Uuid,
+    ) -> Result<(), CoreError> {
+        Err(CoreError::Repository("produce não implementado neste repositório".into()))
+    }
+
     /// Aplica `delta` ao estoque em uma única `UPDATE` atômica.
     /// Não toca produtos `unlimited_stock = true` (no-op).
     ///
