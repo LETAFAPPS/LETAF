@@ -93,6 +93,10 @@ pub struct AppState {
     pub admin_role_service: Arc<letaf_core::admin_role::service::AdminRoleService>,
     /// Rate limiter dos endpoints de autenticação (anti-brute-force §11).
     pub login_rate_limiter: Arc<crate::rate_limit::RateLimiter>,
+    /// Rate limiter da criação de pedido do cliente final (anti-spam/§11):
+    /// impede que um cliente autenticado dispare pedidos em rajada (drena
+    /// estoque, infla a fila, sonda limites de cupom). Separado do de login.
+    pub order_rate_limiter: Arc<crate::rate_limit::RateLimiter>,
 }
 
 /// Máx. de tentativas de auth por IP dentro da janela. Generoso para não
@@ -100,6 +104,11 @@ pub struct AppState {
 /// já encarece cada tentativa).
 const LOGIN_RATE_MAX: usize = 20;
 const LOGIN_RATE_WINDOW_SECS: u64 = 60;
+
+/// Máx. de pedidos por IP na janela. Folgado para o pico de um restaurante
+/// atrás de NAT, mas corta rajada automatizada.
+const ORDER_RATE_MAX: usize = 30;
+const ORDER_RATE_WINDOW_SECS: u64 = 60;
 
 impl AppState {
     #[allow(clippy::too_many_arguments)]
@@ -153,6 +162,10 @@ impl AppState {
             login_rate_limiter: Arc::new(crate::rate_limit::RateLimiter::new(
                 LOGIN_RATE_MAX,
                 std::time::Duration::from_secs(LOGIN_RATE_WINDOW_SECS),
+            )),
+            order_rate_limiter: Arc::new(crate::rate_limit::RateLimiter::new(
+                ORDER_RATE_MAX,
+                std::time::Duration::from_secs(ORDER_RATE_WINDOW_SECS),
             )),
             pool,
             config,

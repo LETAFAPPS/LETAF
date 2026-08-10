@@ -126,11 +126,25 @@ impl CustomerService {
         email: &str,
         password: &str,
     ) -> Result<Customer, CoreError> {
-        let customer = self.repo.find_by_email(company_id, email).await?
-            .ok_or_else(|| CoreError::Unauthorized("Credenciais inválidas".into()))?;
-        let hash = customer.password_hash.as_deref()
-            .ok_or_else(|| CoreError::Unauthorized("Cliente não possui senha cadastrada".into()))?;
-        let valid = crate::hashing::verify_password(password.to_string(), hash.to_string()).await?;
+        // Anti-enumeração (§11): mensagem ÚNICA para todos os casos de falha e
+        // tempo equalizado (verify_dummy quando não há conta/senha) — não vazar
+        // se o e-mail é cliente do tenant, nem marcar contas sem senha por
+        // mensagem/latência distinta.
+        let customer = match self.repo.find_by_email(company_id, email).await? {
+            Some(c) => c,
+            None => {
+                crate::hashing::verify_dummy(password.to_string()).await;
+                return Err(CoreError::Unauthorized("Credenciais inválidas".into()));
+            }
+        };
+        let hash = match customer.password_hash.as_deref() {
+            Some(h) => h.to_string(),
+            None => {
+                crate::hashing::verify_dummy(password.to_string()).await;
+                return Err(CoreError::Unauthorized("Credenciais inválidas".into()));
+            }
+        };
+        let valid = crate::hashing::verify_password(password.to_string(), hash).await?;
         if !valid {
             return Err(CoreError::Unauthorized("Credenciais inválidas".into()));
         }

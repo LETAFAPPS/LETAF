@@ -17,6 +17,7 @@ use crate::error::ServerError;
 use crate::jwt::{ROLES_OPERATORS, ROLE_ADMIN, ROLE_CUSTOMER, ROLE_EMPLOYEE};
 use crate::middleware::auth::AuthClaims;
 use crate::middleware::tenant::TenantContext;
+use crate::rate_limit::ClientIp;
 
 /// Rotas de pedidos.
 ///
@@ -110,9 +111,17 @@ async fn create_order(
     State(state): State<AppState>,
     auth: AuthClaims,
     tenant: TenantContext,
+    ip: ClientIp,
     Json(req): Json<CreateOrderRequest>,
 ) -> Result<(StatusCode, Json<OrderResponse>), ServerError> {
     auth.verify(tenant.company_id, ROLE_CUSTOMER)?;
+    // Anti-spam (§11): limita pedidos por IP. Sem isto, um cliente autenticado
+    // dispara pedidos em rajada (drena estoque, infla a fila, sonda cupom).
+    if !state.order_rate_limiter.check(ip.0) {
+        return Err(ServerError::TooManyRequests(
+            "Muitos pedidos em sequência. Aguarde alguns instantes.",
+        ));
+    }
     let customer_id = auth.0.sub;
 
     let company = state

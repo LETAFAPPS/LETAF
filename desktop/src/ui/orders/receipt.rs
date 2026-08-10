@@ -249,6 +249,17 @@ pub(crate) fn setup_print_receipt_now(
 ///
 /// Se o spooler falhar (ex.: impressora offline, nome inválido), o erro
 /// chega ao caller que mostra toast — o pedido não é perdido.
+/// Escapa uma string para uso DENTRO de aspas simples do PowerShell: `'`
+/// vira `''` (forma canônica). Sem isto, um nome de impressora com `'` (ou o
+/// caminho do temp com `'`) FECHA a string e injeta comando arbitrário no
+/// `-Command` (execução local, §11 — o frontend/entrada não é confiável).
+// Compilada em todos os SOs (os call sites usam `cfg!`, runtime — ambos os
+// ramos compilam); só é USADA no ramo Windows, daí o `allow(dead_code)`.
+#[allow(dead_code)]
+fn ps_quote(s: &str) -> String {
+    s.replace('\'', "''")
+}
+
 pub(crate) fn send_pdf_to_printer(
     bytes: &[u8],
     suffix: &str,
@@ -268,11 +279,11 @@ pub(crate) fn send_pdf_to_printer(
         let cmd = match printer_name {
             Some(n) => format!(
                 "Start-Process -FilePath '{}' -Verb PrintTo -ArgumentList '\"{}\"' -WindowStyle Hidden -Wait",
-                path.display(), n
+                ps_quote(&path.display().to_string()), ps_quote(n)
             ),
             None => format!(
                 "Start-Process -FilePath '{}' -Verb Print -WindowStyle Hidden -Wait",
-                path.display()
+                ps_quote(&path.display().to_string())
             ),
         };
         std::process::Command::new("powershell")
@@ -307,14 +318,17 @@ pub(crate) fn send_to_default_printer(
         .map_err(|e| format!("escrita do temp: {e}"))?;
     let status = if cfg!(target_os = "windows") {
         let cmd = match printer_name {
-            // Aspas simples no PowerShell evitam interpolação de `$` no
-            // nome da impressora. Não tratamos `'` no nome — operadores
-            // raramente cadastram impressora com aspas.
+            // Aspas simples no PowerShell evitam interpolação de `$`; `ps_quote`
+            // escapa `'` (→ `''`) no nome e no caminho, fechando a injeção de
+            // comando por nome de impressora malicioso (§11).
             Some(n) => format!(
                 "Get-Content -LiteralPath '{}' | Out-Printer -Name '{}'",
-                path.display(), n
+                ps_quote(&path.display().to_string()), ps_quote(n)
             ),
-            None => format!("Get-Content -LiteralPath '{}' | Out-Printer", path.display()),
+            None => format!(
+                "Get-Content -LiteralPath '{}' | Out-Printer",
+                ps_quote(&path.display().to_string())
+            ),
         };
         std::process::Command::new("powershell")
             .args(["-NoProfile", "-Command", &cmd])

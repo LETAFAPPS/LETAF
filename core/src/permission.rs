@@ -24,7 +24,14 @@ pub const FEATURES: &[(&str, &str, bool)] = &[
     ("reports", "Relatórios", false),
     ("pdv", "PDV", true),
     ("orders", "Pedidos", true),
-    ("cash", "Caixa", true),
+    // Caixa NÃO tem `edit`: operar o caixa (abrir/fechar/sangria) e as vendas
+    // do PDV lançam movimentos pelo MESMO endpoint de sync, gateado por
+    // `cash.view`. Um `cash.edit` separado existia no catálogo mas NUNCA era
+    // conferido — dava ao Admin a falsa impressão de um caixa "só leitura"
+    // (§11: a autoridade é o backend; a UI não pode prometer restrição
+    // inexistente). Um caixa somente-leitura real exigiria separar as escritas
+    // dirigidas por venda das operações manuais — feature futura, não um gate.
+    ("cash", "Caixa", false),
     ("finance", "Financeiro", true),
     ("products", "Produtos", true),
     ("stock", "Estoque", true),
