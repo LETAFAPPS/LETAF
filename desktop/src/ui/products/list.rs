@@ -239,6 +239,8 @@ fn fill_form_from_decoded(ui: &MainWindow, d: &DecodedProduct) {
     ui.global::<ProductsState>().invoke_load_discount_tiers(d.discount_tiers.clone());
     ui.global::<ProductsState>().invoke_load_product_addon_groups(d.addon_group_ids.clone());
     ui.global::<ProductsState>().invoke_load_product_ingredients(d.ingredients.clone());
+    // Galeria (loja): carrega os blobs por id (find_images no Rust).
+    ui.global::<ProductsState>().invoke_load_product_gallery(d.id.clone());
     ui.global::<ProductsState>().invoke_load_product_variations(d.variations.clone());
     ui.global::<ProductsState>().set_product_barcode(d.barcode.clone());
     ui.global::<ProductsState>().set_product_unit(d.unit.clone());

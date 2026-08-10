@@ -101,6 +101,10 @@ pub fn setup_callbacks(
     products::setup_add_ingredient(ui);
     products::setup_remove_ingredient(ui);
     products::setup_set_ingredient_insumo(ui);
+    // Galeria (loja): seletor de múltiplas imagens no form.
+    products::setup_load_product_gallery(ui, state, handle);
+    products::setup_add_gallery_image(ui, handle);
+    products::setup_remove_gallery_image(ui);
     products::setup_load_product_variations(ui);
     products::setup_add_variation(ui);
     products::setup_remove_variation(ui);

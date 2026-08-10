@@ -46,6 +46,7 @@ pub(crate) use filter::{
 pub(crate) use bulk::setup_bulk;
 pub(crate) use crud::{setup_add, setup_delete, setup_update_product};
 pub(crate) use ops::{
-    remove_product_from_model, setup_pick_product_image, setup_remove_product_image,
+    remove_product_from_model, setup_add_gallery_image, setup_load_product_gallery,
+    setup_pick_product_image, setup_remove_gallery_image, setup_remove_product_image,
     setup_sync_listener, setup_toggle_product_active, setup_toggle_web_visible,
 };

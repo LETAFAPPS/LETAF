@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use chrono::NaiveDateTime;
 use uuid::Uuid;
 
-use super::model::{Product, ProductIngredient};
+use super::model::{Product, ProductImage, ProductIngredient};
 use super::stock_movement::StockMovement;
 use crate::error::CoreError;
 
@@ -129,6 +129,38 @@ pub trait ProductRepository: Send + Sync {
         product_id: Uuid,
         ingredients: &[ProductIngredient],
     ) -> Result<(), CoreError>;
+
+    /// Lê as imagens ADICIONAIS (galeria) do produto, em ordem `sort_order`.
+    /// Default vazio (impls sem galeria, ex.: mock de teste, não precisam).
+    async fn find_images(
+        &self,
+        _company_id: Uuid,
+        _product_id: Uuid,
+    ) -> Result<Vec<ProductImage>, CoreError> {
+        Ok(Vec::new())
+    }
+
+    /// Substitui completamente a galeria do produto (DELETE + INSERT),
+    /// preservando a ordem do vetor como `sort_order`. Default no-op.
+    async fn replace_images(
+        &self,
+        _company_id: Uuid,
+        _product_id: Uuid,
+        _images: &[ProductImage],
+    ) -> Result<(), CoreError> {
+        Ok(())
+    }
+
+    /// `image_data` (base64) da imagem de galeria na posição `index`
+    /// (`sort_order`), para a rota de mídia do cardápio. Default `None`.
+    async fn find_gallery_image_data(
+        &self,
+        _company_id: Uuid,
+        _product_id: Uuid,
+        _index: i32,
+    ) -> Result<Option<String>, CoreError> {
+        Ok(None)
+    }
 
     /// Aplica `delta` ao estoque em uma única `UPDATE` atômica.
     /// Não toca produtos `unlimited_stock = true` (no-op).

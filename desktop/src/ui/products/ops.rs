@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 use std::sync::Arc;
 
-use slint::{ComponentHandle, Model, SharedString, VecModel};
+use slint::{ComponentHandle, Model, ModelRc, SharedString, VecModel};
 use tokio::sync::{watch, Notify};
 use uuid::Uuid;
 
@@ -15,7 +15,7 @@ use super::super::image::{
 };
 use super::state::DecodedProduct;
 use super::data::{parse_hex_color, update_detail_product_flag, update_product_flag};
-use crate::ProductsState;
+use crate::{GalleryImage, ProductsState};
 
 /// Listener leve do worker — atualiza apenas o flag `synced` (e o
 /// `sync-label`) na lista e no `detail-product` quando o worker fecha
@@ -398,6 +398,92 @@ pub(crate) fn setup_toggle_web_visible(
                     });
                 }
             }
+        });
+    });
+}
+
+// ── Galeria de imagens (recurso da "loja") ──────────────────────────────────
+
+/// Adiciona uma imagem à galeria: abre o seletor, processa (base64) e anexa
+/// à lista `product-gallery`. A persistência ocorre no "Salvar" (crud.rs).
+pub(crate) fn setup_add_gallery_image(ui: &MainWindow, handle: &tokio::runtime::Handle) {
+    let ui_weak = ui.as_weak();
+    let handle = handle.clone();
+    ui.global::<ProductsState>().on_add_gallery_image(move || {
+        let ui_weak = ui_weak.clone();
+        handle.spawn_blocking(move || {
+            let Some(path) = pick_image_file() else { return };
+            let Some((encoded, _cover)) = process_product_image(&path) else { return };
+            let pixel_buf = decode_pixel_buffer(&encoded);
+            let _ = slint::invoke_from_event_loop(move || {
+                let Some(ui) = ui_weak.upgrade() else { return };
+                let img = pixel_buf.map(slint::Image::from_rgba8).unwrap_or_default();
+                let model = ui.global::<ProductsState>().get_product_gallery();
+                if let Some(vm) = model.as_any().downcast_ref::<VecModel<GalleryImage>>() {
+                    vm.push(GalleryImage { data: SharedString::from(encoded), image: img });
+                }
+            });
+        });
+    });
+}
+
+/// Remove a imagem da galeria na posição `idx`.
+pub(crate) fn setup_remove_gallery_image(ui: &MainWindow) {
+    let ui_weak = ui.as_weak();
+    ui.global::<ProductsState>().on_remove_gallery_image(move |idx| {
+        let Some(ui) = ui_weak.upgrade() else { return };
+        let model = ui.global::<ProductsState>().get_product_gallery();
+        if let Some(vm) = model.as_any().downcast_ref::<VecModel<GalleryImage>>() {
+            if idx >= 0 && (idx as usize) < vm.row_count() {
+                vm.remove(idx as usize);
+            }
+        }
+    });
+}
+
+/// Carrega a galeria do produto ao abrir o form (id vazio = limpa). Busca os
+/// blobs via `find_images` e decodifica para preview.
+pub(crate) fn setup_load_product_gallery(
+    ui: &MainWindow,
+    state: &DesktopState,
+    handle: &tokio::runtime::Handle,
+) {
+    let state = state.clone();
+    let handle = handle.clone();
+    let ui_weak = ui.as_weak();
+    ui.global::<ProductsState>().on_load_product_gallery(move |id| {
+        let state = state.clone();
+        let ui_weak = ui_weak.clone();
+        let id = id.to_string();
+        handle.spawn(async move {
+            let images = match Uuid::parse_str(&id) {
+                Ok(pid) => state
+                    .product_service
+                    .find_images(state.company_id(), pid)
+                    .await
+                    .unwrap_or_default(),
+                Err(_) => Vec::new(), // produto novo: galeria vazia
+            };
+            // Decodifica para SharedPixelBuffer (Send) FORA do event loop; a
+            // `slint::Image` (não-Send) só é criada dentro do loop.
+            let decoded: Vec<(String, Option<slint::SharedPixelBuffer<slint::Rgba8Pixel>>)> = images
+                .into_iter()
+                .map(|img| {
+                    let buf = decode_pixel_buffer(&img.image_data);
+                    (img.image_data, buf)
+                })
+                .collect();
+            let _ = slint::invoke_from_event_loop(move || {
+                let Some(ui) = ui_weak.upgrade() else { return };
+                let rows: Vec<GalleryImage> = decoded
+                    .into_iter()
+                    .map(|(data, buf)| GalleryImage {
+                        data: SharedString::from(data),
+                        image: buf.map(slint::Image::from_rgba8).unwrap_or_default(),
+                    })
+                    .collect();
+                ui.global::<ProductsState>().set_product_gallery(ModelRc::new(VecModel::from(rows)));
+            });
         });
     });
 }

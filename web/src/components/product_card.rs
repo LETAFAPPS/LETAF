@@ -17,7 +17,15 @@ pub fn ProductCard(product: CatalogProduct) -> impl IntoView {
     let has_disc = discount::has_active_unit_discount(&product, 1.0);
     let seal = discount::discount_badge_label(&product);
 
-    let img = product.image_url.clone();
+    // Galeria (loja): usa image_urls quando houver; senão cai na principal.
+    let images: Vec<String> = if product.image_urls.is_empty() {
+        product.image_url.clone().map(|u| vec![u]).unwrap_or_default()
+    } else {
+        product.image_urls.clone()
+    };
+    let n_imgs = images.len();
+    let images_sv = StoredValue::new(images);
+    let (img_idx, set_img_idx) = signal(0usize);
     let bg = product
         .cover_color
         .clone()
@@ -66,9 +74,31 @@ pub fn ProductCard(product: CatalogProduct) -> impl IntoView {
     view! {
         <article class="product-card">
             <div class="product-img" style=format!("background:{bg};")>
-                {match img {
-                    Some(src) => view! { <img src=src alt=alt loading="lazy"/> }.into_any(),
-                    None => view! { <span class="no-image">"sem imagem"</span> }.into_any(),
+                {if n_imgs == 0 {
+                    view! { <span class="no-image">"sem imagem"</span> }.into_any()
+                } else if n_imgs == 1 {
+                    let src = images_sv.with_value(|v| v[0].clone());
+                    view! { <img src=src alt=alt loading="lazy"/> }.into_any()
+                } else {
+                    // Carrossel: imagem corrente + navegação + bolinhas.
+                    view! {
+                        <img
+                            src=move || images_sv.with_value(|v| v[img_idx.get().min(v.len() - 1)].clone())
+                            alt=alt loading="lazy"/>
+                        <button class="carousel-nav prev" aria-label="Anterior"
+                            on:click=move |_| set_img_idx.update(|i| *i = (*i + n_imgs - 1) % n_imgs)>
+                            "‹"
+                        </button>
+                        <button class="carousel-nav next" aria-label="Próxima"
+                            on:click=move |_| set_img_idx.update(|i| *i = (*i + 1) % n_imgs)>
+                            "›"
+                        </button>
+                        <div class="carousel-dots">
+                            {(0..n_imgs).map(|k| view! {
+                                <span class="dot" class:dot-on=move || img_idx.get() == k></span>
+                            }).collect_view()}
+                        </div>
+                    }.into_any()
                 }}
                 {seal.map(|s| view! { <span class="discount-seal">{s}</span> })}
                 <button class="fav" class:fav-on=is_fav on:click=toggle aria-label="Favoritar">

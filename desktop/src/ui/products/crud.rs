@@ -1,9 +1,10 @@
 use std::sync::Arc;
 
-use slint::{ComponentHandle, SharedString};
+use slint::{ComponentHandle, Model, SharedString};
 use tokio::sync::Notify;
 use uuid::Uuid;
 
+use letaf_core::product::model::ProductImage;
 
 use crate::context::DesktopState;
 use crate::MainWindow;
@@ -15,6 +16,17 @@ use super::list::{decoded_from_components, upsert_decoded_in_cache};
 use super::form::{read_product_form, validate_product_form};
 use super::data::{build_product_data_from_product, push_product_to_model, replace_product_in_model};
 use crate::ProductsState;
+
+/// Lê a galeria (imagens adicionais) do form → base64. Só a "loja" mostra o
+/// card; para os demais tipos a lista vem vazia (nada a persistir).
+fn read_gallery_images(ui: &MainWindow) -> Vec<ProductImage> {
+    let model = ui.global::<ProductsState>().get_product_gallery();
+    (0..model.row_count())
+        .filter_map(|i| model.row_data(i))
+        .map(|g| ProductImage { image_data: g.data.to_string() })
+        .filter(|img| !img.image_data.is_empty())
+        .collect()
+}
 
 /// Callback: cria um novo produto e atualiza a lista.
 ///
@@ -40,6 +52,7 @@ pub(crate) fn setup_add(
         }
 
         let form = read_product_form(&ui_ref);
+        let gallery = read_gallery_images(&ui_ref);
         let cat_name = ui_ref.global::<ProductsState>().get_product_category_name().to_string();
         let sub_name = ui_ref.global::<ProductsState>().get_product_subcategory_name().to_string();
 
@@ -63,6 +76,14 @@ pub(crate) fn setup_add(
                     form.variations,
                 )
                 .await;
+
+            // Galeria (loja): persiste as imagens adicionais após salvar o
+            // produto (o create/update já marcou para sincronizar).
+            if let Ok(p) = result.as_ref() {
+                if let Err(e) = state.product_service.replace_images(state.company_id(), p.base.id, gallery).await {
+                    tracing::error!("Falha ao salvar galeria do produto {}: {e}", p.base.id);
+                }
+            }
 
             if result.is_ok() { notify.notify_one(); }
 
@@ -131,6 +152,7 @@ pub(crate) fn setup_update_product(
         let id_str = ui_ref.get_editing_id().to_string();
         let Ok(id) = Uuid::parse_str(&id_str) else { return };
         let form = read_product_form(&ui_ref);
+        let gallery = read_gallery_images(&ui_ref);
         let cat_name = ui_ref.global::<ProductsState>().get_product_category_name().to_string();
         let sub_name = ui_ref.global::<ProductsState>().get_product_subcategory_name().to_string();
         let id_ss = SharedString::from(id_str.as_str());
@@ -156,6 +178,14 @@ pub(crate) fn setup_update_product(
                     form.variations,
                 )
                 .await;
+
+            // Galeria (loja): persiste as imagens adicionais após salvar o
+            // produto (o create/update já marcou para sincronizar).
+            if let Ok(p) = result.as_ref() {
+                if let Err(e) = state.product_service.replace_images(state.company_id(), p.base.id, gallery).await {
+                    tracing::error!("Falha ao salvar galeria do produto {}: {e}", p.base.id);
+                }
+            }
 
             if result.is_ok() { notify.notify_one(); }
 

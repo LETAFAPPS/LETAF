@@ -260,6 +260,13 @@ export struct IngredientRowData {
     unit: string,
 }
 
+// Imagem da galeria (recurso da loja): base64 p/ persistir + a imagem
+// decodificada p/ exibir a miniatura no form.
+export struct GalleryImage {
+    data: string,       // base64 (persistido em product_images)
+    image: image,       // decodificada para preview
+}
+
 export struct ProductData {
     id: string,
     name: string,

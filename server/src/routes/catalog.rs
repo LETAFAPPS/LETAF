@@ -32,6 +32,7 @@ pub fn routes() -> Router<AppState> {
         // cache longo, tenant pelo Host. Requer que o proxy roteie
         // `/catalog/*` para a API (mesmo bloco dos demais /catalog).
         .route("/catalog/media/product/{id}", get(media_product))
+        .route("/catalog/media/product/{id}/gallery/{index}", get(media_product_gallery))
         .route("/catalog/media/banner/{id}", get(media_banner))
         .route("/catalog/media/logo", get(media_logo))
         .route("/catalog/media/cover", get(media_cover))
@@ -67,6 +68,22 @@ async fn media_product(
     let data = state
         .product_service
         .find_image_data(tenant.company_id, id)
+        .await
+        .ok()
+        .flatten();
+    media_response(data)
+}
+
+/// GET /catalog/media/product/{id}/gallery/{index} — imagem ADICIONAL
+/// (galeria, recurso da loja) do produto, na posição `index` (base 0).
+async fn media_product_gallery(
+    State(state): State<AppState>,
+    tenant: TenantContext,
+    Path((id, index)): Path<(Uuid, i32)>,
+) -> Response {
+    let data = state
+        .product_service
+        .find_gallery_image_data(tenant.company_id, id, index)
         .await
         .ok()
         .flatten();
@@ -236,6 +253,10 @@ struct CatalogProduct {
     /// URL relativa da imagem (`/catalog/media/product/{id}?v=...`) ou `None`
     /// quando o produto não tem imagem. Substitui o base64 inline (SEO/LCP).
     image_url: Option<String>,
+    /// Galeria (recurso da loja): imagem principal + adicionais, em ordem.
+    /// URLs de mídia servidas pela API. Vazio quando não há imagem alguma.
+    /// O cardápio monta um carrossel quando há mais de uma.
+    image_urls: Vec<String>,
     /// Cor de fundo detectada nas bordas da imagem do produto (`#RRGGBB`).
     /// `None` quando a imagem é transparente ou indetectável — a UI cai no
     /// fundo padrão do tema (igual ao placeholder).
@@ -416,6 +437,18 @@ async fn list_products(
             .image_data
             .as_ref()
             .map(|_| media_url(&format!("product/{}", p.base.id), p.base.updated_at));
+        // Galeria (loja): principal + adicionais (p.images vem só com a
+        // CONTAGEM de sentinelas em find_active). Ordem: principal, extras.
+        let mut image_urls: Vec<String> = Vec::new();
+        if image_url.is_some() {
+            image_urls.push(media_url(&format!("product/{}", p.base.id), p.base.updated_at));
+        }
+        for idx in 0..p.images.len() {
+            image_urls.push(media_url(
+                &format!("product/{}/gallery/{}", p.base.id, idx),
+                p.base.updated_at,
+            ));
+        }
         catalog.push(CatalogProduct {
             id: p.base.id,
             name: p.name,
@@ -427,6 +460,7 @@ async fn list_products(
             category_id: p.category_id,
             subcategory_id: p.subcategory_id,
             image_url,
+            image_urls,
             cover_color: safe_hex_color(p.cover_color),
             availability_schedule: p.availability_schedule,
             discount_kind: p.discount_kind,

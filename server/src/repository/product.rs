@@ -7,7 +7,7 @@ use uuid::Uuid;
 
 use letaf_core::entity::BaseFields;
 use letaf_core::error::CoreError;
-use letaf_core::product::model::{BalanceMode, Product, ProductIngredient};
+use letaf_core::product::model::{BalanceMode, Product, ProductImage, ProductIngredient};
 use letaf_core::product::repository::{ProductRepository, StockAdjustResult};
 use letaf_core::product::stock_movement::StockMovement;
 
@@ -126,6 +126,7 @@ impl From<ProductRow> for Product {
             // — não vem na linha de products.
             addon_group_ids: Vec::new(),
             ingredients: Vec::new(),
+            images: Vec::new(),
             variations: r.variations,
         }
     }
@@ -202,6 +203,57 @@ impl PgProductRepository {
         }
         Ok(())
     }
+
+    /// Carrega as imagens ADICIONAIS (galeria) para uma lista de produtos em 1
+    /// query. Usado só nos caminhos de sync (pull) — NÃO no catálogo (§13: o
+    /// cardápio usa a rota de mídia por índice, sem puxar os blobs na lista).
+    async fn hydrate_images(&self, company_id: Uuid, products: &mut [Product]) -> Result<(), CoreError> {
+        if products.is_empty() { return Ok(()); }
+        let ids: Vec<Uuid> = products.iter().map(|p| p.base.id).collect();
+        let rows: Vec<(Uuid, String)> = sqlx::query_as(
+            "SELECT product_id, image_data FROM product_images
+             WHERE company_id = $1 AND product_id = ANY($2)
+             ORDER BY sort_order ASC",
+        )
+        .bind(company_id)
+        .bind(&ids)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(map_db)?;
+        let mut by_product: std::collections::HashMap<Uuid, Vec<ProductImage>> =
+            std::collections::HashMap::new();
+        for (pid, image_data) in rows {
+            by_product.entry(pid).or_default().push(ProductImage { image_data });
+        }
+        for p in products.iter_mut() {
+            p.images = by_product.remove(&p.base.id).unwrap_or_default();
+        }
+        Ok(())
+    }
+
+    /// Só a CONTAGEM de imagens da galeria por produto (SEM os blobs), para o
+    /// catálogo montar as URLs de mídia por índice. Preenche `p.images` com N
+    /// sentinelas ("1") — o cardápio usa apenas `images.len()`.
+    async fn hydrate_image_sentinels(&self, company_id: Uuid, products: &mut [Product]) -> Result<(), CoreError> {
+        if products.is_empty() { return Ok(()); }
+        let ids: Vec<Uuid> = products.iter().map(|p| p.base.id).collect();
+        let rows: Vec<(Uuid, i64)> = sqlx::query_as(
+            "SELECT product_id, COUNT(*) FROM product_images
+             WHERE company_id = $1 AND product_id = ANY($2)
+             GROUP BY product_id",
+        )
+        .bind(company_id)
+        .bind(&ids)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(map_db)?;
+        let counts: std::collections::HashMap<Uuid, i64> = rows.into_iter().collect();
+        for p in products.iter_mut() {
+            let n = counts.get(&p.base.id).copied().unwrap_or(0).max(0) as usize;
+            p.images = (0..n).map(|_| ProductImage { image_data: "1".into() }).collect();
+        }
+        Ok(())
+    }
 }
 
 #[async_trait]
@@ -219,6 +271,7 @@ impl ProductRepository for PgProductRepository {
         let mut product = Product::from(row);
         product.addon_group_ids = self.find_addon_group_ids(company_id, product.base.id).await?;
         product.ingredients = self.find_ingredients(company_id, product.base.id).await?;
+        product.images = self.find_images(company_id, product.base.id).await?;
         Ok(Some(product))
     }
 
@@ -541,6 +594,9 @@ impl ProductRepository for PgProductRepository {
         let mut products: Vec<Product> = rows.into_iter().map(Product::from).collect();
         self.hydrate_addon_group_ids(company_id, &mut products).await?;
         self.hydrate_ingredients(company_id, &mut products).await?;
+        // Galeria: só a CONTAGEM (sentinelas), sem blobs — o cardápio monta as
+        // URLs de mídia por índice (§13). Cada entrada vira uma imagem extra.
+        self.hydrate_image_sentinels(company_id, &mut products).await?;
         Ok(products)
     }
 
@@ -603,6 +659,7 @@ impl ProductRepository for PgProductRepository {
         let mut products: Vec<Product> = rows.into_iter().map(Product::from).collect();
         self.hydrate_addon_group_ids(company_id, &mut products).await?;
         self.hydrate_ingredients(company_id, &mut products).await?;
+        self.hydrate_images(company_id, &mut products).await?;
         Ok(products)
     }
 
@@ -625,6 +682,7 @@ impl ProductRepository for PgProductRepository {
         let mut products: Vec<Product> = rows.into_iter().map(Product::from).collect();
         self.hydrate_addon_group_ids(company_id, &mut products).await?;
         self.hydrate_ingredients(company_id, &mut products).await?;
+        self.hydrate_images(company_id, &mut products).await?;
         Ok(products)
     }
 
@@ -722,6 +780,69 @@ impl ProductRepository for PgProductRepository {
         }
         tx.commit().await.map_err(map_db)?;
         Ok(())
+    }
+
+    async fn find_images(&self, company_id: Uuid, product_id: Uuid) -> Result<Vec<ProductImage>, CoreError> {
+        let rows: Vec<(String,)> = sqlx::query_as(
+            "SELECT image_data FROM product_images
+             WHERE company_id = $1 AND product_id = $2
+             ORDER BY sort_order ASC",
+        )
+        .bind(company_id)
+        .bind(product_id)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(map_db)?;
+        Ok(rows.into_iter().map(|(image_data,)| ProductImage { image_data }).collect())
+    }
+
+    async fn replace_images(
+        &self,
+        company_id: Uuid,
+        product_id: Uuid,
+        images: &[ProductImage],
+    ) -> Result<(), CoreError> {
+        let mut tx = self.pool.begin().await.map_err(map_db)?;
+        sqlx::query("DELETE FROM product_images WHERE company_id = $1 AND product_id = $2")
+            .bind(company_id)
+            .bind(product_id)
+            .execute(&mut *tx)
+            .await
+            .map_err(map_db)?;
+        for (idx, img) in images.iter().enumerate() {
+            sqlx::query(
+                "INSERT INTO product_images (company_id, product_id, sort_order, image_data)
+                 VALUES ($1, $2, $3, $4)",
+            )
+            .bind(company_id)
+            .bind(product_id)
+            .bind(idx as i32)
+            .bind(&img.image_data)
+            .execute(&mut *tx)
+            .await
+            .map_err(map_db)?;
+        }
+        tx.commit().await.map_err(map_db)?;
+        Ok(())
+    }
+
+    async fn find_gallery_image_data(
+        &self,
+        company_id: Uuid,
+        product_id: Uuid,
+        index: i32,
+    ) -> Result<Option<String>, CoreError> {
+        let row: Option<(String,)> = sqlx::query_as(
+            "SELECT image_data FROM product_images
+             WHERE company_id = $1 AND product_id = $2 AND sort_order = $3",
+        )
+        .bind(company_id)
+        .bind(product_id)
+        .bind(index)
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(map_db)?;
+        Ok(row.map(|(d,)| d))
     }
 
     /// UPDATE atômico: ajusta o estoque numa única query, eliminando

@@ -1282,6 +1282,63 @@ export component ProductFormPage inherits VerticalLayout {
             //   monta a lista final ao salvar.
             // - Sem este card o produto sai sem adicionais (caminho
             //   padrão para itens sem complementos).
+            // ── Galeria de imagens (só "loja") ───────────────────────
+            // Imagens ADICIONAIS do produto, exibidas como carrossel no
+            // cardápio. Gateada pelo tipo de empresa (ProductsState.business-type).
+            if ProductsState.business-type == "loja": Card {
+                vertical-stretch: 0;
+                border-radius: 10px;
+                VerticalLayout {
+                    padding: 16px;
+                    spacing: 10px;
+                    Text { text: "Galeria (mais imagens)"; font-size: 14px; font-weight: 700; color: Theme.text-primary; }
+                    Text {
+                        text: "Imagens adicionais além da principal — exibidas como carrossel no cardápio.";
+                        font-size: 11px; color: Theme.text-secondary; wrap: word-wrap;
+                    }
+                    if ProductsState.product-gallery.length == 0: Text {
+                        text: "Nenhuma imagem adicional.";
+                        font-size: 12px; color: Theme.text-secondary;
+                    }
+                    // Miniaturas com botão de remover.
+                    HorizontalLayout {
+                        spacing: 8px;
+                        alignment: start;
+                        for img[idx] in ProductsState.product-gallery: Rectangle {
+                            width: 72px; height: 72px;
+                            border-radius: 8px; clip: true;
+                            border-width: 1px; border-color: Theme.border;
+                            Image {
+                                width: 100%; height: 100%;
+                                image-fit: cover;
+                                source: img.image;
+                            }
+                            rm := TouchArea {
+                                width: 22px; height: 22px;
+                                x: parent.width - self.width - 2px; y: 2px;
+                                clicked => { ProductsState.remove-gallery-image(idx); }
+                                Rectangle {
+                                    border-radius: 11px;
+                                    background: rm.has-hover ? Theme.danger : #00000088;
+                                    Text {
+                                        text: "✕"; color: white; font-size: 12px; font-weight: 700;
+                                        horizontal-alignment: center; vertical-alignment: center;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    HorizontalLayout {
+                        alignment: start;
+                        OutlineBtn {
+                            label: "Adicionar imagem";
+                            width: 170px; height: 38px;
+                            clicked => { ProductsState.add-gallery-image(); }
+                        }
+                    }
+                }
+            }
+
             // ── Ficha técnica (Insumos) ──────────────────────────────
             // Acessa o ProductsState direto (sem prop-drilling): lista de
             // linhas insumo+quantidade + dropdown alimentado pelas opções.

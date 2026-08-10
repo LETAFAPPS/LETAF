@@ -10,7 +10,7 @@
 // Acesso: no Slint, `ProductsState.<prop>`; no Rust,
 // `ui.global::<ProductsState>().set_<prop>()` / `.on_<callback>()`.
 // Logica em desktop/src/ui/products.
-import { AddonGroupData, BusinessHoursData, CategoryFilterEntry, DiscountTierData, ProductData, SubcategoryFilterEntry, VariationData, IngredientRowData, IngredientOption } from "../types.slint";
+import { AddonGroupData, BusinessHoursData, CategoryFilterEntry, DiscountTierData, ProductData, SubcategoryFilterEntry, VariationData, IngredientRowData, IngredientOption, GalleryImage } from "../types.slint";
 
 export global ProductsState {
     // Tipo de empresa (slug do tema: restaurante|loja|fabrica) da empresa
@@ -90,6 +90,12 @@ export global ProductsState {
     callback remove-ingredient(int);
     callback set-ingredient-insumo(int, string);
     callback load-product-ingredients(string);
+    // Galeria (loja): imagens adicionais do produto. `data` (base64) persiste;
+    // `image` é o preview. Adicionar abre o seletor de arquivo (Rust).
+    in-out property <[GalleryImage]> product-gallery: [];
+    callback add-gallery-image();
+    callback remove-gallery-image(int);
+    callback load-product-gallery(string);   // product_id (vazio = limpa)
 
     callback add-product();
     callback update-product();

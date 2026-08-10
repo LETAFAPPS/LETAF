@@ -66,6 +66,16 @@ pub struct ProductIngredient {
     pub quantity: f64,
 }
 
+/// Imagem ADICIONAL da galeria do produto (recurso da "loja"). A imagem
+/// principal continua em `Product.image_data`; estas são extras, exibidas
+/// como carrossel no cardápio. Base64 (mesmo formato de `image_data`).
+/// Persistida na tabela `product_images` (viaja junto do produto no sync,
+/// como `ingredients`). Ordem = posição no vetor (`sort_order` no banco).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProductImage {
+    pub image_data: String,
+}
+
 /// Entidade Produto — item comercializado pela empresa.
 ///
 /// Regras aplicadas (AI_RULES.md §6, §11):
@@ -187,6 +197,11 @@ pub struct Product {
     /// produto no sync, como `addon_group_ids`). Vazia = produto sem receita.
     #[serde(default)]
     pub ingredients: Vec<ProductIngredient>,
+    /// Imagens ADICIONAIS (galeria) — recurso da "loja". A principal é
+    /// `image_data`; estas viajam junto do produto no sync (tabela
+    /// `product_images`). Vazio = só a imagem principal.
+    #[serde(default)]
+    pub images: Vec<ProductImage>,
     /// Variações do produto (Fase 5): "Tamanho", "Sabor" etc. JSON
     /// `[{title, selection, required, options:[{name, price}]}]`.
     /// Diferente dos adicionais, é **per-produto** (não compartilhada),
@@ -259,6 +274,7 @@ impl Product {
             // após o create — não cabem no construtor in-memory.
             addon_group_ids: Vec::new(),
             ingredients: Vec::new(),
+            images: Vec::new(),
             variations: None,
         }
     }

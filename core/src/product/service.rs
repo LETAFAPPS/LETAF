@@ -4,7 +4,7 @@ use rust_decimal_macros::dec;
 
 use uuid::Uuid;
 
-use super::model::{BalanceMode, Product, ProductIngredient};
+use super::model::{BalanceMode, Product, ProductImage, ProductIngredient};
 use super::repository::ProductRepository;
 use super::stock_movement::StockMovement;
 use crate::error::CoreError;
@@ -34,6 +34,17 @@ impl ProductService {
     /// Só o `image_data` (rota de mídia do catálogo, §13).
     pub async fn find_image_data(&self, company_id: Uuid, id: Uuid) -> Result<Option<String>, CoreError> {
         self.repo.find_image_data(company_id, id).await
+    }
+
+    /// `image_data` da imagem de galeria na posição `index` (rota de mídia
+    /// do cardápio, recurso da loja).
+    pub async fn find_gallery_image_data(&self, company_id: Uuid, product_id: Uuid, index: i32) -> Result<Option<String>, CoreError> {
+        self.repo.find_gallery_image_data(company_id, product_id, index).await
+    }
+
+    /// Galeria (imagens adicionais) do produto — usada ao abrir o form (loja).
+    pub async fn find_images(&self, company_id: Uuid, product_id: Uuid) -> Result<Vec<ProductImage>, CoreError> {
+        self.repo.find_images(company_id, product_id).await
     }
 
     /// Total de registros ativos da empresa (painel do super admin).
@@ -748,6 +759,7 @@ impl ProductService {
         product.base.synced = true;
         let group_ids = product.addon_group_ids.clone();
         let ingredients = product.ingredients.clone();
+        let images = product.images.clone();
         let product_id = product.base.id;
         let incoming_updated_at = product.base.updated_at;
         // Lê o existente ANTES do upsert para comparar.
@@ -763,7 +775,21 @@ impl ProductService {
         if won {
             self.repo.replace_addon_groups(company_id, product_id, &group_ids).await?;
             self.repo.replace_ingredients(company_id, product_id, &ingredients).await?;
+            self.repo.replace_images(company_id, product_id, &images).await?;
         }
         Ok(())
+    }
+
+    /// Substitui as imagens ADICIONAIS (galeria) do produto (recurso da loja).
+    /// Chamado à parte do `update` (não é transacional-crítico como estoque);
+    /// o `update` do produto (sempre feito no save do form) já marca
+    /// `synced=false`, então as imagens novas viajam no próximo sync.
+    pub async fn replace_images(
+        &self,
+        company_id: Uuid,
+        product_id: Uuid,
+        images: Vec<ProductImage>,
+    ) -> Result<(), CoreError> {
+        self.repo.replace_images(company_id, product_id, &images).await
     }
 }

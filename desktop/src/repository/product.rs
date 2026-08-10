@@ -6,7 +6,7 @@ use uuid::Uuid;
 
 use letaf_core::entity::BaseFields;
 use letaf_core::error::CoreError;
-use letaf_core::product::model::{BalanceMode, Product, ProductIngredient};
+use letaf_core::product::model::{BalanceMode, Product, ProductImage, ProductIngredient};
 use letaf_core::product::repository::{ProductRepository, StockAdjustResult};
 use letaf_core::product::stock_movement::StockMovement;
 
@@ -87,6 +87,7 @@ impl TryFrom<ProductRow> for Product {
             discount_tiers: r.discount_tiers,
             addon_group_ids: Vec::new(),
             ingredients: Vec::new(),
+            images: Vec::new(),
             variations: r.variations,
         })
     }
@@ -187,6 +188,31 @@ impl SqliteProductRepository {
         }
         Ok(())
     }
+
+    /// Carrega a galeria (imagens adicionais) para uma lista de produtos em 1
+    /// query. Só nos caminhos de sync (push) — os blobs viajam junto.
+    async fn hydrate_images(&self, company_id: Uuid, products: &mut [Product]) -> Result<(), CoreError> {
+        if products.is_empty() { return Ok(()); }
+        let rows: Vec<(String, String)> = sqlx::query_as(
+            "SELECT product_id, image_data FROM product_images
+             WHERE company_id = ?1 ORDER BY sort_order ASC",
+        )
+        .bind(company_id.to_string())
+        .fetch_all(&self.pool)
+        .await
+        .map_err(map_db)?;
+        let mut parsed: Vec<(Uuid, String)> = Vec::with_capacity(rows.len());
+        for (pid, data) in rows {
+            parsed.push((parse_uuid(&pid)?, data));
+        }
+        for p in products.iter_mut() {
+            p.images = parsed.iter()
+                .filter(|(pid, _)| *pid == p.base.id)
+                .map(|(_, data)| ProductImage { image_data: data.clone() })
+                .collect();
+        }
+        Ok(())
+    }
 }
 
 #[async_trait]
@@ -205,6 +231,7 @@ impl ProductRepository for SqliteProductRepository {
         let mut product = Product::try_from(row)?;
         product.addon_group_ids = self.find_addon_group_ids(company_id, product.base.id).await?;
         product.ingredients = self.find_ingredients(company_id, product.base.id).await?;
+        product.images = self.find_images(company_id, product.base.id).await?;
         Ok(Some(product))
     }
 
@@ -508,6 +535,8 @@ impl ProductRepository for SqliteProductRepository {
             .collect::<Result<_, _>>()?;
         self.hydrate_addon_group_ids(company_id, &mut products).await?;
         self.hydrate_ingredients(company_id, &mut products).await?;
+        // Galeria (loja) viaja junto do produto no push — carrega os blobs.
+        self.hydrate_images(company_id, &mut products).await?;
         Ok(products)
     }
 
@@ -681,6 +710,50 @@ impl ProductRepository for SqliteProductRepository {
             .bind(ing.insumo_id.to_string())
             .bind(ing.quantity)
             .bind(idx as i32)
+            .execute(&mut *tx)
+            .await
+            .map_err(map_db)?;
+        }
+        tx.commit().await.map_err(map_db)?;
+        Ok(())
+    }
+
+    async fn find_images(&self, company_id: Uuid, product_id: Uuid) -> Result<Vec<ProductImage>, CoreError> {
+        let rows: Vec<(String,)> = sqlx::query_as(
+            "SELECT image_data FROM product_images
+             WHERE company_id = ?1 AND product_id = ?2
+             ORDER BY sort_order ASC",
+        )
+        .bind(company_id.to_string())
+        .bind(product_id.to_string())
+        .fetch_all(&self.pool)
+        .await
+        .map_err(map_db)?;
+        Ok(rows.into_iter().map(|(image_data,)| ProductImage { image_data }).collect())
+    }
+
+    async fn replace_images(
+        &self,
+        company_id: Uuid,
+        product_id: Uuid,
+        images: &[ProductImage],
+    ) -> Result<(), CoreError> {
+        let mut tx = self.pool.begin().await.map_err(map_db)?;
+        sqlx::query("DELETE FROM product_images WHERE company_id = ?1 AND product_id = ?2")
+            .bind(company_id.to_string())
+            .bind(product_id.to_string())
+            .execute(&mut *tx)
+            .await
+            .map_err(map_db)?;
+        for (idx, img) in images.iter().enumerate() {
+            sqlx::query(
+                "INSERT OR REPLACE INTO product_images (company_id, product_id, sort_order, image_data)
+                 VALUES (?1, ?2, ?3, ?4)",
+            )
+            .bind(company_id.to_string())
+            .bind(product_id.to_string())
+            .bind(idx as i32)
+            .bind(&img.image_data)
             .execute(&mut *tx)
             .await
             .map_err(map_db)?;

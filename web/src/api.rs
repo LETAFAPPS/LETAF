@@ -137,6 +137,9 @@ pub struct CatalogProduct {
     /// URL relativa da imagem (`/catalog/media/product/{id}?v=...`).
     #[serde(default)]
     pub image_url: Option<String>,
+    /// Galeria (loja): principal + adicionais, em ordem. Carrossel quando > 1.
+    #[serde(default)]
+    pub image_urls: Vec<String>,
     #[serde(default)]
     pub cover_color: Option<String>,
     #[serde(default)]
