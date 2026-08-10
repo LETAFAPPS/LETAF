@@ -526,6 +526,7 @@ impl ProductRepository for PgProductRepository {
                     stock_quantity, unlimited_stock, barcode, unit, created_at, updated_at, deleted_at,
                     synced, active, web_visible, balance_mode,
                     CASE WHEN image_data IS NOT NULL THEN '1' END AS image_data,
+                    CASE WHEN thumb_data IS NOT NULL THEN '1' END AS thumb_data,
                     cover_color, availability_schedule, discount_kind, discount_value, discount_min_qty,
                     discount_tiers, variations, min_stock
                FROM products

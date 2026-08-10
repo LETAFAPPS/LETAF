@@ -1,5 +1,5 @@
 use leptos::prelude::*;
-use leptos_meta::{Html, Meta, Title};
+use leptos_meta::{Meta, Title};
 
 use crate::api::CatalogData;
 use crate::availability::{self, Now};
@@ -73,7 +73,8 @@ fn CatalogView(data: CatalogData) -> impl IntoView {
     let nome = data.info.name.clone();
     let desc = format!("Cardápio de {nome} — peça online.");
     // Tema do site (slug resolvido do tipo de empresa pelo servidor). Vira
-    // `data-theme` no `<html>` → preset de CSS. Aplicado no SSR (SEO/1ª pintura).
+    // `data-theme` no wrapper `.store-root` → preset de CSS (as variáveis
+    // cascateiam p/ todo o conteúdo). Aplicado no SSR (SEO/1ª pintura).
     let theme = data.info.theme.clone();
     // URLs já vêm prontas da API (mídia servida como bytes, não base64).
     let cover = data.info.cover_url.clone();
@@ -98,7 +99,7 @@ fn CatalogView(data: CatalogData) -> impl IntoView {
     let now = expect_context::<Now>();
 
     view! {
-        <Html attr:data-theme=theme/>
+        <div class="store-root" data-theme=theme>
         <Title text=nome.clone()/>
         <Meta name="description" content=desc.clone()/>
         // Open Graph — cada cardápio (subdomínio) tem identidade própria
@@ -182,5 +183,6 @@ fn CatalogView(data: CatalogData) -> impl IntoView {
                 })
             }}
         </section>
+        </div>
     }
 }

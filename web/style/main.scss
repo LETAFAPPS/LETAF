@@ -15,8 +15,10 @@
     --line: #e5e7eb;
 }
 
-// Loja (varejo) — marca azul, mais "e-commerce".
-:root[data-theme="loja"] {
+// Loja (varejo) — marca azul, mais "e-commerce". O slug vai no wrapper
+// `.store-root[data-theme]` (ver components/catalog.rs); as variáveis
+// cascateiam para todo o conteúdo do cardápio.
+[data-theme="loja"] {
     --brand: #2563eb;
     --price: #16a34a;
     --ink: #111827;
@@ -25,7 +27,7 @@
 }
 
 // Fábrica (indústria) — marca teal/aço, tom mais sóbrio.
-:root[data-theme="fabrica"] {
+[data-theme="fabrica"] {
     --brand: #0e7490;
     --price: #16a34a;
     --ink: #0f172a;
