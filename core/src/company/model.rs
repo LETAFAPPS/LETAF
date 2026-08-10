@@ -97,6 +97,12 @@ pub struct Company {
     /// o sync do desktop nunca sobrescreve este campo.
     #[serde(default = "default_true")]
     pub active: bool,
+    /// Tipo de empresa (ramo do estabelecimento) atribuído pela plataforma.
+    /// `None` = sem tipo. Controle de PLATAFORMA (super admin) —
+    /// server-authoritative, igual a `active`: o sync do desktop nunca o
+    /// sobrescreve (ver repositório). Referencia `business_types.id`.
+    #[serde(default)]
+    pub business_type_id: Option<Uuid>,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
     pub deleted_at: Option<NaiveDateTime>,
@@ -129,6 +135,7 @@ impl Company {
             delivery_fee: Decimal::ZERO,
             utc_offset_minutes: default_utc_offset(),
             active: true,
+            business_type_id: None,
             created_at: now,
             updated_at: now,
             deleted_at: None,

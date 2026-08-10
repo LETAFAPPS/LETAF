@@ -143,6 +143,23 @@ impl CompanyService {
         Ok(company)
     }
 
+    /// Define (ou limpa, com `None`) o tipo de empresa (ramo) do tenant.
+    /// Controle de PLATAFORMA (super admin): server-authoritative — o push do
+    /// desktop não sobrescreve `business_type_id` (ver repositório). §11.
+    pub async fn set_business_type(
+        &self,
+        id: Uuid,
+        business_type_id: Option<Uuid>,
+    ) -> Result<Company, CoreError> {
+        let mut company = self.repo.find_by_id(id).await?
+            .ok_or_else(|| CoreError::NotFound("Company not found".into()))?;
+        company.business_type_id = business_type_id;
+        company.updated_at = chrono::Utc::now().naive_utc();
+        company.synced = false;
+        self.repo.update(&company).await?;
+        Ok(company)
+    }
+
     /// Busca empresas ainda não sincronizadas (§7).
     pub async fn find_unsynced(&self) -> Result<Vec<Company>, CoreError> {
         self.repo.find_unsynced().await
@@ -257,6 +274,7 @@ impl CompanyService {
             delivery_fee: rust_decimal::Decimal::ZERO,
             utc_offset_minutes: -180,
             active: true,
+            business_type_id: None,
             created_at: epoch,
             updated_at: epoch,
             deleted_at: None,

@@ -14,6 +14,8 @@ use super::dto::CompanyFormDto;
 pub(super) fn fill_company_form(ui: &MainWindow, f: &CompanyFormDto) {
     fill_identity(ui, f);
     fill_plan(ui, f);
+    // Tipo de empresa atual (id do catálogo). Vazio = "Nenhum" (key vazia).
+    ui.global::<AdminState>().set_company_form_business_type(f.business_type.clone().into());
     fill_images(ui, f);
     fill_owner(ui, f);
     // Entra em modo edição, formulário limpo de erros.
@@ -116,6 +118,8 @@ pub(super) fn clear_company_form(ui: &MainWindow) {
         opts.row_data(0).map(|o| o.key.to_string()).unwrap_or_else(|| "monthly".into())
     };
     ui.global::<AdminState>().set_company_form_plan(default_plan.into());
+    // Tipo de empresa: nova empresa nasce SEM tipo ("Nenhum").
+    ui.global::<AdminState>().set_company_form_business_type(SharedString::new());
     ui.global::<AdminState>().set_company_form_trial(SharedString::new());
     ui.global::<AdminState>().set_company_form_logo_data(SharedString::new());
     ui.global::<AdminState>().set_company_form_cover_data(SharedString::new());

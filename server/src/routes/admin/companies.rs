@@ -97,11 +97,36 @@ pub(super) struct CreateCompanyRequest {
     /// Período grátis (trial) em DIAS concedido a esta empresa.
     #[serde(default)]
     trial_days: Option<i32>,
+    /// Tipo de empresa (ramo) — id do catálogo `business_types`. Vazio = sem tipo.
+    #[serde(default)]
+    business_type: Option<String>,
 }
 
 /// `Some("")`/só espaços → `None`; caso contrário devolve o texto aparado.
 fn none_if_blank(v: Option<String>) -> Option<String> {
     v.map(|s| s.trim().to_string()).filter(|s| !s.is_empty())
+}
+
+/// Aplica o tipo de empresa (ramo) a partir do id cru do formulário.
+/// - `None` (campo ausente) → não mexe.
+/// - `Some("")`/espaços → limpa (define `None`).
+/// - `Some(uuid)` → atribui; id não-UUID é ignorado (no-op).
+///
+/// Best-effort: só o super admin chega aqui e o dropdown só oferece tipos
+/// válidos; a FK garante integridade. Falha é apenas logada (§11).
+async fn apply_business_type(state: &AppState, company_id: Uuid, raw: Option<&str>) {
+    let Some(raw) = raw else { return };
+    let trimmed = raw.trim();
+    let target = if trimmed.is_empty() {
+        None
+    } else if let Ok(id) = Uuid::parse_str(trimmed) {
+        Some(id)
+    } else {
+        return; // id inválido: não mexe
+    };
+    if let Err(e) = state.company_service.set_business_type(company_id, target).await {
+        tracing::error!("Falha ao aplicar tipo de empresa em {company_id}: {e}");
+    }
 }
 
 pub(super) async fn create_company(
@@ -223,6 +248,10 @@ pub(super) async fn create_company(
         }
     }
 
+    // Tipo de empresa (ramo) — id do catálogo. Best-effort (a empresa já
+    // existe). Vazio/None = sem tipo; id inválido é ignorado.
+    apply_business_type(&state, company.id, body.business_type.as_deref()).await;
+
     audit(
         &state, &auth, "company.create", "company", Some(company.id),
         format!("{} ({})", company.name, subdomain), String::new(),
@@ -261,6 +290,8 @@ pub(super) struct CompanyForm {
     plan: String,
     /// Período grátis (trial) em dias da assinatura atual.
     trial_days: i32,
+    /// Tipo de empresa atual (id do catálogo `business_types`); "" = sem tipo.
+    business_type: String,
     /// Proprietário (admin inicial) — editável no cadastro em modo edição.
     owner_name: String,
     owner_email: String,
@@ -316,6 +347,7 @@ pub(super) async fn company_form(
         discount: rust_decimal::prelude::ToPrimitive::to_f64(&discount).unwrap_or(0.0),
         plan,
         trial_days,
+        business_type: c.business_type_id.map(|id| id.to_string()).unwrap_or_default(),
         owner_name,
         owner_email,
         owner_phone,
@@ -357,6 +389,9 @@ pub(super) struct UpdateCompanyRequest {
     /// Período grátis (trial) em DIAS concedido a esta empresa.
     #[serde(default)]
     trial_days: Option<i32>,
+    /// Tipo de empresa (ramo) — id do catálogo `business_types`. Vazio = sem tipo.
+    #[serde(default)]
+    business_type: Option<String>,
     // Dados do proprietário (admin inicial) — editáveis na edição.
     #[serde(default)]
     admin_name: Option<String>,
@@ -476,6 +511,9 @@ pub(super) async fn update_company(
             tracing::error!("Falha ao aplicar desconto ({dec}) na empresa {id}: {e}");
         }
     }
+
+    // Tipo de empresa (ramo) — id do catálogo. Vazio limpa o tipo.
+    apply_business_type(&state, id, body.business_type.as_deref()).await;
 
     audit(
         &state, &auth, "company.update", "company", Some(id),

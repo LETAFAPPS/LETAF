@@ -69,6 +69,10 @@ impl TryFrom<CompanyRow> for Company {
             // SQLite local não guarda a coluna; o bloqueio é aplicado no gate
             // de login (server). Localmente a empresa é sempre "ativa".
             active: true,
+            // `business_type_id` também é controle de plataforma: atribuído só
+            // pelo super admin (painel, online). O SQLite local não guarda a
+            // coluna nesta fase — o sync-down p/ gating de produto virá depois.
+            business_type_id: None,
             created_at: parse_timestamp(&r.created_at)?,
             updated_at: parse_timestamp(&r.updated_at)?,
             deleted_at: r.deleted_at.as_deref().map(parse_timestamp).transpose()?,

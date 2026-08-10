@@ -303,6 +303,21 @@ fn business_type_row(b: &BusinessTypeDto) -> AdminBusinessTypeRow {
     }
 }
 
+/// Opções do seletor "Tipo de empresa" no cadastro/edição de empresa.
+/// "Nenhum" (key vazia) + cada tipo ATIVO (key = id). O tipo é opcional.
+pub(super) fn set_company_form_business_type_options(ui: &MainWindow, types: &[BusinessTypeDto]) {
+    let mut opts: Vec<FilterOption> = vec![FilterOption {
+        key: "".into(),
+        label: "Nenhum".into(),
+    }];
+    opts.extend(types.iter().filter(|b| b.active).map(|b| FilterOption {
+        key: b.id.clone().into(),
+        label: b.name.clone().into(),
+    }));
+    ui.global::<AdminState>()
+        .set_company_form_business_type_options(ModelRc::new(VecModel::from(opts)));
+}
+
 /// Monta as opções de plano a partir do catálogo CADASTRADO (por plano, não
 /// por tipo, já que o período agora é em DIAS):
 /// - filtro "Planos" das Empresas: "Todos" + cada plano (key = id) + "Sem plano";

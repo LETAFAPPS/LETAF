@@ -113,6 +113,9 @@ pub(super) struct CompanyFormDto {
     pub(super) plan: String,
     #[serde(default)]
     pub(super) trial_days: i32,
+    /// Tipo de empresa atual (id do catálogo); "" = sem tipo.
+    #[serde(default)]
+    pub(super) business_type: String,
     pub(super) owner_name: String,
     pub(super) owner_email: String,
     pub(super) owner_phone: String,

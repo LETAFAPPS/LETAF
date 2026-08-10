@@ -35,6 +35,7 @@ struct CompanyRow {
     delivery_fee: Decimal,
     utc_offset_minutes: i32,
     active: bool,
+    business_type_id: Option<Uuid>,
     created_at: NaiveDateTime,
     updated_at: NaiveDateTime,
     deleted_at: Option<NaiveDateTime>,
@@ -66,6 +67,7 @@ impl From<CompanyRow> for Company {
             delivery_fee: r.delivery_fee,
             utc_offset_minutes: r.utc_offset_minutes,
             active: r.active,
+            business_type_id: r.business_type_id,
             created_at: r.created_at,
             updated_at: r.updated_at,
             deleted_at: r.deleted_at,
@@ -114,6 +116,7 @@ impl CompanyRepository for PgCompanyRepository {
                     CASE WHEN logo_data IS NOT NULL THEN '1' END AS logo_data,
                     CASE WHEN cover_data IS NOT NULL THEN '1' END AS cover_data,
                     products_per_page, orders_per_page, utc_offset_minutes, active,
+                    business_type_id,
                     created_at, updated_at, deleted_at, synced
                FROM companies WHERE id = $1 AND deleted_at IS NULL",
         )
@@ -188,8 +191,8 @@ impl CompanyRepository for PgCompanyRepository {
              location_url = $14,
              logo_data = $15, cover_data = $16,
              products_per_page = $17, orders_per_page = $18, active = $19, updated_at = $20, synced = $21,
-             delivery_fee = $22
-             WHERE id = $23 AND deleted_at IS NULL",
+             delivery_fee = $22, business_type_id = $23
+             WHERE id = $24 AND deleted_at IS NULL",
         )
         .bind(&company.name)
         .bind(&company.subdomain)
@@ -213,6 +216,7 @@ impl CompanyRepository for PgCompanyRepository {
         .bind(company.updated_at)
         .bind(company.synced)
         .bind(company.delivery_fee)
+        .bind(company.business_type_id)
         .bind(company.id)
         .execute(&self.pool)
         .await

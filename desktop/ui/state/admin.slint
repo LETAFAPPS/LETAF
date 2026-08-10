@@ -98,6 +98,10 @@ export global AdminState {
     // ATIVOS do sistema (montadas no Rust).
     in-out property <string> company-form-plan: "monthly";
     in-out property <[FilterOption]> company-form-plan-options: [];
+    // Tipo de empresa (ramo): id do catálogo selecionado ("" = Nenhum) +
+    // opções (só tipos ATIVOS, montadas no Rust). O tipo é opcional.
+    in-out property <string> company-form-business-type: "";
+    in-out property <[FilterOption]> company-form-business-type-options: [];
     // Período grátis (trial) em dias concedido a esta empresa.
     in-out property <string> company-form-trial: "";
     in-out property <string> company-form-admin-name: "";

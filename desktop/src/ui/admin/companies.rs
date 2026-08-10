@@ -149,6 +149,7 @@ fn build_company_body(ui: &MainWindow, h: &CompanyFormHead) -> serde_json::Value
         "uf": g.get_company_form_uf().trim(),
         "location_url": g.get_company_form_location_url().trim(),
         "plan": g.get_company_form_plan().to_string(),
+        "business_type": g.get_company_form_business_type().to_string(),
         "trial_days": g.get_company_form_trial().trim().parse::<i32>().unwrap_or(0),
         "logo_data": g.get_company_form_logo_data().to_string(),
         "cover_data": g.get_company_form_cover_data().to_string(),

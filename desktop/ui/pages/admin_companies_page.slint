@@ -297,6 +297,9 @@ export component AdminCompaniesPage inherits VerticalLayout {
     // Plano da assinatura: kind escolhido + opções (planos ativos do sistema).
     in-out property <string> form-plan;
     in property <[FilterOption]> plan-options;
+    // Tipo de empresa (ramo): id selecionado ("" = Nenhum) + opções ativas.
+    in-out property <string> form-business-type;
+    in property <[FilterOption]> business-type-options;
     in-out property <string> form-trial;
     in property <image> logo-image;
     in property <image> cover-image;
@@ -562,6 +565,38 @@ export component AdminCompaniesPage inherits VerticalLayout {
                         error: root.err-document;
                         force-end-cursor: true;
                         edited(v) => { root.form-document = root.mask-field("document", v); }
+                    }
+                }
+            }
+
+            // ── Card: tipo de empresa (ramo do estabelecimento) ──
+            FormCard {
+                title: "Tipo de empresa";
+                subtitle: "Ramo do estabelecimento (define tema e recursos).";
+                HorizontalLayout {
+                    spacing: 8px;
+                    alignment: start;
+                    for opt in root.business-type-options: bt-chip := TouchArea {
+                        height: 36px;
+                        clicked => { root.form-business-type = opt.key; }
+                        Rectangle {
+                            border-radius: 8px;
+                            border-width: root.form-business-type == opt.key ? 1.5px : 1px;
+                            border-color: root.form-business-type == opt.key ? Theme.btn-accent : Theme.border;
+                            background: root.form-business-type == opt.key
+                                ? Theme.btn-accent.transparentize(0.90)
+                                : (bt-chip.has-hover ? Theme.row-hover : Theme.surface);
+                            HorizontalLayout {
+                                padding-left: 14px; padding-right: 14px;
+                                Text {
+                                    text: opt.label;
+                                    font-size: 13px;
+                                    font-weight: root.form-business-type == opt.key ? 700 : 500;
+                                    color: root.form-business-type == opt.key ? Theme.btn-accent : Theme.text-secondary;
+                                    vertical-alignment: center;
+                                }
+                            }
+                        }
                     }
                 }
             }

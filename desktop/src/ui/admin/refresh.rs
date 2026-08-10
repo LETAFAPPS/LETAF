@@ -14,7 +14,8 @@ use super::dto::{
 };
 use super::filters::{
     apply_business_type_filter, apply_company_filter, apply_plan_filter, apply_role_filter,
-    apply_sub_filter, apply_user_filter, set_plan_filter_options,
+    apply_sub_filter, apply_user_filter, set_company_form_business_type_options,
+    set_plan_filter_options,
 };
 use super::http::get_json;
 
@@ -128,6 +129,10 @@ fn apply_lists(
     }
     // Lista de tipos de empresa já filtrada pela busca corrente.
     apply_business_type_filter(ui, &caches.business_types);
+    // Opções do seletor "Tipo de empresa" no form de empresa (só ativos).
+    if let Ok(g) = caches.business_types.lock() {
+        set_company_form_business_type_options(ui, &g);
+    }
     // Funções + opções do seletor de função no usuário.
     apply_role_filter(ui, &caches.roles);
 }
