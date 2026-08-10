@@ -83,13 +83,15 @@ pub(crate) fn setup_login(
                     // restart offline (§7/§11).
                     let is_admin = login.role.is_admin();
                     state.session.save_perms(is_admin, login.role.is_super_admin(), &login.perms).await;
+                    // Tipo de empresa (gating por tipo) — sobrevive ao restart (§7/§11).
+                    state.session.save_business_type(&login.business_type).await;
                     state.session.save_user_name(&login.name).await;
                     // Limpa a foto em cache do operador anterior (a resposta de
                     // login não traz avatar; buscamos logo abaixo no /auth/me).
                     state.session.save_user_avatar("").await;
                     let ui_avatar = ui_weak.clone();
                     let token_avatar = auth_token.read().await.clone();
-                    update_ui_after_login(ui_weak, login.role, login.perms, login.name);
+                    update_ui_after_login(ui_weak, login.role, login.perms, login.name, login.business_type);
                     // Exibe a foto no card da sidebar sem precisar abrir o perfil.
                     if let Some(tok) = token_avatar {
                         super::profile::refresh_avatar_after_login(ui_avatar, state.clone(), tok, url.clone()).await;
@@ -283,6 +285,8 @@ pub(crate) struct LoginResult {
     pub(crate) company_id: Uuid,
     pub(crate) subdomain: String,
     pub(crate) company_name: String,
+    /// Tipo de empresa (slug: restaurante|loja|fabrica) — gating por tipo.
+    pub(crate) business_type: String,
     pub(crate) role: UserRole,
     pub(crate) perms: Vec<String>,
     /// Nome do operador logado (rodapé da sidebar).
@@ -344,10 +348,12 @@ pub(crate) async fn apply_login(
 /// Regras aplicadas (AI_RULES.md §11):
 /// - `user-role` reflete o nível de acesso do operador (Admin/Funcionário).
 /// - `refresh_business_hours` popula nome/endereço/logo no cabeçalho do menu.
-pub(crate) fn update_ui_after_login(ui_weak: slint::Weak<MainWindow>, role: UserRole, perms: Vec<String>, name: String) {
+pub(crate) fn update_ui_after_login(ui_weak: slint::Weak<MainWindow>, role: UserRole, perms: Vec<String>, name: String, business_type: String) {
     let _ = slint::invoke_from_event_loop(move || {
         let Some(ui) = ui_weak.upgrade() else { return };
         ui.set_logged_in(true);
+        // Tipo de empresa (gating por tipo: galeria na loja, produção na fábrica).
+        ui.global::<ProductsState>().set_business_type(business_type.into());
         ui.set_user_role(SharedString::from(role.label_pt_br()));
         ui.set_user_name(SharedString::from(name));
         // Zera a foto do operador anterior; a do novo é carregada ao abrir
@@ -453,6 +459,8 @@ pub(crate) async fn do_login(
         subdomain: String,
         company_name: String,
         #[serde(default)]
+        business_type: String,
+        #[serde(default)]
         perms: Vec<String>,
     }
 
@@ -485,6 +493,7 @@ pub(crate) async fn do_login(
         company_id: data.user.company_id,
         subdomain: data.subdomain,
         company_name: data.company_name,
+        business_type: data.business_type,
         role: data.user.role,
         perms: data.perms,
         name: data.user.name,

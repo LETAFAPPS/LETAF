@@ -13,6 +13,10 @@
 import { AddonGroupData, BusinessHoursData, CategoryFilterEntry, DiscountTierData, ProductData, SubcategoryFilterEntry, VariationData, IngredientRowData, IngredientOption } from "../types.slint";
 
 export global ProductsState {
+    // Tipo de empresa (slug do tema: restaurante|loja|fabrica) da empresa
+    // logada. Server-authoritative (vem do login). Gateia features por tipo:
+    // galeria de imagens só na "loja", produção só na "fabrica".
+    in-out property <string> business-type: "restaurante";
     // ── Produtos ────────────────────────────────────
     in-out property <[ProductData]> products: [];
     in-out property <int> products-active-count: 0;

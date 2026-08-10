@@ -143,7 +143,9 @@ async fn apply_company_session(
     ctx.state.session.save_perms(true, false, &dto.perms).await;
     ctx.state.session.save_user_name(&dto.user.name).await;
     let company_name = dto.company_name;
-    update_ui_after_login(ui_weak.clone(), UserRole::Admin, dto.perms, dto.user.name);
+    // Impersonation é conveniência do super admin; o gating por tipo usa o
+    // default (a gestão real de produtos por tipo é feita no login da loja).
+    update_ui_after_login(ui_weak.clone(), UserRole::Admin, dto.perms, dto.user.name, "restaurante".to_string());
     let _ = slint::invoke_from_event_loop(move || {
         if let Some(ui) = ui_weak.upgrade() {
             ui.set_impersonating(true);
@@ -174,7 +176,7 @@ async fn exit_company(ctx: ImpersonationCtx, sa: SaSession, ui_weak: slint::Weak
     .await;
     ctx.state.session.save_perms(true, true, &sa.perms).await;
     ctx.state.session.save_user_name(&sa.name).await;
-    update_ui_after_login(ui_weak.clone(), UserRole::SuperAdmin, sa.perms, sa.name);
+    update_ui_after_login(ui_weak.clone(), UserRole::SuperAdmin, sa.perms, sa.name, "restaurante".to_string());
     let _ = slint::invoke_from_event_loop(move || {
         if let Some(ui) = ui_weak.upgrade() {
             ui.set_impersonating(false);

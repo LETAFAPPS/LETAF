@@ -275,6 +275,10 @@ struct DesktopAuthResponse {
     user: AuthUserPayload,
     subdomain: String,
     company_name: String,
+    /// Tipo de empresa (slug do tema: restaurante|loja|fabrica), resolvido do
+    /// `business_type_id`. O desktop usa para gatear features por tipo (galeria
+    /// na loja, produção na fábrica). Default `restaurante` (sem tipo).
+    business_type: String,
     /// Permissões efetivas (RBAC) — o desktop esconde/desabilita as abas.
     perms: Vec<String>,
 }
@@ -411,11 +415,25 @@ async fn login_desktop(
         24,
     )?;
 
+    // Tipo de empresa (slug do tema) para gating por tipo no desktop —
+    // resolvido do tipo cadastrado (igual ao /catalog/info). Sem tipo/ tipo
+    // removido cai no default.
+    let business_type = match company.business_type_id {
+        Some(bt_id) => state
+            .business_type_service
+            .find_by_id(bt_id)
+            .await?
+            .map(|b| b.theme)
+            .unwrap_or_else(|| letaf_core::business_type::model::DEFAULT_THEME.to_string()),
+        None => letaf_core::business_type::model::DEFAULT_THEME.to_string(),
+    };
+
     Ok(Json(DesktopAuthResponse {
         token,
         user: AuthUserPayload::from(&user),
         subdomain: company.subdomain,
         company_name: company.name,
+        business_type,
         perms,
     }))
 }

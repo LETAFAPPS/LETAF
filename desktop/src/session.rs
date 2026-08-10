@@ -18,6 +18,7 @@ pub struct SessionStore {
 const KEY_TOKEN: &str = "auth_token";
 const KEY_COMPANY_ID: &str = "company_id";
 const KEY_SUBDOMAIN: &str = "subdomain";
+const KEY_BUSINESS_TYPE: &str = "business_type";
 const KEY_PULL_CURSORS_PREFIX: &str = "pull_cursors:";
 const KEY_DARK_MODE: &str = "dark_mode";
 const KEY_REMEMBER_EMAIL: &str = "remember_email";
@@ -64,6 +65,20 @@ impl SessionStore {
 
     pub async fn save_subdomain(&self, subdomain: &str) {
         self.set(KEY_SUBDOMAIN, subdomain).await;
+    }
+
+    /// Tipo de empresa (slug do tema: restaurante|loja|fabrica) do último
+    /// login. Usado para gatear features por tipo (galeria/produção). Default
+    /// `restaurante` quando ausente. Server-authoritative — vem do login.
+    pub async fn load_business_type(&self) -> String {
+        self.get(KEY_BUSINESS_TYPE)
+            .await
+            .filter(|s| !s.is_empty())
+            .unwrap_or_else(|| "restaurante".to_string())
+    }
+
+    pub async fn save_business_type(&self, slug: &str) {
+        self.set(KEY_BUSINESS_TYPE, slug).await;
     }
 
     /// Carrega o timestamp do último pull bem-sucedido.

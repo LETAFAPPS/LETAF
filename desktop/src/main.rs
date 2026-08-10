@@ -175,6 +175,10 @@ fn main() {
         // offline, sem depender do servidor.
         let (is_admin, is_super_admin, perms) = rt.block_on(state.session.load_perms());
         window.set_nav_perms(nav_perms::nav_perms_from(is_admin, is_super_admin, &perms));
+        // Tipo de empresa (gating por tipo) restaurado da sessão — offline.
+        window
+            .global::<ProductsState>()
+            .set_business_type(rt.block_on(state.session.load_business_type()).into());
         if let Some(name) = rt.block_on(state.session.load_user_name()) {
             window.set_user_name(slint::SharedString::from(name));
         }
