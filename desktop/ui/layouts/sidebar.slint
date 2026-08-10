@@ -1,5 +1,6 @@
 import { Theme } from "../theme.slint";
 import { NavPerms } from "../types.slint";
+import { ProductsState } from "../state/products.slint";
 import {
     SidebarItem,
     SidebarSection,
@@ -244,6 +245,15 @@ export component Sidebar inherits Rectangle {
                     compact: !root.expanded;
                     active: root.active-tab == "insumos";
                     clicked => { root.navigate("insumos"); }
+                }
+                // Produção: só para empresa do tipo "fábrica".
+                if (root.store-access || root.nav.products || root.nav.inventory)
+                    && ProductsState.business-type == "fabrica": SidebarItem {
+                    icon-source: @image-url("../assets/icons/entrada-estoque.svg");
+                    label: "Produção";
+                    compact: !root.expanded;
+                    active: root.active-tab == "producao";
+                    clicked => { root.navigate("producao"); }
                 }
                 if root.store-access || root.nav.inventory: SidebarItem {
                     icon-source: @image-url("../assets/icons/lote.svg");

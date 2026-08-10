@@ -43,7 +43,7 @@ pub(crate) fn setup_produce(
     let handle = handle.clone();
     ui.global::<ProductsState>().on_produce_confirm(move || {
         let Some(ui) = ui_weak.upgrade() else { return };
-        let id_str = ui.get_editing_id().to_string();
+        let id_str = ui.global::<ProductsState>().get_produce_product_id().to_string();
         let Ok(id) = Uuid::parse_str(&id_str) else { return };
         // Aceita vírgula (pt-BR). Validação forte fica no backend (§11).
         let qty: f64 = ui

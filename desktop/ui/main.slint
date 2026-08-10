@@ -6,6 +6,7 @@ import { Toast } from "components/cards.slint";
 import { LoginPage } from "pages/login_page.slint";
 import { Sidebar } from "layouts/sidebar.slint";
 import { ProductsPage } from "pages/products_page.slint";
+import { ProductionPage } from "pages/production_page.slint";
 import { CategoriesPage } from "pages/categories_page.slint";
 import { CollaboratorsPage } from "pages/collaborators_page.slint";
 // ── Estado por feature (AI_RULES §8): cada global mora em
@@ -411,6 +412,9 @@ export component MainWindow inherits Window {
                     CategoriesState.refresh-subcategories();
                 } else if tab == "insumos" {
                     InsumosState.refresh-insumos();
+                } else if tab == "producao" {
+                    // Estoque atualizado ao entrar na Produção.
+                    ProductsState.refresh-products();
                 } else if tab == "categories" {
                     CategoriesState.subcategory-filter-category-id = "all";
                     CategoriesState.refresh-categories();
@@ -837,6 +841,9 @@ export component MainWindow inherits Window {
 
             // Insumos (matéria-prima) — lê/escreve direto no InsumosState.
             if root.active-tab == "insumos": InsumosPage { }
+
+            // Produção (só "fábrica") — tela própria.
+            if root.active-tab == "producao": ProductionPage { }
 
             // Categorias
             if root.active-tab == "categories": CategoriesPage {
@@ -1703,7 +1710,7 @@ export component MainWindow inherits Window {
     }
 
     if ProductsState.produce-modal-open: ProduceModal {
-        product-name: ProductsState.product-name;
+        product-name: ProductsState.produce-product-name;
         form-quantity <=> ProductsState.produce-quantity;
         error: ProductsState.produce-error;
         confirm => { ProductsState.produce-confirm(); }

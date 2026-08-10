@@ -1339,36 +1339,6 @@ export component ProductFormPage inherits VerticalLayout {
                 }
             }
 
-            // ── Produção (só "fábrica") ──────────────────────────────
-            // Produz N unidades: consome a ficha técnica (insumos) e dá
-            // entrada no estoque do produto. Gateada pelo tipo de empresa.
-            // Só faz sentido num produto já salvo (precisa do id + receita).
-            if ProductsState.business-type == "fabrica" && root.editing-id != "": Card {
-                vertical-stretch: 0;
-                border-radius: 10px;
-                VerticalLayout {
-                    padding: 16px;
-                    spacing: 10px;
-                    Text { text: "Produção"; font-size: 14px; font-weight: 700; color: Theme.text-primary; }
-                    Text {
-                        text: "Produzir dá entrada no estoque deste produto e consome os insumos da ficha técnica.";
-                        font-size: 11px; color: Theme.text-secondary; wrap: word-wrap;
-                    }
-                    HorizontalLayout {
-                        alignment: start;
-                        ActionBtn {
-                            label: "Produzir";
-                            width: 150px; height: 38px;
-                            clicked => {
-                                ProductsState.produce-quantity = "";
-                                ProductsState.produce-error = "";
-                                ProductsState.produce-modal-open = true;
-                            }
-                        }
-                    }
-                }
-            }
-
             // ── Ficha técnica (Insumos) ──────────────────────────────
             // Acessa o ProductsState direto (sem prop-drilling): lista de
             // linhas insumo+quantidade + dropdown alimentado pelas opções.

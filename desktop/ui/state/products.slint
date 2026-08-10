@@ -96,12 +96,15 @@ export global ProductsState {
     callback add-gallery-image();
     callback remove-gallery-image(int);
     callback load-product-gallery(string);   // product_id (vazio = limpa)
-    // Produção (fábrica): modal para produzir N unidades do produto em edição
-    // (consome a ficha técnica e dá entrada no estoque). Delega ao Rust.
+    // Produção (fábrica): tela própria. O usuário escolhe um produto na lista
+    // e produz N unidades (consome a ficha técnica e dá entrada no estoque).
+    // Delega ao Rust (ProductService::produce).
     in-out property <bool> produce-modal-open: false;
+    in-out property <string> produce-product-id: "";
+    in-out property <string> produce-product-name: "";
     in-out property <string> produce-quantity: "";
     in-out property <string> produce-error: "";
-    callback produce-confirm();               // produz produce-quantity do produto em edição
+    callback produce-confirm();               // produz produce-quantity de produce-product-id
 
     callback add-product();
     callback update-product();
