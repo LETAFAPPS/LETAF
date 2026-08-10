@@ -33,6 +33,9 @@ pub struct UpdateInfoInput {
     pub orders_per_page: i32,
     /// Taxa de entrega (frete). Clamp para >= 0 no service.
     pub delivery_fee: rust_decimal::Decimal,
+    /// Paleta de cores do site (slug); `None`/inválido = sem paleta (usa o
+    /// tema do tipo). Validado no service (§11).
+    pub color_palette: Option<String>,
 }
 
 /// Service para o domínio Company.
@@ -209,6 +212,11 @@ impl CompanyService {
         company.products_per_page = products_per_page;
         company.orders_per_page = orders_per_page;
         company.delivery_fee = input.delivery_fee.max(rust_decimal::Decimal::ZERO);
+        // Paleta de cores: só aceita slug válido do catálogo; vazio/desconhecido
+        // → None (usa o tema do tipo). §11 — não confia no valor cru do front.
+        company.color_palette = input
+            .color_palette
+            .filter(|s| crate::theme_palette::palette_is_valid(s));
         company.updated_at = chrono::Utc::now().naive_utc();
         company.synced = false;
         self.repo.update(&company).await?;
@@ -275,6 +283,7 @@ impl CompanyService {
             utc_offset_minutes: -180,
             active: true,
             business_type_id: None,
+            color_palette: None,
             created_at: epoch,
             updated_at: epoch,
             deleted_at: None,

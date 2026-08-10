@@ -103,6 +103,11 @@ pub struct Company {
     /// sobrescreve (ver repositório). Referencia `business_types.id`.
     #[serde(default)]
     pub business_type_id: Option<Uuid>,
+    /// Paleta de cores do site (slug de `theme_palette::PALETTES`) escolhida
+    /// pela EMPRESA nas Configurações. `None` = usa o tema do tipo. Config da
+    /// empresa (editável por ela, sincroniza — como logo), NÃO plataforma.
+    #[serde(default)]
+    pub color_palette: Option<String>,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
     pub deleted_at: Option<NaiveDateTime>,
@@ -136,6 +141,7 @@ impl Company {
             utc_offset_minutes: default_utc_offset(),
             active: true,
             business_type_id: None,
+            color_palette: None,
             created_at: now,
             updated_at: now,
             deleted_at: None,

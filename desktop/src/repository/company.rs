@@ -33,6 +33,7 @@ struct CompanyRow {
     orders_per_page: i64,
     delivery_fee: f64,
     utc_offset_minutes: i64,
+    color_palette: Option<String>,
     created_at: String,
     updated_at: String,
     deleted_at: Option<String>,
@@ -73,6 +74,8 @@ impl TryFrom<CompanyRow> for Company {
             // pelo super admin (painel, online). O SQLite local não guarda a
             // coluna nesta fase — o sync-down p/ gating de produto virá depois.
             business_type_id: None,
+            // Paleta de cores do site: config da empresa (sincroniza).
+            color_palette: r.color_palette,
             created_at: parse_timestamp(&r.created_at)?,
             updated_at: parse_timestamp(&r.updated_at)?,
             deleted_at: r.deleted_at.as_deref().map(parse_timestamp).transpose()?,
@@ -163,7 +166,7 @@ impl CompanyRepository for SqliteCompanyRepository {
              location_url = ?14,
              logo_data = ?15, cover_data = ?16,
              products_per_page = ?17, orders_per_page = ?18,
-             delivery_fee = ?21, updated_at = ?19, synced = ?20
+             delivery_fee = ?21, color_palette = ?23, updated_at = ?19, synced = ?20
              WHERE id = ?22 AND deleted_at IS NULL",
         )
         .bind(&company.name)
@@ -188,6 +191,7 @@ impl CompanyRepository for SqliteCompanyRepository {
         .bind(company.synced)
         .bind(company.delivery_fee.to_f64().unwrap_or(0.0))
         .bind(company.id.to_string())
+        .bind(&company.color_palette)
         .execute(&self.pool)
         .await
         .map_err(map_db)?;
@@ -257,9 +261,9 @@ impl CompanyRepository for SqliteCompanyRepository {
                 neighborhood, zip_code, city, uf, location_url,
                 logo_data, cover_data, products_per_page, orders_per_page,
                 created_at, updated_at, deleted_at, synced, delivery_fee,
-                utc_offset_minutes)
+                utc_offset_minutes, color_palette)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12,
-                ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25)
+                ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26)
              ON CONFLICT (id) DO UPDATE SET
                  name = excluded.name,
                  subdomain = excluded.subdomain,
@@ -284,6 +288,7 @@ impl CompanyRepository for SqliteCompanyRepository {
                  -- gráficos. Ficava fora do upsert nos DOIS lados, então
                  -- alterá-lo nunca chegava ao outro banco.
                  utc_offset_minutes = excluded.utc_offset_minutes,
+                 color_palette = excluded.color_palette,
                  updated_at = excluded.updated_at,
                  deleted_at = excluded.deleted_at,
                  synced = excluded.synced
@@ -314,6 +319,7 @@ impl CompanyRepository for SqliteCompanyRepository {
         .bind(company.synced)
         .bind(company.delivery_fee.to_f64().unwrap_or(0.0))
         .bind(company.utc_offset_minutes as i64)
+        .bind(&company.color_palette)
         .execute(&self.pool)
         .await
         .map_err(map_db)?;

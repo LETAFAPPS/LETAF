@@ -257,6 +257,14 @@ export struct GalleryImage {
     image: image,       // decodificada para preview
 }
 
+// Swatch da paleta de cores do site (Configurações). `slug` "" = Nenhuma
+// (usa o tema do tipo); `color` é a cor de marca exibida no quadradinho.
+export struct PaletteSwatch {
+    slug: string,
+    label: string,
+    color: color,
+}
+
 export struct ProductData {
     id: string,
     name: string,

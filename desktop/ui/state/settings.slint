@@ -52,6 +52,9 @@ export global SettingsState {
     /// Taxa de entrega (frete) como texto pt-BR. Persistida em Company;
     /// aplicada automaticamente em pedidos de entrega no PDV.
     in-out property <string> store-delivery-fee;
+    /// Paleta de cores do site (slug de core::theme_palette); "" = usa o tema
+    /// do tipo. Escolhida por swatches nas Configurações.
+    in-out property <string> store-site-palette;
     callback refresh-business-hours();
     callback save-business-hours();
     callback set-store-override(string);

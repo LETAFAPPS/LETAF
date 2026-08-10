@@ -49,6 +49,7 @@ pub(crate) fn setup_save_store_info(
         let products_per_page = ui_ref.global::<SettingsState>().get_products_per_page();
         let orders_per_page   = ui_ref.global::<SettingsState>().get_orders_per_page();
         let delivery_fee_raw  = ui_ref.global::<SettingsState>().get_store_delivery_fee().to_string();
+        let site_palette      = ui_ref.global::<SettingsState>().get_store_site_palette().to_string();
 
         // Normalização defensiva: telefones/documentos/CEP guardados só
         // com dígitos no banco (formatação acontece na UI). Isso evita
@@ -89,6 +90,9 @@ pub(crate) fn setup_save_store_info(
                 products_per_page,
                 orders_per_page,
                 delivery_fee: parse_money(&delivery_fee_raw),
+                // Paleta de cores do site ("" = Nenhuma → None). Validação do
+                // slug fica no service (§11).
+                color_palette: some_if_filled(site_palette),
             };
             let result = state.company_service.update_info(cid, input).await;
             match result {

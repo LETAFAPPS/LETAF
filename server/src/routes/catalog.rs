@@ -231,6 +231,19 @@ struct CatalogInfo {
     /// Tema visual do site (slug), resolvido do tipo de empresa. O web aplica
     /// o preset de CSS correspondente. Default `restaurante` (sem tipo).
     theme: String,
+    /// Paleta de cores escolhida pela EMPRESA (as 5 variáveis já resolvidas).
+    /// `None` quando a empresa não escolheu — o web fica no tema do tipo.
+    palette: Option<CatalogPalette>,
+}
+
+/// As 5 cores da paleta do site, prontas para o web aplicar inline.
+#[derive(Serialize)]
+struct CatalogPalette {
+    brand: String,
+    price: String,
+    ink: String,
+    muted: String,
+    line: String,
 }
 
 #[derive(Serialize)]
@@ -381,6 +394,19 @@ async fn get_info(
             .unwrap_or_else(|| letaf_core::business_type::model::DEFAULT_THEME.to_string()),
         None => letaf_core::business_type::model::DEFAULT_THEME.to_string(),
     };
+    // Paleta escolhida pela empresa (resolve o slug para as 5 cores). Sem
+    // paleta → None (o web mantém o tema do tipo).
+    let palette = company
+        .color_palette
+        .as_deref()
+        .and_then(letaf_core::theme_palette::palette_by_slug)
+        .map(|p| CatalogPalette {
+            brand: p.brand.to_string(),
+            price: p.price.to_string(),
+            ink: p.ink.to_string(),
+            muted: p.muted.to_string(),
+            line: p.line.to_string(),
+        });
     Ok(Json(CatalogInfo {
         name: company.name,
         logo_url: company.logo_data.as_ref().map(|_| media_url("logo", v)),
@@ -389,6 +415,7 @@ async fn get_info(
         phone: company.phone,
         delivery_fee: company.delivery_fee.to_f64().unwrap_or(0.0),
         theme,
+        palette,
     }))
 }
 

@@ -76,6 +76,18 @@ fn CatalogView(data: CatalogData) -> impl IntoView {
     // `data-theme` no wrapper `.store-root` → preset de CSS (as variáveis
     // cascateiam p/ todo o conteúdo). Aplicado no SSR (SEO/1ª pintura).
     let theme = data.info.theme.clone();
+    // Paleta escolhida pela EMPRESA: sobrepõe as cores do tema via `style`
+    // inline no wrapper (variáveis CSS; inline vence o preset do tipo). Vazio
+    // quando a empresa não escolheu paleta.
+    let palette_style = data
+        .info
+        .palette
+        .as_ref()
+        .map(|p| format!(
+            "--brand:{};--price:{};--ink:{};--muted:{};--line:{};",
+            p.brand, p.price, p.ink, p.muted, p.line
+        ))
+        .unwrap_or_default();
     // URLs já vêm prontas da API (mídia servida como bytes, não base64).
     let cover = data.info.cover_url.clone();
     let logo = data.info.logo_url.clone();
@@ -99,7 +111,7 @@ fn CatalogView(data: CatalogData) -> impl IntoView {
     let now = expect_context::<Now>();
 
     view! {
-        <div class="store-root" data-theme=theme>
+        <div class="store-root" data-theme=theme style=palette_style>
         <Title text=nome.clone()/>
         <Meta name="description" content=desc.clone()/>
         // Open Graph — cada cardápio (subdomínio) tem identidade própria

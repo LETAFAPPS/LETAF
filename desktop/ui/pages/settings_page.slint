@@ -1,6 +1,6 @@
 import { Theme } from "../theme.slint";
 import { AssetIcon } from "../components/icons.slint";
-import { BusinessHoursData, PrinterData } from "../types.slint";
+import { BusinessHoursData, PrinterData, PaletteSwatch } from "../types.slint";
 import { BusinessHoursCard, Card } from "../components/cards.slint";
 import { FormField } from "../components/form_fields.slint";
 import { EmptyState } from "../components/empty_state.slint";
@@ -141,6 +141,8 @@ export component SettingsPage inherits VerticalLayout {
     /// Taxa de entrega (frete) como texto pt-BR (ex.: "5,00"). Vazio = 0.
     /// Aplicada automaticamente em pedidos de entrega no PDV.
     in-out property <string> store-delivery-fee;
+    /// Paleta de cores do site (slug); "" = usa o tema do tipo.
+    in-out property <string> store-site-palette;
 
     /// Impressoras cadastradas (lista refrescada por Rust via
     /// `refresh-printers`). Cada linha tem rótulo, tipo, sistema,
@@ -699,6 +701,68 @@ export component SettingsPage inherits VerticalLayout {
                         x: 10px; y: 0; width: parent.width - 20px; height: parent.height;
                         text: "0,00"; font-size: 12px; color: #BDBDBD;
                         vertical-alignment: center; horizontal-alignment: right;
+                    }
+                }
+            }
+        }
+    }
+
+    // ── Cores do site (paleta escolhida pela empresa) ───────────
+    palette-card := Rectangle {
+        property <[PaletteSwatch]> palettes: [
+            { slug: "", label: "Nenhuma", color: #cccccc },
+            { slug: "laranja", label: "Laranja", color: #e8731c },
+            { slug: "azul", label: "Azul", color: #2563eb },
+            { slug: "verde", label: "Verde", color: #16a34a },
+            { slug: "vermelho", label: "Vermelho", color: #dc2626 },
+            { slug: "roxo", label: "Roxo", color: #7c3aed },
+            { slug: "teal", label: "Teal", color: #0e7490 },
+            { slug: "rosa", label: "Rosa", color: #db2777 },
+            { slug: "grafite", label: "Grafite", color: #334155 },
+        ];
+        border-radius: 10px; border-width: 1px; border-color: Theme.card-border;
+        background: Theme.surface;
+        VerticalLayout {
+            padding: 14px;
+            spacing: 10px;
+            Text {
+                text: "Cores do site";
+                font-size: 14px; font-weight: 700; color: Theme.text-primary;
+            }
+            Text {
+                text: "Escolha a paleta do seu cardápio online. \"Nenhuma\" usa as cores padrão do tipo de estabelecimento.";
+                font-size: 10px; color: Theme.text-secondary; wrap: word-wrap;
+            }
+            HorizontalLayout {
+                spacing: 10px;
+                alignment: start;
+                for p in palette-card.palettes: sw := TouchArea {
+                    width: 44px; height: 60px;
+                    clicked => { root.store-site-palette = p.slug; }
+                    VerticalLayout {
+                        spacing: 4px;
+                        // Quadrado da cor (anel quando selecionado).
+                        Rectangle {
+                            height: 40px;
+                            border-radius: 9px;
+                            background: p.color;
+                            border-width: root.store-site-palette == p.slug ? 3px : 1px;
+                            border-color: root.store-site-palette == p.slug
+                                ? Theme.text-primary : Theme.border;
+                            // "Nenhuma": marca um traço p/ diferenciar do cinza.
+                            if p.slug == "": Text {
+                                text: "—"; color: white; font-size: 18px; font-weight: 700;
+                                horizontal-alignment: center; vertical-alignment: center;
+                                width: parent.width; height: parent.height;
+                            }
+                        }
+                        Text {
+                            text: p.label;
+                            font-size: 9px;
+                            color: root.store-site-palette == p.slug ? Theme.text-primary : Theme.text-secondary;
+                            font-weight: root.store-site-palette == p.slug ? 700 : 400;
+                            horizontal-alignment: center;
+                        }
                     }
                 }
             }

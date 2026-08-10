@@ -27,10 +27,24 @@ pub struct CatalogInfo {
     /// Vira `data-theme` no `<html>` → preset de CSS. Default `restaurante`.
     #[serde(default = "default_theme")]
     pub theme: String,
+    /// Paleta de cores escolhida pela EMPRESA (5 cores já resolvidas). `None`
+    /// = usa o tema do tipo. Aplicada como `<style>` inline sobre as variáveis.
+    #[serde(default)]
+    pub palette: Option<CatalogPalette>,
 }
 
 fn default_theme() -> String {
     "restaurante".to_string()
+}
+
+/// As 5 cores da paleta do site (espelha o servidor).
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+pub struct CatalogPalette {
+    pub brand: String,
+    pub price: String,
+    pub ink: String,
+    pub muted: String,
+    pub line: String,
 }
 
 /// Endereço salvo do cliente (`/customer/addresses`).

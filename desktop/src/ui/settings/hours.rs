@@ -100,6 +100,7 @@ pub(crate) fn setup_refresh_business_hours(
                 .filter(|f| *f > rust_decimal::Decimal::ZERO)
                 .map(|f| format!("{:.2}", f).replace('.', ","))
                 .unwrap_or_default();
+            let s_palette   = opt(|c| c.color_palette.clone());
             let logo_buf  = if s_logo.is_empty()  { None } else { decode_pixel_buffer(&s_logo) };
             let cover_buf = if s_cover.is_empty() { None } else { decode_pixel_buffer(&s_cover) };
             match state.business_hours_service.find_all(cid).await {
@@ -127,6 +128,7 @@ pub(crate) fn setup_refresh_business_hours(
                         ui.global::<SettingsState>().set_products_per_page(s_per_page);
                         ui.global::<SettingsState>().set_orders_per_page(s_orders_per_page);
                         ui.global::<SettingsState>().set_store_delivery_fee(SharedString::from(s_delivery_fee));
+                        ui.global::<SettingsState>().set_store_site_palette(SharedString::from(s_palette));
                         ui.global::<SettingsState>().set_business_hours(ModelRc::new(VecModel::from(data)));
                     });
                 }
