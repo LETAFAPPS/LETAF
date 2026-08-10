@@ -30,6 +30,9 @@ async fn main() {
             move || shell(leptos_options.clone())
         })
         .fallback(leptos_axum::file_and_error_handler(shell))
+        // Cabeçalhos de segurança em TODAS as respostas (SSR + proxy de mídia):
+        // anti-clickjacking, anti-sniffing, referrer restrito e CSP (§3/§11).
+        .layer(axum::middleware::from_fn(security_headers))
         .with_state(leptos_options);
 
     log!("cardápio SSR escutando em http://{}", &addr);
@@ -89,6 +92,50 @@ async fn media_proxy(
         out.headers_mut().insert(header::CACHE_CONTROL, v);
     }
     out
+}
+
+/// Adiciona cabeçalhos de segurança a toda resposta do cardápio (§3/§11).
+///
+/// - `Content-Security-Policy`: restringe origens de recursos. Permite o que a
+///   hidratação do Leptos exige (`'wasm-unsafe-eval'`; `'unsafe-inline'` para o
+///   bootstrap de hidratação e para o `style` inline da paleta), mas bloqueia
+///   `script`/`img`/`connect`/`frame` de terceiros, `object`, e sequestro de
+///   `<base>`. `frame-ancestors 'none'` impede clickjacking (embed em iframe).
+/// - `X-Frame-Options: DENY`: idem clickjacking (navegadores legados).
+/// - `X-Content-Type-Options: nosniff`: também no proxy de mídia (a proteção
+///   passa a existir na origem pública que o navegador consome, não só na API).
+/// - `Referrer-Policy`: não vaza a URL completa para terceiros.
+#[cfg(feature = "ssr")]
+async fn security_headers(
+    req: axum::extract::Request,
+    next: axum::middleware::Next,
+) -> axum::response::Response {
+    use axum::http::{header, HeaderName, HeaderValue};
+    let mut res = next.run(req).await;
+    let h = res.headers_mut();
+    const CSP: &str = "default-src 'self'; \
+        img-src 'self' data:; \
+        style-src 'self' 'unsafe-inline'; \
+        script-src 'self' 'wasm-unsafe-eval' 'unsafe-inline'; \
+        connect-src 'self'; \
+        font-src 'self'; \
+        base-uri 'self'; \
+        object-src 'none'; \
+        frame-ancestors 'none'";
+    h.insert(
+        HeaderName::from_static("content-security-policy"),
+        HeaderValue::from_static(CSP),
+    );
+    h.insert(header::X_FRAME_OPTIONS, HeaderValue::from_static("DENY"));
+    h.insert(
+        header::X_CONTENT_TYPE_OPTIONS,
+        HeaderValue::from_static("nosniff"),
+    );
+    h.insert(
+        header::REFERRER_POLICY,
+        HeaderValue::from_static("strict-origin-when-cross-origin"),
+    );
+    res
 }
 
 #[cfg(not(feature = "ssr"))]

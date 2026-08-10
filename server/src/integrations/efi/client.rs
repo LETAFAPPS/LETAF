@@ -113,7 +113,7 @@ impl EfiClient {
             let status = resp.status();
             // Body é texto curto da Efi; logamos e devolvemos só o status.
             let body = resp.text().await.unwrap_or_default();
-            tracing::warn!("Efi OAuth falhou ({status}): {body}");
+            tracing::warn!("Efi OAuth falhou ({status}): {}", super::clip_body(&body));
             return Err(CoreError::Repository(format!(
                 "Efi OAuth: status {status}"
             )));
@@ -170,7 +170,7 @@ impl PaymentGateway for EfiClient {
         if !resp.status().is_success() {
             let status = resp.status();
             let body = resp.text().await.unwrap_or_default();
-            tracing::warn!("Efi POST /v2/cob falhou ({status}): {body}");
+            tracing::warn!("Efi POST /v2/cob falhou ({status}): {}", super::clip_body(&body));
             return Err(CoreError::Repository(format!(
                 "Efi cob: status {status}"
             )));
@@ -206,7 +206,7 @@ impl PaymentGateway for EfiClient {
         if !resp.status().is_success() {
             let status = resp.status();
             let body = resp.text().await.unwrap_or_default();
-            tracing::warn!("Efi GET /v2/cob/{txid} falhou ({status}): {body}");
+            tracing::warn!("Efi GET /v2/cob/{txid} falhou ({status}): {}", super::clip_body(&body));
             return Err(CoreError::Repository(format!(
                 "Efi cob status: status {status}"
             )));
@@ -241,7 +241,7 @@ impl EfiClient {
         if !resp.status().is_success() {
             let status = resp.status();
             let body = resp.text().await.unwrap_or_default();
-            tracing::warn!("Efi GET /v2/loc/{loc_id}/qrcode falhou ({status}): {body}");
+            tracing::warn!("Efi GET /v2/loc/{loc_id}/qrcode falhou ({status}): {}", super::clip_body(&body));
             return Err(CoreError::Repository(format!(
                 "Efi qrcode: status {status}"
             )));

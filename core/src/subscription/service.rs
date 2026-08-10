@@ -750,11 +750,18 @@ impl SubscriptionService {
         };
         // 2) Aplica o desfecho da cobrança.
         if is_paid_status(charge_status) {
+            // Só avança o ciclo se a fatura AINDA não estava paga. Um replay
+            // da mesma notificação "pago" (fatura já Paid) não pode empurrar o
+            // `next_charge_date` de novo — senão a próxima cobrança escorrega
+            // no tempo a cada reprocessamento (§ idempotência).
+            let was_paid = matches!(invoice.status, InvoiceStatus::Paid);
             self.mark_invoice_paid(company_id, invoice.base.id, paid_at)
                 .await?;
-            // Avança o próximo ciclo (o gateway também cobra sozinho;
-            // aqui é só para o "próxima cobrança" refletir).
-            self.advance_next_charge(company_id, today).await?;
+            if !was_paid {
+                // Avança o próximo ciclo (o gateway também cobra sozinho;
+                // aqui é só para o "próxima cobrança" refletir).
+                self.advance_next_charge(company_id, today).await?;
+            }
         } else if is_failed_status(charge_status) {
             self.mark_invoice_failed(company_id, invoice.base.id).await?;
             if let Some(s) = self.repo.find_current(company_id).await? {

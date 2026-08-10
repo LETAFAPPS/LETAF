@@ -1,5 +1,6 @@
 use std::time::Duration;
 
+use axum::extract::DefaultBodyLimit;
 use axum::Router;
 use sqlx::PgPool;
 use sqlx::postgres::PgPoolOptions;
@@ -72,6 +73,11 @@ async fn serve(state: AppState, config: &AppConfig) {
     let app = Router::new()
         .merge(routes::create_routes())
         .layer(build_cors_layer(config))
+        // Teto EXPLÍCITO de tamanho do corpo (§11 — DoS por memória). Não
+        // depender do default implícito do axum: um refactor futuro (ou
+        // `DefaultBodyLimit::disable()`) poderia abrir exaustão de memória.
+        // 10 MB acomoda produto + galeria (base64) e logo/capa, sem excesso.
+        .layer(DefaultBodyLimit::max(10 * 1024 * 1024))
         .with_state(state);
 
     let addr = format!("0.0.0.0:{}", config.server_port);

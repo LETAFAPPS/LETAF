@@ -114,7 +114,8 @@ async fn forgot_password(
                 if let Err(e) =
                     crate::email::send_reset_code(&state.config.smtp, &email, &code).await
                 {
-                    tracing::error!("Falha ao enviar e-mail de recuperação p/ {email}: {e}");
+                    // Não loga o e-mail (PII, §11) — só a causa do erro.
+                    tracing::error!("Falha ao enviar e-mail de recuperação: {e}");
                 }
             }
             Err(e) => tracing::error!("Falha ao emitir código de recuperação: {e}"),
@@ -297,7 +298,15 @@ async fn resolve_perms(state: &AppState, user: &User) -> Vec<String> {
                 .iter()
                 .map(|s| format!("screen:{s}"))
                 .collect(),
-            _ => vec!["screen:*".to_string()],
+            // Sem Função = master da plataforma → acesso total explícito.
+            Ok(None) => vec!["screen:*".to_string()],
+            // SEGURANÇA (§11): falha transitória ao resolver a Função NÃO pode
+            // cair em master (seria escalada de um super admin restrito num
+            // blip de DB). Fail-closed: perms vazio → painel negado até relogar.
+            Err(e) => {
+                tracing::error!("resolve_perms: falha ao resolver a Função do super admin: {e}");
+                Vec::new()
+            }
         },
         UserRole::Admin => letaf_core::permission::all(),
         UserRole::Employee => match user.job_role_id {

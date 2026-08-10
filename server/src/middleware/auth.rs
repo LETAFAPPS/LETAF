@@ -128,11 +128,9 @@ impl AuthClaims {
         if self.0.perms.iter().any(|p| p == "screen:*") {
             return Ok(());
         }
-        // Token sem nenhuma entrada `screen:` = master legado (ver
-        // `require_screen`): mantém o mesmo tratamento.
-        if !self.0.perms.iter().any(|p| p.starts_with("screen:")) {
-            return Ok(());
-        }
+        // SEGURANÇA (§11): sem o atalho "token sem `screen:` = master" — mesma
+        // correção de `require_screen`. Só o master (`screen:*`) concede
+        // livremente; os demais só podem conceder telas que possuem.
         if let Some(missing) = screens
             .iter()
             .find(|s| !self.0.perms.iter().any(|p| p == &format!("screen:{s}")))
@@ -146,15 +144,18 @@ impl AuthClaims {
 
     /// Exige super admin E acesso à TELA `screen` do painel (RBAC do painel).
     /// As telas concedidas vêm no token como `"screen:<chave>"` (resolvidas
-    /// da Função no login). Master = `"screen:*"`. Compatibilidade: um token
-    /// SEM nenhuma entrada `"screen:"` é tratado como master (acesso total) —
-    /// evita travar sessões antigas e o super admin sem Função.
+    /// da Função no login). Master (sem Função) = `"screen:*"` explícito
+    /// (`resolve_perms`). Uma Função com `screens: []` gera `perms` vazio →
+    /// NENHUMA tela liberada (acesso negado) — nunca acesso total.
+    ///
+    /// SEGURANÇA (§11): NÃO existe mais o atalho "token sem `screen:` = master".
+    /// Ele conflava "Função sem telas" (deveria ser zero acesso) com "master",
+    /// virando escalada de privilégio (super admin restrito criava/atribuía uma
+    /// Função vazia e ganhava acesso total). Master exige `screen:*`. Tokens
+    /// legados pré-RBAC (sem `screen:`) são negados aqui e revalidam no relogin
+    /// (janela máxima de 24h do `exp`).
     pub fn require_screen(&self, screen: &str) -> Result<(), ServerError> {
         self.verify_role(ROLE_SUPER_ADMIN)?;
-        let has_any = self.0.perms.iter().any(|p| p.starts_with("screen:"));
-        if !has_any {
-            return Ok(());
-        }
         let wanted = format!("screen:{screen}");
         if self.0.perms.iter().any(|p| p == "screen:*" || *p == wanted) {
             Ok(())
@@ -238,6 +239,24 @@ impl FromRequestParts<AppState> for AuthClaims {
                 .unwrap_or(false)
             {
                 return Err(ServerError::Jwt("Conta desativada ou removida".into()));
+            }
+            // Revogação por VERSÃO de credencial também para o super admin
+            // (§11): sem isto, resetar a senha de um super admin (que faz
+            // `bump_token_version`) não invalidava o token antigo — só a
+            // desativação invalidava. Agora um token com `tv` defasado é
+            // rejeitado no próximo request, forçando novo login.
+            match state
+                .auth_service
+                .find_token_version(claims.company_id, claims.sub)
+                .await?
+            {
+                None => return Err(ServerError::Jwt("Conta desativada ou removida".into())),
+                Some(v) if v != claims.tv => {
+                    return Err(ServerError::Jwt(
+                        "Credenciais alteradas; faça login novamente".into(),
+                    ));
+                }
+                Some(_) => {}
             }
         }
         Ok(AuthClaims(claims))
@@ -351,6 +370,37 @@ mod tests {
         assert!(admin
             .require_can_grant(&["finance.edit".to_string(), "cash.view".to_string()])
             .is_ok());
+    }
+
+    // ── require_screen / require_can_grant_screens (anti-escalada §11) ──
+
+    #[test]
+    fn funcao_sem_telas_nao_da_acesso_total() {
+        // REGRESSÃO: uma Função com `screens: []` gera perms vazio. Antes,
+        // "sem entrada screen: = master" liberava TUDO (escalada). Agora nega.
+        let vazio = claims(ROLE_SUPER_ADMIN, &[]);
+        assert!(vazio.require_screen("companies").is_err());
+        assert!(vazio.require_screen("plans").is_err());
+        // E não pode conceder telas livremente por ser "vazio".
+        assert!(vazio.require_can_grant_screens(&["companies".to_string()]).is_err());
+    }
+
+    #[test]
+    fn master_com_screen_coringa_acessa_tudo() {
+        let master = claims(ROLE_SUPER_ADMIN, &["screen:*"]);
+        assert!(master.require_screen("companies").is_ok());
+        assert!(master.require_screen("plans").is_ok());
+        assert!(master.require_can_grant_screens(&["companies".to_string()]).is_ok());
+    }
+
+    #[test]
+    fn super_admin_restrito_so_acessa_e_concede_suas_telas() {
+        let restrito = claims(ROLE_SUPER_ADMIN, &["screen:plans"]);
+        assert!(restrito.require_screen("plans").is_ok());
+        assert!(restrito.require_screen("companies").is_err());
+        // Concede o que tem, não o que não tem.
+        assert!(restrito.require_can_grant_screens(&["plans".to_string()]).is_ok());
+        assert!(restrito.require_can_grant_screens(&["companies".to_string()]).is_err());
     }
 
     #[test]

@@ -371,8 +371,15 @@ impl AuthService {
         email: &str,
         password: &str,
     ) -> Result<User, CoreError> {
-        let user = self.repo.find_by_email(company_id, email).await?
-            .ok_or_else(|| CoreError::Unauthorized("Credenciais inválidas".into()))?;
+        let user = match self.repo.find_by_email(company_id, email).await? {
+            Some(u) => u,
+            None => {
+                // E-mail inexistente: gasta o mesmo tempo de um verify real
+                // (hash dummy) para não vazar existência por latência (§11).
+                crate::hashing::verify_dummy(password.to_string()).await;
+                return Err(CoreError::Unauthorized("Credenciais inválidas".into()));
+            }
+        };
 
         let valid = crate::hashing::verify_password(password.to_string(), user.password_hash.clone()).await?;
 
@@ -400,8 +407,15 @@ impl AuthService {
             return Err(CoreError::Unauthorized("Credenciais inválidas".into()));
         }
 
-        let user = self.repo.find_by_email_global(email).await?
-            .ok_or_else(|| CoreError::Unauthorized("Credenciais inválidas".into()))?;
+        let user = match self.repo.find_by_email_global(email).await? {
+            Some(u) => u,
+            None => {
+                // E-mail inexistente: equaliza o tempo (hash dummy) — anti
+                // enumeração de usuários por latência (§11).
+                crate::hashing::verify_dummy(password.to_string()).await;
+                return Err(CoreError::Unauthorized("Credenciais inválidas".into()));
+            }
+        };
 
         let valid = crate::hashing::verify_password(password.to_string(), user.password_hash.clone()).await?;
 

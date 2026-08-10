@@ -241,7 +241,7 @@ async fn json_or_err(
     if !resp.status().is_success() {
         let status = resp.status();
         let body = resp.text().await.unwrap_or_default();
-        tracing::warn!("Efi Pix Automático {verb} {path} falhou ({status}): {body}");
+        tracing::warn!("Efi Pix Automático {verb} {path} falhou ({status}): {}", super::clip_body(&body));
         return Err(CoreError::Repository(format!(
             "Efi {verb} {path}: status {status}"
         )));

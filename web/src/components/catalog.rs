@@ -79,12 +79,21 @@ fn CatalogView(data: CatalogData) -> impl IntoView {
     // Paleta escolhida pela EMPRESA: sobrepõe as cores do tema via `style`
     // inline no wrapper (variáveis CSS; inline vence o preset do tipo). Vazio
     // quando a empresa não escolheu paleta.
+    // Defesa-em-profundidade: o servidor já resolve a paleta de um catálogo
+    // FIXO, mas o web revalida cada cor como `#RRGGBB`/`#RGB` antes de injetar
+    // no atributo `style` — se um dia a API ecoasse cor livre da empresa, um
+    // valor malicioso (ex.: `red;} ...`) não viraria injeção de CSS.
+    let is_hex = |c: &str| {
+        let h = c.strip_prefix('#').unwrap_or("");
+        (h.len() == 3 || h.len() == 6) && h.chars().all(|ch| ch.is_ascii_hexdigit())
+    };
     let palette_style = data
         .info
         .palette
         .as_ref()
+        .filter(|p| [&p.brand, &p.price, &p.ink, &p.muted, &p.line].iter().all(|c| is_hex(c)))
         .map(|p| format!(
-            "--brand:{};--price:{};--ink:{};--muted:{};--line:{};",
+            "--brand:{};--price:{};--ink:{};--muted:{};--line:{}",
             p.brand, p.price, p.ink, p.muted, p.line
         ))
         .unwrap_or_default();

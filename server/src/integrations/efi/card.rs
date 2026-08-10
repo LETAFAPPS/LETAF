@@ -90,7 +90,7 @@ impl EfiCardClient {
         if !resp.status().is_success() {
             let status = resp.status();
             let body = resp.text().await.unwrap_or_default();
-            tracing::warn!("Efi Cobranças OAuth falhou ({status}): {body}");
+            tracing::warn!("Efi Cobranças OAuth falhou ({status}): {}", super::clip_body(&body));
             return Err(CoreError::Repository(format!(
                 "Efi Cobranças OAuth: status {status}"
             )));
@@ -129,7 +129,7 @@ impl EfiCardClient {
         if !resp.status().is_success() {
             let status = resp.status();
             let body = resp.text().await.unwrap_or_default();
-            tracing::warn!("Efi Cobranças {verb} {path} falhou ({status}): {body}");
+            tracing::warn!("Efi Cobranças {verb} {path} falhou ({status}): {}", super::clip_body(&body));
             return Err(CoreError::Repository(format!(
                 "Efi Cobranças {verb} {path}: status {status}"
             )));

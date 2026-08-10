@@ -247,6 +247,9 @@ mod tests {
             // pelos handlers, que têm o `require_screen` deles.
             "require_can_assign_role",
             "ensure_platform_admin", // bootstrap no startup, sem requisição
+            // Helper: aplica o tipo de empresa. Chamado por create_company/
+            // update_company, que já têm `require_screen("companies")`.
+            "apply_business_type",
         ];
 
         // Um arquivo por assunto — todos varridos.

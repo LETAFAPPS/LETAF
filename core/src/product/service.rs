@@ -787,6 +787,9 @@ impl ProductService {
         if won {
             self.repo.replace_addon_groups(company_id, product_id, &group_ids).await?;
             self.repo.replace_ingredients(company_id, product_id, &ingredients).await?;
+            // Mesmo limite do save do form: o push de sync não pode contornar
+            // o teto de quantidade/tamanho da galeria (§11).
+            Self::validate_gallery(&images)?;
             self.repo.replace_images(company_id, product_id, &images).await?;
         }
         Ok(())
@@ -802,6 +805,26 @@ impl ProductService {
         product_id: Uuid,
         images: Vec<ProductImage>,
     ) -> Result<(), CoreError> {
+        Self::validate_gallery(&images)?;
         self.repo.replace_images(company_id, product_id, &images).await
+    }
+
+    /// Limites da galeria (§11 — defesa contra abuso de armazenamento/payload):
+    /// um operador do tenant não pode inflar o banco nem o `/catalog/products`
+    /// com dezenas de imagens gigantes. Validação no BACKEND, aplicada TANTO no
+    /// save do form (`replace_images`) QUANTO no push de sync (`sync_upsert`) —
+    /// senão o limite seria contornável pela rota de sincronização.
+    fn validate_gallery(images: &[ProductImage]) -> Result<(), CoreError> {
+        const MAX_GALLERY_IMAGES: usize = 8;
+        const MAX_IMAGE_B64_LEN: usize = 3_000_000; // ~2,2 MB binário por imagem
+        if images.len() > MAX_GALLERY_IMAGES {
+            return Err(CoreError::Validation(format!(
+                "Máximo de {MAX_GALLERY_IMAGES} imagens na galeria"
+            )));
+        }
+        if images.iter().any(|i| i.image_data.len() > MAX_IMAGE_B64_LEN) {
+            return Err(CoreError::Validation("Imagem muito grande".into()));
+        }
+        Ok(())
     }
 }
