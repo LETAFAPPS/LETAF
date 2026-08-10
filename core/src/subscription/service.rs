@@ -713,14 +713,17 @@ impl SubscriptionService {
         }
         let amount = terms.amount;
 
-        // 1) Garante UMA invoice no ciclo corrente, IDEMPOTENTE por
-        // (assinatura, ciclo) — mesmo id determinístico do loop de billing
-        // (`record_charge_attempt`). Sem isto, o caminho do webhook criava a
-        // fatura com UUID aleatório e deduplicava só por `find_invoice_in_month`
-        // (check-then-act): dois webhooks concorrentes (reenvio da Efi por
-        // timeout/500) geravam DUAS faturas pagas para o mesmo ciclo (receita
-        // fantasma). Ciclo (não mês) também corrige planos de período < 30d.
-        let ciclo = sub.next_charge_date.unwrap_or(today);
+        // 1) Garante UMA invoice para o mês corrente, IDEMPOTENTE por
+        // (assinatura, mês). A chave é o 1º dia do MÊS de `today` — ESTÁVEL ao
+        // reprocessamento (entrega at-least-once do webhook): um reenvio da
+        // mesma notificação recai no mesmo id e não duplica. NÃO usar
+        // `next_charge_date` como chave: a própria função o avança
+        // (`advance_next_charge`), então um reenvio sequencial veria a data já
+        // adiantada → id diferente → SEGUNDA fatura paga (receita fantasma).
+        // O id determinístico + `ON CONFLICT DO NOTHING` também fecha o caso de
+        // dois webhooks CONCORRENTES (ambos criariam antes). Substitui o antigo
+        // `find_invoice_in_month` (check-then-act, sem proteção de concorrência).
+        let ciclo = chrono::NaiveDate::from_ymd_opt(today.year(), today.month(), 1).unwrap_or(today);
         let invoice_id = crate::deterministic_id::subscription_invoice(sub.base.id, ciclo);
         let existing = self
             .repo
