@@ -713,12 +713,22 @@ impl SubscriptionService {
         }
         let amount = terms.amount;
 
-        // 1) Garante uma invoice no ciclo corrente (reusa se já existe).
-        let invoice = match self
+        // 1) Garante UMA invoice no ciclo corrente, IDEMPOTENTE por
+        // (assinatura, ciclo) — mesmo id determinístico do loop de billing
+        // (`record_charge_attempt`). Sem isto, o caminho do webhook criava a
+        // fatura com UUID aleatório e deduplicava só por `find_invoice_in_month`
+        // (check-then-act): dois webhooks concorrentes (reenvio da Efi por
+        // timeout/500) geravam DUAS faturas pagas para o mesmo ciclo (receita
+        // fantasma). Ciclo (não mês) também corrige planos de período < 30d.
+        let ciclo = sub.next_charge_date.unwrap_or(today);
+        let invoice_id = crate::deterministic_id::subscription_invoice(sub.base.id, ciclo);
+        let existing = self
             .repo
-            .find_invoice_in_month(sub.base.id, today.year(), today.month())
+            .find_invoices(company_id)
             .await?
-        {
+            .into_iter()
+            .find(|i| i.base.id == invoice_id);
+        let invoice = match existing {
             Some(inv) => inv,
             None => {
                 let number =
@@ -732,7 +742,7 @@ impl SubscriptionService {
                 } else {
                     format!("Assinatura · Plano {} ({method_note})", terms.name)
                 };
-                let new = Invoice::new(
+                let mut new = Invoice::new(
                     company_id,
                     sub.base.id,
                     number,
@@ -744,8 +754,17 @@ impl SubscriptionService {
                     today,
                     None,
                 );
-                self.repo.create_invoice(&new).await?;
-                new
+                new.base.id = invoice_id;
+                self.repo.create_invoice(&new).await?; // ON CONFLICT (id) DO NOTHING
+                // Re-lê por id: sob corrida, o DO NOTHING pode ter mantido a
+                // fatura do webhook concorrente (talvez já paga) — pega o
+                // estado REAL para o `was_paid` abaixo não divergir.
+                self.repo
+                    .find_invoices(company_id)
+                    .await?
+                    .into_iter()
+                    .find(|i| i.base.id == invoice_id)
+                    .unwrap_or(new)
             }
         };
         // 2) Aplica o desfecho da cobrança.

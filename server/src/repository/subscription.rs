@@ -285,7 +285,8 @@ impl SubscriptionRepository for PgSubscriptionRepository {
              (id, company_id, subscription_id, number, description, amount,
               method_kind, method_label, status, issued_at, paid_at,
               created_at, updated_at, deleted_at, synced)
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)",
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
+             ON CONFLICT (id) DO NOTHING",
         )
         .bind(inv.base.id)
         .bind(inv.base.company_id)

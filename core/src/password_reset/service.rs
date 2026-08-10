@@ -72,7 +72,12 @@ impl PasswordResetService {
     #[cfg(feature = "password-hashing")]
     pub async fn verify_and_consume(&self, email: &str, code: &str) -> Result<(), CoreError> {
         let reset = self.find_valid(email, code).await?;
-        self.repo.mark_used(reset.id).await?;
+        // Consumo ATÔMICO: se outra requisição concorrente já consumiu o mesmo
+        // código, `mark_used` retorna false e ESTA falha (uso único garantido,
+        // sem check-then-act entre `find_valid` e o consumo). §11.
+        if !self.repo.mark_used(reset.id).await? {
+            return Err(CoreError::Validation("Código inválido ou expirado".into()));
+        }
         Ok(())
     }
 }

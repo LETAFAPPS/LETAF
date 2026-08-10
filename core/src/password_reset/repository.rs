@@ -15,8 +15,11 @@ pub trait PasswordResetRepository: Send + Sync {
     /// Código ativo (não usado) mais recente de um e-mail, se houver.
     async fn find_active(&self, email: &str) -> Result<Option<PasswordReset>, CoreError>;
 
-    /// Marca um código como usado (consumido).
-    async fn mark_used(&self, id: Uuid) -> Result<(), CoreError>;
+    /// Consome um código ATOMICAMENTE (marca usado só se ainda não usado).
+    /// Retorna `true` se ESTA chamada consumiu (venceu a corrida); `false` se
+    /// já estava usado. Garante uso único mesmo sob requisições concorrentes
+    /// com o mesmo código (§11 — sem check-then-act).
+    async fn mark_used(&self, id: Uuid) -> Result<bool, CoreError>;
 
     /// Invalida todos os códigos ativos de um e-mail (ao emitir um novo,
     /// evita vários códigos válidos ao mesmo tempo).

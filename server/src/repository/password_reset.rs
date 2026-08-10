@@ -75,13 +75,15 @@ impl PasswordResetRepository for PgPasswordResetRepository {
         Ok(row.map(PasswordReset::from))
     }
 
-    async fn mark_used(&self, id: Uuid) -> Result<(), CoreError> {
-        sqlx::query("UPDATE password_resets SET used = TRUE WHERE id = $1")
+    async fn mark_used(&self, id: Uuid) -> Result<bool, CoreError> {
+        // Consumo ATÔMICO: só marca se ainda `used = FALSE`. `rows_affected`
+        // distingue quem venceu a corrida (1) de um consumo concorrente (0).
+        let res = sqlx::query("UPDATE password_resets SET used = TRUE WHERE id = $1 AND used = FALSE")
             .bind(id)
             .execute(&self.pool)
             .await
             .map_err(map_db)?;
-        Ok(())
+        Ok(res.rows_affected() == 1)
     }
 
     async fn invalidate_email(&self, email: &str) -> Result<(), CoreError> {

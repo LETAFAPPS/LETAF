@@ -226,12 +226,12 @@ async fn card_session_status(
 async fn card_payment_page(
     State(state): State<AppState>,
     Query(q): Query<SessionQuery>,
-) -> Html<String> {
+) -> axum::response::Response {
     let Some(company_id) = state.card_sessions.company_of(&q.s) else {
-        return Html(crate::card_page::error_page("Sessão inválida ou expirada."));
+        return secure_card_page(crate::card_page::error_page("Sessão inválida ou expirada."));
     };
     let Some(cfg) = state.config.efi_card.as_ref() else {
-        return Html(crate::card_page::error_page("Gateway de cartão não configurado."));
+        return secure_card_page(crate::card_page::error_page("Gateway de cartão não configurado."));
     };
     // Plano + valor para exibir.
     let (plan_label, amount) = match state.subscription_service.find_current(company_id).await {
@@ -241,13 +241,36 @@ async fn card_payment_page(
         }
         _ => ("Mensal".to_string(), 0.0),
     };
-    Html(crate::card_page::render(
+    secure_card_page(crate::card_page::render(
         cfg.base_url(),
         &cfg.payee_code,
         &q.s,
         &plan_label,
         amount,
     ))
+}
+
+/// Envolve o HTML da página de pagamento com cabeçalhos de segurança SEGUROS
+/// (§11): anti-clickjacking (`X-Frame-Options: DENY` + CSP `frame-ancestors
+/// 'none'`), `nosniff` e `Referrer-Policy`. NÃO define `script-src`/`default-src`
+/// para não quebrar o Efi.js de terceiros — uma CSP de script completa (com o
+/// host da Efi) deve ser validada em sandbox no deploy.
+fn secure_card_page(html: String) -> axum::response::Response {
+    use axum::http::{header, HeaderName, HeaderValue};
+    use axum::response::IntoResponse;
+    let mut resp = Html(html).into_response();
+    let h = resp.headers_mut();
+    h.insert(header::X_FRAME_OPTIONS, HeaderValue::from_static("DENY"));
+    h.insert(header::X_CONTENT_TYPE_OPTIONS, HeaderValue::from_static("nosniff"));
+    h.insert(
+        header::REFERRER_POLICY,
+        HeaderValue::from_static("strict-origin-when-cross-origin"),
+    );
+    h.insert(
+        HeaderName::from_static("content-security-policy"),
+        HeaderValue::from_static("frame-ancestors 'none'"),
+    );
+    resp
 }
 
 /// Recebe o `payment_token` (gerado no navegador) + dados do titular e
