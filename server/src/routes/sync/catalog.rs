@@ -57,6 +57,13 @@ pub(crate) async fn reconcile_manifest(
     // protege nada — o dado desce pelo pull de qualquer jeito — e mata a
     // anti-entropia daquela entidade em silêncio: `reconcile_entity` leva 403,
     // vira `warn!` e a tabela nunca mais é reconferida naquele terminal.
+    // `customers`/`customer_addresses` exigem OR de permissões (espelham seus
+    // pulls), então não cabem no match de perm única abaixo — tratam-se aqui,
+    // com o MESMO gate do pull, para não matar a anti-entropia de quem passa no
+    // pull (§11). Ambos carregam PII do cliente (cadastro / endereço).
+    if q.entity == "customers" || q.entity == "customer_addresses" {
+        auth.require_any_permission(&["customers.view", "pdv.view"])?;
+    }
     if let Some(perm) = match q.entity.as_str() {
         "cash_movements" => Some("cash.view"),
         "finance_entries" | "finance_categories" => Some("finance.view"),

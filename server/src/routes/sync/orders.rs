@@ -29,6 +29,13 @@ pub(crate) async fn sync_order(
     // Não concede leitura (o pull segue gateado); só permite subir o que ele já
     // podia criar no PDV. §11.
     auth.require_any_permission(&["orders.view", "pdv.view"])?;
+    // §11/§13: teto no número de itens também no push (mesmo limite do checkout),
+    // para um operador autenticado não persistir um pedido gigante via sync.
+    if order.items.len() > letaf_core::order::service::MAX_ORDER_ITEMS {
+        return Err(ServerError::Core(letaf_core::error::CoreError::Validation(
+            "O pedido excede o número máximo de itens".into(),
+        )));
+    }
     let aplicou = state
         .order_service
         .sync_upsert(auth.0.company_id, order)

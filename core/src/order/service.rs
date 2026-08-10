@@ -19,6 +19,16 @@ use crate::product::service::ProductService;
 /// já é ordens de grandeza acima de qualquer venda real (§13).
 const MAX_ITEM_QUANTITY: f64 = 1_000_000.0;
 
+/// Teto de sanidade para o NÚMERO de itens de um pedido. Sem ele, o único
+/// limite era o corpo global de 10 MB (~110 mil itens), e cada item dispara
+/// trabalho O(n) (verificação de preço, adicionais, delta de estoque) — um
+/// cliente autenticado poderia forjar um pedido gigante e prender um worker
+/// e uma conexão do pool por minutos. Nenhum pedido real de food service ou
+/// PDV passa disso; acima → erro de validação limpo (§11/§13). `pub` para
+/// que a rota web (não-confiável) barre o tamanho ANTES dos laços caros —
+/// aqui no core é a defesa em profundidade final.
+pub const MAX_ORDER_ITEMS: usize = 200;
+
 /// Dados de entrada para um item do pedido.
 pub struct OrderItemInput {
     pub product_id: Uuid,
@@ -556,6 +566,13 @@ impl OrderService {
                 "Pedido precisa ter ao menos um item".into(),
             ));
         }
+        // §11/§13: mesmo teto do checkout na EDIÇÃO — antes do `verify_item_prices`
+        // (que faz trabalho O(n) por item), para não amplificar via edição.
+        if new_items.len() > MAX_ORDER_ITEMS {
+            return Err(CoreError::Validation(
+                "O pedido excede o número máximo de itens".into(),
+            ));
+        }
         // §11: nunca confiar no preço vindo do cliente — reconfere cada
         // `unit_price` contra o catálogo (igual ao `create`), inclusive
         // na EDIÇÃO de pedido. Sem isto, uma requisição forjada poderia
@@ -1048,6 +1065,12 @@ fn validate_items(items: &[OrderItemInput]) -> Result<(), CoreError> {
     if items.is_empty() {
         return Err(CoreError::Validation("O pedido deve ter ao menos um item".into()));
     }
+    // Teto no número de itens: barra na raiz o vetor de exaustão (item mínimo
+    // ~90 bytes cabe dezenas de milhares no corpo de 10 MB) que amplificaria
+    // todos os laços por-item do checkout. §11/§13.
+    if items.len() > MAX_ORDER_ITEMS {
+        return Err(CoreError::Validation("O pedido excede o número máximo de itens".into()));
+    }
     for item in items {
         if !item.quantity.is_finite() || item.quantity <= 0.0 {
             return Err(CoreError::Validation("A quantidade do item deve ser positiva".into()));
@@ -1118,7 +1141,31 @@ fn build_items(
 
 #[cfg(test)]
 mod tests {
-    use super::validate_required_variations;
+    use super::{validate_items, validate_required_variations, OrderItemInput, MAX_ORDER_ITEMS};
+    use rust_decimal::Decimal;
+    use uuid::Uuid;
+
+    fn item_min() -> OrderItemInput {
+        OrderItemInput {
+            product_id: Uuid::nil(),
+            product_name: "x".into(),
+            quantity: 1.0,
+            unit_price: Decimal::ONE,
+            notes: None,
+            addons_json: None,
+        }
+    }
+
+    #[test]
+    fn rejeita_pedido_acima_do_teto_de_itens() {
+        // No teto: OK.
+        let ok: Vec<_> = (0..MAX_ORDER_ITEMS).map(|_| item_min()).collect();
+        assert!(validate_items(&ok).is_ok());
+        // Acima do teto: erro de validação limpo (não 500 / não worker preso).
+        let over: Vec<_> = (0..=MAX_ORDER_ITEMS).map(|_| item_min()).collect();
+        assert!(validate_items(&over).is_err());
+    }
+
 
     // Produto com uma variação OBRIGATÓRIA "Sabor" (opções Calabresa/Frango)
     // e uma NÃO-obrigatória "Borda".

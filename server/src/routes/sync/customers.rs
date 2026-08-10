@@ -129,6 +129,12 @@ pub(crate) async fn pull_customers(
     Query(params): Query<PullQuery>,
 ) -> Result<Json<Vec<Customer>>, ServerError> {
     auth.verify_any_role(ROLES_OPERATORS)?;
+    // §11 (mínimo privilégio): o pull replica o cadastro COMPLETO do cliente
+    // (nome, e-mail, telefone, documento, `notes` interno). Sem gate, um
+    // funcionário de Função vazia baixava toda a base de PII, embora REST
+    // (`/customers`) e o irmão `pull_wallet_accounts` já exijam `customers.view`.
+    // Aceita também `pdv.view` para não travar a réplica do caixa de balcão.
+    auth.require_any_permission(&["customers.view", "pdv.view"])?;
     let items = state
         .customer_service
         .find_updated_since_paged(
@@ -165,6 +171,10 @@ pub(crate) async fn pull_customer_addresses(
     Query(params): Query<PullQuery>,
 ) -> Result<Json<Vec<CustomerAddress>>, ServerError> {
     auth.verify_any_role(ROLES_OPERATORS)?;
+    // §11 (mínimo privilégio): endereço residencial (rua/número/bairro/apto) é
+    // PII do cliente — mesmo gate do cadastro (`pull_customers`). Sem isto, um
+    // operador de Função vazia baixava toda a agenda de endereços.
+    auth.require_any_permission(&["customers.view", "pdv.view"])?;
     let items = state.customer_address_service
         .find_updated_since_paged(
             auth.0.company_id,

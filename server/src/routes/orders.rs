@@ -122,6 +122,15 @@ async fn create_order(
             "Muitos pedidos em sequência. Aguarde alguns instantes.",
         ));
     }
+    // §11/§13 (cliente web não-confiável): barra o tamanho do pedido AQUI, antes
+    // de qualquer laço O(n) sobre itens (find_by_ids, disponibilidade, subtotal).
+    // Sem este teto no topo, um corpo com ~100 mil itens (dentro dos 10 MB) faria
+    // o servidor rodar todo o trabalho caro só para o core rejeitar no fim.
+    if req.items.len() > letaf_core::order::service::MAX_ORDER_ITEMS {
+        return Err(ServerError::Core(CoreError::Validation(
+            "O pedido excede o número máximo de itens".into(),
+        )));
+    }
     let customer_id = auth.0.sub;
 
     let company = state
