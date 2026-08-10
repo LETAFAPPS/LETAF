@@ -36,7 +36,16 @@ impl From<JobRoleRow> for JobRole {
                 synced: r.synced,
             },
             name: r.name,
-            permissions: serde_json::from_str(&r.permissions).unwrap_or_default(),
+            // Sanitiza contra o catálogo atual: descarta chaves que já não
+            // existem (ex.: `cash.edit`, removida). Sem isto, uma Função gravada
+            // antes da remoção carrega permissão inválida e o desktop REJEITA o
+            // registro inteiro no pull — a Função nunca sincroniza (§11). Idempotente
+            // e à prova de futuras remoções de permissão.
+            permissions: serde_json::from_str::<Vec<String>>(&r.permissions)
+                .unwrap_or_default()
+                .into_iter()
+                .filter(|p| letaf_core::permission::is_valid(p))
+                .collect(),
         }
     }
 }
