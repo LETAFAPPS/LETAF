@@ -24,6 +24,7 @@ pub(super) struct BusinessTypePayload {
     pub id: Uuid,
     pub name: String,
     pub description: String,
+    pub theme: String,
     pub active: bool,
     pub sort_order: i32,
 }
@@ -33,6 +34,7 @@ fn payload(b: BusinessType) -> BusinessTypePayload {
         id: b.id,
         name: b.name,
         description: b.description,
+        theme: b.theme,
         active: b.active,
         sort_order: b.sort_order,
     }
@@ -51,11 +53,18 @@ fn default_true() -> bool {
     true
 }
 
+fn default_theme() -> String {
+    letaf_core::business_type::model::DEFAULT_THEME.to_string()
+}
+
 #[derive(Deserialize)]
 pub(super) struct BusinessTypeBody {
     name: String,
     #[serde(default)]
     description: String,
+    /// Tema visual do site (slug). Default/ inválido → resolvido no service.
+    #[serde(default = "default_theme")]
+    theme: String,
     #[serde(default = "default_true")]
     active: bool,
     #[serde(default)]
@@ -67,6 +76,7 @@ impl BusinessTypeBody {
         BusinessTypeInput {
             name: self.name,
             description: self.description,
+            theme: self.theme,
             active: self.active,
             sort_order: self.sort_order,
         }

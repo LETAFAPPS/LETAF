@@ -115,7 +115,7 @@ impl CompanyRepository for PgCompanyRepository {
                     location_url,
                     CASE WHEN logo_data IS NOT NULL THEN '1' END AS logo_data,
                     CASE WHEN cover_data IS NOT NULL THEN '1' END AS cover_data,
-                    products_per_page, orders_per_page, utc_offset_minutes, active,
+                    products_per_page, orders_per_page, delivery_fee, utc_offset_minutes, active,
                     business_type_id,
                     created_at, updated_at, deleted_at, synced
                FROM companies WHERE id = $1 AND deleted_at IS NULL",

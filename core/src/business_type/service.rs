@@ -12,6 +12,8 @@ use super::repository::BusinessTypeRepository;
 pub struct BusinessTypeInput {
     pub name: String,
     pub description: String,
+    /// Tema visual do site (slug de `THEMES`). Vazio/ inválido → default.
+    pub theme: String,
     pub active: bool,
     pub sort_order: i32,
 }
@@ -67,11 +69,20 @@ fn build(id: Uuid, input: BusinessTypeInput) -> Result<BusinessType, CoreError> 
     if input.name.trim().is_empty() {
         return Err(CoreError::Validation("Informe o nome do tipo de empresa".into()));
     }
+    // Tema: slug do catálogo; valor desconhecido/ vazio cai no default (§11 —
+    // o backend não confia no valor cru do frontend).
+    let theme = input.theme.trim().to_string();
+    let theme = if super::model::theme_is_valid(&theme) {
+        theme
+    } else {
+        super::model::DEFAULT_THEME.to_string()
+    };
     let now = Utc::now().naive_utc();
     Ok(BusinessType {
         id,
         name: input.name.trim().to_string(),
         description: input.description.trim().to_string(),
+        theme,
         active: input.active,
         sort_order: input.sort_order,
         created_at: now,

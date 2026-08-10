@@ -28,6 +28,7 @@ fn setup_business_type_new(ui: &MainWindow) {
         s.set_business_type_id(SharedString::new());
         s.set_business_type_name(SharedString::new());
         s.set_business_type_description(SharedString::new());
+        s.set_business_type_theme("restaurante".into());
         s.set_business_type_sort(SharedString::new());
         s.set_business_type_active(true);
         s.set_business_type_modal_open(true);
@@ -46,6 +47,8 @@ fn setup_business_type_edit(ui: &MainWindow, cache: &BusinessTypesCache) {
             s.set_business_type_id(b.id.clone().into());
             s.set_business_type_name(b.name.clone().into());
             s.set_business_type_description(b.description.clone().into());
+            let theme = if b.theme.is_empty() { "restaurante" } else { &b.theme };
+            s.set_business_type_theme(theme.into());
             s.set_business_type_sort(b.sort_order.to_string().into());
             s.set_business_type_active(b.active);
             s.set_business_type_modal_open(true);
@@ -135,10 +138,11 @@ fn read_business_type_form(ui: &MainWindow) -> BusinessTypeForm {
     let id = g.get_business_type_id().to_string();
     let name = g.get_business_type_name().trim().to_string();
     let description = g.get_business_type_description().trim().to_string();
+    let theme = g.get_business_type_theme().to_string();
     let sort_order: i32 = g.get_business_type_sort().trim().parse().unwrap_or(0);
     let active = g.get_business_type_active();
     let body = serde_json::json!({
-        "name": name, "description": description,
+        "name": name, "description": description, "theme": theme,
         "sort_order": sort_order, "active": active,
     });
     BusinessTypeForm { id, name, body }

@@ -23,6 +23,14 @@ pub struct CatalogInfo {
     /// recomputado pelo servidor).
     #[serde(default)]
     pub delivery_fee: f64,
+    /// Tema visual do site (slug), resolvido do tipo de empresa pelo servidor.
+    /// Vira `data-theme` no `<html>` → preset de CSS. Default `restaurante`.
+    #[serde(default = "default_theme")]
+    pub theme: String,
+}
+
+fn default_theme() -> String {
+    "restaurante".to_string()
 }
 
 /// Endereço salvo do cliente (`/customer/addresses`).

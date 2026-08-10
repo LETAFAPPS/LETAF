@@ -238,6 +238,9 @@ pub(super) struct BusinessTypeDto {
     pub(super) name: String,
     #[serde(default)]
     pub(super) description: String,
+    /// Tema visual do site (slug); "" cai no default no preenchimento.
+    #[serde(default)]
+    pub(super) theme: String,
     pub(super) active: bool,
     #[serde(default)]
     pub(super) sort_order: i32,

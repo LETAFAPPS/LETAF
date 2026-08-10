@@ -24,10 +24,40 @@ component Toggle inherits TouchArea {
     }
 }
 
+// Chip de seleção de tema (slug + rótulo). Espelha os chips de plano.
+component ThemeChip inherits TouchArea {
+    in property <string> slug;
+    in property <string> label;
+    in property <string> selected;   // slug atualmente selecionado
+    callback pick(string);
+    height: 36px;
+    clicked => { root.pick(root.slug); }
+    Rectangle {
+        border-radius: 8px;
+        border-width: root.selected == root.slug ? 1.5px : 1px;
+        border-color: root.selected == root.slug ? Theme.btn-accent : Theme.border;
+        background: root.selected == root.slug
+            ? Theme.btn-accent.transparentize(0.90)
+            : (root.has-hover ? Theme.row-hover : Theme.surface);
+        HorizontalLayout {
+            padding-left: 14px; padding-right: 14px;
+            Text {
+                text: root.label;
+                font-size: 13px;
+                font-weight: root.selected == root.slug ? 700 : 500;
+                color: root.selected == root.slug ? Theme.btn-accent : Theme.text-secondary;
+                vertical-alignment: center;
+            }
+        }
+    }
+}
+
 export component AdminBusinessTypeModal inherits Rectangle {
     in property <string> form-id;
     in-out property <string> form-name;
     in-out property <string> form-description;
+    // Tema visual do site (slug: restaurante|loja|fabrica).
+    in-out property <string> form-theme;
     in-out property <string> form-sort;
     in-out property <bool> form-active;
     callback save();
@@ -50,6 +80,32 @@ export component AdminBusinessTypeModal inherits Rectangle {
 
             FormField { label: "Nome"; value <=> root.form-name; placeholder: "Ex.: Restaurante"; }
             FormField { label: "Descrição"; value <=> root.form-description; placeholder: "Opcional"; }
+
+            // Tema do site: define o visual do cardápio para empresas deste tipo.
+            VerticalLayout {
+                spacing: 6px;
+                Text {
+                    text: "Tema do site"; font-size: 13px; font-weight: 600;
+                    color: Theme.text-primary;
+                }
+                HorizontalLayout {
+                    spacing: 8px;
+                    alignment: start;
+                    ThemeChip {
+                        slug: "restaurante"; label: "Restaurante"; selected: root.form-theme;
+                        pick(s) => { root.form-theme = s; }
+                    }
+                    ThemeChip {
+                        slug: "loja"; label: "Loja"; selected: root.form-theme;
+                        pick(s) => { root.form-theme = s; }
+                    }
+                    ThemeChip {
+                        slug: "fabrica"; label: "Fábrica"; selected: root.form-theme;
+                        pick(s) => { root.form-theme = s; }
+                    }
+                }
+            }
+
             FormField { label: "Ordem"; value <=> root.form-sort; placeholder: "0"; }
             HorizontalLayout {
                 spacing: 10px;

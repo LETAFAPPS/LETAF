@@ -211,6 +211,9 @@ struct CatalogInfo {
     /// checkout. O total continua sendo recomputado no servidor (§11) —
     /// isto é exibição.
     delivery_fee: f64,
+    /// Tema visual do site (slug), resolvido do tipo de empresa. O web aplica
+    /// o preset de CSS correspondente. Default `restaurante` (sem tipo).
+    theme: String,
 }
 
 #[derive(Serialize)]
@@ -346,6 +349,17 @@ async fn get_info(
         .find_by_id_light(tenant.company_id).await?
         .ok_or_else(|| ServerError::Core(letaf_core::error::CoreError::NotFound("Company not found".into())))?;
     let v = company.updated_at;
+    // Tema do site = tema do tipo de empresa; sem tipo (ou tipo removido) cai
+    // no default. O web só renderiza o slug (frontend burro, §11).
+    let theme = match company.business_type_id {
+        Some(bt_id) => state
+            .business_type_service
+            .find_by_id(bt_id)
+            .await?
+            .map(|b| b.theme)
+            .unwrap_or_else(|| letaf_core::business_type::model::DEFAULT_THEME.to_string()),
+        None => letaf_core::business_type::model::DEFAULT_THEME.to_string(),
+    };
     Ok(Json(CatalogInfo {
         name: company.name,
         logo_url: company.logo_data.as_ref().map(|_| media_url("logo", v)),
@@ -353,6 +367,7 @@ async fn get_info(
         address: company.address,
         phone: company.phone,
         delivery_fee: company.delivery_fee.to_f64().unwrap_or(0.0),
+        theme,
     }))
 }
 

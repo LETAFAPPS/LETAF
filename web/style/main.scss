@@ -1,13 +1,36 @@
 // Cardápio — estilos base (responsivo, mobile-first). AI_RULES §3:
 // UI responsiva e adaptável; estética é requisito.
 
+// Tema por TIPO de empresa. O servidor resolve o slug (business_type.theme)
+// e o `web` marca `data-theme` no <html> (ver components/catalog.rs). Cada
+// preset só redefine as variáveis de marca; todo o restante do CSS usa
+// `var(--brand)`/etc., então trocar estas variáveis re-tematiza tudo.
+// `restaurante` é o default (visual atual do sistema) e fica no `:root`.
 :root {
-    // Laranja de marca — único do sistema (mesmo do desktop/tema, §3).
+    // Laranja de marca — visual atual (tema "restaurante").
     --brand: #e8731c;
     --price: #66bb6a;
     --ink: #1a1a1a;
     --muted: #9ca3af;
     --line: #e5e7eb;
+}
+
+// Loja (varejo) — marca azul, mais "e-commerce".
+:root[data-theme="loja"] {
+    --brand: #2563eb;
+    --price: #16a34a;
+    --ink: #111827;
+    --muted: #94a3b8;
+    --line: #e5e7eb;
+}
+
+// Fábrica (indústria) — marca teal/aço, tom mais sóbrio.
+:root[data-theme="fabrica"] {
+    --brand: #0e7490;
+    --price: #16a34a;
+    --ink: #0f172a;
+    --muted: #94a3b8;
+    --line: #e2e8f0;
 }
 
 * { box-sizing: border-box; }

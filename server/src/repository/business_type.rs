@@ -15,6 +15,7 @@ struct BusinessTypeRow {
     id: Uuid,
     name: String,
     description: String,
+    theme: String,
     active: bool,
     sort_order: i32,
     created_at: NaiveDateTime,
@@ -28,6 +29,7 @@ impl From<BusinessTypeRow> for BusinessType {
             id: r.id,
             name: r.name,
             description: r.description,
+            theme: r.theme,
             active: r.active,
             sort_order: r.sort_order,
             created_at: r.created_at,
@@ -82,12 +84,13 @@ impl BusinessTypeRepository for PgBusinessTypeRepository {
 
     async fn create(&self, item: &BusinessType) -> Result<(), CoreError> {
         sqlx::query(
-            "INSERT INTO business_types (id, name, description, active, sort_order, created_at, updated_at, deleted_at)
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8)",
+            "INSERT INTO business_types (id, name, description, theme, active, sort_order, created_at, updated_at, deleted_at)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)",
         )
         .bind(item.id)
         .bind(&item.name)
         .bind(&item.description)
+        .bind(&item.theme)
         .bind(item.active)
         .bind(item.sort_order)
         .bind(item.created_at)
@@ -101,11 +104,12 @@ impl BusinessTypeRepository for PgBusinessTypeRepository {
 
     async fn update(&self, item: &BusinessType) -> Result<(), CoreError> {
         sqlx::query(
-            "UPDATE business_types SET name = $1, description = $2, active = $3, sort_order = $4, updated_at = $5
-             WHERE id = $6",
+            "UPDATE business_types SET name = $1, description = $2, theme = $3, active = $4, sort_order = $5, updated_at = $6
+             WHERE id = $7",
         )
         .bind(&item.name)
         .bind(&item.description)
+        .bind(&item.theme)
         .bind(item.active)
         .bind(item.sort_order)
         .bind(item.updated_at)
