@@ -120,6 +120,7 @@ impl JobRoleService {
             return Err(CoreError::Validation("Operação não permitida para esta empresa".into()));
         }
         role.permissions = sanitize(&role.name, std::mem::take(&mut role.permissions))?;
+        role.base.clamp_future_updated_at();
         role.base.synced = true;
         self.repo.sync_upsert(&role).await
     }

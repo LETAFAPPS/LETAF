@@ -273,6 +273,7 @@ impl CustomerService {
         if customer.base.company_id != company_id {
             return Err(CoreError::Validation("Operação não permitida para esta empresa".into()));
         }
+        customer.base.clamp_future_updated_at();
         customer.base.synced = true;
         self.repo.sync_upsert(&customer).await
     }

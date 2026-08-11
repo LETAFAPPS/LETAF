@@ -229,6 +229,7 @@ impl CouponService {
         // por `find_by_code` (match exato da forma normalizada), virando cupom
         // inutilizável. Paridade com os demais caminhos de escrita.
         coupon.code = normalize_code(&coupon.code);
+        coupon.base.clamp_future_updated_at();
         coupon.base.synced = true;
         self.repo.sync_upsert(&coupon).await
     }

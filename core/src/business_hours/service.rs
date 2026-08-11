@@ -89,6 +89,7 @@ impl BusinessHoursService {
         if hours.base.company_id != company_id {
             return Err(CoreError::Validation("Operação não permitida para esta empresa".into()));
         }
+        hours.base.clamp_future_updated_at();
         hours.base.synced = true;
         self.repo.sync_upsert(&hours).await
     }

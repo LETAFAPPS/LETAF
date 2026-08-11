@@ -347,6 +347,7 @@ impl WalletService {
         if account.base.company_id != company_id {
             return Err(CoreError::Validation("Operação não permitida para esta empresa".into()));
         }
+        account.base.clamp_future_updated_at();
         account.base.synced = true;
         self.repo.sync_upsert_account(&account).await
     }

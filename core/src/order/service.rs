@@ -771,6 +771,7 @@ impl OrderService {
         if order.base.company_id != company_id {
             return Err(CoreError::Validation("Operação não permitida para esta empresa".into()));
         }
+        order.base.clamp_future_updated_at();
         order.base.synced = true;
         for item in &mut order.items {
             // Normaliza o filho ao tenant e ao pai — NÃO confia no payload

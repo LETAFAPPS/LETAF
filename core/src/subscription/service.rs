@@ -1202,6 +1202,7 @@ impl SubscriptionService {
         if s.base.company_id != company_id {
             return Err(CoreError::Validation("Operação não permitida para esta empresa".into()));
         }
+        s.base.clamp_future_updated_at();
         s.base.synced = true;
         self.repo.sync_upsert_subscription(&s).await
     }
@@ -1215,6 +1216,7 @@ impl SubscriptionService {
         if inv.base.company_id != company_id {
             return Err(CoreError::Validation("Operação não permitida para esta empresa".into()));
         }
+        inv.base.clamp_future_updated_at();
         inv.base.synced = true;
         self.repo.sync_upsert_invoice(&inv).await
     }
@@ -1264,6 +1266,7 @@ impl SubscriptionService {
             s.pix_auto_status = stored.pix_auto_status;
             s.payment_method = stored.payment_method;
         }
+        s.base.clamp_future_updated_at();
         s.base.synced = true;
         self.repo.sync_upsert_subscription(&s).await
     }
@@ -1299,6 +1302,7 @@ impl SubscriptionService {
         inv.paid_at = stored.paid_at;
         inv.amount = stored.amount;
         inv.number = stored.number;
+        inv.base.clamp_future_updated_at();
         inv.base.synced = true;
         self.repo.sync_upsert_invoice(&inv).await
     }

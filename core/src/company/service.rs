@@ -321,6 +321,13 @@ impl CompanyService {
                 format!("store_override inválido: '{other}' (esperado none|open|closed)")
             )),
         }
+        // Company tem campos PLANOS (sem BaseFields), então clampa direto —
+        // mesmo racional de `BaseFields::clamp_future_updated_at` (§11 —
+        // anti-freeze do LWW).
+        let cap = chrono::Utc::now().naive_utc() + chrono::Duration::days(1);
+        if company.updated_at > cap {
+            company.updated_at = cap;
+        }
         company.synced = true;
         self.repo.sync_upsert(&company).await
     }

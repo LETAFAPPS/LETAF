@@ -119,6 +119,7 @@ impl BannerService {
         if banner.base.company_id != company_id {
             return Err(CoreError::Validation("Operação não permitida para esta empresa".into()));
         }
+        banner.base.clamp_future_updated_at();
         banner.base.synced = true;
         self.repo.sync_upsert(&banner).await
     }

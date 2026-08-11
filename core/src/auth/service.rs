@@ -486,6 +486,7 @@ impl AuthService {
             return Err(CoreError::Validation("Operação não permitida para esta empresa".into()));
         }
         let mut user = payload.into_user();
+        user.base.clamp_future_updated_at();
         user.base.synced = true;
         self.repo.sync_upsert(&user).await
     }
@@ -580,6 +581,7 @@ impl AuthService {
                 }
             }
         }
+        user.base.clamp_future_updated_at();
         user.base.synced = true;
         self.repo.sync_upsert(&user).await?;
         if password_changed || role_changed {

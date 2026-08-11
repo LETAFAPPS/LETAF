@@ -127,6 +127,7 @@ impl TreasuryService {
                 "Operação não permitida para esta empresa".into(),
             ));
         }
+        t.base.clamp_future_updated_at();
         t.base.synced = true;
         self.repo.sync_upsert(&t).await
     }

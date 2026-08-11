@@ -136,6 +136,7 @@ impl SubcategoryService {
         if subcategory.base.company_id != company_id {
             return Err(CoreError::Validation("Operação não permitida para esta empresa".into()));
         }
+        subcategory.base.clamp_future_updated_at();
         subcategory.base.synced = true;
         self.repo.sync_upsert(&subcategory).await
     }

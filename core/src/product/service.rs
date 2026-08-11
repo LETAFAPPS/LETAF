@@ -768,6 +768,7 @@ impl ProductService {
         if product.base.company_id != company_id {
             return Err(CoreError::Validation("Operação não permitida para esta empresa".into()));
         }
+        product.base.clamp_future_updated_at();
         product.base.synced = true;
         let group_ids = product.addon_group_ids.clone();
         let ingredients = product.ingredients.clone();

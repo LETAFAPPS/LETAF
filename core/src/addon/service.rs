@@ -127,6 +127,7 @@ impl AddonService {
         if addon.base.company_id != company_id {
             return Err(CoreError::Validation("Operação não permitida para esta empresa".into()));
         }
+        addon.base.clamp_future_updated_at();
         addon.base.synced = true;
         self.repo.sync_upsert(&addon).await
     }

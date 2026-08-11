@@ -144,6 +144,7 @@ impl FinanceCategoryService {
         if category.base.company_id != company_id {
             return Err(CoreError::Validation("Operação não permitida para esta empresa".into()));
         }
+        category.base.clamp_future_updated_at();
         category.base.synced = true;
         self.repo.sync_upsert(&category).await
     }

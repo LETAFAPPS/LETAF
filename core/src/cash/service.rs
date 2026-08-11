@@ -400,6 +400,7 @@ impl CashService {
                 }
             }
         }
+        session.base.clamp_future_updated_at();
         session.base.synced = true;
         self.sessions.sync_upsert(&session).await
     }
