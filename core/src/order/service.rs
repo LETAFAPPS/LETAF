@@ -519,6 +519,16 @@ impl OrderService {
                 "Pedido cancelado não recebe pagamento".into(),
             ));
         }
+        // Pagamento é ONE-WAY: um pedido PAGO só é revertido via CANCELAMENTO
+        // (que estorna o caixa em `register_sale_reversal`). Sem isto, dava para
+        // des-marcar pago → editar itens (o guard de `update_basics` só olha
+        // `paid`) → re-marcar, mudando o total de um pedido pago sem reconciliar
+        // o caixa. Fecha o contorno do bloqueio de edição de pedido pago (§11).
+        if order.paid && !paid {
+            return Err(CoreError::Validation(
+                "Pedido pago não pode ser desmarcado. Cancele o pedido para reverter.".into(),
+            ));
+        }
         self.repo
             .update_payment(company_id, id, payment_method.as_deref(), paid)
             .await?;
@@ -783,6 +793,27 @@ impl OrderService {
         }
         order.base.clamp_future_updated_at();
         order.base.synced = true;
+        // Pedido PAGO é financeiramente CONGELADO (§11): um push de sync NÃO pode
+        // alterar itens/total/desconto/cupom de um pedido já pago — senão um
+        // desktop adulterado contornaria o bloqueio de edição de `update_basics`
+        // e desbalancearia o caixa/tesouraria. Preserva o conteúdo financeiro
+        // (e o flag `paid`) do registro existente; deixa passar só campos
+        // operacionais (status, notas, entrega, forma de pgto). Pedido inexistente
+        // no servidor = 1ª versão do terminal autor → aceita como veio.
+        if let Some(existing) = self.repo.find_by_id(company_id, order.base.id).await? {
+            if existing.paid {
+                order.items = existing.items;
+                order.total = existing.total;
+                order.discount_amount = existing.discount_amount;
+                order.additional_amount = existing.additional_amount;
+                order.coupon_code = existing.coupon_code;
+                // `payment_method` também é congelado: senão um push trocaria a
+                // forma (cash→pix) de um pedido pago e um cancelamento posterior
+                // estornaria no bucket errado da conciliação de caixa.
+                order.payment_method = existing.payment_method;
+                order.paid = true;
+            }
+        }
         for item in &mut order.items {
             // Normaliza o filho ao tenant e ao pai — NÃO confia no payload
             // (§11). `OrderItem` tem `company_id` e `order_id` livres no JSON;
