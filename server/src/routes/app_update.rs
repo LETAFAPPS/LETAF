@@ -53,15 +53,27 @@ async fn download(State(state): State<AppState>, Path(file): Path<String>) -> Re
         return StatusCode::BAD_REQUEST.into_response();
     }
     let path = std::path::Path::new(&state.config.app_updates_dir).join(&file);
-    match tokio::fs::read(&path).await {
-        Ok(bytes) => Response::builder()
-            .header(header::CONTENT_TYPE, "application/octet-stream")
-            .header(
-                header::CONTENT_DISPOSITION,
-                format!("attachment; filename=\"{file}\""),
-            )
-            .body(axum::body::Body::from(bytes))
-            .unwrap_or_else(|_| StatusCode::INTERNAL_SERVER_ERROR.into_response()),
-        Err(_) => StatusCode::NOT_FOUND.into_response(),
+    // STREAM em vez de `tokio::fs::read` (que carregaria o binário INTEIRO em
+    // RAM): a rota é pública e sem rate limit, então ler ~100 MB por conexão
+    // permitia OOM com poucas conexões concorrentes (§11/§13). `ReaderStream`
+    // envia em chunks, com memória O(chunk), não O(arquivo).
+    let Ok(f) = tokio::fs::File::open(&path).await else {
+        return StatusCode::NOT_FOUND.into_response();
+    };
+    // Content-Length quando o tamanho é conhecido (melhora o progresso no
+    // cliente); ausência apenas cai em chunked encoding.
+    let len = f.metadata().await.ok().map(|m| m.len());
+    let stream = tokio_util::io::ReaderStream::new(f);
+    let mut builder = Response::builder()
+        .header(header::CONTENT_TYPE, "application/octet-stream")
+        .header(
+            header::CONTENT_DISPOSITION,
+            format!("attachment; filename=\"{file}\""),
+        );
+    if let Some(n) = len {
+        builder = builder.header(header::CONTENT_LENGTH, n);
     }
+    builder
+        .body(axum::body::Body::from_stream(stream))
+        .unwrap_or_else(|_| StatusCode::INTERNAL_SERVER_ERROR.into_response())
 }

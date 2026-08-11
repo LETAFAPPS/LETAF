@@ -82,7 +82,20 @@ impl CashService {
             initial_change,
             notes,
         );
-        self.sessions.create(&session).await?;
+        // O `find_active` acima é check-then-act; a garantia REAL contra caixa
+        // duplo é o índice único parcial `idx_cash_sessions_one_open` no banco.
+        // Sob corrida (duas aberturas concorrentes), o perdedor viola a unicidade
+        // — mapeia para validação limpa em vez de vazar um 500 cru (§11).
+        if let Err(e) = self.sessions.create(&session).await {
+            if matches!(&e, CoreError::Repository(m)
+                if m.contains("duplicate key") || m.contains("UNIQUE constraint"))
+            {
+                return Err(CoreError::Validation(
+                    "Já existe um caixa aberto. Feche o atual antes de abrir outro.".into(),
+                ));
+            }
+            return Err(e);
+        }
 
         // Lançamento Opening — saldo em dinheiro inicia com troco.
         if initial_change > Decimal::ZERO {

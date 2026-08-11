@@ -49,6 +49,17 @@ async fn connect_pool(database_url: &str) -> PgPool {
         .acquire_timeout(Duration::from_secs(5))
         .idle_timeout(Duration::from_secs(600))
         .max_lifetime(Duration::from_secs(1800))
+        // Teto de tempo por statement (§11/§13): uma query patológica (ex.: um
+        // catálogo enorme, ou trabalho concorrente) não segura uma das 10
+        // conexões do pool indefinidamente, o que negaria serviço às demais.
+        // 30s é ordens de grandeza acima de qualquer query real (paginadas,
+        // indexadas) e cobre com folga as migrations no boot.
+        .after_connect(|conn, _meta| {
+            Box::pin(async move {
+                sqlx::query("SET statement_timeout = '30s'").execute(conn).await?;
+                Ok(())
+            })
+        })
         .connect(database_url)
         .await
         .expect("Failed to connect to PostgreSQL");
