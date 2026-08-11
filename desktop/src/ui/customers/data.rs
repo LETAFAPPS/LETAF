@@ -5,18 +5,6 @@ use letaf_core::order::model::{Order, OrderStatus};
 
 
 
-/// Pedido recente já formatado para o detalhe do cliente.
-#[derive(Clone)]
-pub(crate) struct RecentOrder {
-    pub(crate) id: SharedString,
-    pub(crate) number: SharedString,
-    pub(crate) summary: SharedString,
-    pub(crate) date: SharedString,
-    pub(crate) status: SharedString,
-    pub(crate) status_label: SharedString,
-    pub(crate) total: SharedString,
-}
-
 /// Endereço já formatado para o card do detalhe.
 #[derive(Clone)]
 pub(crate) struct AddressRow {
@@ -45,7 +33,6 @@ pub(crate) struct DecodedCustomer {
     pub(crate) status: SharedString,
     pub(crate) status_label: SharedString,
     pub(crate) is_vip: bool,
-    pub(crate) recent: Vec<RecentOrder>,
     pub(crate) addresses: Vec<AddressRow>,
     pub(crate) pixel_buffer: Option<slint::SharedPixelBuffer<slint::Rgba8Pixel>>,
 }

@@ -14,7 +14,7 @@ use crate::context::DesktopState;
 use crate::format::{format_document, format_phone};
 use crate::{CustomerAddressRow, CustomerOrderRow, MainWindow};
 
-use super::data::{AddressRow, DecodedCustomer, money, order_summary, recency_label, RecentOrder, status_for, status_label_pt};
+use super::data::{AddressRow, DecodedCustomer, money, order_summary, recency_label, status_for, status_label_pt};
 use super::crud::{decode_customer_pixel_buffer, decoded_to_customer_data_ref};
 use crate::CustomersState;
 
@@ -33,6 +33,8 @@ pub(crate) fn setup_refresh_customers(
         let ui_weak = ui_weak.clone();
         let state = state.clone();
         let cache = cache.clone();
+        // Clone extra do handle para recarregar o detalhe da seleção sob demanda.
+        let handle_detail = handle.clone();
 
         handle.spawn(async move {
             let cid = state.company_id();
@@ -40,10 +42,12 @@ pub(crate) fn setup_refresh_customers(
                 Ok(c) => c,
                 Err(e) => { tracing::error!("Failed to load customers: {e}"); return; }
             };
-            // Carrega todos os pedidos uma vez e agrupa por cliente.
-            // MANTÉM os itens: `customers/data.rs` monta o resumo do último
-            // pedido do cliente a partir de `items`.
-            let orders = state.order_service.find_all(cid).await.unwrap_or_default();
+            // §13: carrega os pedidos SEM itens (`find_all_light`) — a lista só
+            // precisa de total/data/status para LTV, ticket, VIP e recência. O
+            // histórico com resumo de itens é carregado SOB DEMANDA ao selecionar
+            // o cliente (`load_customer_detail`), evitando hidratar os itens de
+            // TODOS os pedidos de TODOS os clientes a cada refresh.
+            let orders = state.order_service.find_all_light(cid).await.unwrap_or_default();
             // Endereços de TODOS os clientes numa única query (evita N+1)
             // e agrupa por customer_id em memória.
             let mut addrs: HashMap<Uuid, Vec<CustomerAddress>> = HashMap::new();
@@ -60,17 +64,21 @@ pub(crate) fn setup_refresh_customers(
             if let Ok(mut g) = cache.lock() { *g = decoded; }
 
             let cache2 = cache.clone();
+            let state2 = state.clone();
+            let ui_weak2 = ui_weak.clone();
             let _ = slint::invoke_from_event_loop(move || {
-                let Some(ui) = ui_weak.upgrade() else { return };
+                let Some(ui) = ui_weak2.upgrade() else { return };
                 let data = cache2.lock().map(|g| {
                     g.iter().map(decoded_to_customer_data_ref).collect::<Vec<_>>()
                 }).unwrap_or_default();
                 ui.global::<CustomersState>().set_customers(ModelRc::new(VecModel::from(data)));
-                // Reaplica a seleção atual para o detalhe refletir
-                // criação/edição sem o operador trocar de tela.
+                // Recarrega o detalhe (com itens) da seleção atual SOB DEMANDA,
+                // para refletir criação/edição sem o operador trocar de tela.
                 let sel = ui.global::<CustomersState>().get_selected_customer_id().to_string();
                 if !sel.is_empty() {
-                    apply_selection(&ui, &cache2, &sel);
+                    handle_detail.spawn(load_customer_detail(
+                        ui_weak2.clone(), state2.clone(), cache2.clone(), sel,
+                    ));
                 }
             });
         });
@@ -128,19 +136,9 @@ pub(crate) fn build_decoded(
             "Sem Pedidos".to_string()
         };
 
-        // Todos os pedidos (a paginação é feita na UI, 5 por página).
-        let recent: Vec<RecentOrder> = list.iter().map(|o| RecentOrder {
-            id: SharedString::from(o.base.id.to_string()),
-            number: SharedString::from(format!("#{:04}", o.number)),
-            summary: SharedString::from(order_summary(o)),
-            date: SharedString::from(
-                letaf_core::tz::to_local(o.base.created_at).format("%d/%m").to_string(),
-            ),
-            status: SharedString::from(o.status.to_string()),
-            status_label: SharedString::from(status_label_pt(&o.status)),
-            total: SharedString::from(money(o.total.to_f64().unwrap_or(0.0))),
-        }).collect();
-
+        // O histórico (`recent`, com resumo de itens) NÃO é montado aqui: seria
+        // preciso hidratar os itens de todos os pedidos. É carregado sob demanda
+        // ao selecionar o cliente (`load_customer_detail`). §13.
         let addresses: Vec<AddressRow> = addrs.get(&c.base.id)
             .map(|v| v.iter().map(|a| {
                 let apt = a.apartment.as_deref()
@@ -180,7 +178,7 @@ pub(crate) fn build_decoded(
             status: SharedString::from(status),
             status_label: SharedString::from(status_label),
             is_vip,
-            recent,
+
             addresses,
             pixel_buffer: c.profile_picture.as_deref()
                 .filter(|s| !s.is_empty())
@@ -214,46 +212,95 @@ pub(crate) fn setup_filter_customers(
     });
 }
 
-/// Callback: seleção de um cliente → popula o painel de detalhe.
-/// Popula o painel de detalhe (cliente + pedidos + endereços) a partir
-/// do cache. Reutilizado pela seleção e pela re-seleção pós-refresh
-/// (atualiza a tela sem o operador trocar de aba).
-pub(crate) fn apply_selection(ui: &MainWindow, cache: &std::sync::Mutex<Vec<DecodedCustomer>>, id: &str) {
-    let found = cache.lock().ok().and_then(|g|
-        g.iter().find(|c| c.id == id).map(|d| {
-            let data = decoded_to_customer_data_ref(d);
-            let rows: Vec<CustomerOrderRow> = d.recent.iter().map(|r| CustomerOrderRow {
-                id: r.id.clone(),
-                number: r.number.clone(),
-                summary: r.summary.clone(),
-                date: r.date.clone(),
-                status: r.status.clone(),
-                status_label: r.status_label.clone(),
-                total: r.total.clone(),
-            }).collect();
-            let addrs: Vec<CustomerAddressRow> = d.addresses.iter().map(|a| CustomerAddressRow {
-                id: a.id.clone(),
-                label: a.label.clone(),
-                line: a.line.clone(),
-            }).collect();
-            (data, rows, addrs)
-        }));
-    if let Some((data, rows, addrs)) = found {
-        ui.global::<CustomersState>().set_selected_customer_id(SharedString::from(id));
-        ui.global::<CustomersState>().set_detail_customer(data);
-        ui.global::<CustomersState>().set_detail_recent_orders(ModelRc::new(VecModel::from(rows)));
-        ui.global::<CustomersState>().set_detail_addresses(ModelRc::new(VecModel::from(addrs)));
-    }
+/// Carrega o histórico (COM itens) do cliente selecionado SOB DEMANDA e popula
+/// o painel de detalhe. §13: a lista usa `find_all_light` (sem itens); só os
+/// pedidos DAQUELE cliente são hidratados aqui (conjunto pequeno). Cliente +
+/// endereços vêm do cache agregado já em memória.
+pub(crate) async fn load_customer_detail(
+    ui_weak: slint::Weak<MainWindow>,
+    state: DesktopState,
+    cache: Arc<std::sync::Mutex<Vec<DecodedCustomer>>>,
+    id: String,
+) {
+    let Ok(customer_id) = Uuid::parse_str(&id) else { return };
+    let cid = state.company_id();
+    let mut orders = state
+        .order_service
+        .find_by_customer(cid, customer_id)
+        .await
+        .unwrap_or_default();
+    orders.sort_by_key(|o| std::cmp::Reverse(o.base.created_at));
+    // Formata as linhas (com resumo dos itens) FORA do event loop — Strings são
+    // Send; os `CustomerOrderRow` (SharedString) são montados no event loop.
+    let rows_raw: Vec<[String; 7]> = orders
+        .iter()
+        .map(|o| {
+            [
+                o.base.id.to_string(),
+                format!("#{:04}", o.number),
+                order_summary(o),
+                letaf_core::tz::to_local(o.base.created_at).format("%d/%m").to_string(),
+                o.status.to_string(),
+                status_label_pt(&o.status).to_string(),
+                money(o.total.to_f64().unwrap_or(0.0)),
+            ]
+        })
+        .collect();
+    let _ = slint::invoke_from_event_loop(move || {
+        let Some(ui) = ui_weak.upgrade() else { return };
+        // Cliente + endereços do cache agregado (já em memória).
+        let Some((data, addrs)) = cache.lock().ok().and_then(|g| {
+            g.iter().find(|c| c.id == id).map(|d| {
+                let addrs: Vec<CustomerAddressRow> = d
+                    .addresses
+                    .iter()
+                    .map(|a| CustomerAddressRow {
+                        id: a.id.clone(),
+                        label: a.label.clone(),
+                        line: a.line.clone(),
+                    })
+                    .collect();
+                (decoded_to_customer_data_ref(d), addrs)
+            })
+        }) else {
+            return;
+        };
+        let rows: Vec<CustomerOrderRow> = rows_raw
+            .into_iter()
+            .map(|[oid, number, summary, date, status, status_label, total]| CustomerOrderRow {
+                id: oid.into(),
+                number: number.into(),
+                summary: summary.into(),
+                date: date.into(),
+                status: status.into(),
+                status_label: status_label.into(),
+                total: total.into(),
+            })
+            .collect();
+        let st = ui.global::<CustomersState>();
+        st.set_selected_customer_id(SharedString::from(id.as_str()));
+        st.set_detail_customer(data);
+        st.set_detail_recent_orders(ModelRc::new(VecModel::from(rows)));
+        st.set_detail_addresses(ModelRc::new(VecModel::from(addrs)));
+    });
 }
 
 pub(crate) fn setup_select_customer(
     ui: &MainWindow,
+    state: &DesktopState,
+    handle: &tokio::runtime::Handle,
     cache: Arc<std::sync::Mutex<Vec<DecodedCustomer>>>,
 ) {
     let ui_weak = ui.as_weak();
+    let state = state.clone();
+    let handle = handle.clone();
     ui.global::<CustomersState>().on_select_customer(move |id| {
-        let Some(ui) = ui_weak.upgrade() else { return };
-        apply_selection(&ui, &cache, id.as_str());
+        handle.spawn(load_customer_detail(
+            ui_weak.clone(),
+            state.clone(),
+            cache.clone(),
+            id.to_string(),
+        ));
     });
 }
 

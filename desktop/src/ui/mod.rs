@@ -142,7 +142,7 @@ pub fn setup_callbacks(
         Arc::new(std::sync::Mutex::new(Vec::new()));
     customers::setup_refresh_customers(ui, state, handle, customers_cache.clone());
     customers::setup_filter_customers(ui, customers_cache.clone());
-    customers::setup_select_customer(ui, customers_cache);
+    customers::setup_select_customer(ui, state, handle, customers_cache);
     customers::setup_add_customer(ui, state, handle, sync_notify.clone());
     customers::setup_update_customer(ui, state, handle, sync_notify.clone());
     customers::setup_delete_customer(ui, state, handle, sync_notify.clone());
