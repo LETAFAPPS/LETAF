@@ -91,7 +91,7 @@ async fn register(
         tenant.company_id,
         ROLE_CUSTOMER,
         Vec::new(), // cliente final não tem permissões de operador
-        0,          // cliente não versiona credencial (revogação é só p/ operador)
+        0,          // cliente recém-criado → versão de credencial inicial 0
         &state.config.jwt_secret,
         72,
     )?;
@@ -169,12 +169,19 @@ async fn login(
         .authenticate(tenant.company_id, &body.email, &body.password)
         .await?;
 
+    // Versão de credencial atual (§11): carimbada no token para que trocar a
+    // senha / banir o cliente invalide sessões antigas no próximo request.
+    let tv = state
+        .customer_service
+        .find_token_version(tenant.company_id, customer.base.id)
+        .await?
+        .unwrap_or(0);
     let token = create_token(
         customer.base.id,
         tenant.company_id,
         ROLE_CUSTOMER,
         Vec::new(), // cliente final não tem permissões de operador
-        0,          // cliente não versiona credencial (revogação é só p/ operador)
+        tv,
         &state.config.jwt_secret,
         72,
     )?;

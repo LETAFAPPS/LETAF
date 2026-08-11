@@ -37,6 +37,21 @@ pub trait CustomerRepository: Send + Sync {
     /// Upsert de sincronização (§7.7 — last-write-wins via updated_at).
     async fn sync_upsert(&self, customer: &Customer) -> Result<(), CoreError>;
 
+    /// Versão de credencial do cliente, para revogação de sessão web (§11).
+    /// `None` = cliente inexistente ou banido (`deleted_at`) → sessão inválida;
+    /// `Some(v)` deve casar com o `tv` do JWT. É AUTORIDADE DO SERVIDOR: não
+    /// entra no struct `Customer` nem no sync. Default (SQLite/offline) devolve
+    /// `None` e nunca é chamado — auth de cliente só existe no servidor.
+    async fn find_token_version(&self, _company_id: Uuid, _id: Uuid) -> Result<Option<i32>, CoreError> {
+        Ok(None)
+    }
+
+    /// Incrementa a versão de credencial do cliente (revoga tokens ativos).
+    /// Default no-op — offline não autentica cliente final.
+    async fn bump_token_version(&self, _company_id: Uuid, _id: Uuid) -> Result<(), CoreError> {
+        Ok(())
+    }
+
     /// Busca entidades atualizadas após o timestamp (§7 — sync pull).
     async fn find_updated_since(&self, company_id: Uuid, since: NaiveDateTime) -> Result<Vec<Customer>, CoreError>;
 

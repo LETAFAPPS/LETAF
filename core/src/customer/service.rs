@@ -173,6 +173,7 @@ impl CustomerService {
         let mut customer = self.repo.find_by_id(company_id, customer_id).await?
             .ok_or_else(|| CoreError::NotFound("Customer not found".into()))?;
 
+        let mut password_changed = false;
         if let Some(new_pwd) = new_password {
             let cur_pwd = current_password
                 .ok_or_else(|| CoreError::Validation("Informe a senha atual".into()))?;
@@ -191,6 +192,7 @@ impl CustomerService {
             // DEFAULT_COST=12 — política de hash inconsistente para a
             // mesma entidade conforme o caminho (cadastro vs. troca).
             customer.password_hash = Some(crate::hashing::hash_password(new_pwd).await?);
+            password_changed = true;
         }
 
         customer.name            = name;
@@ -201,7 +203,19 @@ impl CustomerService {
         customer.base.updated_at = chrono::Utc::now().naive_utc();
         customer.base.synced     = false;
         self.repo.update(&customer).await?;
+        // Troca de senha revoga sessões ativas (§11): incrementa a versão de
+        // credencial → o token antigo é rejeitado no próximo request. Inclui a
+        // sessão atual (o web reautentica), fechando a janela de 72h.
+        if password_changed {
+            self.repo.bump_token_version(company_id, customer_id).await?;
+        }
         Ok(customer)
+    }
+
+    /// Versão de credencial do cliente para o middleware validar o `tv` do JWT
+    /// e para o login carimbar o token (§11 — revogação de sessão web).
+    pub async fn find_token_version(&self, company_id: Uuid, id: Uuid) -> Result<Option<i32>, CoreError> {
+        self.repo.find_token_version(company_id, id).await
     }
 
     pub async fn find_by_email(&self, company_id: Uuid, email: &str) -> Result<Option<Customer>, CoreError> {

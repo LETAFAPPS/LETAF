@@ -86,6 +86,34 @@ impl CustomerRepository for PgCustomerRepository {
         .map_err(map_db)
     }
 
+    async fn find_token_version(&self, company_id: Uuid, id: Uuid) -> Result<Option<i32>, CoreError> {
+        // `None` (cliente inexistente OU banido por `deleted_at`) → o middleware
+        // rejeita a sessão (§11). Coluna server-authoritative (não vem do sync).
+        let row: Option<(i32,)> = sqlx::query_as(
+            "SELECT token_version FROM customers
+             WHERE company_id = $1 AND id = $2 AND deleted_at IS NULL",
+        )
+        .bind(company_id)
+        .bind(id)
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(map_db)?;
+        Ok(row.map(|(v,)| v))
+    }
+
+    async fn bump_token_version(&self, company_id: Uuid, id: Uuid) -> Result<(), CoreError> {
+        sqlx::query(
+            "UPDATE customers SET token_version = token_version + 1
+             WHERE company_id = $1 AND id = $2 AND deleted_at IS NULL",
+        )
+        .bind(company_id)
+        .bind(id)
+        .execute(&self.pool)
+        .await
+        .map_err(map_db)?;
+        Ok(())
+    }
+
     async fn find_by_email(&self, company_id: Uuid, email: &str) -> Result<Option<Customer>, CoreError> {
         sqlx::query_as::<_, CustomerRow>(
             "SELECT * FROM customers WHERE company_id = $1 AND email = $2 AND deleted_at IS NULL",

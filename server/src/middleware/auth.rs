@@ -4,7 +4,7 @@ use uuid::Uuid;
 
 use crate::context::AppState;
 use crate::error::ServerError;
-use crate::jwt::{validate_token, Claims, ROLE_ADMIN, ROLE_EMPLOYEE, ROLE_SUPER_ADMIN};
+use crate::jwt::{validate_token, Claims, ROLE_ADMIN, ROLE_CUSTOMER, ROLE_EMPLOYEE, ROLE_SUPER_ADMIN};
 
 /// Extractor axum que valida JWT do header Authorization.
 ///
@@ -247,6 +247,25 @@ impl FromRequestParts<AppState> for AuthClaims {
             // rejeitado no próximo request, forçando novo login.
             match state
                 .auth_service
+                .find_token_version(claims.company_id, claims.sub)
+                .await?
+            {
+                None => return Err(ServerError::Jwt("Conta desativada ou removida".into())),
+                Some(v) if v != claims.tv => {
+                    return Err(ServerError::Jwt(
+                        "Credenciais alteradas; faça login novamente".into(),
+                    ));
+                }
+                Some(_) => {}
+            }
+        } else if claims.role == ROLE_CUSTOMER {
+            // Revogação de sessão do CLIENTE final (§11): trocar a senha (bump da
+            // versão de credencial) ou banir/remover o cliente (soft-delete →
+            // `None`) invalida o token no PRÓXIMO request, sem esperar o `exp`
+            // (72h). O cliente vive em outra tabela (`customers`), com ciclo
+            // próprio de `token_version` — server-authoritative, fora do sync.
+            match state
+                .customer_service
                 .find_token_version(claims.company_id, claims.sub)
                 .await?
             {
