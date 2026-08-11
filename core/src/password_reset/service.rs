@@ -11,6 +11,10 @@ use super::repository::PasswordResetRepository;
 /// Validade do código de redefinição.
 const CODE_TTL_MINUTES: i64 = 15;
 
+/// Máximo de tentativas ERRADAS por código antes de invalidá-lo (§11 —
+/// anti-força-bruta do código de 6 dígitos, independente do nº de IPs).
+const MAX_VERIFY_ATTEMPTS: i32 = 5;
+
 /// Regras de redefinição de senha (RBAC/§11): gera e valida o código de
 /// uso único. NÃO envia e-mail nem altera a senha — isso é orquestrado no
 /// servidor (o envio é infra; a troca da senha é do `AuthService`).
@@ -51,6 +55,13 @@ impl PasswordResetService {
         let invalid = || CoreError::Validation("Código inválido ou expirado".into());
         let reset = self.repo.find_active(email).await?.ok_or_else(invalid)?;
         if reset.expires_at < Utc::now().naive_utc() {
+            return Err(invalid());
+        }
+        // Reivindica um slot de tentativa ANTES do bcrypt (caro). Sob rajada
+        // concorrente, o `UPDATE` com lock de linha serializa e só os primeiros
+        // `MAX_VERIFY_ATTEMPTS` palpites chegam à verificação — o teto não vaza
+        // por concorrência. Esgotado o teto → rejeita sem hashear (§11).
+        if !self.repo.claim_verify_attempt(reset.id, MAX_VERIFY_ATTEMPTS).await? {
             return Err(invalid());
         }
         let ok = crate::hashing::verify_password(code.to_string(), reset.code_hash.clone()).await?;

@@ -519,6 +519,7 @@ impl AuthService {
         }
         let mut user = payload.into_user();
         let mut password_changed = false;
+        let mut role_changed = false;
         match self.repo.find_by_id(company_id, user.base.id).await? {
             // Usuário já existe.
             Some(existing) => {
@@ -541,6 +542,12 @@ impl AuthService {
                 // antigos no servidor (§11) — senão a revogação por versão de
                 // credencial teria uma janela offline.
                 password_changed = existing.password_hash != user.password_hash;
+                // Troca de Função (job_role_id) por um Admin via sync também revoga:
+                // as permissões vão DENTRO do JWT, então sem o bump o funcionário
+                // rebaixado manteria as permissões antigas até o `exp` (§11).
+                // Paridade com `update_employee`/rota REST. (Não-admin não muda o
+                // job_role_id — preservado acima —, então aqui é sempre `false`.)
+                role_changed = existing.job_role_id != user.job_role_id;
             }
             // Usuário NOVO: só um Admin pode criar usuário via sync (senão um
             // funcionário criaria uma conta com job_role de permissão máxima e
@@ -575,7 +582,7 @@ impl AuthService {
         }
         user.base.synced = true;
         self.repo.sync_upsert(&user).await?;
-        if password_changed {
+        if password_changed || role_changed {
             self.repo.bump_token_version(company_id, user.base.id).await?;
         }
         Ok(())

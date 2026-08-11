@@ -420,9 +420,18 @@ pub(crate) async fn sync_job_role(
     {
         auth.require_can_grant(&atual.permissions)?;
     }
+    let role_id = role.base.id;
     state
         .job_role_service
         .sync_upsert(auth.0.company_id, role)
+        .await?;
+    // Editar as permissões da Função pelo caminho de SYNC também revoga os tokens
+    // de quem a possui — paridade com a rota REST (`job_roles::update`). As
+    // permissões vão DENTRO do JWT; sem o bump, um funcionário rebaixado manteria
+    // as permissões antigas até o `exp` (§11).
+    state
+        .auth_service
+        .bump_token_version_by_job_role(auth.0.company_id, role_id)
         .await?;
 
     Ok(Json(json!({ "synced": true })))

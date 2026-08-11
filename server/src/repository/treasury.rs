@@ -362,23 +362,20 @@ impl TreasuryRepository for PgTreasuryRepository {
     }
 
     async fn sync_upsert_movement(&self, m: &TreasuryMovement) -> Result<(), CoreError> {
-        // Last-write-wins por `updated_at` (§7.7); o guard de `company_id`
-        // impede que um conflito de id troque o tenant da linha (§11).
+        // Ledger append-only idempotente (§7/§11): `ON CONFLICT DO NOTHING`,
+        // igual a wallet/estoque/insumo/caixa. Movimento de tesouraria NUNCA é
+        // editado nem soft-deletado (o service só tem `register_movement`
+        // Deposit/Withdraw) — correções entram como movimento novo. Antes, o
+        // `DO UPDATE` por LWW deixava um cliente adulterado reescrever `amount`/
+        // `kind` (ex.: R$10 → R$1.000.000, ou inverter Deposit↔Withdraw) e alterar
+        // o saldo histórico consolidado. O `id` é único do evento → conflito só
+        // num reenvio do MESMO movimento.
         sqlx::query(
             "INSERT INTO treasury_movements
              (id, company_id, treasury_id, kind, amount, notes,
               created_at, updated_at, deleted_at, synced)
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-             ON CONFLICT (id) DO UPDATE SET
-               treasury_id = EXCLUDED.treasury_id,
-               kind = EXCLUDED.kind,
-               amount = EXCLUDED.amount,
-               notes = EXCLUDED.notes,
-               updated_at = EXCLUDED.updated_at,
-               deleted_at = EXCLUDED.deleted_at,
-               synced = EXCLUDED.synced
-             WHERE EXCLUDED.updated_at > treasury_movements.updated_at
-               AND treasury_movements.company_id = EXCLUDED.company_id",
+             ON CONFLICT (id) DO NOTHING",
         )
         .bind(m.base.id)
         .bind(m.base.company_id)

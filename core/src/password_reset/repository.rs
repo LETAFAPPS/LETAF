@@ -21,6 +21,16 @@ pub trait PasswordResetRepository: Send + Sync {
     /// com o mesmo código (§11 — sem check-then-act).
     async fn mark_used(&self, id: Uuid) -> Result<bool, CoreError>;
 
+    /// Reivindica ATOMICAMENTE um "slot" de tentativa ANTES da verificação cara
+    /// (bcrypt). Incrementa `attempts` só se o código ainda está ativo e abaixo
+    /// do teto (`used = FALSE AND attempts < max_attempts`); retorna `true` se um
+    /// slot foi consumido (o chamador PODE verificar o hash), `false` se o código
+    /// já se esgotou/foi usado (rejeita SEM hashear). Anti-força-bruta do código
+    /// de 6 dígitos (§11): o `UPDATE` toma lock de linha, então uma rajada
+    /// concorrente serializa e só os primeiros `max_attempts` palpites chegam ao
+    /// bcrypt — o enforcement não vaza por concorrência.
+    async fn claim_verify_attempt(&self, id: Uuid, max_attempts: i32) -> Result<bool, CoreError>;
+
     /// Invalida todos os códigos ativos de um e-mail (ao emitir um novo,
     /// evita vários códigos válidos ao mesmo tempo).
     async fn invalidate_email(&self, email: &str) -> Result<(), CoreError>;

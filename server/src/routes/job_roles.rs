@@ -145,5 +145,12 @@ async fn delete(
     // mais poderoso que o chamador.
     require_can_touch_role(&state, &auth, tenant.company_id, id).await?;
     state.job_role_service.soft_delete(tenant.company_id, id).await?;
+    // Apagar a Função revoga os tokens de quem a tinha JÁ no próximo request (não
+    // só no próximo login) — paridade com `update`. As permissões vão no JWT;
+    // sem o bump, o usuário manteria as permissões da Função apagada até o `exp` (§11).
+    state
+        .auth_service
+        .bump_token_version_by_job_role(tenant.company_id, id)
+        .await?;
     Ok(Json(json!({ "deleted": true })))
 }

@@ -188,22 +188,20 @@ impl CashMovementRepository for PgCashMovementRepository {
     }
 
     async fn sync_upsert(&self, m: &CashMovement) -> Result<(), CoreError> {
+        // Ledger append-only idempotente (§7/§11): `ON CONFLICT DO NOTHING`,
+        // igual a wallet/estoque/insumo. Movimento de caixa NUNCA é editado nem
+        // soft-deletado — correções entram como NOVO movimento (ex.: sangria,
+        // `register_sale_reversal`). Antes, um `DO UPDATE` por LWW deixava um
+        // cliente/desktop adulterado reescrever `amount`/`kind` ou soft-deletar um
+        // movimento já postado (mesmo id, `updated_at` maior) → encobria desvio de
+        // gaveta e propagava o valor falso no pull. O `id` do movimento é único do
+        // evento, então o conflito só ocorre num reenvio do MESMO movimento.
         sqlx::query(
             "INSERT INTO cash_movements
              (id, company_id, session_id, kind, amount, method, reason, detail,
               order_id, created_at, updated_at, deleted_at, synced)
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
-             ON CONFLICT (id) DO UPDATE SET
-               kind = EXCLUDED.kind,
-               amount = EXCLUDED.amount,
-               method = EXCLUDED.method,
-               reason = EXCLUDED.reason,
-               detail = EXCLUDED.detail,
-               order_id = EXCLUDED.order_id,
-               updated_at = EXCLUDED.updated_at,
-               deleted_at = EXCLUDED.deleted_at,
-               synced = EXCLUDED.synced
-             WHERE EXCLUDED.updated_at > cash_movements.updated_at AND cash_movements.company_id = EXCLUDED.company_id",
+             ON CONFLICT (id) DO NOTHING",
         )
         .bind(m.base.id)
         .bind(m.base.company_id)

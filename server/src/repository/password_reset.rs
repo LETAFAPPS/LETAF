@@ -86,6 +86,25 @@ impl PasswordResetRepository for PgPasswordResetRepository {
         Ok(res.rows_affected() == 1)
     }
 
+    async fn claim_verify_attempt(&self, id: Uuid, max_attempts: i32) -> Result<bool, CoreError> {
+        // Consome um slot ATOMICAMENTE: só incrementa se ainda ativo e abaixo do
+        // teto. O `WHERE attempts < $2` bloqueia o (max+1)-ésimo palpite, então o
+        // código nunca é pré-marcado `used` — um acerto na última tentativa ainda
+        // é consumido normalmente por `mark_used`. O lock de linha do UPDATE
+        // serializa rajadas concorrentes (só os primeiros `max` chegam ao bcrypt).
+        let res = sqlx::query(
+            "UPDATE password_resets
+             SET attempts = attempts + 1
+             WHERE id = $1 AND used = FALSE AND attempts < $2",
+        )
+        .bind(id)
+        .bind(max_attempts)
+        .execute(&self.pool)
+        .await
+        .map_err(map_db)?;
+        Ok(res.rows_affected() == 1)
+    }
+
     async fn invalidate_email(&self, email: &str) -> Result<(), CoreError> {
         sqlx::query("UPDATE password_resets SET used = TRUE WHERE email = $1 AND used = FALSE")
             .bind(email)
