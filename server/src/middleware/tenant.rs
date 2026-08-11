@@ -33,9 +33,12 @@ impl FromRequestParts<AppState> for TenantContext {
         let subdomain = extract_subdomain(parts, state.config.base_domain.as_deref())
             .ok_or(ServerError::TenantNotFound)?;
 
+        // §13: resolve via cache (subdomínio → company_id); só bate no banco em
+        // miss/expirado. Remove ~1 SELECT por request na rota de maior volume
+        // (catálogo público SSR faz ~5 chamadas por página).
         let company_id = state
-            .company_service
-            .find_id_by_subdomain(&subdomain)
+            .tenant_cache
+            .resolve(&subdomain, || state.company_service.find_id_by_subdomain(&subdomain))
             .await
             .map_err(|_| ServerError::TenantNotFound)?
             .ok_or(ServerError::TenantNotFound)?;

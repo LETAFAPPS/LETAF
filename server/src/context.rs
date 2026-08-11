@@ -97,6 +97,9 @@ pub struct AppState {
     /// impede que um cliente autenticado dispare pedidos em rajada (drena
     /// estoque, infla a fila, sonda limites de cupom). Separado do de login.
     pub order_rate_limiter: Arc<crate::rate_limit::RateLimiter>,
+    /// Cache `subdomínio → company_id` (§13) — evita 1 SELECT por request na
+    /// resolução de tenant (rota de maior volume: catálogo público SSR).
+    pub tenant_cache: Arc<crate::tenant_cache::TenantCache>,
 }
 
 /// Máx. de tentativas de auth por IP dentro da janela. Generoso para não
@@ -167,6 +170,7 @@ impl AppState {
                 ORDER_RATE_MAX,
                 std::time::Duration::from_secs(ORDER_RATE_WINDOW_SECS),
             )),
+            tenant_cache: Arc::new(crate::tenant_cache::TenantCache::new()),
             pool,
             config,
             product_service,

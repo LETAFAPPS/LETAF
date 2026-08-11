@@ -12,5 +12,6 @@ pub mod jwt;
 pub mod media;
 pub mod middleware;
 pub mod rate_limit;
+pub mod tenant_cache;
 pub mod repository;
 pub mod routes;

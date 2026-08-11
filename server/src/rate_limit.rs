@@ -21,29 +21,52 @@ use crate::error::ServerError;
 /// Limitador de janela deslizante por chave (IP). Guarda os instantes das
 /// tentativas recentes de cada IP e recusa quando passam de `max` dentro de
 /// `window`.
+/// Estado sob o lock: mapa de hits + instante da última varredura global.
+struct State {
+    map: HashMap<IpAddr, Vec<Instant>>,
+    last_gc: Instant,
+}
+
 pub struct RateLimiter {
-    hits: Mutex<HashMap<IpAddr, Vec<Instant>>>,
+    state: Mutex<State>,
     max: usize,
     window: Duration,
 }
 
 impl RateLimiter {
     pub fn new(max: usize, window: Duration) -> Self {
-        Self { hits: Mutex::new(HashMap::new()), max, window }
+        Self {
+            state: Mutex::new(State { map: HashMap::new(), last_gc: Instant::now() }),
+            max,
+            window,
+        }
     }
 
     /// Registra uma tentativa do `ip` e devolve `true` se está DENTRO do
     /// limite (permitida) ou `false` se excedeu. Poda os instantes fora da
-    /// janela; remove a chave quando não sobra tentativa recente (memória
-    /// limitada aos IPs ativos na janela). Falha de lock → permite (o
-    /// limiter é defesa-em-profundidade, não pode derrubar o login).
+    /// janela; remove a chave quando não sobra tentativa recente. Falha de
+    /// lock → permite (o limiter é defesa-em-profundidade, não pode derrubar
+    /// o login).
     pub fn check(&self, ip: IpAddr) -> bool {
         let now = Instant::now();
-        let Ok(mut map) = self.hits.lock() else { return true; };
-        let times = map.entry(ip).or_default();
-        let allowed = allow(times, now, self.window, self.max);
+        let window = self.window;
+        let Ok(mut st) = self.state.lock() else { return true; };
+        // GC GLOBAL periódico (§13): sem isto, um IP que aparece UMA vez fica no
+        // mapa para sempre (só a própria chave é podada no `check` dela). O
+        // `order_rate_limiter` público acumularia todo IP de cliente já visto →
+        // vazamento lento de memória. Varre no máximo 1×/janela — custo
+        // amortizado desprezível.
+        if now.duration_since(st.last_gc) >= window {
+            st.map.retain(|_, times| {
+                times.retain(|&t| now.duration_since(t) < window);
+                !times.is_empty()
+            });
+            st.last_gc = now;
+        }
+        let times = st.map.entry(ip).or_default();
+        let allowed = allow(times, now, window, self.max);
         if times.is_empty() {
-            map.remove(&ip);
+            st.map.remove(&ip);
         }
         allowed
     }

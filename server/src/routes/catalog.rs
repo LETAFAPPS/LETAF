@@ -467,8 +467,10 @@ async fn list_products(
         // Galeria (loja): principal + adicionais (p.images vem só com a
         // CONTAGEM de sentinelas em find_active). Ordem: principal, extras.
         let mut image_urls: Vec<String> = Vec::new();
-        if image_url.is_some() {
-            image_urls.push(media_url(&format!("product/{}", p.base.id), p.base.updated_at));
+        // Reusa a URL já montada (§13) — evita 2 `format!` + alocação idênticas
+        // por produto no laço quente do catálogo público.
+        if let Some(u) = &image_url {
+            image_urls.push(u.clone());
         }
         for idx in 0..p.images.len() {
             image_urls.push(media_url(

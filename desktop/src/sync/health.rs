@@ -4,8 +4,11 @@ use reqwest::Client;
 
 use crate::sync::status::SyncStatusHandle;
 
-/// Intervalo entre pings consecutivos ao servidor.
-const CHECK_INTERVAL_SECS: u64 = 5;
+/// Intervalo entre pings consecutivos ao servidor. 15s (era 5s): um desktop
+/// ocioso fazia ~12 pings/min só de health, somados aos ~2/min do sync — custo
+/// de rede/CPU/bateria desproporcional para um heartbeat. 15s ainda detecta
+/// queda de rede rápido o bastante para o indicador de status (§13).
+const CHECK_INTERVAL_SECS: u64 = 15;
 
 /// Timeout total (e de conexão) para o ping de health.
 /// Curto o suficiente para detectar cabo desconectado rapidamente.
@@ -14,7 +17,7 @@ const HEALTH_TIMEOUT_SECS: u64 = 3;
 /// Heartbeat leve que mantém o flag `online` do `SyncStatus` atualizado.
 ///
 /// Regras aplicadas (AI_RULES.md §7, §8, §11):
-/// - Detecta queda de rede em ~5–8 s sem depender do ciclo de sync (30 s).
+/// - Detecta queda de rede em ~15–18 s sem depender do ciclo de sync (30 s).
 /// - GET no endpoint público `/health` — não exige autenticação.
 /// - Roda em tokio task separada; não bloqueia UI nem SyncWorker.
 /// - Não modifica `phase`, `pending_count` ou `last_sync_at` — só `online`.
