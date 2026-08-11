@@ -298,6 +298,12 @@ impl WalletService {
             .await
     }
 
+    /// TODOS os movimentos (não-apagados) da empresa numa query (§13) — para a
+    /// consolidação da tesouraria, sem o N+1 por carteira.
+    pub async fn find_all_movements(&self, company_id: Uuid) -> Result<Vec<WalletMovement>, CoreError> {
+        self.repo.find_all_movements(company_id).await
+    }
+
     // ── Sync (delegação + validação company_id) ──
 
     pub async fn find_unsynced_accounts(

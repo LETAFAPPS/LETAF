@@ -71,6 +71,12 @@ pub trait WalletRepository: Send + Sync {
         limit: i64,
     ) -> Result<Vec<WalletMovement>, CoreError>;
 
+    /// TODOS os movimentos (não-apagados) da empresa numa ÚNICA query — evita o
+    /// N+1 (uma query por carteira) na consolidação da tesouraria (§13).
+    /// Mesmo filtro de `find_movements_by_account` (`deleted_at IS NULL`), sem
+    /// `account_id` — devolve o mesmo conjunto que o laço por conta.
+    async fn find_all_movements(&self, company_id: Uuid) -> Result<Vec<WalletMovement>, CoreError>;
+
     // ── Sync — accounts ──
 
     async fn find_unsynced_accounts(

@@ -148,23 +148,14 @@ async fn build_snapshot(
 
 /// Movimentos de TODAS as carteiras de clientes numa lista só — o core
 /// classifica quais representam dinheiro entrando ou saindo do caixa.
+/// §13: UMA query para a empresa toda (era N+1 — uma por carteira). Mesmo
+/// filtro (`deleted_at IS NULL`), então o `consolidate` recebe o mesmo conjunto.
 async fn load_wallet_movements(state: &DesktopState) -> Vec<WalletMovement> {
-    let cid = state.company_id();
-    let accounts = state
+    state
         .wallet_service
-        .find_all_accounts(cid)
+        .find_all_movements(state.company_id())
         .await
-        .unwrap_or_default();
-    let mut all = Vec::new();
-    for account in &accounts {
-        let list = state
-            .wallet_service
-            .find_movements(cid, account.base.id, 9_999)
-            .await
-            .unwrap_or_default();
-        all.extend(list);
-    }
-    all
+        .unwrap_or_default()
 }
 
 /// Retrato do core → resumo do card.

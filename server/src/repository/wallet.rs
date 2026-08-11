@@ -271,6 +271,21 @@ impl WalletRepository for PgWalletRepository {
         .collect())
     }
 
+    async fn find_all_movements(&self, company_id: Uuid) -> Result<Vec<WalletMovement>, CoreError> {
+        Ok(sqlx::query_as::<_, WalletMovementRow>(
+            "SELECT * FROM wallet_movements
+             WHERE company_id = $1 AND deleted_at IS NULL
+             ORDER BY created_at DESC",
+        )
+        .bind(company_id)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(map_db)?
+        .into_iter()
+        .map(Into::into)
+        .collect())
+    }
+
     // ── Sync — accounts ──
 
     async fn find_unsynced_accounts(

@@ -259,6 +259,21 @@ impl WalletRepository for SqliteWalletRepository {
         rows.into_iter().map(WalletMovement::try_from).collect()
     }
 
+    async fn find_all_movements(&self, company_id: Uuid) -> Result<Vec<WalletMovement>, CoreError> {
+        // Uma query para a empresa toda (era N+1: uma por carteira). Mesmo filtro
+        // (`deleted_at IS NULL`) → mesmo conjunto que o laço por conta. §13.
+        let rows = sqlx::query_as::<_, WalletMovementRow>(
+            "SELECT * FROM wallet_movements
+             WHERE company_id = ? AND deleted_at IS NULL
+             ORDER BY created_at DESC",
+        )
+        .bind(company_id.to_string())
+        .fetch_all(&self.pool)
+        .await
+        .map_err(map_db)?;
+        rows.into_iter().map(WalletMovement::try_from).collect()
+    }
+
     // ── Sync — accounts ──
 
     async fn find_unsynced_accounts(
