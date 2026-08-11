@@ -965,7 +965,18 @@ impl ProductRepository for SqliteProductRepository {
                  discount_tiers = excluded.discount_tiers,
                  variations = excluded.variations,
                  min_stock = excluded.min_stock
-             WHERE excluded.updated_at > products.updated_at",
+             -- Só sobrescreve quando o registro local está SINCRONIZADO. Um
+             -- produto com edição de cadastro local ainda não enviada
+             -- (synced=0) NÃO é clobberado pelo pull: o servidor bumpa
+             -- `products.updated_at` a cada venda (com o relógio dele), então
+             -- uma venda em outro terminal deixaria `updated_at` do servidor à
+             -- frente da edição local e o pull sobrescreveria nome/preço com o
+             -- cadastro ANTIGO, perdendo a edição em silêncio (o desktop não
+             -- tem `content_updated_at`, só o servidor). Diferindo o overwrite,
+             -- a edição sobe no push e o servidor resolve por `content_updated_at`.
+             -- Compõe com a guarda de estoque acima (agora superset: synced=1).
+             WHERE excluded.updated_at > products.updated_at
+               AND products.synced = 1",
         )
         .bind(product.base.id.to_string())
         .bind(product.base.company_id.to_string())
