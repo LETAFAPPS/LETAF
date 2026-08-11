@@ -8,7 +8,7 @@ use leptos_router::{
 use crate::availability::Now;
 use crate::cart::Cart;
 use crate::components::cart_drawer::CartDrawer;
-use crate::components::catalog::CatalogPage;
+use crate::components::catalog::{CatalogPage, DeliveryFee};
 use crate::favorites::Favorites;
 use crate::session::Session;
 
@@ -54,6 +54,13 @@ pub fn App() -> impl IntoView {
     let session = Session(RwSignal::new(None));
     provide_context(session);
     Effect::new(move |_| session.0.set(crate::session::load()));
+
+    // Taxa de entrega compartilhada: provida AQUI (ancestral comum do
+    // `Router` e do `CartDrawer`), nasce 0.0 e é preenchida pelo
+    // `CatalogView` quando o catálogo carrega. O `CartDrawer` a lê
+    // reativamente. Sem isto, o contexto vivia dentro do `Router` e o
+    // `CartDrawer` (irmão) nunca o via → taxa sempre 0.
+    provide_context(DeliveryFee(RwSignal::new(0.0)));
 
     // Relógio do cliente p/ horário de funcionamento. Nasce `None` (SSR
     // = tudo aberto/disponível); o Effect lê o navegador na hidratação e

@@ -63,8 +63,15 @@ pub fn CatalogPage() -> impl IntoView {
 }
 
 /// Taxa de entrega da loja, disponível para o carrinho via contexto.
+///
+/// É um `RwSignal` provido no `App` (ancestral comum do `Router` e do
+/// `CartDrawer`) e preenchido pelo `CatalogView` quando o catálogo carrega.
+/// Antes era `DeliveryFee(f64)` provido DENTRO do `CatalogView`: como o
+/// `CartDrawer` é IRMÃO do `Router` (não descendente), o `use_context` dele
+/// não enxergava o contexto e a taxa aparecia sempre como 0. Sendo signal,
+/// além de visível no escopo certo, a taxa também vira reativa.
 #[derive(Clone, Copy)]
-pub struct DeliveryFee(pub f64);
+pub struct DeliveryFee(pub RwSignal<f64>);
 
 /// Render do catálogo: meta por tenant (SEO) + header + nav de categorias
 /// + grid. Após a hidratação, clicar num chip filtra o grid reativamente
@@ -109,9 +116,14 @@ fn CatalogView(data: CatalogData) -> impl IntoView {
         .clone()
         .or_else(|| logo.clone())
         .map(|u| if u.starts_with("http") { u } else { format!("{origin}{u}") });
-    // Taxa de entrega da loja no contexto: o carrinho a exibe antes do
-    // checkout. O total oficial continua sendo do servidor (§11).
-    provide_context(DeliveryFee(data.info.delivery_fee));
+    // Publica a taxa de entrega no signal compartilhado (provido no `App`,
+    // acima do `Router` e do `CartDrawer`): o carrinho a exibe antes do
+    // checkout. O total oficial continua sendo do servidor (§11). Só o
+    // cliente precisa disso (o SSR renderiza o carrinho vazio), então o
+    // Effect roda pós-hidratação, sem risco de mismatch.
+    let fee_value = data.info.delivery_fee;
+    let delivery_fee = expect_context::<DeliveryFee>();
+    Effect::new(move |_| delivery_fee.0.set(fee_value));
     let cats = data.categories;
     let banners = data.banners;
     let business_hours = data.business_hours;

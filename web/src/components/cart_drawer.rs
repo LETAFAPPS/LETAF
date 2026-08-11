@@ -23,10 +23,11 @@ pub fn CartDrawer() -> impl IntoView {
     let (error, set_error) = signal(String::new());
     let (confirmation, set_confirmation) = signal(None::<checkout::OrderConfirmation>);
     // Taxa de entrega da loja (0 quando não há cadastro ou fora do
-    // catálogo). Só exibição — o total oficial vem do servidor.
+    // catálogo). Só exibição — o total oficial vem do servidor. É um signal
+    // provido no `App` e preenchido pelo `CatalogView`, lido reativamente.
     let fee = use_context::<crate::components::catalog::DeliveryFee>()
         .map(|d| d.0)
-        .unwrap_or(0.0);
+        .unwrap_or_else(|| RwSignal::new(0.0));
     // Modalidade e endereço. Antes o checkout web mandava sempre
     // "entrega" (o default do backend) e NENHUM endereço — o operador
     // recebia um pedido de entrega sem para onde entregar.
@@ -296,19 +297,19 @@ pub fn CartDrawer() -> impl IntoView {
                             // Com taxa de entrega, o cliente vê a composição
                             // (subtotal + taxa) em vez de um total que não
                             // bate com a soma dos itens.
-                            {move || (fee > 0.0 && delivery.get()).then(|| view! {
+                            {move || (fee.get() > 0.0 && delivery.get()).then(|| view! {
                                 <div class="cart-total-row">
                                     <span>"Subtotal"</span>
                                     <span>{format::money(cart.total())}</span>
                                 </div>
                                 <div class="cart-total-row">
                                     <span>"Taxa de entrega"</span>
-                                    <span>{format::money(fee)}</span>
+                                    <span>{format::money(fee.get())}</span>
                                 </div>
                             })}
                             <div class="cart-total-row">
                                 <span>"Total"</span>
-                                <strong>{move || format::money(cart.total() + if delivery.get() { fee } else { 0.0 })}</strong>
+                                <strong>{move || format::money(cart.total() + if delivery.get() { fee.get() } else { 0.0 })}</strong>
                             </div>
                             {move || (!error.get().is_empty())
                                 .then(|| view! { <p class="auth-error">{error.get()}</p> })}
