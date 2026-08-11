@@ -137,10 +137,19 @@ pub(crate) fn setup_sync_listener(
 
 pub(crate) fn setup_search(ui: &MainWindow, cache: SharedCache, cats_cache: SharedCategories, insumos_cache: SharedInsumos) {
     let ui_weak = ui.as_weak();
+    let timer = std::rc::Rc::new(slint::Timer::default());
     ui.global::<InventoryState>().on_inventory_search_changed(move |_q| {
         // O texto fica em `inventory-search` (Slint property), lido pelo
-        // `apply_to_ui` direto. Re-renderiza com o cache atual.
-        apply_to_ui_from_cache(&ui_weak, &cache, &cats_cache, &insumos_cache);
+        // `apply_to_ui` direto. O re-render decodifica as miniaturas na thread
+        // da UI, então usa debounce: re-renderiza só quando o operador para de
+        // digitar, sem travar a digitação a cada tecla (§7.4).
+        let ui_weak = ui_weak.clone();
+        let cache = cache.clone();
+        let cats_cache = cats_cache.clone();
+        let insumos_cache = insumos_cache.clone();
+        super::super::helpers::debounce(&timer, move || {
+            apply_to_ui_from_cache(&ui_weak, &cache, &cats_cache, &insumos_cache);
+        });
     });
 }
 

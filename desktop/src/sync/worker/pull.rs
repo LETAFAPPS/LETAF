@@ -475,10 +475,12 @@ impl SyncWorker {
             if item.base.updated_at > max_ts {
                 max_ts = item.base.updated_at;
             }
-            self.state
-                .subscription_service
-                .sync_upsert_subscription(cid, item)
-                .await?;
+            let id = item.base.id;
+            self.tolera_registro(
+                "subscriptions",
+                id,
+                self.state.subscription_service.sync_upsert_subscription(cid, item).await,
+            );
         }
         Ok(max_ts)
     }
@@ -497,10 +499,12 @@ impl SyncWorker {
             if item.base.updated_at > max_ts {
                 max_ts = item.base.updated_at;
             }
-            self.state
-                .subscription_service
-                .sync_upsert_invoice(cid, item)
-                .await?;
+            let id = item.base.id;
+            self.tolera_registro(
+                "subscription_invoices",
+                id,
+                self.state.subscription_service.sync_upsert_invoice(cid, item).await,
+            );
         }
         Ok(max_ts)
     }
@@ -518,10 +522,12 @@ impl SyncWorker {
             if item.base.updated_at > max_ts {
                 max_ts = item.base.updated_at;
             }
-            self.state
-                .payment_method_service
-                .sync_upsert(cid, item)
-                .await?;
+            let id = item.base.id;
+            self.tolera_registro(
+                "payment_methods",
+                id,
+                self.state.payment_method_service.sync_upsert(cid, item).await,
+            );
         }
         Ok(max_ts)
     }
