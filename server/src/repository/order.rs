@@ -277,9 +277,24 @@ impl OrderRepository for PgOrderRepository {
         &self,
         order: &Order,
         stock_deltas: &[(Uuid, f64)],
+        coupon: Option<&letaf_core::order::repository::CouponLimits>,
     ) -> Result<(), CoreError> {
         let mut tx = self.pool.begin().await.map_err(map_db)?;
         let now = chrono::Utc::now().naive_utc();
+
+        // 0) Cupom: serializa resgates CONCORRENTES do mesmo cupom nesta empresa
+        // (§11 — fecha o TOCTOU do limite). O advisory lock é de TRANSAÇÃO
+        // (liberado no commit/rollback): o 2º pedido espera o 1º commitar e só
+        // então reconta (passo 3), enxergando o uso dele. Chave = hash de
+        // "company:code"; colisão de hash só serializa cupons distintos à toa
+        // (sem impacto de correção).
+        if let Some(c) = coupon {
+            sqlx::query("SELECT pg_advisory_xact_lock(hashtext($1))")
+                .bind(format!("coupon:{}:{}", order.base.company_id, c.code))
+                .execute(&mut *tx)
+                .await
+                .map_err(map_db)?;
+        }
 
         // 1) Baixa de estoque na MESMA transação (§4). `unlimited_stock`
         // não decrementa; estoque insuficiente ou produto inexistente
@@ -391,6 +406,60 @@ impl OrderRepository for PgOrderRepository {
             .execute(&mut *tx)
             .await
             .map_err(map_db)?;
+        }
+
+        // 3) Enforcement race-safe do cupom: reconta o uso JÁ incluindo este
+        // pedido (mesma tx). As predicates espelham `count_*` (status<>cancelled,
+        // deleted_at IS NULL). `>` (não `>=`) porque a contagem inclui o pedido
+        // atual. Estourou → `Err` → a tx inteira reverte (pedido e baixa de
+        // estoque desfeitos). O advisory lock (passo 0) garante que concorrentes
+        // não escapem entre a contagem e o commit.
+        if let Some(c) = coupon {
+            let company = order.base.company_id;
+            let cust = opt_customer(order.customer_id);
+            if c.usage_limit > 0 {
+                let (n,): (i64,) = sqlx::query_as(
+                    "SELECT COUNT(*) FROM orders
+                     WHERE company_id = $1 AND UPPER(coupon_code) = UPPER($2)
+                       AND status <> 'cancelled' AND deleted_at IS NULL",
+                )
+                .bind(company).bind(&c.code)
+                .fetch_one(&mut *tx).await.map_err(map_db)?;
+                if n > c.usage_limit as i64 {
+                    return Err(CoreError::Validation("Cupom esgotado".into()));
+                }
+            }
+            if c.per_user_limit > 0 {
+                let (n,): (i64,) = sqlx::query_as(
+                    "SELECT COUNT(*) FROM orders
+                     WHERE company_id = $1 AND customer_id = $2
+                       AND UPPER(coupon_code) = UPPER($3)
+                       AND status <> 'cancelled' AND deleted_at IS NULL",
+                )
+                .bind(company).bind(cust).bind(&c.code)
+                .fetch_one(&mut *tx).await.map_err(map_db)?;
+                if n > c.per_user_limit as i64 {
+                    return Err(CoreError::Validation(
+                        "Você já atingiu o limite de uso deste cupom".into(),
+                    ));
+                }
+            }
+            if c.first_purchase {
+                // Inclui este pedido → `> 1` significa que já havia pedido
+                // anterior (espelha `customer_prior_orders > 0` do `evaluate`).
+                let (n,): (i64,) = sqlx::query_as(
+                    "SELECT COUNT(*) FROM orders
+                     WHERE company_id = $1 AND customer_id = $2
+                       AND status <> 'cancelled' AND deleted_at IS NULL",
+                )
+                .bind(company).bind(cust)
+                .fetch_one(&mut *tx).await.map_err(map_db)?;
+                if n > 1 {
+                    return Err(CoreError::Validation(
+                        "Cupom válido apenas na primeira compra".into(),
+                    ));
+                }
+            }
         }
 
         tx.commit().await.map_err(map_db)?;

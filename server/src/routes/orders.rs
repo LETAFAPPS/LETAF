@@ -204,12 +204,12 @@ async fn create_order(
     // partir do código (§11). A contagem de uso vem dos próprios
     // pedidos não-cancelados (Order é o registro de uso — sem
     // entidade extra). Pedidos cancelados não contam como uso.
-    let (coupon_code, discount_amount) = match req.coupon_code
+    let (coupon_code, discount_amount, coupon_limits) = match req.coupon_code
         .as_deref()
         .map(str::trim)
         .filter(|s| !s.is_empty())
     {
-        None => (None, rust_decimal::Decimal::ZERO),
+        None => (None, rust_decimal::Decimal::ZERO, None),
         Some(raw_code) => {
             // Arredonda POR ITEM (mesma base de `build_items`): senão o subtotal
             // do cupom diverge do total do pedido por frações de centavo e pode
@@ -236,7 +236,22 @@ async fn create_order(
                 tenant.company_id, raw_code, subtotal, now,
                 customer_prior_orders, total_uses, user_uses,
             ).await?;
-            (Some(coupon.code), discount)
+            // Limites para o enforcement race-safe DENTRO da transação (§11): o
+            // pré-check acima é só UX/fast-path; a garantia vem da recontagem
+            // in-tx serializada por advisory lock em `create_atomic`. Só cria os
+            // limites quando HÁ algo a enforçar — cupom 100% ilimitado passa
+            // `None` e não serializa/reconta (evita gargalo à toa).
+            let first_purchase = coupon.coupon_type == "first_purchase";
+            let limits = (coupon.usage_limit > 0
+                || coupon.per_user_limit > 0
+                || first_purchase)
+                .then(|| letaf_core::order::repository::CouponLimits {
+                    code: coupon.code.clone(),
+                    usage_limit: coupon.usage_limit,
+                    per_user_limit: coupon.per_user_limit,
+                    first_purchase,
+                });
+            (Some(coupon.code), discount, limits)
         }
     };
 
@@ -300,7 +315,7 @@ async fn create_order(
     let order = state
         .order_service
         .create(tenant.company_id, customer_id, items, delivery_type, notes,
-                coupon_code, discount_amount, delivery_fee)
+                coupon_code, discount_amount, delivery_fee, coupon_limits)
         .await?;
 
     Ok((StatusCode::CREATED, Json(to_response(&order))))

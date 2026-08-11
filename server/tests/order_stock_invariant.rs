@@ -120,7 +120,7 @@ async fn edicao_concorrente_converge_estoque_com_o_pedido_vencedor() {
 
     // Pedido original: 2 unidades, estoque 10 → 8.
     let mut o = pedido(company_id, product_id, 2.0);
-    repo.create_atomic(&o, &[(product_id, 2.0)]).await.unwrap();
+    repo.create_atomic(&o, &[(product_id, 2.0)], None).await.unwrap();
     assert_eq!(estoque_de(&pool, product_id).await, 8.0);
 
     // Terminal A edita 2→3 (delta −1) e terminal B edita 2→5 (delta −3).
@@ -162,7 +162,7 @@ async fn reconciliacao_e_idempotente_quando_o_ledger_ja_bate() {
     let repo = PgOrderRepository::new(pool.clone());
 
     let mut o = pedido(company_id, product_id, 2.0);
-    repo.create_atomic(&o, &[(product_id, 2.0)]).await.unwrap();
+    repo.create_atomic(&o, &[(product_id, 2.0)], None).await.unwrap();
 
     // Reenvios sucessivos sem mudança de quantidade não podem gerar
     // movimento nenhum — a diferença é zero.
@@ -194,7 +194,7 @@ async fn cancelamento_zera_o_ledger_do_pedido() {
     let repo = PgOrderRepository::new(pool.clone());
 
     let mut o = pedido(company_id, product_id, 2.0);
-    repo.create_atomic(&o, &[(product_id, 2.0)]).await.unwrap();
+    repo.create_atomic(&o, &[(product_id, 2.0)], None).await.unwrap();
     assert_eq!(estoque_de(&pool, product_id).await, 8.0);
 
     o.status = OrderStatus::Cancelled;

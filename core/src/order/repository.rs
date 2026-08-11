@@ -5,6 +5,23 @@ use uuid::Uuid;
 use super::model::{Order, OrderStatus};
 use crate::error::CoreError;
 
+/// Limites de uso de um cupom a serem ENFORÇADOS atomicamente na criação do
+/// pedido (§11). O pré-check da rota (contagem + `evaluate`) é só UX/fast-path;
+/// a garantia real vem da recontagem dentro da transação de `create_atomic`,
+/// serializada por advisory lock — fecha o TOCTOU onde dois pedidos concorrentes
+/// com o mesmo cupom furam o limite. `0` = ilimitado.
+#[derive(Debug, Clone)]
+pub struct CouponLimits {
+    /// Código normalizado (MAIÚSCULAS) — casa com `UPPER(coupon_code)`.
+    pub code: String,
+    /// Limite total de usos do cupom (`usage_limit`).
+    pub usage_limit: i32,
+    /// Limite de usos por mesmo cliente (`per_user_limit`).
+    pub per_user_limit: i32,
+    /// `true` quando `coupon_type == "first_purchase"` (só na 1ª compra).
+    pub first_purchase: bool,
+}
+
 /// Trait de acesso a dados para Order + OrderItem.
 ///
 /// Regras aplicadas (AI_RULES.md §10):
@@ -32,10 +49,14 @@ pub trait OrderRepository: Send + Sync {
     /// Estoque insuficiente → `Validation`; produto inexistente/excluído →
     /// `NotFound`; em qualquer erro a transação é revertida (nada é
     /// persistido), dispensando rollback manual de estoque.
+    /// `coupon` (quando `Some`) faz o enforcement race-safe do limite de uso
+    /// DENTRO da transação: serializa resgates concorrentes do mesmo cupom e
+    /// reconta o uso já incluindo este pedido; se estourar, a tx é revertida.
     async fn create_atomic(
         &self,
         order: &Order,
         stock_deltas: &[(Uuid, f64)],
+        coupon: Option<&CouponLimits>,
     ) -> Result<(), CoreError>;
 
     /// Busca pedido por ID (com itens).

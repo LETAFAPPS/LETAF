@@ -7,7 +7,7 @@ use uuid::Uuid;
 use crate::money;
 
 use super::model::{DeliveryType, Order, OrderItem, OrderStatus};
-use super::repository::OrderRepository;
+use super::repository::{CouponLimits, OrderRepository};
 use crate::addon::service::AddonService;
 use crate::cash::service::CashService;
 use crate::error::CoreError;
@@ -128,6 +128,10 @@ impl OrderService {
         // checkout do cardápio web saía sem a taxa, e a loja perdia o
         // frete de todo pedido online.
         additional_amount: Decimal,
+        // Limites do cupom para enforcement race-safe DENTRO da transação
+        // (§11). `None` = sem cupom. O desconto já vem calculado acima; isto
+        // só serializa/reconta o USO para fechar o TOCTOU do limite.
+        coupon_limits: Option<CouponLimits>,
     ) -> Result<Order, CoreError> {
         validate_items(&items)?;
         let list_prices = self.verify_item_prices(company_id, &items).await?;
@@ -160,7 +164,7 @@ impl OrderService {
             order.items = final_items.clone();
             // Colisão de número sequencial reverte a tx (estoque incluso)
             // e tenta de novo — sem rollback manual de estoque.
-            match self.repo.create_atomic(&order, &stock_deltas).await {
+            match self.repo.create_atomic(&order, &stock_deltas, coupon_limits.as_ref()).await {
                 Ok(()) => return Ok(order),
                 Err(CoreError::Repository(ref msg))
                     if attempt + 1 < MAX_RETRIES && is_unique_violation(msg) =>
@@ -244,7 +248,9 @@ impl OrderService {
             order.additional_amount = additional;
             order.number = self.repo.next_number(company_id).await?;
             order.items = final_items.clone();
-            match self.repo.create_atomic(&order, &stock_deltas).await {
+            // PDV não aplica limite de cupom web (desconto do PDV é manual/
+            // offline); sem enforcement de uso → `None`.
+            match self.repo.create_atomic(&order, &stock_deltas, None).await {
                 Ok(()) => {
                     // Lança movimento na sessão de caixa, se houver.
                     // Falha NÃO desfaz a venda — pedido é fonte de

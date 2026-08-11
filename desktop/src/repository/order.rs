@@ -174,6 +174,10 @@ impl OrderRepository for SqliteOrderRepository {
         &self,
         order: &Order,
         stock_deltas: &[(Uuid, f64)],
+        // Enforcement de limite de cupom não se aplica ao desktop: o PDV não
+        // resgata cupom web e o SQLite não tem advisory lock. A autoridade do
+        // limite é o servidor (create online). Ignorado de propósito.
+        _coupon: Option<&letaf_core::order::repository::CouponLimits>,
     ) -> Result<(), CoreError> {
         let mut tx = self.pool.begin().await.map_err(map_db)?;
         let now = ts(chrono::Utc::now().naive_utc());
