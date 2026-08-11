@@ -777,6 +777,13 @@ impl OrderService {
             item.order_id = order.base.id;
             item.base.synced = true;
         }
+        // §11: subtotal, desconto e total são autoridade do SERVIDOR também no
+        // sync — recomputados a partir de `qty × unit_price` (mesma fórmula de
+        // `create`/`update_basics`). Fecha o vetor de `total`/`subtotal` forjado
+        // no sync (inflar/deflacionar receita, que contaminava tesouraria e
+        // relatórios). O `unit_price` continua snapshot offline — não é
+        // reconferido contra o catálogo (inerente ao LWW).
+        normalize_order_money(&mut order);
         self.repo.sync_upsert(&order).await
     }
 
@@ -1111,6 +1118,21 @@ pub fn order_total(
     (discount, total)
 }
 
+/// Recomputa a aritmética de dinheiro de um pedido a partir de `qty × unit_price`
+/// — autoridade do servidor no caminho de sync (§11 — puro/testável). Sobrescreve
+/// cada `subtotal`, o `discount_amount` (clampado) e o `total`. NÃO reconfere o
+/// `unit_price` contra o catálogo (snapshot offline, inerente ao LWW).
+fn normalize_order_money(order: &mut Order) {
+    for item in &mut order.items {
+        item.subtotal = money::round2(money::qty(item.quantity) * item.unit_price);
+    }
+    let items_total: Decimal = order.items.iter().map(|i| i.subtotal).sum();
+    let (discount, total) =
+        order_total(items_total, order.discount_amount, order.additional_amount);
+    order.discount_amount = discount;
+    order.total = total;
+}
+
 /// `list_prices` vem de `verify_item_prices` (mesma ordem dos inputs):
 /// preço de tabela por unidade, gravado como snapshot no item para a UI
 /// exibir o desconto do produto depois da venda.
@@ -1164,6 +1186,49 @@ mod tests {
         // Acima do teto: erro de validação limpo (não 500 / não worker preso).
         let over: Vec<_> = (0..=MAX_ORDER_ITEMS).map(|_| item_min()).collect();
         assert!(validate_items(&over).is_err());
+    }
+
+    #[test]
+    fn normalize_order_money_neutraliza_total_e_subtotal_forjados() {
+        use super::normalize_order_money;
+        use crate::order::model::{DeliveryType, Order, OrderItem};
+        use rust_decimal_macros::dec;
+
+        let cid = Uuid::nil();
+        // Total forjado gigante no payload.
+        let mut order = Order::new(cid, Uuid::nil(), dec!(999999.00), DeliveryType::Pickup, None);
+        // Item legítimo (2 × 10,00 = 20,00), mas com subtotal forjado.
+        let mut it =
+            OrderItem::new(cid, Uuid::nil(), Uuid::nil(), "x".into(), 2.0, dec!(10.00), None, None);
+        it.subtotal = dec!(1.00);
+        order.items.push(it);
+        order.discount_amount = dec!(5.00);
+        order.additional_amount = dec!(3.00); // ex.: taxa de entrega
+
+        normalize_order_money(&mut order);
+
+        // Subtotal recomputado de qty×preço; total = 20 − 5 + 3 = 18.
+        assert_eq!(order.items[0].subtotal, dec!(20.00));
+        assert_eq!(order.total, dec!(18.00));
+        assert_eq!(order.discount_amount, dec!(5.00));
+    }
+
+    #[test]
+    fn normalize_order_money_clampa_desconto_ao_total_dos_itens() {
+        use super::normalize_order_money;
+        use crate::order::model::{DeliveryType, Order, OrderItem};
+        use rust_decimal_macros::dec;
+
+        let cid = Uuid::nil();
+        let mut order = Order::new(cid, Uuid::nil(), dec!(0.00), DeliveryType::Pickup, None);
+        order.items.push(OrderItem::new(
+            cid, Uuid::nil(), Uuid::nil(), "x".into(), 1.0, dec!(10.00), None, None,
+        ));
+        // Desconto absurdo (> itens) é clampado ao total dos itens → total 0.
+        order.discount_amount = dec!(999.00);
+        normalize_order_money(&mut order);
+        assert_eq!(order.discount_amount, dec!(10.00));
+        assert_eq!(order.total, dec!(0.00));
     }
 
 
