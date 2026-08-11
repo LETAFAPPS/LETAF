@@ -22,7 +22,7 @@ use letaf_core::job_role::model::JobRole;
 use letaf_core::subcategory::model::Subcategory;
 use letaf_core::company::model::Company;
 use letaf_core::customer::model::Customer;
-use letaf_core::order::model::Order;
+use letaf_core::order::model::{Order, OrderStatus};
 use letaf_core::product::model::Product;
 use letaf_core::product::stock_movement::StockMovement;
 use letaf_core::insumo::model::{Insumo, InsumoMovement};
@@ -265,13 +265,16 @@ impl SyncWorker {
         let mut any_new = false;
         for item in items {
             if item.base.updated_at > max_ts { max_ts = item.base.updated_at; }
-            // `note` antes do upsert (que move `item`) — evita clonar
-            // cada pedido por pull.
-            if self.state.alarm_watcher.note(&item) {
+            let id = item.base.id;
+            // Status ANTES do upsert (que move `item`). O alarme só é
+            // considerado DEPOIS do upsert bem-sucedido: um registro que
+            // falhou ao gravar não "gasta" o alarme (§7.6) — será visto como
+            // novo quando repuxado com sucesso.
+            let is_pending = matches!(item.status, OrderStatus::Pending);
+            let ok = self.tolera_registro("orders", id, self.state.order_service.sync_upsert(cid, item).await);
+            if ok && self.state.alarm_watcher.note(id, is_pending) {
                 any_new = true;
             }
-            let id = item.base.id;
-            self.tolera_registro("orders", id, self.state.order_service.sync_upsert(cid, item).await);
         }
         if any_new {
             self.state.alarm_player.start();

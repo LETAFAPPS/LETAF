@@ -15,7 +15,7 @@ use slint::ComponentHandle;
 use tokio::sync::Notify;
 
 use crate::context::DesktopState;
-use crate::MainWindow;
+use crate::{CashState, MainWindow};
 
 /// Lê o SQLite local, recalcula os 4 contadores e pinta na UI num único
 /// `invoke_from_event_loop`. Toda derivação no Rust (§3/§11); a UI só
@@ -44,6 +44,18 @@ pub(crate) async fn refresh_all_badges(ui_weak: &slint::Weak<MainWindow>, state:
 
     let overdue_n = super::finance::overdue_count(&entries);
 
+    // Bloqueio da PDV: reflete em TEMPO REAL (independente da aba ativa) a
+    // abertura/fechamento de caixa feita em OUTRO terminal — a PDV consome
+    // `cash-blocked` e ficava presa no estado do último `cash_refresh`. Só o
+    // booleano (via `find_active`); NÃO toca os campos do modal de caixa.
+    let cash_blocked = state
+        .cash_service
+        .find_active(cid)
+        .await
+        .ok()
+        .flatten()
+        .is_none();
+
     let ui_weak = ui_weak.clone();
     let _ = slint::invoke_from_event_loop(move || {
         if let Some(ui) = ui_weak.upgrade() {
@@ -51,6 +63,7 @@ pub(crate) async fn refresh_all_badges(ui_weak: &slint::Weak<MainWindow>, state:
             ui.set_finance_overdue_count(overdue_n);
             ui.set_stock_out_count(stock_n);
             ui.set_subscription_pending_count(sub_pending);
+            ui.global::<CashState>().set_cash_blocked(cash_blocked);
         }
     });
 }

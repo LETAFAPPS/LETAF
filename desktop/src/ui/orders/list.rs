@@ -91,6 +91,69 @@ async fn load_orders_for(
     }
 }
 
+// Assinatura do que a lista renderiza (pedidos + filtros): se nada mudou
+// desde a última aplicação, o board NÃO é reconstruído. Sem isto, o listener
+// de ciclo (§7.4) recriava os VecModels do Kanban a cada 30s mesmo parado —
+// o Repeater do Slint destrói/recria os cards (pisca, perde hover/scroll) — e
+// cada mutação local recarregava duas vezes (handler + listener). XOR por
+// pedido = independe da ordem de carga; inclui `len` p/ evitar cancelamento.
+thread_local! {
+    static LAST_BOARD_SIG: std::cell::Cell<Option<u64>> = const { std::cell::Cell::new(None) };
+}
+
+fn board_signature(
+    all: &[OrderData],
+    filter: &str,
+    query: &str,
+    d_start: Option<NaiveDate>,
+    d_end: Option<NaiveDate>,
+) -> u64 {
+    use std::hash::{Hash, Hasher};
+    let mut acc: u64 = 0;
+    for o in all {
+        let mut h = std::collections::hash_map::DefaultHasher::new();
+        // Todos os campos que a UI mostra, EXCETO `elapsed_display` e
+        // `created_at_iso`: são relativos ao tempo (atualizados pelo Timer
+        // dedicado `refresh-order-elapsed`); incluí-los faria o hash mudar a
+        // cada minuto e anularia o diff-guard. `paid` é essencial — é o que
+        // muda quando um pagamento é confirmado em outro terminal.
+        o.id.as_str().hash(&mut h);
+        o.number.as_str().hash(&mut h);
+        o.order_date.as_str().hash(&mut h);
+        o.order_time.as_str().hash(&mut h);
+        o.customer_name.as_str().hash(&mut h);
+        o.customer_phone.as_str().hash(&mut h);
+        o.delivery_label.as_str().hash(&mut h);
+        o.delivery_street.as_str().hash(&mut h);
+        o.delivery_number.as_str().hash(&mut h);
+        o.delivery_neighborhood.as_str().hash(&mut h);
+        o.delivery_apartment.as_str().hash(&mut h);
+        o.total.as_str().hash(&mut h);
+        o.coupon_summary.as_str().hash(&mut h);
+        o.status.as_str().hash(&mut h);
+        o.status_label.as_str().hash(&mut h);
+        o.delivery_type.as_str().hash(&mut h);
+        o.payment_method.as_str().hash(&mut h);
+        o.items_count.hash(&mut h);
+        o.items_summary.as_str().hash(&mut h);
+        o.notes.as_str().hash(&mut h);
+        o.subtotal_display.as_str().hash(&mut h);
+        o.discount_display.as_str().hash(&mut h);
+        o.delivery_fee_display.as_str().hash(&mut h);
+        o.additional_display.as_str().hash(&mut h);
+        o.coupon_code_display.as_str().hash(&mut h);
+        o.paid.hash(&mut h);
+        acc ^= h.finish();
+    }
+    let mut h = std::collections::hash_map::DefaultHasher::new();
+    acc.hash(&mut h);
+    all.len().hash(&mut h);
+    filter.hash(&mut h);
+    query.hash(&mut h);
+    format!("{:?}|{:?}", d_start, d_end).hash(&mut h);
+    h.finish()
+}
+
 /// Reaplica a lista carregada na UI: badge de ativos, busca textual,
 /// colunas do Kanban e filtro de status — fonte única, usada pelo
 /// refresh E pelas mutações (avançar/cancelar) para o Kanban/grade
@@ -103,6 +166,31 @@ fn apply_loaded_orders(ui: &MainWindow, all: Vec<OrderData>) {
     // só início definido → filtra exatamente esse dia.
     let d_start = parse_ymd(ui.global::<OrdersState>().get_order_date_start().as_ref());
     let d_end = parse_ymd(ui.global::<OrdersState>().get_order_date_end().as_ref()).or(d_start);
+
+    // Diff-guard: se o resultado é idêntico ao já exibido, não reconstrói
+    // (mata o pisca periódico e o duplo-refresh idempotente por mutação).
+    let sig = board_signature(&all, &filter, &query, d_start, d_end);
+    let unchanged = LAST_BOARD_SIG.with(|c| {
+        let same = c.get() == Some(sig);
+        c.set(Some(sig));
+        same
+    });
+    if unchanged {
+        return;
+    }
+
+    // Reconcilia o DETALHE aberto com a versão recém-carregada (§7.4): se o
+    // pedido em detalhe mudou (status/pagamento vindo de PULL de outro
+    // terminal), o painel acompanha o board — antes o board andava e o
+    // detalhe ficava obsoleto. Só o cabeçalho (OrderData); os itens não
+    // mudam com troca de status. Se o pedido não está mais na lista, mantém
+    // o detalhe como está (não pisca/fecha o que o operador vê).
+    let detail_id = ui.global::<OrdersState>().get_order_detail_id();
+    if !detail_id.is_empty() {
+        if let Some(od) = all.iter().find(|o| o.id == detail_id) {
+            ui.global::<OrdersState>().set_detail_order(od.clone());
+        }
+    }
 
     // Ordena do primeiro para o último (nº crescente = mais antigo
     // no topo) — fila FIFO de atendimento no Kanban e na grade.

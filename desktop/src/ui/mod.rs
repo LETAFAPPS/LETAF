@@ -52,7 +52,7 @@ use crate::context::DesktopState;
 use self::helpers::{friendly_error, show_toast};
 use self::products::{DecodedProduct, remove_from_cache, remove_product_from_model};
 use self::customers::DecodedCustomer;
-use crate::{AddonsState, BannersState, CashState, CategoriesState, CollaboratorsState, CouponsState, CustomersState, OrdersState, ProductsState, TreasuryState};
+use crate::{AddonsState, BannersState, CashState, CategoriesState, CollaboratorsState, CouponsState, CustomersState, OrdersState, PdvUiState, ProductConfigState, ProductsState, TreasuryState};
 
 /// Exibe a foto de perfil em cache (base64) na janela, decodificando-a.
 /// Chamado sincronamente no restore da sessão (main thread, antes do loop)
@@ -79,13 +79,23 @@ fn spawn_tab_refresh_on_cycle(
     handle: &tokio::runtime::Handle,
     mut cycle_done: watch::Receiver<u64>,
     tab: &'static str,
+    every_n: u32,
     refresh: fn(&MainWindow),
 ) {
     let ui_weak = ui.as_weak();
     handle.spawn(async move {
+        let mut n: u32 = 0;
         loop {
             if cycle_done.changed().await.is_err() {
                 break;
+            }
+            // Throttle opcional: telas cujo refresh é caro (ex.: Tesouraria
+            // varre o histórico) só recarregam a cada N ciclos. Mutação LOCAL
+            // já refresca na hora pelo próprio handler, então pular ciclos
+            // aqui só adia a chegada de mudanças REMOTAS (aceitável).
+            n = n.wrapping_add(1);
+            if every_n > 1 && !n.is_multiple_of(every_n) {
+                continue;
             }
             let ui_weak = ui_weak.clone();
             let _ = slint::invoke_from_event_loop(move || {
@@ -249,7 +259,7 @@ pub fn setup_callbacks(
     // enquanto a aba está aberta, refletindo status/pagamento/cancelamento
     // e pedidos novos vindos de OUTRO terminal (§7.4). Antes só atualizava
     // por ação local ou ao reentrar na aba.
-    spawn_tab_refresh_on_cycle(ui, handle, sync_cycle_done.clone(), "orders", |ui| {
+    spawn_tab_refresh_on_cycle(ui, handle, sync_cycle_done.clone(), "orders", 1, |ui| {
         ui.global::<OrdersState>().invoke_refresh_orders();
     });
 
@@ -261,6 +271,27 @@ pub fn setup_callbacks(
 
     // PDV (Ponto de Venda).
     pdv::setup_pdv(ui, state, handle, sync_notify.clone());
+    // Tempo real: catálogo/preços/estoque alterados em outro terminal
+    // repintam a grade do PDV (§7.4) — evita "Price mismatch" no checkout
+    // por preço obsoleto. GATE: só recarrega com o PDV ocioso — carrinho
+    // VAZIO, sem configurador de produto aberto e sem modais —, para nunca
+    // descartar uma venda em montagem. Throttle a cada 4 ciclos (~2min):
+    // `pdv_refresh` redecodifica todas as miniaturas.
+    spawn_tab_refresh_on_cycle(ui, handle, sync_cycle_done.clone(), "pdv", 4, |ui| {
+        let ps = ui.global::<PdvUiState>();
+        let configurando = !ui
+            .global::<ProductConfigState>()
+            .get_config_product_id()
+            .is_empty();
+        let ocioso = ps.get_pdv_cart_count() == 0
+            && !configurando
+            && !ps.get_pdv_show_cart_modal()
+            && !ps.get_pdv_show_customer_picker()
+            && !ps.get_pdv_show_sold();
+        if ocioso {
+            ps.invoke_pdv_refresh();
+        }
+    });
 
     // Caixa (gestão de sessão).
     cash::setup_cash(ui, state, handle, sync_notify.clone());
@@ -269,7 +300,7 @@ pub fn setup_callbacks(
     // com um modal de caixa aberto — `cash_refresh` reseta os campos do
     // modal de fechamento (contagem por método), e um refresh a cada ciclo
     // apagaria o que o operador está digitando.
-    spawn_tab_refresh_on_cycle(ui, handle, sync_cycle_done.clone(), "cash", |ui| {
+    spawn_tab_refresh_on_cycle(ui, handle, sync_cycle_done.clone(), "cash", 1, |ui| {
         let cs = ui.global::<CashState>();
         let modal_aberto = cs.get_cash_show_open()
             || cs.get_cash_show_sangria()
@@ -293,8 +324,10 @@ pub fn setup_callbacks(
     finance::setup_finance(ui, state, handle, sync_notify.clone(), sync_cycle_done.clone());
     treasury::setup_treasury(ui, state, handle, sync_notify.clone());
     // Tempo real: saldo/movimentos lançados em outro terminal repintam a
-    // Tesouraria enquanto a aba está aberta (§7.4).
-    spawn_tab_refresh_on_cycle(ui, handle, sync_cycle_done.clone(), "treasury", |ui| {
+    // Tesouraria enquanto a aba está aberta (§7.4). Throttle a cada 4 ciclos
+    // (~2min): o `reapply` varre o histórico inteiro (find_all_light etc.), e
+    // mudança LOCAL já refresca na hora pelo próprio handler.
+    spawn_tab_refresh_on_cycle(ui, handle, sync_cycle_done.clone(), "treasury", 4, |ui| {
         ui.global::<TreasuryState>().invoke_treasury_refresh();
     });
 
