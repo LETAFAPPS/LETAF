@@ -248,6 +248,12 @@ pub(crate) async fn load_customer_detail(
         .collect();
     let _ = slint::invoke_from_event_loop(move || {
         let Some(ui) = ui_weak.upgrade() else { return };
+        // Guarda de seleção: se o operador já trocou de cliente enquanto esta
+        // carga estava em voo, descarta — senão a query mais lenta sobrescreveria
+        // o detalhe do cliente atualmente selecionado (detalhe stale).
+        if ui.global::<CustomersState>().get_selected_customer_id().as_str() != id {
+            return;
+        }
         // Cliente + endereços do cache agregado (já em memória).
         let Some((data, addrs)) = cache.lock().ok().and_then(|g| {
             g.iter().find(|c| c.id == id).map(|d| {
@@ -277,8 +283,9 @@ pub(crate) async fn load_customer_detail(
                 total: total.into(),
             })
             .collect();
+        // `selected_customer_id` já foi setado sincronamente no handler de
+        // clique (e confirmado pela guarda acima) — não re-seta aqui.
         let st = ui.global::<CustomersState>();
-        st.set_selected_customer_id(SharedString::from(id.as_str()));
         st.set_detail_customer(data);
         st.set_detail_recent_orders(ModelRc::new(VecModel::from(rows)));
         st.set_detail_addresses(ModelRc::new(VecModel::from(addrs)));
@@ -295,6 +302,12 @@ pub(crate) fn setup_select_customer(
     let state = state.clone();
     let handle = handle.clone();
     ui.global::<CustomersState>().on_select_customer(move |id| {
+        // Marca a seleção SINCRONAMENTE (na thread da UI): o destaque muda na
+        // hora e a guarda em `load_customer_detail` sabe qual é a seleção
+        // vigente — a carga assíncrona só aplica o detalhe se ainda for esta.
+        if let Some(ui) = ui_weak.upgrade() {
+            ui.global::<CustomersState>().set_selected_customer_id(id.clone());
+        }
         handle.spawn(load_customer_detail(
             ui_weak.clone(),
             state.clone(),
