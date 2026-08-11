@@ -188,27 +188,35 @@ pub(crate) fn build_decoded(
 }
 
 /// Callback: filtra clientes pelo texto de pesquisa (event loop).
+/// Busca textual da lista de clientes. O filtro reconstrói o VecModel de
+/// clientes; com debounce ele só re-renderiza quando o usuário para de
+/// digitar, evitando refazer a lista a cada tecla (§13).
 pub(crate) fn setup_filter_customers(
     ui: &MainWindow,
     cache: Arc<std::sync::Mutex<Vec<DecodedCustomer>>>,
 ) {
     let ui_weak = ui.as_weak();
+    let timer = std::rc::Rc::new(slint::Timer::default());
     ui.global::<CustomersState>().on_filter_customers(move |query| {
-        let Some(ui) = ui_weak.upgrade() else { return };
         let q = query.to_lowercase();
-        let data = cache.lock().map(|g| {
-            g.iter()
-                .filter(|c| {
-                    if q.is_empty() { return true; }
-                    c.name.to_lowercase().contains(q.as_str())
-                        || c.email.to_lowercase().contains(q.as_str())
-                        || c.phone.to_lowercase().contains(q.as_str())
-                        || c.document.to_lowercase().contains(q.as_str())
-                })
-                .map(decoded_to_customer_data_ref)
-                .collect::<Vec<_>>()
-        }).unwrap_or_default();
-        ui.global::<CustomersState>().set_customers(ModelRc::new(VecModel::from(data)));
+        let ui_weak = ui_weak.clone();
+        let cache = cache.clone();
+        super::super::helpers::debounce(&timer, move || {
+            let Some(ui) = ui_weak.upgrade() else { return };
+            let data = cache.lock().map(|g| {
+                g.iter()
+                    .filter(|c| {
+                        if q.is_empty() { return true; }
+                        c.name.to_lowercase().contains(q.as_str())
+                            || c.email.to_lowercase().contains(q.as_str())
+                            || c.phone.to_lowercase().contains(q.as_str())
+                            || c.document.to_lowercase().contains(q.as_str())
+                    })
+                    .map(decoded_to_customer_data_ref)
+                    .collect::<Vec<_>>()
+            }).unwrap_or_default();
+            ui.global::<CustomersState>().set_customers(ModelRc::new(VecModel::from(data)));
+        });
     });
 }
 

@@ -70,3 +70,20 @@ pub(super) fn user_error(e: &CoreError) -> String {
         CoreError::Repository(_) => "Erro ao acessar os dados. Tente novamente.".to_string(),
     }
 }
+
+/// Janela de debounce das buscas textuais (ms). Coalesce as teclas: o
+/// filtro só re-renderiza depois que o usuário para de digitar, evitando
+/// reconstruir os VecModels a cada tecla em listas grandes.
+pub(super) const SEARCH_DEBOUNCE_MS: u64 = 220;
+
+/// (Re)agenda `action` para daqui a `SEARCH_DEBOUNCE_MS` no `timer`. Cada
+/// chamada substitui o disparo anterior ainda pendente, então só a última
+/// tecla dentro da janela executa. Roda na thread do event loop (o `Timer`
+/// do Slint não é `Send` — e aqui não precisa ser).
+pub(super) fn debounce(timer: &slint::Timer, action: impl FnMut() + 'static) {
+    timer.start(
+        slint::TimerMode::SingleShot,
+        std::time::Duration::from_millis(SEARCH_DEBOUNCE_MS),
+        action,
+    );
+}

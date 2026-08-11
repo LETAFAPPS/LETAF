@@ -11,18 +11,28 @@ use super::list::refresh_products_view;
 use crate::ProductsState;
 
 /// Setup do callback de busca textual (mantém o estado de query e re-aplica).
+///
+/// O termo é gravado no filtro IMEDIATAMENTE (estado sempre correto), mas o
+/// `refresh_products_view` — que filtra o catálogo e troca 4 VecModels — é
+/// adiado com debounce para não reconstruir a grade a cada tecla (§13).
 pub(crate) fn setup_filter_products(
     ui: &MainWindow,
     cache: Arc<std::sync::Mutex<Vec<DecodedProduct>>>,
     filter: SharedFilter,
 ) {
     let ui_weak = ui.as_weak();
+    let timer = std::rc::Rc::new(slint::Timer::default());
     ui.global::<ProductsState>().on_filter_products(move |query| {
-        let Some(ui) = ui_weak.upgrade() else { return };
         if let Ok(mut f) = filter.lock() {
             f.search_query = query.to_string();
         }
-        refresh_products_view(&ui, &cache, &filter);
+        let ui_weak = ui_weak.clone();
+        let cache = cache.clone();
+        let filter = filter.clone();
+        super::super::helpers::debounce(&timer, move || {
+            let Some(ui) = ui_weak.upgrade() else { return };
+            refresh_products_view(&ui, &cache, &filter);
+        });
     });
 }
 

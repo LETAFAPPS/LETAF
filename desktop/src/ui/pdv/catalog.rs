@@ -192,6 +192,10 @@ pub(crate) fn setup_search(
     let _state = state.clone();
     let _handle = handle.clone();
     let ui_weak = ui.as_weak();
+    // Debounce APENAS do filtro textual da grade (ramo "sem match"). O
+    // caminho de código de barras (scanner) segue SÍNCRONO e imediato logo
+    // abaixo — não pode ter latência.
+    let timer = std::rc::Rc::new(slint::Timer::default());
     ui.global::<PdvUiState>().on_pdv_search_changed(move |q| {
         let trimmed = q.trim().to_string();
         // Auto-add por barcode. Duas formas:
@@ -230,6 +234,9 @@ pub(crate) fn setup_search(
                 Some((raw, modo)) => add_balance_item(&pdv, pid, raw, modo),
                 None => add_to_cart_simple(&pdv, pid),
             }
+            // Item entrou no carrinho: render imediato e cancela qualquer
+            // filtro adiado das teclas intermediárias do scanner.
+            timer.stop();
             if let Some(ui) = ui_weak.upgrade() {
                 ui.global::<PdvUiState>().set_pdv_search_text(SharedString::default());
                 if let Ok(mut g) = pdv.lock() { g.search_query.clear(); }
@@ -237,11 +244,16 @@ pub(crate) fn setup_search(
             }
             return;
         }
-        // Sem match → atualiza filtro textual.
+        // Sem match → atualiza o filtro textual na hora e adia só o rebuild
+        // da grade (debounce), evitando refiltrar o catálogo a cada tecla.
         if let Ok(mut g) = pdv.lock() { g.search_query = q.to_string(); }
-        if let Some(ui) = ui_weak.upgrade() {
-            apply_state_to_ui(&ui, &pdv);
-        }
+        let ui_weak = ui_weak.clone();
+        let pdv = pdv.clone();
+        super::super::helpers::debounce(&timer, move || {
+            if let Some(ui) = ui_weak.upgrade() {
+                apply_state_to_ui(&ui, &pdv);
+            }
+        });
     });
 }
 
