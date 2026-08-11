@@ -1054,10 +1054,15 @@ impl OrderRepository for PgOrderRepository {
         // REESCREVE a lista de items (DELETE + INSERT). Sem isto, items
         // removidos pelo cliente nunca somem do banco (upsert_item só
         // sabe inserir/atualizar, nunca apagar).
+        // Filtra por company_id além do id: sob colisão de UUID entre tenants,
+        // ler o `updated_at` só por `id` pegaria o timestamp de um pedido de
+        // OUTRA empresa e falsearia o last-write-wins (defesa em profundidade
+        // §11 — o upsert já é guardado por company_id, mas a leitura também).
         let existing: Option<(chrono::NaiveDateTime,)> = sqlx::query_as(
-            "SELECT updated_at FROM orders WHERE id = $1"
+            "SELECT updated_at FROM orders WHERE id = $1 AND company_id = $2"
         )
         .bind(order.base.id)
+        .bind(order.base.company_id)
         .fetch_optional(&mut *tx)
         .await
         .map_err(map_db)?;

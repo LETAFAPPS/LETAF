@@ -38,13 +38,6 @@ const PULL_ENTITIES: [&str; 28] = [
 /// (`MAX_PAGE_LIMIT=1000`) — margem para não ser cortado.
 const PULL_PAGE_LIMIT: i64 = 500;
 
-/// Expõe o cursor keyset `(updated_at, id)` de um item puxado, para o
-/// `fetch_pull_paged` avançar a paginação. Implementado pelos tipos das
-/// entidades grandes (produtos, pedidos, ledgers).
-pub(super) trait PullCursor {
-    fn pull_cursor(&self) -> (NaiveDateTime, Uuid);
-}
-
 /// Worker de sincronização em background.
 ///
 /// Regras aplicadas (AI_RULES.md §7):
@@ -740,7 +733,9 @@ impl SyncWorker {
         since: NaiveDateTime,
     ) -> Result<Vec<T>, CoreError> {
         let url = format!("{}{}?since={}", self.server_url, endpoint, since.format("%Y-%m-%dT%H:%M:%S%.f"));
-        self.get_pull_page(token, endpoint, &url).await
+        // Entidades não-paginadas: só a lista decodificada interessa (o
+        // tamanho bruto / cursor cru servem à paginação por keyset).
+        Ok(self.get_pull_page(token, endpoint, &url).await?.0)
     }
 
     /// Pull PAGINADO por keyset `(updated_at, id)` — para entidades que crescem
@@ -749,7 +744,7 @@ impl SyncWorker {
     /// servidor ordena por `(updated_at, id)`; avançamos o cursor pelo ÚLTIMO
     /// item da página até vir uma página incompleta. `sync_upsert` é idempotente,
     /// então mesmo um reprocessamento de borda é seguro.
-    async fn fetch_pull_paged<T: DeserializeOwned + PullCursor>(
+    async fn fetch_pull_paged<T: DeserializeOwned>(
         &self,
         token: &str,
         endpoint: &str,
@@ -767,14 +762,24 @@ impl SyncWorker {
                 cur_id,
                 PULL_PAGE_LIMIT,
             );
-            let page: Vec<T> = self.get_pull_page(token, endpoint, &url).await?;
-            let full = page.len() as i64 >= PULL_PAGE_LIMIT;
-            if let Some(last) = page.last() {
-                let (ts, id) = last.pull_cursor();
-                cur_ts = ts;
-                cur_id = id;
-            }
+            // `full` e o avanço do keyset vêm do tamanho/último item BRUTO da
+            // página (antes do descarte de registros-veneno de decode), não da
+            // lista decodificada. Senão, uma página inteira indecodificável por
+            // este binário (servidor mais novo) deixaria a lista vazia → cursor
+            // parado → re-busca eterna da mesma página e TUDO acima nunca é
+            // puxado. Com o cursor cru, o veneno é pulado e o pull avança.
+            let (page, raw_total, last_raw) = self.get_pull_page::<T>(token, endpoint, &url).await?;
+            let full = raw_total as i64 >= PULL_PAGE_LIMIT;
             all.extend(page);
+            match last_raw {
+                Some((ts, id)) => {
+                    cur_ts = ts;
+                    cur_id = id;
+                }
+                // Nenhum cursor extraível na página → não há como avançar com
+                // segurança; encerra para não re-buscar a mesma página sem fim.
+                None => break,
+            }
             if !full {
                 break;
             }
@@ -828,7 +833,7 @@ impl SyncWorker {
         token: &str,
         endpoint: &str,
         url: &str,
-    ) -> Result<Vec<T>, CoreError> {
+    ) -> Result<(Vec<T>, usize, Option<(NaiveDateTime, Uuid)>), CoreError> {
         let resp = self.http.get(url)
             .bearer_auth(token)
             .send()
@@ -869,17 +874,38 @@ impl SyncWorker {
             .map_err(|e| CoreError::Repository(format!("Pull {endpoint} decode: {e}")))?;
         let total = raw.len();
         let mut out = Vec::with_capacity(total);
+        // Último cursor CRU da página (id/updated_at do JSON), extraído mesmo
+        // quando o struct inteiro não decodifica — permite o keyset avançar por
+        // cima de um registro-veneno em vez de a página congelar o pull. Os
+        // campos podem estar no TOPO (modelos com `#[serde(flatten)] base`) ou
+        // dentro de `base` (ex.: StockMovement, CashMovement/Session, que não
+        // achatam) — por isso a busca cai no `base` como fallback.
+        let json_field = |v: &serde_json::Value, key: &str| -> Option<serde_json::Value> {
+            v.get(key)
+                .or_else(|| v.get("base").and_then(|b| b.get(key)))
+                .cloned()
+        };
+        let mut last_cursor: Option<(NaiveDateTime, Uuid)> = None;
         for value in raw {
-            let id = value.get("id").and_then(|v| v.as_str()).unwrap_or("?").to_string();
+            if let (Some(ts), Some(id)) = (
+                json_field(&value, "updated_at")
+                    .and_then(|v| serde_json::from_value::<NaiveDateTime>(v).ok()),
+                json_field(&value, "id").and_then(|v| serde_json::from_value::<Uuid>(v).ok()),
+            ) {
+                last_cursor = Some((ts, id));
+            }
+            let id_log = json_field(&value, "id")
+                .and_then(|v| v.as_str().map(|s| s.to_string()))
+                .unwrap_or_else(|| "?".to_string());
             match serde_json::from_value::<T>(value) {
                 Ok(item) => out.push(item),
                 Err(e) => {
                     self.flag_poison();
-                    tracing::warn!("Pull {endpoint}: registro {id} ignorado (decode): {e}");
+                    tracing::warn!("Pull {endpoint}: registro {id_log} ignorado (decode): {e}");
                 }
             }
         }
-        Ok(out)
+        Ok((out, total, last_cursor))
     }
 
     // ── Push (desktop → servidor) ──────────────────────────

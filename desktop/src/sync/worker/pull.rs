@@ -28,7 +28,7 @@ use letaf_core::product::stock_movement::StockMovement;
 use letaf_core::insumo::model::{Insumo, InsumoMovement};
 use letaf_core::error::CoreError;
 
-use super::{PullCursor, SyncWorker};
+use super::SyncWorker;
 
 impl SyncWorker {
     /// Recalcula o espelho do fiado de um cliente a partir do saldo que o
@@ -61,50 +61,6 @@ impl SyncWorker {
             tracing::warn!("espelho do fiado (pull): {e}");
         }
     }
-}
-
-// Cursor keyset para as entidades grandes (pull paginado, §7/§13).
-impl PullCursor for Product {
-    fn pull_cursor(&self) -> (NaiveDateTime, uuid::Uuid) { (self.base.updated_at, self.base.id) }
-}
-impl PullCursor for StockMovement {
-    fn pull_cursor(&self) -> (NaiveDateTime, uuid::Uuid) { (self.base.updated_at, self.base.id) }
-}
-impl PullCursor for Insumo {
-    fn pull_cursor(&self) -> (NaiveDateTime, uuid::Uuid) { (self.base.updated_at, self.base.id) }
-}
-impl PullCursor for InsumoMovement {
-    fn pull_cursor(&self) -> (NaiveDateTime, uuid::Uuid) { (self.base.updated_at, self.base.id) }
-}
-impl PullCursor for Customer {
-    fn pull_cursor(&self) -> (NaiveDateTime, uuid::Uuid) { (self.base.updated_at, self.base.id) }
-}
-impl PullCursor for FinanceEntry {
-    fn pull_cursor(&self) -> (NaiveDateTime, uuid::Uuid) { (self.base.updated_at, self.base.id) }
-}
-impl PullCursor for CashMovement {
-    fn pull_cursor(&self) -> (NaiveDateTime, uuid::Uuid) { (self.base.updated_at, self.base.id) }
-}
-impl PullCursor for WalletMovement {
-    fn pull_cursor(&self) -> (NaiveDateTime, uuid::Uuid) { (self.base.updated_at, self.base.id) }
-}
-impl PullCursor for TreasuryMovement {
-    fn pull_cursor(&self) -> (NaiveDateTime, uuid::Uuid) { (self.base.updated_at, self.base.id) }
-}
-impl PullCursor for Order {
-    fn pull_cursor(&self) -> (NaiveDateTime, uuid::Uuid) { (self.base.updated_at, self.base.id) }
-}
-impl PullCursor for CustomerAddress {
-    fn pull_cursor(&self) -> (NaiveDateTime, uuid::Uuid) { (self.base.updated_at, self.base.id) }
-}
-impl PullCursor for CashSession {
-    fn pull_cursor(&self) -> (NaiveDateTime, uuid::Uuid) { (self.base.updated_at, self.base.id) }
-}
-impl PullCursor for SubscriptionInvoice {
-    fn pull_cursor(&self) -> (NaiveDateTime, uuid::Uuid) { (self.base.updated_at, self.base.id) }
-}
-impl PullCursor for WalletAccount {
-    fn pull_cursor(&self) -> (NaiveDateTime, uuid::Uuid) { (self.base.updated_at, self.base.id) }
 }
 
 impl SyncWorker {
