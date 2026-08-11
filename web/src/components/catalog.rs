@@ -27,7 +27,9 @@ pub async fn get_catalog() -> Result<CatalogData, ServerFnError> {
         .and_then(|v| v.to_str().ok())
         .map(str::to_string)
         .unwrap_or_else(|| {
-            if host.starts_with("localhost") || host.contains(".localhost") || host.starts_with("127.0.0.1") {
+            // Match ANCORADO (via host_is_local): "localhost.evil.com" não é
+            // tratado como dev. §11.
+            if crate::session::host_is_local(&host) {
                 "http".into()
             } else {
                 "https".into()

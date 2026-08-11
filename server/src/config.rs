@@ -28,6 +28,12 @@ pub struct AppConfig {
     /// do desktop) e os binários servidos por `/app/download/*`. Default
     /// `updates`. Permite publicar atualização sem recompilar o servidor.
     pub app_updates_dir: String,
+    /// Domínio-base dos subdomínios de tenant (ex.: `seusite.com`). Quando
+    /// definido (`LETAF_BASE_DOMAIN`), a resolução de tenant SÓ aceita hosts
+    /// `<sub>.<base>` — bloqueia servir o catálogo de um tenant sob um domínio
+    /// alheio (`empresa1.evil.com`), fechando phishing/cache-poisoning/SEO
+    /// (§11). `None` (dev) mantém o comportamento antigo + `<sub>.localhost`.
+    pub base_domain: Option<String>,
     /// SMTP para envio de e-mail (recuperação de senha). `None` quando
     /// `SMTP_HOST` não está setado — o servidor sobe normalmente e o
     /// código de redefinição é apenas logado (modo dev).
@@ -172,6 +178,10 @@ impl AppConfig {
             efi_card,
             app_updates_dir: env::var("APP_UPDATES_DIR")
                 .unwrap_or_else(|_| "updates".into()),
+            base_domain: env::var("LETAF_BASE_DOMAIN")
+                .ok()
+                .map(|s| s.trim().trim_start_matches('.').to_lowercase())
+                .filter(|s| !s.is_empty()),
             smtp: SmtpConfig::from_env(),
         }
     }

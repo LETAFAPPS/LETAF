@@ -30,7 +30,7 @@ impl FromRequestParts<AppState> for TenantContext {
         parts: &mut Parts,
         state: &AppState,
     ) -> Result<Self, Self::Rejection> {
-        let subdomain = extract_subdomain(parts)
+        let subdomain = extract_subdomain(parts, state.config.base_domain.as_deref())
             .ok_or(ServerError::TenantNotFound)?;
 
         let company_id = state
@@ -55,18 +55,34 @@ impl FromRequestParts<AppState> for TenantContext {
 /// - Domínio principal (`seusite.com`), `www`, `localhost` e IPs retornam
 ///   `None`, sinalizando ausência de tenant (rotas ficam indisponíveis).
 /// - Ignora a porta no Host (ex.: `empresa1.seusite.com:3000`).
-fn extract_subdomain(parts: &Parts) -> Option<String> {
+fn extract_subdomain(parts: &Parts, base_domain: Option<&str>) -> Option<String> {
     let raw = parts.headers.get("host")?.to_str().ok()?;
-    let host = raw.split(':').next()?.trim();
+    // Normaliza: sem porta, minúsculas (subdomínios no banco são minúsculos;
+    // também evita `Empresa1` não resolver por diferença de caixa).
+    let host = raw.split(':').next()?.trim().to_lowercase();
     if host.is_empty() || host == "localhost" {
         return None;
     }
     if host.parse::<std::net::IpAddr>().is_ok() {
         return None;
     }
+
+    // Com domínio-base configurado (produção): o host DEVE ser `<sub>.<base>`
+    // exato. `empresa1.evil.com` não termina em `.<base>` → `None` → 404 de
+    // tenant. Fecha o vetor de servir o catálogo de um tenant sob domínio
+    // alheio (phishing/cache-poisoning/SEO) e a reflexão de Host no SSR (§11).
+    if let Some(base) = base_domain {
+        let sub = host.strip_suffix(&format!(".{base}"))?;
+        if sub.is_empty() || sub.contains('.') || sub == "www" {
+            return None;
+        }
+        return Some(sub.to_string());
+    }
+
+    // Sem base (dev / retrocompat): heurística por número de labels.
     let segments: Vec<&str> = host.split('.').collect();
     let candidate = match segments.as_slice() {
-        // Produção: <sub>.<dominio>.<tld>
+        // Produção sem base configurada: <sub>.<dominio>.<tld>
         [sub, _, _, ..] => *sub,
         // Desenvolvimento: <sub>.localhost
         [sub, "localhost"] => *sub,

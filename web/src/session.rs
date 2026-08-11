@@ -123,12 +123,48 @@ pub(crate) async fn read_token_cookie() -> Option<String> {
 }
 
 /// Exige um token de sessão (cookie) ou falha com erro amigável — usado pelas
-/// ações autenticadas no lugar de receber o token do cliente (§11).
+/// ações autenticadas no lugar de receber o token do cliente (§11). Também
+/// exige MESMA ORIGEM (anti-CSRF) antes de liberar a ação.
 #[cfg(feature = "ssr")]
 pub(crate) async fn require_token() -> Result<String, ServerFnError> {
+    verify_same_origin().await?;
     read_token_cookie()
         .await
         .ok_or_else(|| ServerFnError::new("Sessão expirada. Faça login novamente."))
+}
+
+/// Host é de DESENVOLVIMENTO local? Ancorado — não casa "localhost.evil.com"
+/// nem "x.localhost.evil.com" (o `starts_with`/`contains` antigo casava). Tira
+/// a porta antes de comparar.
+#[cfg(feature = "ssr")]
+pub(crate) fn host_is_local(host: &str) -> bool {
+    let h = host.split(':').next().unwrap_or(host);
+    h == "localhost" || h.ends_with(".localhost") || h == "127.0.0.1"
+}
+
+/// Defesa CSRF (§11): compara o host de `Origin`/`Referer` com o `Host` do
+/// request. Um POST cross-site (o vetor de CSRF) SEMPRE carrega uma Origin
+/// diferente → barrado — fechando a janela "Lax+POST" que o SameSite=Lax deixa
+/// aberta por ~2 min após o login. Ausência de Origin/Referer (navegação direta
+/// same-origin) não bloqueia, para não gerar falso-positivo.
+#[cfg(feature = "ssr")]
+async fn verify_same_origin() -> Result<(), ServerFnError> {
+    use axum::http::header::{HOST, ORIGIN, REFERER};
+    use axum::http::HeaderMap;
+    let headers: HeaderMap = leptos_axum::extract().await?;
+    let host = headers.get(HOST).and_then(|v| v.to_str().ok()).unwrap_or_default();
+    let claimed = headers
+        .get(ORIGIN)
+        .and_then(|v| v.to_str().ok())
+        .or_else(|| headers.get(REFERER).and_then(|v| v.to_str().ok()));
+    if let Some(url) = claimed {
+        // Extrai o host de "scheme://host[:porta]/...".
+        let h = url.split("://").nth(1).unwrap_or("").split('/').next().unwrap_or("");
+        if !h.is_empty() && !h.eq_ignore_ascii_case(host) {
+            return Err(ServerFnError::new("Origem inválida (possível CSRF)."));
+        }
+    }
+    Ok(())
 }
 
 /// `Secure` só em contexto HTTPS (produção); em dev http (localhost) o cookie
@@ -144,7 +180,7 @@ async fn secure_context() -> bool {
         return p.eq_ignore_ascii_case("https");
     }
     let host = headers.get(HOST).and_then(|v| v.to_str().ok()).unwrap_or_default();
-    !(host.starts_with("localhost") || host.contains(".localhost") || host.starts_with("127.0.0.1"))
+    !host_is_local(host)
 }
 
 /// Grava o cookie de sessão. `HttpOnly` (JS não lê → sem exfiltração por XSS),
@@ -173,6 +209,7 @@ fn display_only(info: SessionInfo) -> SessionInfo {
 /// HttpOnly e NÃO é devolvido ao navegador (só nome/id para exibição).
 #[server]
 pub async fn customer_login(email: String, password: String) -> Result<SessionInfo, ServerFnError> {
+    verify_same_origin().await?;
     let host = tenant_host().await?;
     let info = crate::api::customer_login(&host, &email, &password)
         .await
@@ -189,6 +226,7 @@ pub async fn customer_register(
     phone: String,
     password: String,
 ) -> Result<SessionInfo, ServerFnError> {
+    verify_same_origin().await?;
     let host = tenant_host().await?;
     let info = crate::api::customer_register(&host, &name, &email, &phone, &password)
         .await
@@ -200,6 +238,7 @@ pub async fn customer_register(
 /// Encerra a sessão: apaga o cookie HttpOnly (o cliente já limpa a exibição).
 #[server]
 pub async fn customer_logout() -> Result<(), ServerFnError> {
+    verify_same_origin().await?;
     write_cookie("", 0).await;
     Ok(())
 }
