@@ -13,6 +13,20 @@ use letaf_core::product::stock_movement::StockMovement;
 
 use super::helpers::{insert_stock_movement, keyset_pull_sql, map_db};
 
+/// Projeção de produto SEM os blobs base64 (§13): `image_data`/`thumb_data`
+/// viram um sentinela de 1 byte (`'1'`/NULL = "tem imagem?"). Usada em toda
+/// leitura que NÃO precisa dos bytes da imagem (catálogo público, listagem
+/// admin, e a busca por ids do checkout) — a imagem real é servida pela rota
+/// de mídia dedicada / `find_image_data`. Sem isto, cada listagem/checkout
+/// transferia centenas de KB por produto (base64) só para descartar.
+const PRODUCT_COLS_LIGHT: &str = "id, company_id, name, description, category_id, subcategory_id, price, cost_price, \
+    stock_quantity, unlimited_stock, barcode, unit, created_at, updated_at, deleted_at, \
+    synced, active, web_visible, balance_mode, \
+    CASE WHEN image_data IS NOT NULL THEN '1' END AS image_data, \
+    CASE WHEN thumb_data IS NOT NULL THEN '1' END AS thumb_data, \
+    cover_color, availability_schedule, discount_kind, discount_value, discount_min_qty, \
+    discount_tiers, variations, min_stock";
+
 /// Row intermediário sqlx → StockMovement (tipos nativos do Postgres).
 #[derive(FromRow)]
 struct StockMovementRow {
@@ -288,8 +302,10 @@ impl ProductRepository for PgProductRepository {
     }
 
     async fn find_all(&self, company_id: Uuid) -> Result<Vec<Product>, CoreError> {
+        // §13: listagem admin não puxa os blobs base64 (a grade usa a URL de
+        // mídia). Espelha o `find_all` leve que o desktop já faz.
         let rows = sqlx::query_as::<_, ProductRow>(
-            "SELECT * FROM products WHERE company_id = $1 AND deleted_at IS NULL ORDER BY created_at DESC",
+            &format!("SELECT {PRODUCT_COLS_LIGHT} FROM products WHERE company_id = $1 AND deleted_at IS NULL ORDER BY created_at DESC"),
         )
         .bind(company_id)
         .fetch_all(&self.pool)
@@ -304,8 +320,11 @@ impl ProductRepository for PgProductRepository {
 
     async fn find_by_ids(&self, company_id: Uuid, ids: &[Uuid]) -> Result<Vec<Product>, CoreError> {
         if ids.is_empty() { return Ok(Vec::new()); }
+        // §13: o checkout (disponibilidade + verify_item_prices) NUNCA lê a
+        // imagem — projeção leve evita puxar ~centenas de KB de base64 por
+        // produto, DUAS vezes por pedido, no caminho de escrita mais quente.
         let rows = sqlx::query_as::<_, ProductRow>(
-            "SELECT * FROM products WHERE company_id = $1 AND id = ANY($2) AND deleted_at IS NULL",
+            &format!("SELECT {PRODUCT_COLS_LIGHT} FROM products WHERE company_id = $1 AND id = ANY($2) AND deleted_at IS NULL"),
         )
         .bind(company_id)
         .bind(ids)
@@ -575,16 +594,11 @@ impl ProductRepository for PgProductRepository {
     /// blob (`'1'`/NULL); o resto das colunas é explícito.
     async fn find_active(&self, company_id: Uuid) -> Result<Vec<Product>, CoreError> {
         let rows = sqlx::query_as::<_, ProductRow>(
-            "SELECT id, company_id, name, description, category_id, subcategory_id, price, cost_price,
-                    stock_quantity, unlimited_stock, barcode, unit, created_at, updated_at, deleted_at,
-                    synced, active, web_visible, balance_mode,
-                    CASE WHEN image_data IS NOT NULL THEN '1' END AS image_data,
-                    CASE WHEN thumb_data IS NOT NULL THEN '1' END AS thumb_data,
-                    cover_color, availability_schedule, discount_kind, discount_value, discount_min_qty,
-                    discount_tiers, variations, min_stock
-               FROM products
-              WHERE company_id = $1 AND deleted_at IS NULL AND active = true AND web_visible = true
-              ORDER BY created_at DESC",
+            &format!(
+                "SELECT {PRODUCT_COLS_LIGHT} FROM products
+                  WHERE company_id = $1 AND deleted_at IS NULL AND active = true AND web_visible = true
+                  ORDER BY created_at DESC"
+            ),
         )
         .bind(company_id)
         .fetch_all(&self.pool)

@@ -39,6 +39,19 @@ pub trait SubscriptionRepository: Send + Sync {
     async fn update_subscription(&self, s: &Subscription) -> Result<(), CoreError>;
 
     async fn find_invoices(&self, company_id: Uuid) -> Result<Vec<Invoice>, CoreError>;
+
+    /// Soma das faturas PAGAS por `(ano, mês)` desde `since`, CROSS-TENANT
+    /// (visão de plataforma / super admin). Substitui o antigo laço N+1 que
+    /// materializava TODO o histórico de faturas de CADA empresa só para somar
+    /// 2 anos — 1 agregação em SQL (§13). Default vazio: o desktop não tem
+    /// visão de plataforma; só o servidor (Postgres) implementa.
+    async fn paid_revenue_by_month_since(
+        &self,
+        _since: chrono::NaiveDate,
+    ) -> Result<Vec<(i32, i32, f64)>, CoreError> {
+        Ok(Vec::new())
+    }
+
     async fn create_invoice(&self, inv: &Invoice) -> Result<(), CoreError>;
     async fn update_invoice(&self, inv: &Invoice) -> Result<(), CoreError>;
 

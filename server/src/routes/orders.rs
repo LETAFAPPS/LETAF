@@ -225,12 +225,13 @@ async fn create_order(
             // divergir, um código com espaço casa o cupom mas conta 0 usos,
             // furando o limite. Fonte única no core.
             let target = letaf_core::coupon::service::normalize_code(raw_code);
-            let customer_prior_orders = state.order_service
-                .count_customer_orders(tenant.company_id, customer_id).await?;
-            let user_uses = state.order_service
-                .count_customer_coupon_uses(tenant.company_id, customer_id, target.as_str()).await?;
-            let total_uses = state.order_service
-                .count_coupon_uses(tenant.company_id, target.as_str()).await?;
+            // As 3 contagens são independentes → concorrentes num só round-trip
+            // (§13). São o pré-check/UX; a autoridade é a recontagem in-tx.
+            let (customer_prior_orders, user_uses, total_uses) = tokio::try_join!(
+                state.order_service.count_customer_orders(tenant.company_id, customer_id),
+                state.order_service.count_customer_coupon_uses(tenant.company_id, customer_id, target.as_str()),
+                state.order_service.count_coupon_uses(tenant.company_id, target.as_str()),
+            )?;
             let now = chrono::Utc::now().naive_utc();
             let (coupon, discount) = state.coupon_service.evaluate(
                 tenant.company_id, raw_code, subtotal, now,

@@ -858,6 +858,11 @@ impl OrderService {
         let products = self.product_service.find_by_ids(company_id, &ids).await?;
         let by_id: std::collections::HashMap<Uuid, &crate::product::model::Product> =
             products.iter().map(|p| (p.base.id, p)).collect();
+        // Pré-carrega TODOS os grupos/adicionais do tenant UMA vez (2 queries),
+        // como o catálogo público — elimina o N+1 do antigo `addons_total`
+        // (que fazia 2 queries por grupo, por item, repetindo quando linhas do
+        // carrinho compartilhavam produto). §13.
+        let (groups_by_id, addons_by_group) = self.load_addon_maps(company_id).await?;
         let mut list_prices: Vec<Decimal> = Vec::with_capacity(items.len());
         for item in items {
             let product = *by_id.get(&item.product_id).ok_or_else(|| CoreError::Validation(format!(
@@ -873,7 +878,7 @@ impl OrderService {
                 )));
             }
             let base = crate::discount::effective_unit_price(product, item.quantity);
-            let addons_total = self.addons_total(company_id, product, item.addons_json.as_deref()).await?;
+            let addons_total = self.addons_total(product, item.addons_json.as_deref(), &groups_by_id, &addons_by_group)?;
             let expected = base + addons_total;
             list_prices.push(product.price.unwrap_or(Decimal::ZERO) + addons_total);
             if (item.unit_price - expected).abs() > dec!(0.01) {
@@ -896,6 +901,39 @@ impl OrderService {
         Ok(list_prices)
     }
 
+    /// Carrega grupos e adicionais do tenant em mapas por id/grupo (2 queries),
+    /// para o checkout resolver preço/limites de adicional EM MEMÓRIA (sem
+    /// N+1). Mapas vazios quando `addon_service` ausente (PDV desktop confiável,
+    /// que usa o snapshot do cliente). Mesmo padrão do catálogo público (§13).
+    async fn load_addon_maps(
+        &self,
+        company_id: Uuid,
+    ) -> Result<
+        (
+            std::collections::HashMap<Uuid, crate::addon_group::model::AddonGroup>,
+            std::collections::HashMap<Uuid, Vec<crate::addon::model::Addon>>,
+        ),
+        CoreError,
+    > {
+        let (Some(gs), Some(asvc)) =
+            (self.addon_group_service.as_ref(), self.addon_service.as_ref())
+        else {
+            return Ok((Default::default(), Default::default()));
+        };
+        let groups_by_id = gs
+            .find_all(company_id)
+            .await?
+            .into_iter()
+            .map(|g| (g.base.id, g))
+            .collect();
+        let mut addons_by_group: std::collections::HashMap<Uuid, Vec<crate::addon::model::Addon>> =
+            std::collections::HashMap::new();
+        for a in asvc.find_all(company_id).await? {
+            addons_by_group.entry(a.group_id).or_default().push(a);
+        }
+        Ok((groups_by_id, addons_by_group))
+    }
+
     /// Soma o preço dos adicionais/opções de variação escolhidos.
     ///
     /// Regras (AI_RULES.md §11): com `addon_service` (servidor), monta o
@@ -906,15 +944,19 @@ impl OrderService {
     /// divergente é rejeitada (impede forjar preço de adicional/variação,
     /// já que opções de variação não têm id estável). Sem o service (PDV
     /// desktop, operador confiável), usa o snapshot do cliente.
-    async fn addons_total(
+    ///
+    /// Recebe os grupos/adicionais já carregados (`load_addon_maps`) — resolve
+    /// tudo em memória (síncrono, sem N+1); §13.
+    fn addons_total(
         &self,
-        company_id: Uuid,
         product: &crate::product::model::Product,
         addons_json: Option<&str>,
+        groups_by_id: &std::collections::HashMap<Uuid, crate::addon_group::model::AddonGroup>,
+        addons_by_group: &std::collections::HashMap<Uuid, Vec<crate::addon::model::Addon>>,
     ) -> Result<Decimal, CoreError> {
-        let Some(svc) = self.addon_service.as_ref() else {
+        if self.addon_service.is_none() {
             return Ok(parse_addons_total(addons_json));
-        };
+        }
         let Some(s) = addons_json else { return Ok(Decimal::ZERO); };
         let trimmed = s.trim();
         if trimmed.is_empty() { return Ok(Decimal::ZERO); }
@@ -938,20 +980,15 @@ impl OrderService {
         // `min_select`/`max_select` — que só existiam no cliente.
         let mut grupos: Vec<crate::addon_group::model::AddonGroup> = Vec::new();
         for gid in &product.addon_group_ids {
-            let grupo = match self.addon_group_service.as_ref() {
-                Some(gs) => gs.find_by_id(company_id, *gid).await?,
-                None => None,
-            };
-            if let Some(g) = grupo {
-                for addon in svc.find_by_group(company_id, *gid).await? {
-                    legit.entry(addon.name.clone()).or_default().push(addon.price);
-                    por_grupo
-                        .entry((g.name.clone(), addon.name))
-                        .or_default()
-                        .push(addon.price);
-                }
-                grupos.push(g);
+            let Some(g) = groups_by_id.get(gid) else { continue };
+            for addon in addons_by_group.get(gid).into_iter().flatten() {
+                legit.entry(addon.name.clone()).or_default().push(addon.price);
+                por_grupo
+                    .entry((g.name.clone(), addon.name.clone()))
+                    .or_default()
+                    .push(addon.price);
             }
+            grupos.push(g.clone());
         }
         if let Some(vs) = product.variations.as_deref() {
             if let Ok(serde_json::Value::Array(groups)) =

@@ -2,7 +2,7 @@
 
 use axum::extract::State;
 use axum::Json;
-use rust_decimal::prelude::ToPrimitive;
+use rust_decimal::prelude::{FromPrimitive, ToPrimitive};
 use rust_decimal::Decimal;
 use std::collections::HashMap;
 
@@ -11,8 +11,6 @@ use chrono::Datelike;
 use crate::context::AppState;
 use crate::error::ServerError;
 use crate::middleware::auth::AuthClaims;
-
-use letaf_core::subscription::model::InvoiceStatus;
 
 use super::{brl, tenants};
 use serde::Serialize;
@@ -117,27 +115,27 @@ pub(super) async fn overview(
         .unwrap_or_else(|| "—".to_string());
 
     // Receita por MÊS-CALENDÁRIO (jan–dez), comparando o ANO ATUAL com o
-    // ANTERIOR. Faturas PAGAS somadas por mês. Loop O(tenants) reusando o
-    // repository (§10); agregação em SQL fica como otimização futura quando
-    // a base crescer (§13 — medir antes).
+    // ANTERIOR. Faturas PAGAS somadas por mês em UMA agregação SQL cross-tenant
+    // (§13) — substitui o antigo laço O(tenants) que materializava TODO o
+    // histórico de faturas de cada empresa.
     let today = chrono::Utc::now().naive_utc().date();
     let year = today.year();
     let prev_year = year - 1;
     let mut current = [Decimal::ZERO; 12];
     let mut previous = [Decimal::ZERO; 12];
-    for c in &tenants {
-        let invoices = state.subscription_service.find_invoices(c.id).await.unwrap_or_default();
-        for inv in invoices {
-            if inv.status != InvoiceStatus::Paid {
-                continue;
-            }
-            let Some(paid) = inv.paid_at else { continue };
-            let idx = (paid.month() - 1) as usize;
-            if paid.year() == year {
-                current[idx] += inv.amount;
-            } else if paid.year() == prev_year {
-                previous[idx] += inv.amount;
-            }
+    let since = chrono::NaiveDate::from_ymd_opt(prev_year, 1, 1).unwrap_or(today);
+    for (y, m, sum) in state
+        .subscription_service
+        .paid_revenue_by_month_since(since)
+        .await
+        .unwrap_or_default()
+    {
+        let idx = ((m.clamp(1, 12)) - 1) as usize;
+        let val = Decimal::from_f64(sum).unwrap_or(Decimal::ZERO);
+        if y == year {
+            current[idx] = val;
+        } else if y == prev_year {
+            previous[idx] = val;
         }
     }
     // "Receita no ano" = total do ano atual (jan–dez).

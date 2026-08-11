@@ -279,6 +279,29 @@ impl SubscriptionRepository for PgSubscriptionRepository {
         Ok(rows.into_iter().map(Invoice::from).collect())
     }
 
+    async fn paid_revenue_by_month_since(
+        &self,
+        since: NaiveDate,
+    ) -> Result<Vec<(i32, i32, f64)>, CoreError> {
+        // 1 agregação cross-tenant (§13): soma faturas pagas por ano/mês desde
+        // `since`. `idx_subscription_invoices_company_issued` não cobre este
+        // filtro por `paid_at`, mas o recorte de 2 anos + status='paid' mantém
+        // o conjunto pequeno; a alternativa (N find_invoices) era muito pior.
+        let rows: Vec<(i32, i32, f64)> = sqlx::query_as(
+            "SELECT EXTRACT(YEAR FROM paid_at)::int, EXTRACT(MONTH FROM paid_at)::int,
+                    COALESCE(SUM(amount), 0)::float8
+               FROM subscription_invoices
+              WHERE status = 'paid' AND paid_at IS NOT NULL AND paid_at >= $1
+                AND deleted_at IS NULL
+              GROUP BY 1, 2",
+        )
+        .bind(since)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(map_db)?;
+        Ok(rows)
+    }
+
     async fn create_invoice(&self, inv: &Invoice) -> Result<(), CoreError> {
         sqlx::query(
             "INSERT INTO subscription_invoices

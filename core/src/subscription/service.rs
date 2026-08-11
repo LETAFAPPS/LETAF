@@ -380,6 +380,15 @@ impl SubscriptionService {
         self.repo.find_invoices(company_id).await
     }
 
+    /// Receita paga por (ano, mês) cross-tenant desde `since` — 1 agregação SQL
+    /// para o painel do super admin (§13).
+    pub async fn paid_revenue_by_month_since(
+        &self,
+        since: chrono::NaiveDate,
+    ) -> Result<Vec<(i32, i32, f64)>, CoreError> {
+        self.repo.paid_revenue_by_month_since(since).await
+    }
+
     /// Garante uma assinatura ativa + faturas históricas na 1ª execução
     /// (defesa em profundidade — quando o super-admin estiver online,
     /// o pull traz os dados reais e o `sync_upsert` os sobrepõe).
