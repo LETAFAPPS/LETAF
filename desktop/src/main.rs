@@ -250,30 +250,32 @@ fn main() {
     // ciclo de sync. Dispara o refresh inicial dos cards/séries do
     // Dashboard aqui (equivalente ao navigate("dashboard")).
     window.global::<DashboardState>().invoke_dashboard_refresh();
-    // Pedidos: também pré-populado para o badge da sidebar aparecer
-    // logo no boot e para Pedidos abrir cheio se o user navegar.
-    window.global::<OrdersState>().invoke_refresh_orders();
-    // Impressoras: carrega a lista no boot (não depende do operador
-    // entrar em Configurações — o resolver de impressão por kind nos
-    // pedidos consulta o banco direto, mas a UI já fica populada).
-    window.global::<PrintersState>().invoke_refresh_printers();
-    // PDV: carrega produtos + categorias no boot. Mesma justificativa
-    // — quando o operador abre a aba PDV, a grid já está populada.
-    window.global::<PdvUiState>().invoke_pdv_refresh();
-    // Caixa: status pré-carregado para que o modal de bloqueio do
-    // PDV (renderizado quando `cash-summary.open == false`) já reflita
-    // a realidade na primeira interação.
-    window.global::<CashState>().invoke_cash_refresh();
-    // Financeiro: KPIs + fluxo de caixa + lista de contas a pagar/receber.
-    // Sem pré-carga a tela ficava em branco até o primeiro ciclo de sync.
-    window.global::<FinanceState>().invoke_finance_refresh();
-    // Assinatura: card de plano atual + lista de faturas. Pré-carrega
-    // para que ASSINATURA → PLANO & COBRANÇA já reflita o estado real.
-    window.global::<SubscriptionState>().invoke_subscription_refresh();
-    // Clientes: lista mestre pra que o usuário já veja a base ao
-    // navegar — a carteira do cliente selecionado é carregada por
-    // listener separado quando ele clicar numa linha.
-    window.global::<CustomersState>().invoke_refresh_customers();
+    // Pré-carga das DEMAIS telas (não são a aba inicial): existe só para
+    // elas já abrirem populadas quando o operador navegar — o `navigate`
+    // apenas troca `active-tab`, não recarrega. Os badges da sidebar NÃO
+    // dependem disto (`setup_badges_listener` usa COUNTs próprios e pinta
+    // no startup). Por isso saem do caminho do PRIMEIRO FRAME: um one-shot
+    // logo após a abertura dispara as 7 cargas, deixando o Dashboard (aba
+    // inicial) pintar sem concorrer com 7 rajadas de SQLite. O operador não
+    // navega em ~200 ms, então nenhuma tela aparece vazia. §13.
+    {
+        let weak = window.as_weak();
+        let timer = Box::leak(Box::new(slint::Timer::default()));
+        timer.start(
+            slint::TimerMode::SingleShot,
+            std::time::Duration::from_millis(200),
+            move || {
+                let Some(ui) = weak.upgrade() else { return };
+                ui.global::<OrdersState>().invoke_refresh_orders();
+                ui.global::<PrintersState>().invoke_refresh_printers();
+                ui.global::<PdvUiState>().invoke_pdv_refresh();
+                ui.global::<CashState>().invoke_cash_refresh();
+                ui.global::<FinanceState>().invoke_finance_refresh();
+                ui.global::<SubscriptionState>().invoke_subscription_refresh();
+                ui.global::<CustomersState>().invoke_refresh_customers();
+            },
+        );
+    }
 
     // Atualiza `live-window-height` (usada pelo PDV pra ancorar
     // cart-bottom no fim da janela) periodicamente. Slint não
