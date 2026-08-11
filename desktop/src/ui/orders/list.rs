@@ -27,6 +27,12 @@ pub(crate) fn setup_refresh_orders(
     let ui_weak = ui.as_weak();
     let state = state.clone();
     let handle = handle.clone();
+    // Debounce da BUSCA (§13/§7.4): geração monotônica + último termo visto. Só
+    // a mudança de termo (keystroke) espera a pausa na digitação; mutações e
+    // boot chamam refresh com o termo INALTERADO → rodam imediato (board não
+    // atrasa ao avançar/cancelar). Sem isso, cada tecla ia ao banco.
+    let search_gen = Arc::new(std::sync::atomic::AtomicU64::new(0));
+    let last_term = Arc::new(std::sync::Mutex::new(String::new()));
 
     ui.global::<OrdersState>().on_refresh_orders(move || {
         let ui_weak = ui_weak.clone();
@@ -36,19 +42,28 @@ pub(crate) fn setup_refresh_orders(
             .upgrade()
             .map(|ui| ui.global::<OrdersState>().get_order_search_query().to_string())
             .unwrap_or_default();
+        let changed = match last_term.lock() {
+            Ok(mut lt) => {
+                let c = *lt != termo;
+                if c { *lt = termo.clone(); }
+                c
+            }
+            Err(_) => true,
+        };
+        let my_gen = search_gen.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;
+        let gen = search_gen.clone();
 
         handle.spawn(async move {
+            // Só o caminho de busca (termo mudou) faz debounce; se uma tecla mais
+            // nova chegou, esta carga é abandonada (a última vence).
+            if changed {
+                tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+                if gen.load(std::sync::atomic::Ordering::SeqCst) != my_gen {
+                    return;
+                }
+            }
             let cid = state.company_id();
-            // Com termo digitado a busca vai ao BANCO e varre todo o
-            // histórico; sem termo, carrega o quadro operacional. O quadro só
-            // traz os concluídos dos últimos 30 dias, então filtrar sobre ele
-            // faria o número de um pedido antigo "não existir" em silêncio.
-            let result = if termo.trim().is_empty() {
-                load_orders_with_customers(&state, cid).await
-            } else {
-                buscar_pedidos(&state, cid, &termo).await
-            };
-
+            let result = load_orders_for(&state, cid, &termo).await;
             let _ = slint::invoke_from_event_loop(move || {
                 let Some(ui) = ui_weak.upgrade() else { return };
                 match result {
@@ -60,6 +75,20 @@ pub(crate) fn setup_refresh_orders(
             });
         });
     });
+}
+
+/// Carrega a lista de pedidos: com termo vai ao banco (`search`, varre o
+/// histórico); sem termo, o quadro operacional (concluídos dos últimos 30 dias).
+async fn load_orders_for(
+    state: &DesktopState,
+    cid: Uuid,
+    termo: &str,
+) -> Result<Vec<OrderData>, letaf_core::error::CoreError> {
+    if termo.trim().is_empty() {
+        load_orders_with_customers(state, cid).await
+    } else {
+        buscar_pedidos(state, cid, termo).await
+    }
 }
 
 /// Reaplica a lista carregada na UI: badge de ativos, busca textual,
