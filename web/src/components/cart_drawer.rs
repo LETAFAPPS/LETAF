@@ -41,9 +41,9 @@ pub fn CartDrawer() -> impl IntoView {
 
     // Carrega os endereços salvos quando o cliente está logado.
     let carregar_enderecos = move || {
-        let Some(token) = session.token() else { return };
+        if !session.is_logged() { return; }
         spawn_local(async move {
-            if let Ok(list) = checkout::list_addresses(token).await {
+            if let Ok(list) = checkout::list_addresses().await {
                 if address_id.get_untracked().is_empty() {
                     if let Some(first) = list.first() {
                         set_address_id.set(first.id.clone());
@@ -62,7 +62,7 @@ pub fn CartDrawer() -> impl IntoView {
 
     // Salva um endereço novo e já o seleciona.
     let salvar_endereco = move |_: leptos::ev::MouseEvent| {
-        let Some(token) = session.token() else { return };
+        if !session.is_logged() { return; }
         let (rua, num, bairro, compl) = (
             a_rua.get_untracked(),
             a_numero.get_untracked(),
@@ -75,7 +75,7 @@ pub fn CartDrawer() -> impl IntoView {
         }
         set_error.set(String::new());
         spawn_local(async move {
-            match checkout::add_address(token, "Casa".into(), rua, num, bairro, compl).await {
+            match checkout::add_address("Casa".into(), rua, num, bairro, compl).await {
                 Ok(novo) => {
                     set_address_id.set(novo.id.clone());
                     set_addresses.update(|v| v.push(novo));
@@ -111,7 +111,6 @@ pub fn CartDrawer() -> impl IntoView {
         if items.is_empty() {
             return;
         }
-        let token = session.token().unwrap_or_default();
         let notes_v = notes.get_untracked();
         let coupon_v = coupon.get_untracked();
         let entrega = delivery.get_untracked();
@@ -127,7 +126,6 @@ pub fn CartDrawer() -> impl IntoView {
         spawn_local(async move {
             let modalidade = if entrega { "delivery" } else { "pickup" };
             match checkout::create_order(
-                token,
                 items,
                 notes_v,
                 coupon_v,

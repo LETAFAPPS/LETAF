@@ -11,24 +11,11 @@ use crate::session::Session;
 #[component]
 pub fn AccountPanel(on_close: Callback<()>) -> impl IntoView {
     let session = expect_context::<Session>();
-    let token = session.token().unwrap_or_default();
 
-    let tok_p = token.clone();
-    let profile = Resource::new(
-        || (),
-        move |_| {
-            let t = tok_p.clone();
-            async move { account::get_profile(t).await }
-        },
-    );
-    let tok_o = token.clone();
-    let orders = Resource::new(
-        || (),
-        move |_| {
-            let t = tok_o.clone();
-            async move { account::list_orders(t).await }
-        },
-    );
+    // Ações autenticadas leem o JWT do cookie HttpOnly no servidor — o cliente
+    // não guarda nem envia token (§11).
+    let profile = Resource::new(|| (), |_| async move { account::get_profile().await });
+    let orders = Resource::new(|| (), |_| async move { account::list_orders().await });
 
     let (name, set_name) = signal(String::new());
     let (phone, set_phone) = signal(String::new());
@@ -44,7 +31,6 @@ pub fn AccountPanel(on_close: Callback<()>) -> impl IntoView {
         }
     });
 
-    let tok_save = token.clone();
     let save = Callback::new(move |_: ()| {
         if busy.get_untracked() {
             return;
@@ -52,11 +38,10 @@ pub fn AccountPanel(on_close: Callback<()>) -> impl IntoView {
         set_err.set(String::new());
         set_saved.set(false);
         set_busy.set(true);
-        let t = tok_save.clone();
         let n = name.get_untracked();
         let p = phone.get_untracked();
         spawn_local(async move {
-            match account::update_profile(t, n, p, String::new(), String::new()).await {
+            match account::update_profile(n, p, String::new(), String::new()).await {
                 Ok(info) => {
                     session.rename(info.name.clone());
                     set_saved.set(true);
@@ -151,7 +136,12 @@ pub fn AccountPanel(on_close: Callback<()>) -> impl IntoView {
 
                     <button
                         class="account-btn account-logout"
-                        on:click=move |_| { session.clear(); on_close.run(()); }
+                        on:click=move |_| {
+                            // Limpa a exibição no cliente E apaga o cookie HttpOnly no servidor.
+                            session.clear();
+                            spawn_local(async { let _ = crate::session::customer_logout().await; });
+                            on_close.run(());
+                        }
                     >
                         "Sair"
                     </button>

@@ -22,9 +22,12 @@ pub struct OrderSummary {
     pub created_at: String,
 }
 
+// As ações autenticadas NÃO recebem mais o token do cliente: leem o JWT do
+// cookie HttpOnly no servidor (`require_token`). §11.
 #[server]
-pub async fn get_profile(token: String) -> Result<ProfileInfo, ServerFnError> {
+pub async fn get_profile() -> Result<ProfileInfo, ServerFnError> {
     let host = crate::session::tenant_host().await?;
+    let token = crate::session::require_token().await?;
     crate::api::customer_profile(&host, &token)
         .await
         .map_err(ServerFnError::new)
@@ -32,21 +35,22 @@ pub async fn get_profile(token: String) -> Result<ProfileInfo, ServerFnError> {
 
 #[server]
 pub async fn update_profile(
-    token: String,
     name: String,
     phone: String,
     password: String,
     current_password: String,
 ) -> Result<ProfileInfo, ServerFnError> {
     let host = crate::session::tenant_host().await?;
+    let token = crate::session::require_token().await?;
     crate::api::update_customer_profile(&host, &token, &name, &phone, &password, &current_password)
         .await
         .map_err(ServerFnError::new)
 }
 
 #[server]
-pub async fn list_orders(token: String) -> Result<Vec<OrderSummary>, ServerFnError> {
+pub async fn list_orders() -> Result<Vec<OrderSummary>, ServerFnError> {
     let host = crate::session::tenant_host().await?;
+    let token = crate::session::require_token().await?;
     crate::api::customer_orders(&host, &token)
         .await
         .map_err(ServerFnError::new)

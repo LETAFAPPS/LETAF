@@ -23,10 +23,10 @@ pub struct OrderConfirmation {
     pub total: f64,
 }
 
-/// POST /orders (proxy, Bearer). `token` vem da sessão do cliente.
+/// POST /orders (proxy, Bearer). O token vem do cookie HttpOnly (server-side),
+/// nunca do cliente (§11).
 #[server]
 pub async fn create_order(
-    token: String,
     items: Vec<OrderItemPayload>,
     notes: String,
     coupon: String,
@@ -36,28 +36,18 @@ pub async fn create_order(
     /// o endereço do cadastro e confere o dono (§11).
     address_id: String,
 ) -> Result<OrderConfirmation, ServerFnError> {
-    use axum::http::{header::HOST, HeaderMap};
-    let headers: HeaderMap = leptos_axum::extract().await?;
-    let host = headers
-        .get(HOST)
-        .and_then(|v| v.to_str().ok())
-        .unwrap_or_default()
-        .to_string();
+    let host = crate::session::tenant_host().await?;
+    let token = crate::session::require_token().await?;
     crate::api::create_order(&host, &token, items, &notes, &coupon, &delivery_type, &address_id)
         .await
         .map_err(ServerFnError::new)
 }
 
-/// GET /customer/addresses (proxy, Bearer).
+/// GET /customer/addresses (proxy, Bearer via cookie).
 #[server]
-pub async fn list_addresses(token: String) -> Result<Vec<AddressOption>, ServerFnError> {
-    use axum::http::{header::HOST, HeaderMap};
-    let headers: HeaderMap = leptos_axum::extract().await?;
-    let host = headers
-        .get(HOST)
-        .and_then(|v| v.to_str().ok())
-        .unwrap_or_default()
-        .to_string();
+pub async fn list_addresses() -> Result<Vec<AddressOption>, ServerFnError> {
+    let host = crate::session::tenant_host().await?;
+    let token = crate::session::require_token().await?;
     let list = crate::api::customer_addresses(&host, &token)
         .await
         .map_err(ServerFnError::new)?;
@@ -71,23 +61,17 @@ pub async fn list_addresses(token: String) -> Result<Vec<AddressOption>, ServerF
         .collect())
 }
 
-/// POST /customer/addresses (proxy, Bearer).
+/// POST /customer/addresses (proxy, Bearer via cookie).
 #[server]
 pub async fn add_address(
-    token: String,
     label: String,
     street: String,
     number: String,
     neighborhood: String,
     apartment: String,
 ) -> Result<AddressOption, ServerFnError> {
-    use axum::http::{header::HOST, HeaderMap};
-    let headers: HeaderMap = leptos_axum::extract().await?;
-    let host = headers
-        .get(HOST)
-        .and_then(|v| v.to_str().ok())
-        .unwrap_or_default()
-        .to_string();
+    let host = crate::session::tenant_host().await?;
+    let token = crate::session::require_token().await?;
     let a = crate::api::create_customer_address(
         &host, &token, &label, &street, &number, &neighborhood, &apartment,
     )
