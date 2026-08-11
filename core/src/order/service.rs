@@ -567,6 +567,16 @@ impl OrderService {
             )),
             _ => {}
         }
+        // Pedido PAGO é FECHADO: editar itens mudaria o total sem reconciliar o
+        // caixa/carteira já registrados na venda, gerando quebra no fechamento.
+        // Regra: bloquear — para alterar, cancele e refaça (§11 — o backend é a
+        // autoridade; a UI só reflete). O `cancel` estorna o caixa; o novo
+        // pedido registra a venda correta.
+        if order.paid {
+            return Err(CoreError::Validation(
+                "Pedido pago não pode ser editado. Cancele e refaça o pedido.".into(),
+            ));
+        }
         if new_items.is_empty() {
             return Err(CoreError::Validation(
                 "Pedido precisa ter ao menos um item".into(),

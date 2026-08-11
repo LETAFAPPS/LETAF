@@ -58,6 +58,17 @@ pub(crate) fn setup_edit_order(
                 });
                 return;
             }
+            // Pedido pago é fechado: editar mudaria o total sem reconciliar o
+            // caixa/carteira. O backend recusa (autoridade); aqui é só feedback
+            // imediato — para alterar, cancele e refaça.
+            if order.paid {
+                let _ = slint::invoke_from_event_loop(move || {
+                    if let Some(ui) = ui_weak2.upgrade() {
+                        show_toast(&ui, "Pedido pago não pode ser editado. Cancele e refaça.", "error");
+                    }
+                });
+                return;
+            }
             let items: Vec<crate::EditOrderItem> = order.items.iter().map(|it| {
                 crate::EditOrderItem {
                     item_id: SharedString::from(it.base.id.to_string()),
