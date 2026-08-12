@@ -1,0 +1,44 @@
+import { Theme } from "../theme.slint";
+import { Card } from "cards.slint";
+
+// Scaffold PADRÃO dos modais grandes/customizados — FONTE ÚNICA do
+// "overlay + card centralizado". Encapsula o que todo modal repetia à mão:
+// scrim escurecido, fechar ao clicar fora, card centralizado e absorção dos
+// cliques DENTRO do card (para não fechar). O conteúdo próprio do modal
+// entra via `@children`.
+//
+// Para modais SIMPLES de confirmação/aviso (ícone + título + mensagem +
+// botões), use `ModalShell` — este é para os que têm layout próprio.
+//
+// Uso:
+//   ModalFrame {
+//       card-width: 440px;
+//       close => { root.close(); }
+//       VerticalLayout { padding: 28px; /* conteúdo do modal */ }
+//   }
+export component ModalFrame inherits Rectangle {
+    in property <length> card-width: 440px;
+    in property <length> card-radius: Theme.radius-3xl;
+    callback close();
+
+    width: 100%;
+    height: 100%;
+    background: Theme.scrim;
+
+    // Clique no fundo fecha.
+    TouchArea { clicked => { root.close(); } }
+
+    VerticalLayout {
+        alignment: center;
+        HorizontalLayout {
+            alignment: center;
+            Card {
+                width: root.card-width;
+                border-radius: root.card-radius;
+                // Absorve cliques DENTRO do card (não fecha).
+                TouchArea { }
+                @children
+            }
+        }
+    }
+}
