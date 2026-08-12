@@ -17,8 +17,8 @@ export component Switch inherits TouchArea {
     /// Emitido no clique com o NOVO valor.
     callback toggled(bool);
 
-    width: 46px;
-    height: 26px;
+    width: 38px;
+    height: 20px;
     mouse-cursor: pointer;
     clicked => { root.toggled(!root.on); }
 
@@ -31,11 +31,11 @@ export component Switch inherits TouchArea {
 
         // Botão deslizante (knob) circular.
         Rectangle {
-            width: 20px;
-            height: 20px;
+            width: 16px;
+            height: 16px;
             border-radius: self.height / 2;
             background: white;
-            x: root.on ? parent.width - self.width - 3px : 3px;
+            x: root.on ? parent.width - self.width - 2px : 2px;
             y: (parent.height - self.height) / 2;
             animate x { duration: 120ms; }
         }
