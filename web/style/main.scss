@@ -66,6 +66,35 @@
     font-family: inherit;
     cursor: pointer;
 }
+// Card de modal (product-modal / auth-modal / account-panel repetiam o
+// mesmo bloco). Cada modal só acrescenta largura/altura próprias.
+%modal-card {
+    background: var(--surface);
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: var(--shadow-lg);
+}
+// Stepper de quantidade (+/−). `@mixin` porque tem regra aninhada (`button`),
+// que o @extend não traz. Fonte única para .cart-qty e .opt-counter.
+@mixin stepper {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+    border: 1px solid var(--line-strong);
+    border-radius: 8px;
+    overflow: hidden;
+
+    button {
+        width: 40px;
+        height: 40px;
+        border: none;
+        background: var(--surface-2);
+        color: var(--brand);
+        font-size: 1rem;
+        font-weight: 700;
+        cursor: pointer;
+    }
+}
 
 * { box-sizing: border-box; }
 
@@ -73,7 +102,7 @@ body {
     font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
     margin: 0;
     color: var(--ink);
-    background: #f9fafb;
+    background: var(--surface-2);
 }
 
 main {
@@ -103,7 +132,7 @@ main {
         height: 56px;
         border-radius: 50%;
         object-fit: cover;
-        border: 2px solid #fff;
+        border: 2px solid var(--surface);
         box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
     }
     .store-name {
@@ -120,7 +149,7 @@ main {
     width: 100%;
     aspect-ratio: 3 / 1;
     overflow: hidden;
-    background: #f3f4f6;
+    background: var(--surface-3);
     border-radius: 12px;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
@@ -168,7 +197,7 @@ main {
 
     &.banner-dot-active {
         width: 24px;
-        background: #fff;
+        background: var(--surface);
         box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
     }
 }
@@ -178,7 +207,7 @@ main {
     position: sticky;
     top: 0;
     z-index: 5;
-    background: #fff;
+    background: var(--surface);
     border-bottom: 1px solid #f0f0f0;
     margin: 0 -1rem 1rem;
     padding: 0.6rem 1rem;
@@ -196,14 +225,14 @@ main {
     font-weight: 600;
     line-height: 1.2;
     color: #374151;
-    background: #fff;
+    background: var(--surface);
     cursor: pointer;
     white-space: nowrap;
 }
 .cat-chip-active {
     background: var(--brand);
     border-color: var(--brand);
-    color: #fff;
+    color: var(--on-brand);
 }
 
 // ── Grid de produtos ────────────────────────────────────────
@@ -219,7 +248,7 @@ main {
     overflow: hidden;
     display: flex;
     flex-direction: column;
-    background: #fff;
+    background: var(--surface);
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.07);
 
     .product-img {
@@ -252,7 +281,7 @@ main {
             border: none;
             border-radius: 50%;
             background: rgba(0, 0, 0, 0.45);
-            color: #fff;
+            color: var(--on-brand);
             font-size: 1.2rem;
             line-height: 1;
             cursor: pointer;
@@ -292,7 +321,7 @@ main {
                 background: rgba(255, 255, 255, 0.6);
                 box-shadow: 0 0 2px rgba(0, 0, 0, 0.4);
 
-                &.dot-on { background: #fff; }
+                &.dot-on { background: var(--surface); }
             }
         }
     }
@@ -302,7 +331,7 @@ main {
         top: 8px;
         left: 8px;
         background: var(--brand);
-        color: #fff;
+        color: var(--on-brand);
         font-size: 0.66rem;
         font-weight: 700;
         padding: 3px 7px;
@@ -407,7 +436,7 @@ main {
 
     span {
         background: #6b7280;
-        color: #fff;
+        color: var(--on-brand);
         font-size: 0.72rem;
         font-weight: 700;
         text-transform: uppercase;
@@ -464,7 +493,7 @@ main {
     box-shadow: var(--shadow-md);
 }
 .cart-fab-badge {
-    background: #fff;
+    background: var(--surface);
     color: var(--brand);
     border-radius: 999px;
     min-width: 22px;
@@ -488,7 +517,7 @@ main {
     right: 0;
     bottom: 0;
     width: min(380px, 100%);
-    background: #fff;
+    background: var(--surface);
     z-index: 51;
     display: flex;
     flex-direction: column;
@@ -527,23 +556,7 @@ main {
 .cart-row-addons { font-size: 0.74rem; color: #6b7280; }
 .cart-row-sub { font-size: 0.82rem; color: var(--price); font-weight: 700; margin-top: 2px; }
 .cart-qty {
-    display: flex;
-    align-items: center;
-    border: 1px solid var(--line);
-    border-radius: 8px;
-    overflow: hidden;
-    flex-shrink: 0;
-
-    button {
-        width: 40px;
-        height: 40px;
-        border: none;
-        background: #f9fafb;
-        color: var(--brand);
-        font-size: 1rem;
-        font-weight: 700;
-        cursor: pointer;
-    }
+    @include stepper;
     span { min-width: 26px; text-align: center; font-size: 0.85rem; font-weight: 700; }
 }
 .cart-drawer-foot {
@@ -624,7 +637,7 @@ textarea.field {
     height: 56px;
     border-radius: 50%;
     background: var(--price);
-    color: #fff;
+    color: var(--on-brand);
     font-size: 1.8rem;
     display: flex;
     align-items: center;
@@ -652,14 +665,11 @@ textarea.field {
     padding: 16px;
 }
 .product-modal {
-    background: #fff;
-    border-radius: 14px;
+    @extend %modal-card;
     width: min(440px, 100%);
     max-height: 88vh;
     display: flex;
     flex-direction: column;
-    overflow: hidden;
-    box-shadow: var(--shadow-lg);
 }
 .pm-head {
     display: flex;
@@ -714,36 +724,21 @@ textarea.field {
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #fff;
+    color: var(--on-brand);
     font-size: 12px;
     font-weight: 700;
     background: transparent;
 
     &.radio { border-radius: 50%; }
     &.check { border-radius: 4px; }
-    &.radio.on { border: 5px solid var(--brand); background: #fff; }
+    &.radio.on { border: 5px solid var(--brand); background: var(--surface); }
     &.check.on { background: var(--brand); border-color: var(--brand); }
 }
 button.ind { cursor: pointer; padding: 0; }
 .opt-counter {
-    display: flex;
-    align-items: center;
-    flex-shrink: 0;
-    border: 1px solid #d1d5db;
-    border-radius: 8px;
-    overflow: hidden;
-
+    @include stepper;
     button {
-        width: 40px;
-        height: 40px;
-        border: none;
-        background: #f9fafb;
-        color: var(--brand);
-        font-size: 1rem;
-        font-weight: 700;
-        cursor: pointer;
-
-        &:disabled { color: #d1d5db; cursor: not-allowed; }
+        &:disabled { color: var(--line-strong); cursor: not-allowed; }
     }
     span { min-width: 24px; text-align: center; font-size: 0.85rem; font-weight: 700; }
 }
@@ -777,7 +772,7 @@ button.ind { cursor: pointer; padding: 0; }
 .account-btn {
     margin-left: auto;
     border: 1px solid var(--brand);
-    background: #fff;
+    background: var(--surface);
     color: var(--brand);
     border-radius: 999px;
     padding: 6px 14px;
@@ -789,11 +784,8 @@ button.ind { cursor: pointer; padding: 0; }
 .account .account-btn { margin-left: 0; }
 
 .auth-modal {
-    background: #fff;
-    border-radius: 14px;
+    @extend %modal-card;
     width: min(360px, 100%);
-    box-shadow: var(--shadow-lg);
-    overflow: hidden;
 }
 .auth-body {
     padding: 16px 18px;
@@ -822,14 +814,11 @@ button.ind { cursor: pointer; padding: 0; }
 
 // ── Painel da conta (perfil + pedidos) ──────────────────────
 .account-panel {
-    background: #fff;
-    border-radius: 14px;
+    @extend %modal-card;
     width: min(440px, 100%);
     max-height: 88vh;
     display: flex;
     flex-direction: column;
-    overflow: hidden;
-    box-shadow: var(--shadow-lg);
 }
 .account-body {
     padding: 12px 18px 18px;
@@ -867,7 +856,7 @@ button.ind { cursor: pointer; padding: 0; }
 .acc-order-status {
     text-transform: capitalize;
     color: #6b7280;
-    background: #f3f4f6;
+    background: var(--surface-3);
     border-radius: 999px;
     padding: 2px 8px;
     font-size: 0.72rem;
