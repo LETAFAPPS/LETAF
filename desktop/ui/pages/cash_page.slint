@@ -24,7 +24,7 @@ component SegBtn inherits TouchArea {
     in property <length> pad: 12px;
     width: seg-t.preferred-width + root.pad * 2;
     Rectangle {
-        border-radius: 7px;
+        border-radius: Theme.radius-md;
         border-width: root.selected ? 1.5px : 0px;
         border-color: Theme.btn-accent;
         background: root.selected ? Theme.btn-accent.transparentize(0.90)
@@ -46,7 +46,7 @@ component StatCard inherits Rectangle {
     horizontal-stretch: 1;
     preferred-width: 0px;
     height: 76px;
-    border-radius: 12px;
+    border-radius: Theme.radius-2xl;
     border-width: 1px;
     border-color: Theme.card-border;
     drop-shadow-blur: 12px;
@@ -164,7 +164,7 @@ export component CashPage inherits VerticalLayout {
                     Rectangle {
                         height: 24px;
                         width: badge-txt.preferred-width + 20px;
-                        border-radius: 7px;
+                        border-radius: Theme.radius-md;
                         background: Theme.accent.transparentize(0.86);
                         badge-txt := Text {
                             text: root.summary.status-subtitle;
@@ -263,7 +263,7 @@ export component CashPage inherits VerticalLayout {
                     Rectangle {
                         x: 0; y: 0;
                         width: parent.width; height: 66px;
-                        border-radius: 12px;
+                        border-radius: Theme.radius-2xl;
                         border-width: 1px; border-color: Theme.card-border;
                         drop-shadow-blur: 12px; drop-shadow-offset-y: 0px;
                         drop-shadow-color: Theme.card-shadow;
@@ -433,7 +433,7 @@ export component CashPage inherits VerticalLayout {
             // Pagamentos da sessão — altura conforme a lista.
             Card {
                 height: pay-l.preferred-height;
-                border-radius: 14px;
+                border-radius: Theme.radius-3xl;
                 pay-l := VerticalLayout {
                     padding: 18px;
                     spacing: 10px;
@@ -452,7 +452,7 @@ export component CashPage inherits VerticalLayout {
                                 alignment: center;
                                 Rectangle {
                                     width: 34px; height: 34px;
-                                    border-radius: 9px;
+                                    border-radius: Theme.radius-lg;
                                     background: root.method-color(m.key).transparentize(0.88);
                                     if m.key == "money": AssetIcon { width: 100%; height: 100%; icon-size: 18px; icon-color: root.method-color(m.key); source: @image-url("../assets/icons/pay-dinheiro.svg"); }
                                     if m.key == "pix": AssetIcon { width: 100%; height: 100%; icon-size: 18px; icon-color: root.method-color(m.key); source: @image-url("../assets/icons/pay-pix.svg"); }
@@ -537,7 +537,7 @@ export component CashPage inherits VerticalLayout {
                         // trilho; o segmento ativo em pill laranja).
                         Rectangle {
                             height: 40px;
-                            border-radius: 10px;
+                            border-radius: Theme.radius-xl;
                             border-width: 1px; border-color: Theme.card-border;
                             drop-shadow-blur: 12px;
                             drop-shadow-offset-y: 0px;
@@ -588,7 +588,7 @@ export component CashPage inherits VerticalLayout {
                                 Rectangle {
                                 x: 0; y: 0;
                                 width: parent.width; height: 50px;
-                                border-radius: 10px;
+                                border-radius: Theme.radius-xl;
                                 border-width: 1px;
                                 border-color: Theme.card-border;
                                 drop-shadow-blur: 8px;

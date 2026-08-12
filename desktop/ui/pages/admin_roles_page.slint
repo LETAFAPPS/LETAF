@@ -14,7 +14,7 @@ component IconActionBtn inherits TouchArea {
     width: 30px; height: 30px;
     Rectangle {
         width: parent.width; height: parent.height;
-        border-radius: 6px;
+        border-radius: Theme.radius-sm;
         background: root.has-hover ? root.hover-bg : transparent;
         AssetIcon {
             width: parent.width; height: parent.height; icon-size: 16px;
@@ -31,7 +31,7 @@ component RoleCard inherits Rectangle {
 
     height: 74px;
     background: Theme.surface;
-    border-radius: 10px;
+    border-radius: Theme.radius-xl;
     border-width: 1px;
     border-color: Theme.card-border;
     drop-shadow-blur: 8px;
@@ -109,7 +109,7 @@ export component AdminRolesPage inherits VerticalLayout {
     Rectangle {
         height: 56px;
         background: Theme.surface;
-        border-radius: 10px;
+        border-radius: Theme.radius-xl;
         border-width: 1px;
         border-color: Theme.card-border;
         drop-shadow-blur: 8px;

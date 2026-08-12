@@ -28,7 +28,7 @@ component KpiCard inherits Rectangle {
     min-width: 0;
     height: 104px;
     background: Theme.surface;
-    border-radius: 12px;
+    border-radius: Theme.radius-2xl;
     border-width: 1px;
     border-color: root.accent ? Theme.btn-accent : Theme.card-border;
     drop-shadow-blur: 12px;
@@ -57,7 +57,7 @@ component KpiCard inherits Rectangle {
 component Panel inherits Rectangle {
     in property <string> title;
     background: Theme.surface;
-    border-radius: 12px;
+    border-radius: Theme.radius-2xl;
     border-width: 1px;
     border-color: Theme.card-border;
     drop-shadow-blur: 12px;
@@ -123,7 +123,7 @@ component ChartBar inherits TouchArea {
         y: -26px;
         width: tip.preferred-width + 14px;
         height: 22px;
-        border-radius: 6px;
+        border-radius: Theme.radius-sm;
         background: Theme.text-primary;
         tip := Text {
             text: root.amount;
@@ -135,7 +135,7 @@ component ChartBar inherits TouchArea {
     }
     Rectangle {
         width: parent.width; height: parent.height;
-        border-radius: 4px;
+        border-radius: Theme.radius-xs;
         background: root.has-hover ? root.tone.darker(0.15) : root.tone;
         animate background { duration: 120ms; }
     }
@@ -330,7 +330,7 @@ export component AdminOverviewPage inherits VerticalLayout {
                 }
                 Rectangle {
                     width: eb.preferred-width + 14px; height: 18px;
-                    border-radius: 9px;
+                    border-radius: Theme.radius-lg;
                     background: Theme.btn-accent.transparentize(0.85);
                     eb := Text {
                         text: "Em breve";

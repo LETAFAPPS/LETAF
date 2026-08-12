@@ -15,7 +15,7 @@ component IconActionBtn inherits TouchArea {
     width: 30px; height: 30px;
     Rectangle {
         width: parent.width; height: parent.height;
-        border-radius: 6px;
+        border-radius: Theme.radius-sm;
         background: root.has-hover ? root.hover-bg : transparent;
         AssetIcon {
             width: parent.width; height: parent.height; icon-size: 16px;
@@ -35,7 +35,7 @@ component ToggleSwitch inherits TouchArea {
         background: root.on ? #1E88E5 : #BDBDBD;
         animate background { duration: 120ms; }
         Rectangle {
-            width: 20px; height: 20px; border-radius: 10px;
+            width: 20px; height: 20px; border-radius: Theme.radius-xl;
             background: white;
             x: root.on ? parent.width - self.width - 3px : 3px;
             y: (parent.height - self.height) / 2;
@@ -55,7 +55,7 @@ component UserCard inherits Rectangle {
 
     height: 72px;
     background: Theme.surface;
-    border-radius: 10px;
+    border-radius: Theme.radius-xl;
     border-width: 1px;
     border-color: Theme.card-border;
     drop-shadow-blur: 8px;
@@ -71,7 +71,7 @@ component UserCard inherits Rectangle {
             alignment: center;
             Rectangle {
                 width: 44px; height: 44px;
-                border-radius: 12px;
+                border-radius: Theme.radius-2xl;
                 background: #9E9E9E1F;
                 clip: true;
                 AssetIcon {
@@ -163,7 +163,7 @@ export component AdminAdminsPage inherits VerticalLayout {
     Rectangle {
         height: 56px;
         background: Theme.surface;
-        border-radius: 10px;
+        border-radius: Theme.radius-xl;
         border-width: 1px;
         border-color: Theme.card-border;
         drop-shadow-blur: 8px;

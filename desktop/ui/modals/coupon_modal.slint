@@ -14,7 +14,7 @@ component TypePill inherits TouchArea {
     height: 32px;
     width: root.pill-width;
     Rectangle {
-        border-radius: 6px;
+        border-radius: Theme.radius-sm;
         border-width: 1px;
         border-color: root.active ? Theme.primary : (root.has-hover ? Theme.primary : Theme.border);
         background: root.active ? Theme.sidebar-sel-bg : Theme.surface;
@@ -217,7 +217,7 @@ export component CouponModal inherits Rectangle {
                                 height: 32px;
                                 clicked => { root.open-from-cal(); }
                                 Rectangle {
-                                    border-radius: 6px;
+                                    border-radius: Theme.radius-sm;
                                     border-width: 1px;
                                     border-color: from-ta.has-hover ? Theme.primary : Theme.border;
                                     background: from-ta.has-hover ? Theme.row-hover : Theme.surface;
@@ -257,7 +257,7 @@ export component CouponModal inherits Rectangle {
                                 height: 32px;
                                 clicked => { root.open-until-cal(); }
                                 Rectangle {
-                                    border-radius: 6px;
+                                    border-radius: Theme.radius-sm;
                                     border-width: 1px;
                                     border-color: until-ta.has-hover ? Theme.primary : Theme.border;
                                     background: until-ta.has-hover ? Theme.row-hover : Theme.surface;

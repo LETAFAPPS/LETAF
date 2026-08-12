@@ -30,6 +30,14 @@ export global Theme {
     // Scrim (fundo escurecido) padrão dos modais — fonte ÚNICA para o
     // overlay, que variava entre 6 opacidades diferentes pelo sistema.
     out property <color> scrim:          #00000066;
+    // Cores de STATUS de pedido — fonte ÚNICA (antes a MESMA paleta era
+    // redefinida em cards.slint, orders_page.slint e customers_page.slint;
+    // mudar uma cor exigia editar 3 arquivos). `delivered` usa `success`.
+    out property <color> status-ready:     #66BB6A;
+    out property <color> status-preparing: #FF9E40;
+    out property <color> status-confirmed: #42A5F5;
+    out property <color> status-cancelled: #EF5350;
+    out property <color> status-pending:   #C9A227;
     out property <color> bg:             dark-mode ? #181818 : #f8f7f4;
     out property <color> surface:        dark-mode ? #1e1e1c : #ffffff;
     // Sidebar — acento laranja. No tema CLARO o fundo é café torrado;

@@ -111,7 +111,7 @@ export component BannersPage inherits Rectangle {
                     Rectangle {
                         width: 162px;
                         height: 54px;
-                        border-radius: 6px;
+                        border-radius: Theme.radius-sm;
                         clip: true;
                         background: #f3f4f6;
                         Image {
@@ -149,7 +149,7 @@ export component BannersPage inherits Rectangle {
                             height: 28px;
                             clicked => { root.toggle-banner-active(b.id); }
                             Rectangle {
-                                border-radius: 4px;
+                                border-radius: Theme.radius-xs;
                                 border-width: 1px;
                                 border-color: b.active ? #66BB6A : Theme.border;
                                 background: b.active ? #E8F5E9 : Theme.surface;

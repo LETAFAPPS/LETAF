@@ -64,7 +64,7 @@ export component AddonGroupModal inherits Rectangle {
                                     root.group-max = "1";
                                 }
                                 Rectangle {
-                                    border-radius: 6px; border-width: 1px;
+                                    border-radius: Theme.radius-sm; border-width: 1px;
                                     border-color: root.group-selection == "single" ? Theme.primary : Theme.border;
                                     background: root.group-selection == "single" ? Theme.sidebar-sel-bg : (single-ta.has-hover ? Theme.row-hover : Theme.surface);
                                     Text {
@@ -89,7 +89,7 @@ export component AddonGroupModal inherits Rectangle {
                                     root.group-max = "0";
                                 }
                                 Rectangle {
-                                    border-radius: 6px; border-width: 1px;
+                                    border-radius: Theme.radius-sm; border-width: 1px;
                                     border-color: root.group-selection == "multi" ? Theme.primary : Theme.border;
                                     background: root.group-selection == "multi" ? Theme.sidebar-sel-bg : (multi-ta.has-hover ? Theme.row-hover : Theme.surface);
                                     Text {

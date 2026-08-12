@@ -31,7 +31,7 @@ component LoginField inherits VerticalLayout {
     }
     Rectangle {
         height: 52px;
-        border-radius: 10px;
+        border-radius: Theme.radius-xl;
         border-width: 1.5px;
         // Focado = laranja de destaque (mesmo do botão Entrar).
         border-color: fld.has-focus ? Theme.btn-accent : #e4dfd8;
@@ -119,7 +119,7 @@ component PrimaryBtn inherits TouchArea {
     height: 54px;
     Rectangle {
         width: 100%; height: 100%;
-        border-radius: 10px;
+        border-radius: Theme.radius-xl;
         // Botão sólido na cor do menu lateral (a pedido); hover clareia
         // levemente. Texto claro para contraste.
         background: root.has-hover ? Theme.sidebar-bg-light : Theme.sidebar-bg;
@@ -143,7 +143,7 @@ component FeatureRow inherits HorizontalLayout {
     spacing: 14px;
     Rectangle {
         width: 38px; height: 38px;
-        border-radius: 9px;
+        border-radius: Theme.radius-lg;
         background: #232320;
         AssetIcon {
             width: 20px; height: 20px; icon-size: 20px;
@@ -199,7 +199,7 @@ component CodeBoxes inherits Rectangle {
         spacing: 10px;
 
         Rectangle {
-            width: 48px; height: 56px; border-radius: 10px;
+            width: 48px; height: 56px; border-radius: Theme.radius-xl;
             border-width: 1.5px; border-color: d0.has-focus ? Theme.btn-accent : #e4dfd8;
             background: #ffffff;
             d0 := TextInput { width: 100%; height: 100%; horizontal-alignment: center; vertical-alignment: center; input-type: number; font-size: 22px; font-weight: 700; color: #1c1a18; single-line: true;
@@ -207,7 +207,7 @@ component CodeBoxes inherits Rectangle {
             TouchArea { clicked => { d0.focus(); d0.select-all(); } }
         }
         Rectangle {
-            width: 48px; height: 56px; border-radius: 10px;
+            width: 48px; height: 56px; border-radius: Theme.radius-xl;
             border-width: 1.5px; border-color: d1.has-focus ? Theme.btn-accent : #e4dfd8;
             background: #ffffff;
             d1 := TextInput { width: 100%; height: 100%; horizontal-alignment: center; vertical-alignment: center; input-type: number; font-size: 22px; font-weight: 700; color: #1c1a18; single-line: true;
@@ -215,7 +215,7 @@ component CodeBoxes inherits Rectangle {
             TouchArea { clicked => { d1.focus(); d1.select-all(); } }
         }
         Rectangle {
-            width: 48px; height: 56px; border-radius: 10px;
+            width: 48px; height: 56px; border-radius: Theme.radius-xl;
             border-width: 1.5px; border-color: d2.has-focus ? Theme.btn-accent : #e4dfd8;
             background: #ffffff;
             d2 := TextInput { width: 100%; height: 100%; horizontal-alignment: center; vertical-alignment: center; input-type: number; font-size: 22px; font-weight: 700; color: #1c1a18; single-line: true;
@@ -223,7 +223,7 @@ component CodeBoxes inherits Rectangle {
             TouchArea { clicked => { d2.focus(); d2.select-all(); } }
         }
         Rectangle {
-            width: 48px; height: 56px; border-radius: 10px;
+            width: 48px; height: 56px; border-radius: Theme.radius-xl;
             border-width: 1.5px; border-color: d3.has-focus ? Theme.btn-accent : #e4dfd8;
             background: #ffffff;
             d3 := TextInput { width: 100%; height: 100%; horizontal-alignment: center; vertical-alignment: center; input-type: number; font-size: 22px; font-weight: 700; color: #1c1a18; single-line: true;
@@ -231,7 +231,7 @@ component CodeBoxes inherits Rectangle {
             TouchArea { clicked => { d3.focus(); d3.select-all(); } }
         }
         Rectangle {
-            width: 48px; height: 56px; border-radius: 10px;
+            width: 48px; height: 56px; border-radius: Theme.radius-xl;
             border-width: 1.5px; border-color: d4.has-focus ? Theme.btn-accent : #e4dfd8;
             background: #ffffff;
             d4 := TextInput { width: 100%; height: 100%; horizontal-alignment: center; vertical-alignment: center; input-type: number; font-size: 22px; font-weight: 700; color: #1c1a18; single-line: true;
@@ -239,7 +239,7 @@ component CodeBoxes inherits Rectangle {
             TouchArea { clicked => { d4.focus(); d4.select-all(); } }
         }
         Rectangle {
-            width: 48px; height: 56px; border-radius: 10px;
+            width: 48px; height: 56px; border-radius: Theme.radius-xl;
             border-width: 1.5px; border-color: d5.has-focus ? Theme.btn-accent : #e4dfd8;
             background: #ffffff;
             d5 := TextInput { width: 100%; height: 100%; horizontal-alignment: center; vertical-alignment: center; input-type: number; font-size: 22px; font-weight: 700; color: #1c1a18; single-line: true;
@@ -378,7 +378,7 @@ export component LoginPage inherits Rectangle {
                     spacing: 8px;
                     VerticalLayout {
                         alignment: center;
-                        Rectangle { width: 8px; height: 8px; border-radius: 4px; background: #4CAF50; }
+                        Rectangle { width: 8px; height: 8px; border-radius: Theme.radius-xs; background: #4CAF50; }
                     }
                     Text {
                         text: root.subdomain + ".letaf.app";
@@ -466,7 +466,7 @@ export component LoginPage inherits Rectangle {
                             alignment: start;
                             Rectangle {
                                 width: 20px; height: 20px;
-                                border-radius: 6px;
+                                border-radius: Theme.radius-sm;
                                 border-width: 1.5px;
                                 border-color: root.remember-me ? Theme.btn-accent : #cfc9c1;
                                 background: root.remember-me ? Theme.btn-accent : #ffffff;
@@ -536,7 +536,7 @@ export component LoginPage inherits Rectangle {
                         alignment: center;
                         Rectangle {
                             width: 7px; height: 7px;
-                            border-radius: 4px;
+                            border-radius: Theme.radius-xs;
                             background: root.server-online ? #4CAF50 : Theme.danger;
                         }
                     }

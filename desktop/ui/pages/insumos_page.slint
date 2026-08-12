@@ -21,7 +21,7 @@ component InsumoRow inherits TouchArea {
     height: 60px;
     clicked => { root.open(); }
     Rectangle {
-        border-radius: 10px;
+        border-radius: Theme.radius-xl;
         background: root.selected ? Theme.accent.transparentize(0.90)
             : (root.has-hover ? #00000008 : transparent);
         border-width: root.selected ? 1px : 0px;
@@ -90,7 +90,7 @@ export component InsumosPage inherits Rectangle {
         Rectangle {
             width: 248px;
             background: Theme.surface;
-            border-radius: 12px;
+            border-radius: Theme.radius-2xl;
             border-width: 1px;
             border-color: Theme.card-border;
             drop-shadow-blur: 12px;
@@ -329,7 +329,7 @@ export component InsumosPage inherits Rectangle {
                                         width: 56px; height: 28px;
                                         clicked => { InsumosState.insumo-active = !InsumosState.insumo-active; }
                                         Rectangle {
-                                            border-radius: 14px;
+                                            border-radius: Theme.radius-3xl;
                                             background: InsumosState.insumo-active ? Theme.success : Theme.border;
                                             Rectangle {
                                                 width: 22px; height: 22px; border-radius: 11px;

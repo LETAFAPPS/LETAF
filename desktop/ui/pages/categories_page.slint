@@ -88,7 +88,7 @@ component StatCard inherits Rectangle {
     in property <string> value;
     in property <string> hint;
     horizontal-stretch: 1;
-    border-radius: 12px;
+    border-radius: Theme.radius-2xl;
     border-width: 1px;
     border-color: Theme.card-border;
     drop-shadow-blur: 12px;
@@ -122,7 +122,7 @@ component ProductsCard inherits Rectangle {
     property <string> rk: root.reset-key;
     changed rk => { root.page = 1; }
 
-    border-radius: 12px; border-width: 1px; border-color: Theme.card-border;
+    border-radius: Theme.radius-2xl; border-width: 1px; border-color: Theme.card-border;
     drop-shadow-blur: 12px;
     drop-shadow-offset-y: 0px;
     drop-shadow-color: Theme.card-shadow;
@@ -207,7 +207,7 @@ component SubsPanel inherits Rectangle {
     callback edit-sub(CatSub);
     callback add-sub();
 
-    border-radius: 12px; border-width: 1px; border-color: Theme.card-border;
+    border-radius: Theme.radius-2xl; border-width: 1px; border-color: Theme.card-border;
     drop-shadow-blur: 12px;
     drop-shadow-offset-y: 0px;
     drop-shadow-color: Theme.card-shadow;
@@ -240,7 +240,7 @@ component SubsPanel inherits Rectangle {
         }
         for s in root.subs: Rectangle {
             height: 60px;
-            border-radius: 10px;
+            border-radius: Theme.radius-xl;
             border-width: 1px;
             border-color: Theme.card-border;
             background: Theme.surface;
@@ -250,7 +250,7 @@ component SubsPanel inherits Rectangle {
                 VerticalLayout {
                     alignment: center;
                     Rectangle {
-                        width: 38px; height: 38px; border-radius: 10px;
+                        width: 38px; height: 38px; border-radius: Theme.radius-xl;
                         background: Theme.row-alt;
                         AssetIcon {
                             width: 100%; height: 100%; icon-size: 18px;

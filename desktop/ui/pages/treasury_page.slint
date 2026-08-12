@@ -93,7 +93,7 @@ component ChartTip inherits Rectangle {
     in property <TreasuryChartBar> data;
     width: 196px;
     height: tip-l.preferred-height;
-    border-radius: 10px;
+    border-radius: Theme.radius-xl;
     background: #2B2B28;
     border-width: 1px;
     border-color: #FFFFFF1F;
@@ -124,7 +124,7 @@ component ChartTip inherits Rectangle {
 
 // Card branco padrão da tela.
 component Panel inherits Rectangle {
-    border-radius: 14px;
+    border-radius: Theme.radius-3xl;
     border-width: 1px;
     border-color: Theme.card-border;
     drop-shadow-blur: 12px;
@@ -138,7 +138,7 @@ component Panel inherits Rectangle {
 component BreakdownRow inherits Rectangle {
     in property <TreasuryBreakdownRow> data;
     height: 42px;
-    border-radius: 10px;
+    border-radius: Theme.radius-xl;
     border-width: 1px;
     border-color: Theme.card-border;
     drop-shadow-blur: 8px;
@@ -179,7 +179,7 @@ component BreakdownGroup inherits HorizontalLayout {
         padding-top: 4px;
         Rectangle {
             width: 8px; height: 8px;
-            border-radius: 4px;
+            border-radius: Theme.radius-xs;
             background: root.negative ? Theme.danger-hover : Theme.success;
         }
     }
@@ -546,7 +546,7 @@ export component TreasuryPage inherits VerticalLayout {
                         spacing: 6px;
                         for m in root.movements: Rectangle {
                             height: 54px;
-                            border-radius: 10px;
+                            border-radius: Theme.radius-xl;
                             background: mv-ta.has-hover ? Theme.row-hover : transparent;
                             mv-ta := TouchArea { }
                             HorizontalLayout {
@@ -606,7 +606,7 @@ export component TreasuryPage inherits VerticalLayout {
                         horizontal-stretch: 1;
                         clicked => { root.open-deposit(); }
                         Rectangle {
-                            border-radius: 10px;
+                            border-radius: Theme.radius-xl;
                             border-width: 1px;
                             border-color: dep-ta.has-hover ? Theme.success : #C8E6C9;
                             background: dep-ta.has-hover ? #DCEFDC : #EDF7ED;
@@ -633,7 +633,7 @@ export component TreasuryPage inherits VerticalLayout {
                         horizontal-stretch: 1;
                         clicked => { root.open-withdraw(); }
                         Rectangle {
-                            border-radius: 10px;
+                            border-radius: Theme.radius-xl;
                             border-width: 1px;
                             border-color: wit-ta.has-hover ? Theme.danger-hover : #FFCDD2;
                             background: wit-ta.has-hover ? #FBE0E0 : #FDEFEF;
@@ -678,7 +678,7 @@ export component TreasuryPage inherits VerticalLayout {
                             width: 26px; height: 26px;
                             clicked => { root.open-goal(); }
                             Rectangle {
-                                border-radius: 6px;
+                                border-radius: Theme.radius-sm;
                                 background: goal-ta.has-hover ? Theme.row-hover : transparent;
                                 AssetIcon {
                                     width: 100%; height: 100%; icon-size: 13px;
@@ -690,13 +690,13 @@ export component TreasuryPage inherits VerticalLayout {
                     }
                     Rectangle {
                         height: 8px;
-                        border-radius: 4px;
+                        border-radius: Theme.radius-xs;
                         background: Theme.border;
                         Rectangle {
                             x: 0; y: 0;
                             width: parent.width * root.summary.goal-progress;
                             height: parent.height;
-                            border-radius: 4px;
+                            border-radius: Theme.radius-xs;
                             background: Theme.btn-accent;
                         }
                     }
@@ -768,7 +768,7 @@ export component TreasuryPage inherits VerticalLayout {
                     }
                     Rectangle {
                         height: 46px;
-                        border-radius: 10px;
+                        border-radius: Theme.radius-xl;
                         background: root.summary.balance-negative ? #FDEFEF : #EDF7ED;
                         HorizontalLayout {
                             padding-left: 12px; padding-right: 12px;

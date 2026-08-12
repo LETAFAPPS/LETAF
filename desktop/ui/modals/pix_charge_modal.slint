@@ -100,7 +100,7 @@ export component PixChargeModal inherits Rectangle {
                         // Copia-cola truncado (clique para copiar)
                         Rectangle {
                             height: 56px;
-                            border-radius: 6px;
+                            border-radius: Theme.radius-sm;
                             border-width: 1px;
                             border-color: Theme.card-border;
                             drop-shadow-blur: 12px;
@@ -123,7 +123,7 @@ export component PixChargeModal inherits Rectangle {
                                     y: (parent.height - 36px) / 2;
                                     clicked => { root.copy-code(); }
                                     Rectangle {
-                                        border-radius: 6px;
+                                        border-radius: Theme.radius-sm;
                                         background: copy-ta.has-hover ? Theme.primary-dark : Theme.primary;
                                         Text {
                                             width: parent.width; height: parent.height;

@@ -18,7 +18,7 @@ component QtyButton inherits TouchArea {
     in property <string> label;
     width: 28px; height: 28px;
     Rectangle {
-        border-radius: 4px;
+        border-radius: Theme.radius-xs;
         border-width: 1px;
         border-color: root.has-hover ? Theme.primary : Theme.border;
         background: root.has-hover ? Theme.row-hover : Theme.surface;
@@ -127,7 +127,7 @@ export component EditOrderModal inherits Rectangle {
                                             root.picker-search = "";
                                         }
                                         Rectangle {
-                                            border-radius: 4px;
+                                            border-radius: Theme.radius-xs;
                                             border-width: 1px;
                                             border-color: root.picker-open ? Theme.primary
                                                 : (add-prod-ta.has-hover ? Theme.primary : Theme.border);
@@ -145,7 +145,7 @@ export component EditOrderModal inherits Rectangle {
                                 }
                                 if root.items.length == 0: Rectangle {
                                     height: 48px;
-                                    border-radius: 6px;
+                                    border-radius: Theme.radius-sm;
                                     border-width: 1px;
                                     border-color: Theme.card-border;
                                     drop-shadow-blur: 12px;
@@ -179,7 +179,7 @@ export component EditOrderModal inherits Rectangle {
                                                 QtyButton { label: "−"; clicked => { root.dec-qty(idx); } }
                                                 Rectangle {
                                                     width: 36px; height: 28px;
-                                                    border-radius: 4px;
+                                                    border-radius: Theme.radius-xs;
                                                     border-width: 1px;
                                                     border-color: Theme.card-border;
                                                     background: Theme.surface;
@@ -207,7 +207,7 @@ export component EditOrderModal inherits Rectangle {
                                                     width: 28px; height: 28px;
                                                     clicked => { root.edit-item(idx); }
                                                     Rectangle {
-                                                        border-radius: 4px;
+                                                        border-radius: Theme.radius-xs;
                                                         border-width: 1px;
                                                         border-color: edit-ta.has-hover ? Theme.primary : Theme.border;
                                                         background: edit-ta.has-hover ? Theme.row-hover : Theme.surface;
@@ -263,7 +263,7 @@ export component EditOrderModal inherits Rectangle {
                                         spacing: 8px;
                                         Rectangle {
                                             height: 32px;
-                                            border-radius: 6px;
+                                            border-radius: Theme.radius-sm;
                                             border-width: 1px;
                                             border-color: search-input.has-focus ? Theme.primary : Theme.border;
                                             background: Theme.bg;
@@ -294,7 +294,7 @@ export component EditOrderModal inherits Rectangle {
                                                 // (callback `filter-picker(query)`).
                                                 for p in root.products: Rectangle {
                                                     height: 36px;
-                                                    border-radius: 4px;
+                                                    border-radius: Theme.radius-xs;
                                                     background: pick-row-ta.has-hover ? Theme.row-hover : transparent;
                                                     pick-row-ta := TouchArea {
                                                         clicked => {
@@ -341,7 +341,7 @@ export component EditOrderModal inherits Rectangle {
                                 Text { text: "Observações"; font-size: 12px; font-weight: 700; color: Theme.text-secondary; letter-spacing: 1px; }
                                 Rectangle {
                                     height: 90px;
-                                    border-radius: 6px;
+                                    border-radius: Theme.radius-sm;
                                     border-width: 1px;
                                     border-color: notes-input.has-focus ? Theme.primary : Theme.border;
                                     background: Theme.surface;

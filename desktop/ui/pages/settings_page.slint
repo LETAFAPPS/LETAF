@@ -22,7 +22,7 @@ component PaginationStepper inherits HorizontalLayout {
         width: 36px; height: 28px;
         clicked => { root.value = max(root.min-val, root.value - 5); }
         Rectangle {
-            border-radius: 4px; border-width: 1px;
+            border-radius: Theme.radius-xs; border-width: 1px;
             border-color: pp-dec5.has-hover ? Theme.primary : Theme.border;
             background: Theme.surface;
             Text { text: "−5"; font-size: 11px; font-weight: 600; color: Theme.text-primary; horizontal-alignment: center; vertical-alignment: center; }
@@ -32,7 +32,7 @@ component PaginationStepper inherits HorizontalLayout {
         width: 28px; height: 28px;
         clicked => { root.value = max(root.min-val, root.value - 1); }
         Rectangle {
-            border-radius: 4px; border-width: 1px;
+            border-radius: Theme.radius-xs; border-width: 1px;
             border-color: pp-dec1.has-hover ? Theme.primary : Theme.border;
             background: Theme.surface;
             Text { text: "−"; font-size: 14px; font-weight: 700; color: Theme.text-primary; horizontal-alignment: center; vertical-alignment: center; }
@@ -40,7 +40,7 @@ component PaginationStepper inherits HorizontalLayout {
     }
     Rectangle {
         width: 50px; height: 28px;
-        border-radius: 4px; border-width: 1px;
+        border-radius: Theme.radius-xs; border-width: 1px;
         border-color: Theme.card-border;
         drop-shadow-blur: 12px;
         drop-shadow-offset-y: 0px;
@@ -58,7 +58,7 @@ component PaginationStepper inherits HorizontalLayout {
         width: 28px; height: 28px;
         clicked => { root.value = min(root.max-val, root.value + 1); }
         Rectangle {
-            border-radius: 4px; border-width: 1px;
+            border-radius: Theme.radius-xs; border-width: 1px;
             border-color: pp-inc1.has-hover ? Theme.primary : Theme.border;
             background: Theme.surface;
             Text { text: "+"; font-size: 14px; font-weight: 700; color: Theme.text-primary; horizontal-alignment: center; vertical-alignment: center; }
@@ -68,7 +68,7 @@ component PaginationStepper inherits HorizontalLayout {
         width: 36px; height: 28px;
         clicked => { root.value = min(root.max-val, root.value + 5); }
         Rectangle {
-            border-radius: 4px; border-width: 1px;
+            border-radius: Theme.radius-xs; border-width: 1px;
             border-color: pp-inc5.has-hover ? Theme.primary : Theme.border;
             background: Theme.surface;
             Text { text: "+5"; font-size: 11px; font-weight: 600; color: Theme.text-primary; horizontal-alignment: center; vertical-alignment: center; }
@@ -214,7 +214,7 @@ export component SettingsPage inherits VerticalLayout {
                 Rectangle {
                     // Estilo tênue do sistema (contorno + tint fraco + texto na
                     // cor de destaque), igual aos demais botões de ação.
-                    border-radius: 6px;
+                    border-radius: Theme.radius-sm;
                     border-width: 1.5px;
                     border-color: Theme.btn-accent;
                     background: save-all-ta.has-hover
@@ -248,7 +248,7 @@ export component SettingsPage inherits VerticalLayout {
         horizontal-stretch: 1;
         min-width: 0;
         vertical-stretch: 0;
-        border-radius: 10px;
+        border-radius: Theme.radius-xl;
             VerticalLayout {
                 padding: 16px;
                 spacing: 10px;
@@ -297,7 +297,7 @@ export component SettingsPage inherits VerticalLayout {
                             enabled: !root.store-cover-loading;
                             clicked => { root.pick-store-cover(); }
                             Rectangle {
-                                border-radius: 14px;
+                                border-radius: Theme.radius-3xl;
                                 background: Theme.scrim;
                                 Text {
                                     text: "\u{270E}";
@@ -375,7 +375,7 @@ export component SettingsPage inherits VerticalLayout {
         Card {
             horizontal-stretch: 1;
             min-width: 0;
-            border-radius: 10px;
+            border-radius: Theme.radius-xl;
             VerticalLayout {
                 padding: 16px;
                 spacing: 10px;
@@ -424,7 +424,7 @@ export component SettingsPage inherits VerticalLayout {
         Card {
             horizontal-stretch: 1;
             min-width: 0;
-            border-radius: 10px;
+            border-radius: Theme.radius-xl;
             VerticalLayout {
                 padding: 16px;
                 spacing: 10px;
@@ -519,7 +519,7 @@ export component SettingsPage inherits VerticalLayout {
                 Rectangle { width: 6px; }
                 Rectangle {
                     width: 72px; height: 28px;
-                    border-radius: 6px;
+                    border-radius: Theme.radius-sm;
                     border-width: 1px;
                     border-color: root.store-override == "open" ? Theme.primary : Theme.border;
                     background: root.store-override == "open" ? Theme.sidebar-sel-bg : Theme.surface;
@@ -536,7 +536,7 @@ export component SettingsPage inherits VerticalLayout {
                 Rectangle { width: 6px; }
                 Rectangle {
                     width: 72px; height: 28px;
-                    border-radius: 6px;
+                    border-radius: Theme.radius-sm;
                     border-width: 1px;
                     border-color: root.store-override == "closed" ? #EF5350 : Theme.border;
                     background: root.store-override == "closed" ? #EF5350 : Theme.surface;
@@ -585,7 +585,7 @@ export component SettingsPage inherits VerticalLayout {
         Card {
             horizontal-stretch: 1;
             min-width: 0;
-            border-radius: 10px;
+            border-radius: Theme.radius-xl;
             VerticalLayout {
                 padding: 14px;
                 spacing: 10px;
@@ -621,7 +621,7 @@ export component SettingsPage inherits VerticalLayout {
         Card {
             horizontal-stretch: 1;
             min-width: 0;
-            border-radius: 10px;
+            border-radius: Theme.radius-xl;
             VerticalLayout {
                 padding: 14px;
                 spacing: 10px;
@@ -659,7 +659,7 @@ export component SettingsPage inherits VerticalLayout {
     // Taxa de entrega (frete) aplicada automaticamente em pedidos do
     // tipo Delivery no PDV. Salva junto com o botão global do header.
     Card {
-        border-radius: 10px;
+        border-radius: Theme.radius-xl;
         VerticalLayout {
             padding: 14px;
             spacing: 10px;
@@ -687,7 +687,7 @@ export component SettingsPage inherits VerticalLayout {
                 }
                 Rectangle {
                     width: 120px; height: 34px;
-                    border-radius: 6px; border-width: 1px;
+                    border-radius: Theme.radius-sm; border-width: 1px;
                     border-color: fee-input.has-focus ? Theme.primary : Theme.border;
                     background: Theme.surface;
                     fee-input := TextInput {
@@ -720,7 +720,7 @@ export component SettingsPage inherits VerticalLayout {
             { slug: "rosa", label: "Rosa", color: #db2777 },
             { slug: "grafite", label: "Grafite", color: #334155 },
         ];
-        border-radius: 10px; border-width: 1px; border-color: Theme.card-border;
+        border-radius: Theme.radius-xl; border-width: 1px; border-color: Theme.card-border;
         background: Theme.surface;
         VerticalLayout {
             padding: 14px;
@@ -744,7 +744,7 @@ export component SettingsPage inherits VerticalLayout {
                         // Quadrado da cor (anel quando selecionado).
                         Rectangle {
                             height: 40px;
-                            border-radius: 9px;
+                            border-radius: Theme.radius-lg;
                             background: p.color;
                             border-width: root.store-site-palette == p.slug ? 3px : 1px;
                             border-color: root.store-site-palette == p.slug
@@ -792,7 +792,7 @@ export component SettingsPage inherits VerticalLayout {
                     width: 160px; height: 32px;
                     clicked => { root.request-new-printer(); }
                     Rectangle {
-                        border-radius: 6px;
+                        border-radius: Theme.radius-sm;
                         border-width: 1px;
                         border-color: add-printer-ta.has-hover ? Theme.primary : Theme.border;
                         background: add-printer-ta.has-hover ? Theme.primary : Theme.surface;
@@ -892,7 +892,7 @@ export component SettingsPage inherits VerticalLayout {
                                 width: 32px; height: 32px;
                                 clicked => { root.set-default-printer(p.id); }
                                 Rectangle {
-                                    border-radius: 4px;
+                                    border-radius: Theme.radius-xs;
                                     border-width: 1px;
                                     border-color: set-def-ta.has-hover ? Theme.primary : Theme.border;
                                     background: set-def-ta.has-hover ? Theme.row-hover : Theme.surface;
@@ -913,7 +913,7 @@ export component SettingsPage inherits VerticalLayout {
                                 width: 32px; height: 32px;
                                 clicked => { root.request-edit-printer(p); }
                                 Rectangle {
-                                    border-radius: 4px;
+                                    border-radius: Theme.radius-xs;
                                     border-width: 1px;
                                     border-color: edit-printer-ta.has-hover ? Theme.primary : Theme.border;
                                     background: edit-printer-ta.has-hover ? Theme.row-hover : Theme.surface;
@@ -930,7 +930,7 @@ export component SettingsPage inherits VerticalLayout {
                                 width: 32px; height: 32px;
                                 clicked => { root.delete-printer(p.id); }
                                 Rectangle {
-                                    border-radius: 4px;
+                                    border-radius: Theme.radius-xs;
                                     border-width: 1px;
                                     border-color: del-printer-ta.has-hover ? #EF5350 : Theme.border;
                                     background: del-printer-ta.has-hover ? #FFEBEE : Theme.surface;

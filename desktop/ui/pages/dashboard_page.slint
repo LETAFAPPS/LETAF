@@ -27,7 +27,7 @@ component KpiCard inherits Rectangle {
     in property <image> icon;
 
     height: 96px;
-    border-radius: 14px;
+    border-radius: Theme.radius-3xl;
     border-width: 1px;
     border-color: Theme.card-border;
     drop-shadow-blur: 12px;
@@ -43,7 +43,7 @@ component KpiCard inherits Rectangle {
             alignment: center;
             Rectangle {
                 width: 48px; height: 48px;
-                border-radius: 12px;
+                border-radius: Theme.radius-2xl;
                 background: Theme.icon-box-bg;
                 AssetIcon {
                     width: parent.width; height: parent.height;
@@ -272,7 +272,7 @@ component ComparePairSlot inherits Rectangle {
         width: root.prev-w;
         y: root.tooltip-h + root.bar-area-h * (1.0 - root.previous-progress);
         height: root.bar-area-h * root.previous-progress;
-        border-radius: 4px;
+        border-radius: Theme.radius-xs;
         background: slot-ta.has-hover ? #B3B0A4 : #C9C7BD;
     }
     // Atual (escura, na frente).
@@ -422,7 +422,7 @@ component TopProductsCard inherits Rectangle {
         }
         for p in root.products: Rectangle {
             height: 76px;
-            border-radius: 12px;
+            border-radius: Theme.radius-2xl;
             border-width: 1px;
             border-color: Theme.card-border;
             background: Theme.surface;
@@ -661,7 +661,7 @@ export component DashboardPage inherits VerticalLayout {
                 width: 150px; height: 40px;
                 clicked => { period-popup.show(); }
                 Rectangle {
-                    border-radius: 10px;
+                    border-radius: Theme.radius-xl;
                     // Estilo tênue de ação (mesmo chip de filtro do Estoque):
                     // borda + tint fraco na cor de destaque. Mantém o clique
                     // que abre a lista (dropdown) abaixo.
@@ -697,7 +697,7 @@ export component DashboardPage inherits VerticalLayout {
                     width: 150px;
                     Rectangle {
                         background: Theme.surface;
-                        border-radius: 10px;
+                        border-radius: Theme.radius-xl;
                         border-width: 1px;
                         border-color: Theme.card-border;
                         drop-shadow-blur: 12px;
@@ -715,7 +715,7 @@ export component DashboardPage inherits VerticalLayout {
                                     root.period-changed(opt.k);
                                 }
                                 Rectangle {
-                                    border-radius: 6px;
+                                    border-radius: Theme.radius-sm;
                                     background: opt-ta.has-hover ? Theme.row-hover : transparent;
                                     HorizontalLayout {
                                         padding-left: 10px; padding-right: 10px;

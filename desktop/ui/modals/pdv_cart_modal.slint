@@ -72,7 +72,7 @@ export component PdvCartModal inherits Rectangle {
                     padding: 4px;
                     spacing: 8px;
                     for it in root.cart: Rectangle {
-                        border-radius: 10px;
+                        border-radius: Theme.radius-xl;
                         border-width: 1px;
                         border-color: Theme.card-border;
                         drop-shadow-blur: 6px;
@@ -118,7 +118,7 @@ export component PdvCartModal inherits Rectangle {
                                         width: 30px; height: 28px;
                                         clicked => { root.remove(it.line-id); }
                                         Rectangle {
-                                            border-radius: 6px; border-width: 1px;
+                                            border-radius: Theme.radius-sm; border-width: 1px;
                                             border-color: rem-ta.has-hover ? #EF5350 : Theme.border;
                                             background: rem-ta.has-hover ? #FFEBEE : Theme.surface;
                                             AssetIcon { width: parent.width; height: parent.height; icon-size: 12px; icon-color: rem-ta.has-hover ? Theme.danger : Theme.text-secondary; source: @image-url("../assets/icons/fechar.svg"); }
@@ -132,14 +132,14 @@ export component PdvCartModal inherits Rectangle {
                                     width: 32px; height: 28px;
                                     clicked => { root.dec(it.line-id); }
                                     Rectangle {
-                                        border-radius: 6px; border-width: 1px;
+                                        border-radius: Theme.radius-sm; border-width: 1px;
                                         border-color: dec-ta.has-hover ? Theme.primary : Theme.border;
                                         background: dec-ta.has-hover ? Theme.row-hover : Theme.surface;
                                         Text { text: "−"; font-size: 15px; font-weight: 700; color: Theme.text-primary; width: parent.width; height: parent.height; horizontal-alignment: center; vertical-alignment: center; }
                                     }
                                 }
                                 Rectangle {
-                                    width: 42px; height: 28px; border-radius: 6px; border-width: 1px;
+                                    width: 42px; height: 28px; border-radius: Theme.radius-sm; border-width: 1px;
                                     border-color: Theme.card-border; background: Theme.surface;
                                     Text { text: it.qty; font-size: 13px; font-weight: 600; color: Theme.text-primary; width: parent.width; height: parent.height; horizontal-alignment: center; vertical-alignment: center; }
                                 }
@@ -147,7 +147,7 @@ export component PdvCartModal inherits Rectangle {
                                     width: 32px; height: 28px;
                                     clicked => { root.inc(it.line-id); }
                                     Rectangle {
-                                        border-radius: 6px; border-width: 1px;
+                                        border-radius: Theme.radius-sm; border-width: 1px;
                                         border-color: inc-ta.has-hover ? Theme.primary : Theme.border;
                                         background: inc-ta.has-hover ? Theme.row-hover : Theme.surface;
                                         Text { text: "+"; font-size: 15px; font-weight: 700; color: Theme.text-primary; width: parent.width; height: parent.height; horizontal-alignment: center; vertical-alignment: center; }

@@ -67,7 +67,7 @@ export component CustomerModal inherits Rectangle {
                         Rectangle {
                             width: 56px;
                             height: 56px;
-                            border-radius: 6px;
+                            border-radius: Theme.radius-sm;
                             background: #e5e7eb;
                             clip: true;
                             if root.customer-profile-picture.width == 0: Text {
@@ -167,7 +167,7 @@ export component CustomerModal inherits Rectangle {
                                 height: 28px;
                                 clicked => { root.addr-label = opt; }
                                 Rectangle {
-                                    border-radius: 6px;
+                                    border-radius: Theme.radius-sm;
                                     border-width: 1px;
                                     border-color: root.addr-label == opt ? Theme.primary : Theme.border;
                                     background: root.addr-label == opt ? Theme.sidebar-sel-bg : Theme.surface;

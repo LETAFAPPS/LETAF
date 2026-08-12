@@ -22,7 +22,7 @@ component StatCard inherits Rectangle {
     in property <string> value;
     in property <string> hint;
     in property <color> value-color: Theme.text-primary;
-    border-radius: 12px;
+    border-radius: Theme.radius-2xl;
     border-width: 1px;
     border-color: Theme.card-border;
     drop-shadow-blur: 12px;
@@ -49,7 +49,7 @@ component ActivePill inherits TouchArea {
     height: 28px;
     clicked => { root.toggled(); }
     Rectangle {
-        border-radius: 4px;
+        border-radius: Theme.radius-xs;
         border-width: 1px;
         border-color: root.active ? #66BB6A : Theme.border;
         background: root.active ? #E8F5E9 : Theme.surface;
@@ -73,7 +73,7 @@ component AvailabilityRow inherits Rectangle {
     callback toggled();
     horizontal-stretch: 1;
     height: 56px;
-    border-radius: 10px;
+    border-radius: Theme.radius-xl;
     border-width: 1px;
     border-color: Theme.card-border;
     drop-shadow-blur: 12px;
@@ -114,7 +114,7 @@ component ProductRow inherits TouchArea {
     height: 60px;
     clicked => { root.open(); }
     Rectangle {
-        border-radius: 10px;
+        border-radius: Theme.radius-xl;
         background: root.selected ? Theme.accent.transparentize(0.90)
             : (root.has-hover ? #00000008 : transparent);
         border-width: root.selected ? 1px : 0px;
@@ -298,7 +298,7 @@ export component ProductsPage inherits Rectangle {
         Rectangle {
             width: 248px;
             background: Theme.surface;
-            border-radius: 12px;
+            border-radius: Theme.radius-2xl;
             border-width: 1px;
             border-color: Theme.card-border;
             drop-shadow-blur: 12px;
@@ -561,7 +561,7 @@ export component ProductsPage inherits Rectangle {
                                     height: 20px;
                                     clicked => { root.remove-product-image(); }
                                     Rectangle {
-                                        border-radius: 4px;
+                                        border-radius: Theme.radius-xs;
                                         background: img-rem-ta.has-hover ? #FFEBEE : transparent;
                                         Text {
                                             text: "\u{2715} Remover";
@@ -594,7 +594,7 @@ export component ProductsPage inherits Rectangle {
                                             alignment: center;
                                             Rectangle {
                                                 width: 8px; height: 8px;
-                                                border-radius: 4px;
+                                                border-radius: Theme.radius-xs;
                                                 background: root.editing-id == ""
                                                     ? #BDBDBD
                                                     : (root.detail-product.synced ? Theme.success : #EF6C00);
@@ -729,7 +729,7 @@ export component ProductsPage inherits Rectangle {
                     // ── Sugestão de compra ───
                     if root.editing-id != "" && root.detail-product.purchase-suggestion != "": Rectangle {
                         height: 56px;
-                        border-radius: 10px;
+                        border-radius: Theme.radius-xl;
                         background: Theme.primary.transparentize(0.90);
                         border-width: 1px;
                         border-color: Theme.primary.transparentize(0.55);
@@ -766,7 +766,7 @@ export component ProductsPage inherits Rectangle {
 
                     // ── Disponibilidade (Ativo / Visível na Web) ─────
                     if root.editing-id != "": Rectangle {
-                        border-radius: 12px;
+                        border-radius: Theme.radius-2xl;
                         border-width: 1px;
                         border-color: Theme.card-border;
                         drop-shadow-blur: 12px;

@@ -14,7 +14,7 @@ component TypePill inherits TouchArea {
     height: 32px;
     width: 110px;
     Rectangle {
-        border-radius: 6px;
+        border-radius: Theme.radius-sm;
         border-width: 1px;
         border-color: root.active ? Theme.primary : (root.has-hover ? Theme.primary : Theme.border);
         background: root.active ? Theme.sidebar-sel-bg : Theme.surface;
@@ -127,7 +127,7 @@ export component BannerModal inherits Rectangle {
                                 if root.banner-product-id != "": HorizontalLayout {
                                     alignment: start;
                                     Rectangle {
-                                        border-radius: 14px;
+                                        border-radius: Theme.radius-3xl;
                                         border-width: 1px;
                                         border-color: Theme.primary;
                                         background: #FFF7ED;
@@ -155,7 +155,7 @@ export component BannerModal inherits Rectangle {
                                 // Sugestões: só quando houver texto na busca.
                                 if root.banner-product-search != "": Rectangle {
                                     height: min(180px, root.products-filtered.length * 32px + 4px);
-                                    border-radius: 6px; border-width: 1px;
+                                    border-radius: Theme.radius-sm; border-width: 1px;
                                     border-color: Theme.card-border; background: Theme.surface;
                                     drop-shadow-blur: 12px;
                                     drop-shadow-offset-y: 0px;

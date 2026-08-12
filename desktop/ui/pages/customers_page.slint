@@ -20,7 +20,7 @@ component StatCard inherits Rectangle {
     in property <string> value;
     in property <string> hint;
     in property <color> value-color: Theme.text-primary;
-    border-radius: 12px;
+    border-radius: Theme.radius-2xl;
     border-width: 1px;
     border-color: Theme.card-border;
     drop-shadow-blur: 12px;
@@ -57,14 +57,14 @@ component OrdersCard inherits Rectangle {
 
     function order-color(s: string) -> color {
         return s == "delivered"  ? Theme.success
-            : (s == "ready"      ? #81C784
-            : (s == "preparing"  ? #FF9E40
-            : (s == "confirmed"  ? #42A5F5
-            : (s == "cancelled"  ? #EF5350
-            : Theme.primary))));
+            : (s == "ready"      ? Theme.status-ready
+            : (s == "preparing"  ? Theme.status-preparing
+            : (s == "confirmed"  ? Theme.status-confirmed
+            : (s == "cancelled"  ? Theme.status-cancelled
+            : Theme.status-pending))));
     }
 
-    border-radius: 12px; border-width: 1px; border-color: Theme.card-border;
+    border-radius: Theme.radius-2xl; border-width: 1px; border-color: Theme.card-border;
     drop-shadow-blur: 12px;
     drop-shadow-offset-y: 0px;
     drop-shadow-color: Theme.card-shadow;
@@ -88,7 +88,7 @@ component OrdersCard inherits Rectangle {
         for o[i] in root.orders: Rectangle {
             height: (i >= root.win-start && i < root.win-start + 5) ? 48px : 0px;
             visible: i >= root.win-start && i < root.win-start + 5;
-            border-radius: 10px;
+            border-radius: Theme.radius-xl;
             border-width: 1px;
             border-color: Theme.card-border;
             background: Theme.surface;
@@ -100,7 +100,7 @@ component OrdersCard inherits Rectangle {
                 VerticalLayout {
                     alignment: center;
                     Rectangle {
-                        width: 82px; height: 22px; border-radius: 6px;
+                        width: 82px; height: 22px; border-radius: Theme.radius-sm;
                         background: Theme.row-alt;
                         Text { text: o.status-label; font-size: 11px; font-weight: 600; color: root.order-color(o.status); horizontal-alignment: center; vertical-alignment: center; width: parent.width; height: parent.height; }
                     }
@@ -112,7 +112,7 @@ component OrdersCard inherits Rectangle {
                         width: 30px; height: 30px;
                         clicked => { root.open-order(o.id); }
                         Rectangle {
-                            border-radius: 6px;
+                            border-radius: Theme.radius-sm;
                             border-width: 1px;
                             border-color: eye-ta.has-hover ? Theme.primary : Theme.border;
                             background: eye-ta.has-hover ? Theme.row-hover : transparent;
@@ -154,7 +154,7 @@ component InfoPanel inherits Rectangle {
         spacing: 14px;
 
         Rectangle {
-            border-radius: 12px; border-width: 1px; border-color: Theme.card-border;
+            border-radius: Theme.radius-2xl; border-width: 1px; border-color: Theme.card-border;
             drop-shadow-blur: 12px;
             drop-shadow-offset-y: 0px;
             drop-shadow-color: Theme.card-shadow;
@@ -177,7 +177,7 @@ component InfoPanel inherits Rectangle {
         }
 
         Rectangle {
-            border-radius: 12px; border-width: 1px; border-color: Theme.card-border;
+            border-radius: Theme.radius-2xl; border-width: 1px; border-color: Theme.card-border;
             drop-shadow-blur: 12px;
             drop-shadow-offset-y: 0px;
             drop-shadow-color: Theme.card-shadow;
@@ -200,7 +200,7 @@ component InfoPanel inherits Rectangle {
         }
 
         Rectangle {
-            border-radius: 12px; border-width: 1px; border-color: Theme.card-border;
+            border-radius: Theme.radius-2xl; border-width: 1px; border-color: Theme.card-border;
             drop-shadow-blur: 12px;
             drop-shadow-offset-y: 0px;
             drop-shadow-color: Theme.card-shadow;
@@ -288,7 +288,7 @@ export component CustomersPage inherits Rectangle {
         Rectangle {
             width: 248px;
             background: Theme.surface;
-            border-radius: 12px;
+            border-radius: Theme.radius-2xl;
             border-width: 1px;
             border-color: Theme.card-border;
             drop-shadow-blur: 12px;
@@ -373,7 +373,7 @@ export component CustomersPage inherits Rectangle {
                             height: 64px;
                             clicked => { root.select-customer(c.id); }
                             Rectangle {
-                                border-radius: 10px;
+                                border-radius: Theme.radius-xl;
                                 background: row-ta.sel ? Theme.accent.transparentize(0.90)
                                     : (row-ta.has-hover ? #00000008 : transparent);
                                 border-width: row-ta.sel ? 1px : 0px;
@@ -385,7 +385,7 @@ export component CustomersPage inherits Rectangle {
                                         alignment: center;
                                         Rectangle {
                                             width: 34px; height: 34px;
-                                            border-radius: 9px;
+                                            border-radius: Theme.radius-lg;
                                             background: #E5E7EB;
                                             clip: true;
                                             if c.profile-picture.width == 0: PersonIcon {

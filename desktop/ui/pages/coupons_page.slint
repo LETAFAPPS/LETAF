@@ -106,7 +106,7 @@ export component CouponsPage inherits Rectangle {
                                 Rectangle {
                                     width: 130px;
                                     height: 40px;
-                                    border-radius: 6px;
+                                    border-radius: Theme.radius-sm;
                                     border-width: 1px;
                                     border-color: Theme.primary;
                                     background: #FFF7ED;
@@ -150,7 +150,7 @@ export component CouponsPage inherits Rectangle {
                                     height: 28px;
                                     clicked => { root.toggle-coupon-active(c.id); }
                                     Rectangle {
-                                        border-radius: 4px;
+                                        border-radius: Theme.radius-xs;
                                         border-width: 1px;
                                         border-color: c.active ? #66BB6A : Theme.border;
                                         background: c.active ? #E8F5E9 : Theme.surface;

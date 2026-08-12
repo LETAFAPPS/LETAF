@@ -305,7 +305,7 @@ export component FinanceEntryModal inherits Rectangle {
                                         height: 26px;
                                         clicked => { root.no-due = !root.no-due; }
                                         Rectangle {
-                                            border-radius: 6px;
+                                            border-radius: Theme.radius-sm;
                                             border-width: root.no-due ? 1.5px : 1px;
                                             border-color: root.no-due ? Theme.btn-accent : Theme.border;
                                             background: root.no-due
@@ -366,7 +366,7 @@ export component FinanceEntryModal inherits Rectangle {
                                                     }
                                                 }
                                                 Rectangle {
-                                                    border-radius: 4px;
+                                                    border-radius: Theme.radius-xs;
                                                     background: minus-ta.has-hover ? Theme.row-hover : transparent;
                                                     Text {
                                                         width: parent.width; height: parent.height;
@@ -386,7 +386,7 @@ export component FinanceEntryModal inherits Rectangle {
                                                     }
                                                 }
                                                 Rectangle {
-                                                    border-radius: 4px;
+                                                    border-radius: Theme.radius-xs;
                                                     background: plus-ta.has-hover ? Theme.row-hover : transparent;
                                                     Text {
                                                         width: parent.width; height: parent.height;

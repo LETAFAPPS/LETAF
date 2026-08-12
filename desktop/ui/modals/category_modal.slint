@@ -62,7 +62,7 @@ export component CategoryModal inherits Rectangle {
                                 clicked => { root.category-icon-name = ""; }
                                 property <bool> hov: self.has-hover;
                                 Rectangle {
-                                    border-radius: 6px;
+                                    border-radius: Theme.radius-sm;
                                     border-width: 1px;
                                     border-color: parent.hov ? Theme.primary : Theme.border;
                                     background: parent.hov ? Theme.row-hover : transparent;
@@ -183,7 +183,7 @@ export component SubcategoryModal inherits Rectangle {
                             property <bool> hov: self.has-hover;
                             clicked => { root.subcategory-category-open = !root.subcategory-category-open; }
                             Rectangle {
-                                border-radius: 6px; border-width: 1px;
+                                border-radius: Theme.radius-sm; border-width: 1px;
                                 border-color: parent.hov || root.subcategory-category-open ? Theme.primary : Theme.border;
                                 background: Theme.surface;
                                 HorizontalLayout {
@@ -200,7 +200,7 @@ export component SubcategoryModal inherits Rectangle {
                         }
                         if root.subcategory-category-open: Rectangle {
                             height: min(180px, root.categories.length * 32px + 4px);
-                            border-radius: 6px; border-width: 1px;
+                            border-radius: Theme.radius-sm; border-width: 1px;
                             border-color: Theme.card-border; background: Theme.surface;
                             drop-shadow-blur: 12px;
                             drop-shadow-offset-y: 0px;

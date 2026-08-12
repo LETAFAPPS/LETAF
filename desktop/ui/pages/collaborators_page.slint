@@ -14,7 +14,7 @@ import { EmptyState } from "../components/empty_state.slint";
 
 // Card-base dos painéis.
 component Panel inherits Rectangle {
-    border-radius: 14px;
+    border-radius: Theme.radius-3xl;
     border-width: 1px;
     border-color: Theme.card-border;
     drop-shadow-blur: 12px;
@@ -64,7 +64,7 @@ component Tag inherits Rectangle {
     in property <bool> accent: false;
     height: 22px;
     width: tag-t.preferred-width + 16px;
-    border-radius: 6px;
+    border-radius: Theme.radius-sm;
     background: root.accent ? Theme.accent.transparentize(0.86) : Theme.row-alt;
     tag-t := Text {
         text: root.text;
@@ -86,7 +86,7 @@ component MasterListCard inherits Rectangle {
 
     width: 248px;
     background: Theme.surface;
-    border-radius: 12px;
+    border-radius: Theme.radius-2xl;
     border-width: 1px;
     border-color: Theme.card-border;
     drop-shadow-blur: 12px;
@@ -205,10 +205,10 @@ component Toggle inherits TouchArea {
     width: 42px; height: 24px;
     clicked => { root.changed(!root.on); }
     Rectangle {
-        border-radius: 12px;
+        border-radius: Theme.radius-2xl;
         background: root.on ? Theme.accent : Theme.border;
         Rectangle {
-            width: 18px; height: 18px; border-radius: 9px;
+            width: 18px; height: 18px; border-radius: Theme.radius-lg;
             y: (parent.height - self.height) / 2;
             x: root.on ? parent.width - self.width - 3px : 3px;
             background: white;
@@ -220,7 +220,7 @@ component Toggle inherits TouchArea {
 component PermCard inherits Rectangle {
     in property <CollabPermRow> data;
     callback toggle(bool, bool);   // is-edit, on
-    border-radius: 10px;
+    border-radius: Theme.radius-xl;
     border-width: 1px;
     border-color: Theme.card-border;
     drop-shadow-blur: 12px;
@@ -293,7 +293,7 @@ component RoleSelect inherits Rectangle {
                     height: 36px;
                     clicked => { root.current-index = i; }
                     Rectangle {
-                        border-radius: 6px;
+                        border-radius: Theme.radius-sm;
                         background: opt-ta.has-hover ? Theme.row-hover
                             : (i == root.current-index ? Theme.accent.transparentize(0.90) : transparent);
                         HorizontalLayout {
@@ -369,7 +369,7 @@ export component CollaboratorsPage inherits Rectangle {
                 alignment: center;
                 Rectangle {
                     height: 40px;
-                    border-radius: 10px;
+                    border-radius: Theme.radius-xl;
                     border-width: 1px; border-color: Theme.card-border;
                     drop-shadow-blur: 12px;
                     drop-shadow-offset-y: 0px;
@@ -381,7 +381,7 @@ export component CollaboratorsPage inherits Rectangle {
                             width: 120px;
                             clicked => { root.tab = "roles"; }
                             Rectangle {
-                                border-radius: 7px;
+                                border-radius: Theme.radius-md;
                                 border-width: root.tab == "roles" ? 1.5px : 0px;
                                 border-color: Theme.btn-accent;
                                 background: root.tab == "roles" ? Theme.btn-accent.transparentize(0.88)
@@ -399,7 +399,7 @@ export component CollaboratorsPage inherits Rectangle {
                             width: 130px;
                             clicked => { root.tab = "employees"; }
                             Rectangle {
-                                border-radius: 7px;
+                                border-radius: Theme.radius-md;
                                 border-width: root.tab == "employees" ? 1.5px : 0px;
                                 border-color: Theme.btn-accent;
                                 background: root.tab == "employees" ? Theme.btn-accent.transparentize(0.88)
@@ -446,7 +446,7 @@ export component CollaboratorsPage inherits Rectangle {
                             height: 64px;
                             clicked => { root.edit-role(r.id); }
                             Rectangle {
-                                border-radius: 10px;
+                                border-radius: Theme.radius-xl;
                                 background: role-ta.sel ? Theme.accent.transparentize(0.90)
                                     : (role-ta.has-hover ? #00000008 : transparent);
                                 border-width: role-ta.sel ? 1px : 0px;
@@ -578,7 +578,7 @@ export component CollaboratorsPage inherits Rectangle {
                             height: 64px;
                             clicked => { if !e.is-admin { root.edit-employee(e.id); } }
                             Rectangle {
-                                border-radius: 10px;
+                                border-radius: Theme.radius-xl;
                                 background: emp-ta.sel ? Theme.accent.transparentize(0.90)
                                     : (emp-ta.has-hover ? #00000008 : transparent);
                                 border-width: emp-ta.sel ? 1px : 0px;

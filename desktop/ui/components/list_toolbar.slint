@@ -144,7 +144,7 @@ export component ListFilterBtn inherits TouchArea {
                     Rectangle {
                         x: 0; y: 0;
                         width: parent.width; height: parent.height;
-                        border-radius: 6px;
+                        border-radius: Theme.radius-sm;
                         background: root.selected == o.key
                             ? Theme.btn-accent.transparentize(0.90)
                             : (opt.has-hover ? Theme.row-hover : transparent);

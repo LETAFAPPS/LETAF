@@ -117,7 +117,7 @@ component AddonItemRow inherits Rectangle {
                 height: 28px;
                 clicked => { root.toggle-active(); }
                 Rectangle {
-                    border-radius: 4px;
+                    border-radius: Theme.radius-xs;
                     border-width: 1px;
                     border-color: root.addon.active ? #66BB6A : Theme.border;
                     background: root.addon.active ? #E8F5E9 : Theme.surface;

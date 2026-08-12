@@ -33,7 +33,7 @@ export component FormField inherits VerticalLayout {
     }
     Rectangle {
         height: 32px;
-        border-radius: 6px;
+        border-radius: Theme.radius-sm;
         border-width: 1px;
         border-color: root.error != "" ? Theme.danger
             : (input.has-focus ? Theme.primary : Theme.border);
@@ -123,7 +123,7 @@ export component PasswordField inherits VerticalLayout {
     }
     Rectangle {
         height: 32px;
-        border-radius: 6px;
+        border-radius: Theme.radius-sm;
         border-width: 1px;
         border-color: pwd-input.has-focus ? Theme.primary : Theme.border;
         background: Theme.surface;
@@ -216,7 +216,7 @@ export component TimeInput inherits VerticalLayout {
     }
     Rectangle {
         height: 32px;
-        border-radius: 6px;
+        border-radius: Theme.radius-sm;
         border-width: 1px;
         border-color: ti.has-focus ? Theme.primary : Theme.border;
         background: Theme.surface;

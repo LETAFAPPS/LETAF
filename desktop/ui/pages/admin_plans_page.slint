@@ -15,7 +15,7 @@ component IconActionBtn inherits TouchArea {
     width: 30px; height: 30px;
     Rectangle {
         width: parent.width; height: parent.height;
-        border-radius: 6px;
+        border-radius: Theme.radius-sm;
         background: root.has-hover ? root.hover-bg : transparent;
         AssetIcon {
             width: parent.width; height: parent.height; icon-size: 16px;
@@ -35,7 +35,7 @@ component PlanCard inherits Rectangle {
     property <bool> featured: root.p.highlight-label != "";
 
     background: Theme.surface;
-    border-radius: 12px;
+    border-radius: Theme.radius-2xl;
     border-width: 1px;
     border-color: root.featured ? Theme.btn-accent.transparentize(0.6) : Theme.card-border;
     drop-shadow-blur: 12px;
@@ -68,7 +68,7 @@ component PlanCard inherits Rectangle {
             }
             if root.p.highlight-label != "": Rectangle {
                 width: hl.preferred-width + 16px; height: 20px;
-                border-radius: 6px;
+                border-radius: Theme.radius-sm;
                 background: Theme.btn-accent.transparentize(0.88);
                 hl := Text {
                     width: parent.width; height: parent.height;
@@ -80,7 +80,7 @@ component PlanCard inherits Rectangle {
             }
             if !root.p.active: Rectangle {
                 width: inat.preferred-width + 16px; height: 20px;
-                border-radius: 6px;
+                border-radius: Theme.radius-sm;
                 background: Theme.danger.transparentize(0.88);
                 inat := Text {
                     width: parent.width; height: parent.height;
@@ -242,7 +242,7 @@ export component AdminPlansPage inherits VerticalLayout {
                 width: 148px; height: 40px;
                 clicked => { root.new-plan(); }
                 Rectangle {
-                    border-radius: 10px;
+                    border-radius: Theme.radius-xl;
                     background: new-ta.has-hover ? Theme.btn-accent.darker(0.12) : Theme.btn-accent;
                     HorizontalLayout {
                         alignment: center; spacing: 8px;

@@ -24,7 +24,7 @@ component KpiCard inherits Rectangle {
 
     horizontal-stretch: 1;
     height: 96px;
-    border-radius: 12px;
+    border-radius: Theme.radius-2xl;
     border-width: 1px;
     border-color: Theme.card-border;
     drop-shadow-blur: 12px;
@@ -39,7 +39,7 @@ component KpiCard inherits Rectangle {
             alignment: center;
             Rectangle {
                 width: 48px; height: 48px;
-                border-radius: 12px;
+                border-radius: Theme.radius-2xl;
                 background: Theme.icon-box-bg;
                 AssetIcon {
                     width: 100%; height: 100%; icon-size: 24px;
@@ -92,7 +92,7 @@ component InventoryRow inherits Rectangle {
         : (root.data.status == "ok" ? Theme.success : #9E9E9E));
 
     height: 72px;
-    border-radius: 12px;
+    border-radius: Theme.radius-2xl;
     border-width: 1px;
     border-color: Theme.card-border;
     drop-shadow-blur: 12px;
@@ -110,7 +110,7 @@ component InventoryRow inherits Rectangle {
             alignment: center;
             Rectangle {
                 width: 44px; height: 44px;
-                border-radius: 10px;
+                border-radius: Theme.radius-xl;
                 clip: true;
                 background: root.data.has-image ? transparent
                     : (root.data.status == "out" ? #FBE3E0 : #EDE7DE);
@@ -377,7 +377,7 @@ export component InventoryPage inherits VerticalLayout {
                         root.type-filter-changed(opt.k);
                     }
                     Rectangle {
-                        border-radius: 6px;
+                        border-radius: Theme.radius-sm;
                         background: root.type-filter == opt.k ? Theme.surface : transparent;
                         border-width: root.type-filter == opt.k ? 1px : 0px;
                         border-color: Theme.btn-accent;
@@ -476,7 +476,7 @@ export component InventoryPage inherits VerticalLayout {
                 width: 180px;
                 close-policy: PopupClosePolicy.close-on-click-outside;
                 Rectangle {
-                    border-radius: 10px;
+                    border-radius: Theme.radius-xl;
                     background: Theme.surface;
                     border-width: 1px; border-color: Theme.card-border;
                     drop-shadow-blur: 16px; drop-shadow-color: #00000030;
@@ -501,7 +501,7 @@ export component InventoryPage inherits VerticalLayout {
                                 status-popup.close();
                             }
                             Rectangle {
-                                border-radius: 6px;
+                                border-radius: Theme.radius-sm;
                                 background: root.filter == opt.k
                                     ? Theme.btn-accent.transparentize(0.90)
                                     : (opt-ta.has-hover ? Theme.row-hover : transparent);
@@ -541,7 +541,7 @@ export component InventoryPage inherits VerticalLayout {
                     VerticalLayout {
                         alignment: center;
                         Rectangle {
-                            width: 8px; height: 8px; border-radius: 4px;
+                            width: 8px; height: 8px; border-radius: Theme.radius-xs;
                             background: p.group-color;
                         }
                     }

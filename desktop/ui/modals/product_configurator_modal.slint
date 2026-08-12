@@ -80,7 +80,7 @@ export component ProductConfiguratorModal inherits Rectangle {
                                 alignment: center;
                                 Rectangle {
                                     width: 60px; height: 60px;
-                                    border-radius: 14px;
+                                    border-radius: Theme.radius-3xl;
                                     // Sem fundo — a miniatura fica direto sobre o modal.
                                     background: transparent;
                                     clip: true;
@@ -152,7 +152,7 @@ export component ProductConfiguratorModal inherits Rectangle {
                                             height: 32px;
                                             clicked => { root.config-toggle-variation(vidx, oidx); }
                                             Rectangle {
-                                                border-radius: 4px;
+                                                border-radius: Theme.radius-xs;
                                                 background: opt-row-ta.has-hover ? Theme.row-hover : transparent;
                                                 HorizontalLayout {
                                                     padding-left: 6px; padding-right: 6px;
@@ -197,7 +197,7 @@ export component ProductConfiguratorModal inherits Rectangle {
                                             height: 32px;
                                             clicked => { root.config-toggle-addon(gidx, aidx); }
                                             Rectangle {
-                                                border-radius: 4px;
+                                                border-radius: Theme.radius-xs;
                                                 background: addon-row-ta.has-hover ? Theme.row-hover : transparent;
                                                 HorizontalLayout {
                                                     padding-left: 6px; padding-right: 6px;
@@ -246,7 +246,7 @@ export component ProductConfiguratorModal inherits Rectangle {
                                         width: 32px; height: 32px;
                                         clicked => { root.config-dec-qty(); }
                                         Rectangle {
-                                            border-radius: 4px; border-width: 1px;
+                                            border-radius: Theme.radius-xs; border-width: 1px;
                                             border-color: cfg-dec-ta.has-hover ? Theme.primary : Theme.border;
                                             background: cfg-dec-ta.has-hover ? Theme.row-hover : Theme.surface;
                                             HorizontalLayout {
@@ -260,7 +260,7 @@ export component ProductConfiguratorModal inherits Rectangle {
                                     }
                                     Rectangle {
                                         width: 40px; height: 32px;
-                                        border-radius: 4px; border-width: 1px; border-color: Theme.card-border;
+                                        border-radius: Theme.radius-xs; border-width: 1px; border-color: Theme.card-border;
                                         drop-shadow-blur: 12px;
                                         drop-shadow-offset-y: 0px;
                                         drop-shadow-color: Theme.card-shadow;
@@ -276,7 +276,7 @@ export component ProductConfiguratorModal inherits Rectangle {
                                         width: 32px; height: 32px;
                                         clicked => { root.config-inc-qty(); }
                                         Rectangle {
-                                            border-radius: 4px; border-width: 1px;
+                                            border-radius: Theme.radius-xs; border-width: 1px;
                                             border-color: cfg-inc-ta.has-hover ? Theme.primary : Theme.border;
                                             background: cfg-inc-ta.has-hover ? Theme.row-hover : Theme.surface;
                                             HorizontalLayout {

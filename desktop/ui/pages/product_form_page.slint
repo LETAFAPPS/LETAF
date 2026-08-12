@@ -22,7 +22,7 @@ component AddonGroupChip inherits TouchArea {
     width: 160px;
     height: 32px;
     Rectangle {
-        border-radius: 6px;
+        border-radius: Theme.radius-sm;
         // Selecionado = só CONTORNO na cor de destaque (estilo Relatórios).
         border-width: root.selected ? 1.5px : 1px;
         border-color: root.selected
@@ -63,7 +63,7 @@ component SelectionPill inherits TouchArea {
     height: 28px;
     horizontal-stretch: 1;
     Rectangle {
-        border-radius: 4px;
+        border-radius: Theme.radius-xs;
         // Selecionado = só CONTORNO na cor de destaque (estilo Relatórios).
         border-width: root.active ? 1.5px : 1px;
         border-color: root.active ? Theme.sidebar-sel-bg : Theme.border;
@@ -92,7 +92,7 @@ component DiscountPill inherits TouchArea {
     height: 28px;
     horizontal-stretch: 1;
     Rectangle {
-        border-radius: 4px;
+        border-radius: Theme.radius-xs;
         // Selecionado = só CONTORNO na cor de destaque (estilo Relatórios).
         border-width: root.active ? 1.5px : 1px;
         border-color: root.active ? Theme.sidebar-sel-bg : Theme.border;
@@ -224,7 +224,7 @@ export component ProductFormPage inherits VerticalLayout {
                     root.request-back();
                 }
                 Rectangle {
-                    border-radius: 6px;
+                    border-radius: Theme.radius-sm;
                     border-width: 1px;
                     border-color: back-ta.has-hover ? Theme.border : transparent;
                     background: back-ta.has-hover ? Theme.row-hover : transparent;
@@ -285,7 +285,7 @@ export component ProductFormPage inherits VerticalLayout {
             // ───── Card: Identificação ─────
             Card {
                 vertical-stretch: 0;
-                border-radius: 10px;
+                border-radius: Theme.radius-xl;
                 VerticalLayout {
                     padding: 16px;
                     spacing: 10px;
@@ -313,7 +313,7 @@ export component ProductFormPage inherits VerticalLayout {
                             }
                             Rectangle {
                                 height: 36px;
-                                border-radius: 6px; border-width: 1px;
+                                border-radius: Theme.radius-sm; border-width: 1px;
                                 border-color: name-input.has-focus ? Theme.primary : Theme.border;
                                 background: Theme.surface;
                                 name-input := TextInput {
@@ -361,7 +361,7 @@ export component ProductFormPage inherits VerticalLayout {
                                     else { root.product-unit = "un"; }
                                 }
                                 Rectangle {
-                                    border-radius: 6px;
+                                    border-radius: Theme.radius-sm;
                                     border-width: 1px;
                                     border-color: parent.hov ? Theme.primary : Theme.border;
                                     background: Theme.surface;
@@ -385,7 +385,7 @@ export component ProductFormPage inherits VerticalLayout {
                         // (CSS `white-space: pre-wrap`).
                         Rectangle {
                             height: 140px;
-                            border-radius: 6px;
+                            border-radius: Theme.radius-sm;
                             border-width: 1px;
                             border-color: desc-input.has-focus ? Theme.primary : Theme.border;
                             background: Theme.surface;
@@ -427,7 +427,7 @@ export component ProductFormPage inherits VerticalLayout {
             // ───── Card: Preço & Estoque ─────
             Card {
                 vertical-stretch: 0;
-                border-radius: 10px;
+                border-radius: Theme.radius-xl;
                 VerticalLayout {
                     padding: 16px;
                     spacing: 10px;
@@ -445,7 +445,7 @@ export component ProductFormPage inherits VerticalLayout {
                             width: 80px; height: 24px;
                             clicked => { root.product-unlimited-stock = !root.product-unlimited-stock; }
                             Rectangle {
-                                border-radius: 4px; border-width: 1px;
+                                border-radius: Theme.radius-xs; border-width: 1px;
                                 border-color: root.product-unlimited-stock ? Theme.primary : Theme.border;
                                 background: root.product-unlimited-stock
                                     ? Theme.primary
@@ -481,7 +481,7 @@ export component ProductFormPage inherits VerticalLayout {
                             // Input (mesma estrutura do FormField, sem o label).
                             Rectangle {
                                 height: 36px;
-                                border-radius: 6px; border-width: 1px;
+                                border-radius: Theme.radius-sm; border-width: 1px;
                                 border-color: price-input.has-focus ? Theme.primary : Theme.border;
                                 background: Theme.surface;
                                 price-input := TextInput {
@@ -526,7 +526,7 @@ export component ProductFormPage inherits VerticalLayout {
                             // Input ou estado "Ilimitado"
                             if !root.product-unlimited-stock: Rectangle {
                                 height: 36px;
-                                border-radius: 6px; border-width: 1px;
+                                border-radius: Theme.radius-sm; border-width: 1px;
                                 border-color: stock-input.has-focus ? Theme.primary : Theme.border;
                                 background: Theme.surface;
                                 stock-input := TextInput {
@@ -550,7 +550,7 @@ export component ProductFormPage inherits VerticalLayout {
                             }
                             if root.product-unlimited-stock: Rectangle {
                                 height: 36px;
-                                border-radius: 6px; border-width: 1px;
+                                border-radius: Theme.radius-sm; border-width: 1px;
                                 border-color: Theme.card-border;
                                 drop-shadow-blur: 12px;
                                 drop-shadow-offset-y: 0px;
@@ -599,7 +599,7 @@ export component ProductFormPage inherits VerticalLayout {
                             }
                             Rectangle {
                                 height: 36px;
-                                border-radius: 6px; border-width: 1px;
+                                border-radius: Theme.radius-sm; border-width: 1px;
                                 border-color: cost-input.has-focus ? Theme.primary : Theme.border;
                                 background: Theme.surface;
                                 cost-input := TextInput {
@@ -646,7 +646,7 @@ export component ProductFormPage inherits VerticalLayout {
                             }
                             Rectangle {
                                 height: 36px;
-                                border-radius: 6px; border-width: 1px;
+                                border-radius: Theme.radius-sm; border-width: 1px;
                                 border-color: min-stock-input.has-focus ? Theme.primary : Theme.border;
                                 background: Theme.surface;
                                 min-stock-input := TextInput {
@@ -692,7 +692,7 @@ export component ProductFormPage inherits VerticalLayout {
                                 horizontal-stretch: 1;
                                 clicked => { root.product-balance-mode = "price"; }
                                 Rectangle {
-                                    border-radius: 6px;
+                                    border-radius: Theme.radius-sm;
                                     // Selecionado = só CONTORNO na cor de destaque (estilo Relatórios).
                                     border-width: root.product-balance-mode == "price" ? 1.5px : 1px;
                                     border-color: root.product-balance-mode == "price" ? Theme.sidebar-sel-bg : Theme.border;
@@ -714,7 +714,7 @@ export component ProductFormPage inherits VerticalLayout {
                                 horizontal-stretch: 1;
                                 clicked => { root.product-balance-mode = "weight"; }
                                 Rectangle {
-                                    border-radius: 6px;
+                                    border-radius: Theme.radius-sm;
                                     // Selecionado = só CONTORNO na cor de destaque (estilo Relatórios).
                                     border-width: root.product-balance-mode == "weight" ? 1.5px : 1px;
                                     border-color: root.product-balance-mode == "weight" ? Theme.sidebar-sel-bg : Theme.border;
@@ -740,7 +740,7 @@ export component ProductFormPage inherits VerticalLayout {
             // ───── Card: Categoria ─────
             Card {
                 vertical-stretch: 0;
-                border-radius: 10px;
+                border-radius: Theme.radius-xl;
                 VerticalLayout {
                     padding: 16px;
                     spacing: 10px;
@@ -759,7 +759,7 @@ export component ProductFormPage inherits VerticalLayout {
                                 property <bool> hov: self.has-hover;
                                 clicked => { root.product-category-open = !root.product-category-open; root.product-subcategory-open = false; }
                                 Rectangle {
-                                    border-radius: 6px; border-width: 1px;
+                                    border-radius: Theme.radius-sm; border-width: 1px;
                                     border-color: parent.hov || root.product-category-open ? Theme.primary : Theme.border;
                                     background: Theme.surface;
                                     HorizontalLayout {
@@ -776,7 +776,7 @@ export component ProductFormPage inherits VerticalLayout {
                             }
                             if root.product-category-open: Rectangle {
                                 height: min(180px, root.categories.length * 32px + 36px);
-                                border-radius: 6px; border-width: 1px;
+                                border-radius: Theme.radius-sm; border-width: 1px;
                                 border-color: Theme.card-border; background: Theme.surface;
                                 drop-shadow-blur: 12px;
                                 drop-shadow-offset-y: 0px;
@@ -822,7 +822,7 @@ export component ProductFormPage inherits VerticalLayout {
                                     if root.product-category-id != "" { root.product-subcategory-open = !root.product-subcategory-open; root.product-category-open = false; }
                                 }
                                 Rectangle {
-                                    border-radius: 6px; border-width: 1px;
+                                    border-radius: Theme.radius-sm; border-width: 1px;
                                     border-color: root.product-category-id == "" ? #E0E0E0 : (parent.hov || root.product-subcategory-open ? Theme.primary : Theme.border);
                                     background: root.product-category-id == "" ? #F5F5F5 : Theme.surface;
                                     HorizontalLayout {
@@ -839,7 +839,7 @@ export component ProductFormPage inherits VerticalLayout {
                             }
                             if root.product-subcategory-open: Rectangle {
                                 height: 180px;
-                                border-radius: 6px; border-width: 1px;
+                                border-radius: Theme.radius-sm; border-width: 1px;
                                 border-color: Theme.card-border; background: Theme.surface;
                                 drop-shadow-blur: 12px;
                                 drop-shadow-offset-y: 0px;
@@ -885,7 +885,7 @@ export component ProductFormPage inherits VerticalLayout {
             //   item via `set_row_data` (estado fica em `[BusinessHoursData]`).
             Card {
                 vertical-stretch: 0;
-                border-radius: 10px;
+                border-radius: Theme.radius-xl;
                 VerticalLayout {
                     padding: 16px;
                     spacing: 10px;
@@ -908,7 +908,7 @@ export component ProductFormPage inherits VerticalLayout {
                                 root.product-availability-enabled = !root.product-availability-enabled;
                             }
                             Rectangle {
-                                border-radius: 4px;
+                                border-radius: Theme.radius-xs;
                                 border-width: 1px;
                                 border-color: root.product-availability-enabled ? Theme.primary : Theme.border;
                                 background: root.product-availability-enabled
@@ -957,7 +957,7 @@ export component ProductFormPage inherits VerticalLayout {
                                     root.product-availability[idx].is-open = !entry.is-open;
                                 }
                                 Rectangle {
-                                    border-radius: 4px;
+                                    border-radius: Theme.radius-xs;
                                     border-width: 1px;
                                     border-color: entry.is-open ? Theme.primary : Theme.border;
                                     background: entry.is-open
@@ -979,7 +979,7 @@ export component ProductFormPage inherits VerticalLayout {
                             // Abertura (HH:MM) — máscara progressiva via callback.
                             Rectangle {
                                 width: 90px;
-                                border-radius: 6px;
+                                border-radius: Theme.radius-sm;
                                 border-width: 1px;
                                 border-color: open-input.has-focus ? Theme.primary : Theme.border;
                                 background: entry.is-open ? Theme.surface : Theme.bg;
@@ -1011,7 +1011,7 @@ export component ProductFormPage inherits VerticalLayout {
                             // Fechamento (HH:MM) — máscara progressiva via callback.
                             Rectangle {
                                 width: 90px;
-                                border-radius: 6px;
+                                border-radius: Theme.radius-sm;
                                 border-width: 1px;
                                 border-color: close-input.has-focus ? Theme.primary : Theme.border;
                                 background: entry.is-open ? Theme.surface : Theme.bg;
@@ -1047,7 +1047,7 @@ export component ProductFormPage inherits VerticalLayout {
             // - Validação fica no service (`validate_discount`).
             Card {
                 vertical-stretch: 0;
-                border-radius: 10px;
+                border-radius: Theme.radius-xl;
                 VerticalLayout {
                     padding: 16px;
                     spacing: 10px;
@@ -1160,7 +1160,7 @@ export component ProductFormPage inherits VerticalLayout {
                                 }
                                 Rectangle {
                                     height: 36px;
-                                    border-radius: 6px; border-width: 1px;
+                                    border-radius: Theme.radius-sm; border-width: 1px;
                                     border-color: qty-input.has-focus ? Theme.primary : Theme.border;
                                     background: Theme.surface;
                                     qty-input := TextInput {
@@ -1208,7 +1208,7 @@ export component ProductFormPage inherits VerticalLayout {
                                     spacing: 6px;
                                     Rectangle {
                                         horizontal-stretch: 1;
-                                        border-radius: 6px; border-width: 1px;
+                                        border-radius: Theme.radius-sm; border-width: 1px;
                                         border-color: val-input.has-focus ? Theme.primary : Theme.border;
                                         background: Theme.surface;
                                         val-input := TextInput {
@@ -1248,7 +1248,7 @@ export component ProductFormPage inherits VerticalLayout {
                                 horizontal-stretch: 1;
                                 clicked => { root.add-discount-tier(); }
                                 Rectangle {
-                                    border-radius: 6px;
+                                    border-radius: Theme.radius-sm;
                                     border-width: 1px;
                                     border-color: add-ta.has-hover ? Theme.primary : Theme.border;
                                     background: add-ta.has-hover ? Theme.row-hover : Theme.surface;
@@ -1287,7 +1287,7 @@ export component ProductFormPage inherits VerticalLayout {
             // cardápio. Gateada pelo tipo de empresa (ProductsState.business-type).
             if ProductsState.business-type == "loja": Card {
                 vertical-stretch: 0;
-                border-radius: 10px;
+                border-radius: Theme.radius-xl;
                 VerticalLayout {
                     padding: 16px;
                     spacing: 10px;
@@ -1344,7 +1344,7 @@ export component ProductFormPage inherits VerticalLayout {
             // linhas insumo+quantidade + dropdown alimentado pelas opções.
             Card {
                 vertical-stretch: 0;
-                border-radius: 10px;
+                border-radius: Theme.radius-xl;
                 VerticalLayout {
                     padding: 16px;
                     spacing: 10px;
@@ -1383,7 +1383,7 @@ export component ProductFormPage inherits VerticalLayout {
                                     x: 0; y: parent.height + 4px; width: 260px;
                                     close-policy: PopupClosePolicy.close-on-click-outside;
                                     Rectangle {
-                                        border-radius: 10px; background: Theme.surface;
+                                        border-radius: Theme.radius-xl; background: Theme.surface;
                                         border-width: 1px; border-color: Theme.card-border;
                                         drop-shadow-blur: 16px; drop-shadow-color: #00000030;
                                         ScrollView {
@@ -1394,7 +1394,7 @@ export component ProductFormPage inherits VerticalLayout {
                                                     height: 30px;
                                                     clicked => { ProductsState.set-ingredient-insumo(idx, opt.id); ing-pop.close(); }
                                                     Rectangle {
-                                                        border-radius: 6px;
+                                                        border-radius: Theme.radius-sm;
                                                         background: opt-ta.has-hover ? Theme.row-hover : transparent;
                                                         Text {
                                                             x: 10px; width: parent.width - 20px; height: parent.height;
@@ -1450,7 +1450,7 @@ export component ProductFormPage inherits VerticalLayout {
 
             Card {
                 vertical-stretch: 0;
-                border-radius: 10px;
+                border-radius: Theme.radius-xl;
                 VerticalLayout {
                     padding: 16px;
                     spacing: 10px;
@@ -1527,7 +1527,7 @@ export component ProductFormPage inherits VerticalLayout {
             //   tem helper). Edição de texto via binding inline.
             Card {
                 vertical-stretch: 0;
-                border-radius: 10px;
+                border-radius: Theme.radius-xl;
                 VerticalLayout {
                     padding: 16px;
                     spacing: 10px;
@@ -1571,7 +1571,7 @@ export component ProductFormPage inherits VerticalLayout {
                                     }
                                     Rectangle {
                                         height: 32px;
-                                        border-radius: 6px; border-width: 1px;
+                                        border-radius: Theme.radius-sm; border-width: 1px;
                                         border-color: title-input.has-focus ? Theme.primary : Theme.border;
                                         background: Theme.surface;
                                         title-input := TextInput {
@@ -1689,7 +1689,7 @@ export component ProductFormPage inherits VerticalLayout {
                                     }
                                     Rectangle {
                                         height: 32px;
-                                        border-radius: 6px; border-width: 1px;
+                                        border-radius: Theme.radius-sm; border-width: 1px;
                                         border-color: min-input.has-focus ? Theme.primary : Theme.border;
                                         background: Theme.surface;
                                         min-input := TextInput {
@@ -1726,7 +1726,7 @@ export component ProductFormPage inherits VerticalLayout {
                                     }
                                     Rectangle {
                                         height: 32px;
-                                        border-radius: 6px; border-width: 1px;
+                                        border-radius: Theme.radius-sm; border-width: 1px;
                                         border-color: max-input.has-focus ? Theme.primary : Theme.border;
                                         background: Theme.surface;
                                         max-input := TextInput {
@@ -1768,7 +1768,7 @@ export component ProductFormPage inherits VerticalLayout {
                                 Rectangle {
                                     height: 32px;
                                     horizontal-stretch: 2;
-                                    border-radius: 6px; border-width: 1px;
+                                    border-radius: Theme.radius-sm; border-width: 1px;
                                     border-color: opt-name-input.has-focus ? Theme.primary : Theme.border;
                                     background: Theme.surface;
                                     opt-name-input := TextInput {
@@ -1796,7 +1796,7 @@ export component ProductFormPage inherits VerticalLayout {
                                 Rectangle {
                                     height: 32px;
                                     horizontal-stretch: 1;
-                                    border-radius: 6px; border-width: 1px;
+                                    border-radius: Theme.radius-sm; border-width: 1px;
                                     border-color: opt-price-input.has-focus ? Theme.primary : Theme.border;
                                     background: Theme.surface;
                                     opt-price-input := TextInput {
@@ -1833,7 +1833,7 @@ export component ProductFormPage inherits VerticalLayout {
                                 horizontal-stretch: 1;
                                 clicked => { root.add-variation-option(v_idx); }
                                 Rectangle {
-                                    border-radius: 6px;
+                                    border-radius: Theme.radius-sm;
                                     border-width: 1px;
                                     border-color: add-opt-ta.has-hover ? Theme.primary : Theme.border;
                                     background: add-opt-ta.has-hover ? Theme.row-hover : Theme.surface;
@@ -1863,7 +1863,7 @@ export component ProductFormPage inherits VerticalLayout {
                         horizontal-stretch: 1;
                         clicked => { root.add-variation(); }
                         Rectangle {
-                            border-radius: 6px;
+                            border-radius: Theme.radius-sm;
                             border-width: 1px;
                             border-color: add-var-ta.has-hover ? Theme.primary : Theme.border;
                             background: add-var-ta.has-hover ? Theme.row-hover : Theme.surface;

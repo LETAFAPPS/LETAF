@@ -18,7 +18,7 @@ export component Toast inherits Rectangle {
         toast-type == "info"  ? Theme.primary-dark : Theme.success;
 
     background: toast-bg;
-    border-radius: 10px;
+    border-radius: Theme.radius-xl;
     drop-shadow-blur: 12px;
     drop-shadow-offset-y: 4px;
     drop-shadow-color: #00000040;
@@ -47,7 +47,7 @@ export component Toast inherits Rectangle {
 // ── Componente: container card (caixas com sombra e borda) ─────────────────
 
 export component Card inherits Rectangle {
-    border-radius: 10px;
+    border-radius: Theme.radius-xl;
     border-width: 1px;
     border-color: Theme.card-border;
     drop-shadow-blur: 12px;
@@ -276,7 +276,7 @@ export component CustomerCard inherits Rectangle {
             Rectangle {
                 width: 40px;
                 height: 40px;
-                border-radius: 4px;
+                border-radius: Theme.radius-xs;
                 background: #e5e7eb;
                 clip: true;
                 if customer.profile-picture.width == 0: Text {
@@ -374,7 +374,7 @@ export component OrderItemCard inherits Rectangle {
             alignment: center;
             Rectangle {
                 width: 48px; height: 48px;
-                border-radius: 6px;
+                border-radius: Theme.radius-sm;
                 clip: true;
                 // Sem fundo quando há foto (imagem transparente sobre o card).
                 background: item.product-image.width > 0 ? transparent : Theme.border;
@@ -461,11 +461,11 @@ export component OrderCard inherits Rectangle {
     property <color> status-bg: transparent;
     property <color> status-fg:
         order.status == "delivered"  ? Theme.success :
-        order.status == "ready"      ? #81C784 :
-        order.status == "preparing"  ? #FF9E40 :
-        order.status == "confirmed"  ? #42A5F5 :
-        order.status == "cancelled"  ? #EF5350 :
-                                       #C9A227;
+        order.status == "ready"      ? Theme.status-ready :
+        order.status == "preparing"  ? Theme.status-preparing :
+        order.status == "confirmed"  ? Theme.status-confirmed :
+        order.status == "cancelled"  ? Theme.status-cancelled :
+                                       Theme.status-pending;
 
     property <bool> is-pdv: order.payment-method != "";
     property <color> dtype-bg: transparent;
@@ -504,7 +504,7 @@ export component OrderCard inherits Rectangle {
             Rectangle {
                 height: 20px;
                 width: 72px;
-                border-radius: 10px;
+                border-radius: Theme.radius-xl;
                 background: dtype-bg;
                 HorizontalLayout {
                     alignment: center;
@@ -620,7 +620,7 @@ export component BusinessHoursCard inherits Rectangle {
             height: 22px;
             Rectangle {
                 width: 62px; height: 20px;
-                border-radius: 10px;
+                border-radius: Theme.radius-xl;
                 background: bh.is-open ? Theme.sidebar-sel-bg : #BDBDBD;
                 Text {
                     text: bh.is-open ? "Aberto" : "Fechado";

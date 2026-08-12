@@ -52,7 +52,7 @@ export component CashOpenModal inherits Rectangle {
                         Text { text: "Operador"; font-size: 12px; font-weight: 500; color: Theme.text-secondary; }
                         Rectangle {
                             height: 32px;
-                            border-radius: 6px;
+                            border-radius: Theme.radius-sm;
                             border-width: 1px;
                             border-color: Theme.border;
                             background: Theme.row-hover;
@@ -73,7 +73,7 @@ export component CashOpenModal inherits Rectangle {
                         Text { text: "Troco inicial"; font-size: 12px; font-weight: 500; color: Theme.text-secondary; }
                         Rectangle {
                             height: 40px;
-                            border-radius: 6px;
+                            border-radius: Theme.radius-sm;
                             border-width: 1px;
                             border-color: amount-input.has-focus ? Theme.primary : Theme.border;
                             background: Theme.surface;
@@ -117,7 +117,7 @@ export component CashOpenModal inherits Rectangle {
                                 horizontal-stretch: 1; height: 32px;
                                 clicked => { root.amount-input = opt; }
                                 Rectangle {
-                                    border-radius: 6px;
+                                    border-radius: Theme.radius-sm;
                                     border-width: 1px;
                                     border-color: chip-ta.has-hover ? Theme.primary : Theme.border;
                                     background: chip-ta.has-hover ? Theme.row-hover : Theme.surface;

@@ -26,7 +26,7 @@ component StatusBadge inherits Rectangle {
                 : Theme.text-secondary));
     width: label.preferred-width + 20px;
     height: 22px;
-    border-radius: 6px;
+    border-radius: Theme.radius-sm;
     background: root.tone.transparentize(0.86);
     label := Text {
         x: 10px;
@@ -50,7 +50,7 @@ component ToggleSwitch inherits TouchArea {
         background: root.on ? #1E88E5 : #BDBDBD;
         animate background { duration: 120ms; }
         Rectangle {
-            width: 20px; height: 20px; border-radius: 10px;
+            width: 20px; height: 20px; border-radius: Theme.radius-xl;
             background: white;
             x: root.on ? parent.width - self.width - 3px : 3px;
             y: (parent.height - self.height) / 2;
@@ -67,7 +67,7 @@ component IconActionBtn inherits TouchArea {
     width: 30px; height: 30px;
     Rectangle {
         width: parent.width; height: parent.height;
-        border-radius: 6px;
+        border-radius: Theme.radius-sm;
         background: root.has-hover ? root.hover-bg : transparent;
         AssetIcon {
             width: parent.width; height: parent.height; icon-size: 16px;
@@ -89,7 +89,7 @@ component CompanyCard inherits Rectangle {
 
     height: 92px;
     background: Theme.surface;
-    border-radius: 10px;
+    border-radius: Theme.radius-xl;
     border-width: 1px;
     border-color: Theme.card-border;
     drop-shadow-blur: 8px;
@@ -105,7 +105,7 @@ component CompanyCard inherits Rectangle {
             alignment: center;
             Rectangle {
                 width: 60px; height: 60px;
-                border-radius: 14px;
+                border-radius: Theme.radius-3xl;
                 background: Theme.btn-accent.transparentize(0.88);
                 clip: true;
                 // Fallback: ícone de empresa quando não há logo (a Image
@@ -398,7 +398,7 @@ export component AdminCompaniesPage inherits VerticalLayout {
             clicked => { root.show-form = false; root.tentou-salvar = false; root.editing = false; }
             Rectangle {
                 x: 0; y: 0; width: parent.width; height: parent.height;
-                border-radius: 6px;
+                border-radius: Theme.radius-sm;
                 background: back-ta.has-hover ? Theme.row-hover : transparent;
                 AssetIcon {
                     width: parent.width; height: parent.height; icon-size: 17px;
@@ -428,7 +428,7 @@ export component AdminCompaniesPage inherits VerticalLayout {
     if !root.show-form: Rectangle {
         height: 56px;
         background: Theme.surface;
-        border-radius: 10px;
+        border-radius: Theme.radius-xl;
         border-width: 1px;
         border-color: Theme.card-border;
         drop-shadow-blur: 8px;

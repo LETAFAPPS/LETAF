@@ -41,7 +41,7 @@ component PlanCard inherits Rectangle {
     // plano diferencia só o marcador ao lado do nome.
     property <color> brand-color: Theme.btn-accent;
 
-    border-radius: 12px;
+    border-radius: Theme.radius-2xl;
     border-width: data.is-current ? 2px : 1px;
     border-color: data.is-current ? Theme.sidebar-sel-bg : Theme.border;
     drop-shadow-blur: 12px;
@@ -74,7 +74,7 @@ component PlanCard inherits Rectangle {
             if data.is-current: Rectangle {
                 width: atual-text.preferred-width + 12px;
                 height: 20px;
-                border-radius: 4px;
+                border-radius: Theme.radius-xs;
                 background: #E8F5E9;
                 atual-text := Text {
                     width: parent.width; height: parent.height;
@@ -88,7 +88,7 @@ component PlanCard inherits Rectangle {
             if !data.is-current && data.highlight-label != "": Rectangle {
                 width: off-text.preferred-width + 12px;
                 height: 20px;
-                border-radius: 4px;
+                border-radius: Theme.radius-xs;
                 background: Theme.btn-accent.transparentize(0.88);
                 off-text := Text {
                     width: parent.width; height: parent.height;
@@ -179,7 +179,7 @@ component InvoiceRow inherits Rectangle {
     property <bool> pending: root.data.status-key == "pending";
     height: 56px;
     // Card próprio por fatura (padrão das listas do sistema).
-    border-radius: 10px;
+    border-radius: Theme.radius-xl;
     border-width: 1px;
     border-color: root.pending ? #FFB74D : Theme.card-border;
     background: root.pending ? #FFF8F0 : (ta.has-hover ? Theme.row-hover : Theme.surface);
@@ -234,7 +234,7 @@ component InvoiceRow inherits Rectangle {
             Rectangle {
                 width: 8px; height: 8px;
                 y: (parent.height - 8px) / 2;
-                border-radius: 4px;
+                border-radius: Theme.radius-xs;
                 background: root.data.status-key == "paid" ? Theme.success
                           : root.data.status-key == "failed" ? Theme.danger-hover
                           : Theme.danger;
@@ -264,7 +264,7 @@ component InvoiceRow inherits Rectangle {
             y: (parent.height - 30px) / 2;
             clicked => { root.pay(); }
             Rectangle {
-                border-radius: 6px;
+                border-radius: Theme.radius-sm;
                 background: pay-ta.has-hover ? #A21B1B : Theme.danger;
                 Text {
                     width: parent.width; height: parent.height;
@@ -283,7 +283,7 @@ component InvoiceRow inherits Rectangle {
             y: (parent.height - 30px) / 2;
             clicked => { root.download(); }
             Rectangle {
-                border-radius: 6px;
+                border-radius: Theme.radius-sm;
                 border-width: 1px;
                 border-color: Theme.card-border;
                 drop-shadow-blur: 12px;
@@ -308,7 +308,7 @@ component MiniStat inherits Rectangle {
     in property <string> value;
     horizontal-stretch: 1;
     height: 56px;
-    border-radius: 10px;
+    border-radius: Theme.radius-xl;
     border-width: 1px;
     border-color: Theme.card-border;
     drop-shadow-blur: 12px;
@@ -354,7 +354,7 @@ component LeftPanel inherits VerticalLayout {
         for inv in root.invoices: Rectangle {
             height: inv.status-key == "pending" ? 64px : 0px;
             visible: inv.status-key == "pending";
-            border-radius: 12px;
+            border-radius: Theme.radius-2xl;
             border-width: 1px;
             border-color: #F3C5C0;
             drop-shadow-blur: 12px;
@@ -367,7 +367,7 @@ component LeftPanel inherits VerticalLayout {
                 VerticalLayout {
                     alignment: center;
                     Rectangle {
-                        width: 24px; height: 24px; border-radius: 12px;
+                        width: 24px; height: 24px; border-radius: Theme.radius-2xl;
                         background: Theme.danger;
                         Text { width: parent.width; height: parent.height; text: "!"; font-size: 14px; font-weight: 800; color: white; horizontal-alignment: center; vertical-alignment: center; }
                     }
@@ -457,7 +457,7 @@ component LeftPanel inherits VerticalLayout {
                 alignment: start;
                 Rectangle {
                     width: badge-t.preferred-width + 20px; height: 22px;
-                    border-radius: 6px;
+                    border-radius: Theme.radius-sm;
                     background: Theme.sidebar-sel-bg;
                     badge-t := Text { width: parent.width; height: parent.height; text: "PLANO ATUAL"; font-size: 10px; font-weight: 800; letter-spacing: 1px; color: white; horizontal-alignment: center; vertical-alignment: center; }
                 }
@@ -479,7 +479,7 @@ component LeftPanel inherits VerticalLayout {
 
     // PAGAMENTO
     Rectangle {
-        border-radius: 12px;
+        border-radius: Theme.radius-2xl;
         border-width: 1px;
         border-color: Theme.card-border;
         drop-shadow-blur: 12px;
@@ -564,7 +564,7 @@ component LeftPanel inherits VerticalLayout {
             }
             Rectangle {
                 height: 44px;
-                border-radius: 10px;
+                border-radius: Theme.radius-xl;
                 background: Theme.row-hover;
                 HorizontalLayout {
                     padding-left: 14px; padding-right: 14px;
@@ -577,7 +577,7 @@ component LeftPanel inherits VerticalLayout {
             // ciclo (não só o valor mensal).
             if root.data.current-plan-kind != "monthly": Rectangle {
                 height: 44px;
-                border-radius: 10px;
+                border-radius: Theme.radius-xl;
                 background: Theme.row-hover;
                 HorizontalLayout {
                     padding-left: 14px; padding-right: 14px;
@@ -619,7 +619,7 @@ component RightPanel inherits VerticalLayout {
 
     // Destaque de fatura em aberto/vencida — atalho para pagar.
     if root.open-invoice-id != "": Rectangle {
-        border-radius: 12px;
+        border-radius: Theme.radius-2xl;
         border-width: 1px;
         border-color: root.open-invoice-overdue ? #EF5350 : #FFB74D;
         background: root.open-invoice-overdue ? #FFEBEE : #FFF8F0;
@@ -696,7 +696,7 @@ component RightPanel inherits VerticalLayout {
 
     // Faturas & recibos (altura de conteúdo — a página rola).
     Rectangle {
-        border-radius: 12px;
+        border-radius: Theme.radius-2xl;
         border-width: 1px;
         border-color: Theme.card-border;
         drop-shadow-blur: 12px;

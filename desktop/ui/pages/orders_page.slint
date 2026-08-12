@@ -10,11 +10,11 @@ import { SearchIcon, AssetIcon } from "../components/icons.slint";
 global OrderPalette {
     pure public function st-color(k: string) -> color {
         return k == "delivered"  ? Theme.success
-            : (k == "ready"      ? #66BB6A
-            : (k == "preparing"  ? #FF9E40
-            : (k == "confirmed"  ? #42A5F5
-            : (k == "cancelled"  ? #EF5350
-            : #C9A227))));
+            : (k == "ready"      ? Theme.status-ready
+            : (k == "preparing"  ? Theme.status-preparing
+            : (k == "confirmed"  ? Theme.status-confirmed
+            : (k == "cancelled"  ? Theme.status-cancelled
+            : Theme.status-pending))));
     }
 }
 
@@ -41,7 +41,7 @@ export component CalendarPopup inherits Rectangle {
         height: 392px;
         x: (parent.width - self.width) / 2;
         y: (parent.height - self.height) / 2;
-        border-radius: 12px;
+        border-radius: Theme.radius-2xl;
         border-width: 1px;
         border-color: Theme.card-border;
         drop-shadow-blur: 12px;
@@ -61,7 +61,7 @@ export component CalendarPopup inherits Rectangle {
                     width: 30px; height: 30px;
                     clicked => { root.prev(); }
                     Rectangle {
-                        border-radius: 6px;
+                        border-radius: Theme.radius-sm;
                         background: prev-ta.has-hover ? Theme.row-hover : transparent;
                         Text { text: "\u{2039}"; font-size: 18px; color: Theme.text-primary; horizontal-alignment: center; vertical-alignment: center; width: parent.width; height: parent.height; }
                     }
@@ -75,7 +75,7 @@ export component CalendarPopup inherits Rectangle {
                     width: 30px; height: 30px;
                     clicked => { root.next(); }
                     Rectangle {
-                        border-radius: 6px;
+                        border-radius: Theme.radius-sm;
                         background: next-ta.has-hover ? Theme.row-hover : transparent;
                         Text { text: "\u{203A}"; font-size: 18px; color: Theme.text-primary; horizontal-alignment: center; vertical-alignment: center; width: parent.width; height: parent.height; }
                     }
@@ -99,7 +99,7 @@ export component CalendarPopup inherits Rectangle {
                     height: 34px;
                     clicked => { if (cell-ta.d.ymd != "") { root.pick(cell-ta.d.ymd); } }
                     Rectangle {
-                        border-radius: 6px;
+                        border-radius: Theme.radius-sm;
                         // Dia selecionado (início/fim) = MESMO estilo dos botões
                         // de ação (tênue): borda + tint fraco + texto na cor de
                         // destaque. Dias no intervalo: tint ainda mais fraco.
@@ -214,7 +214,7 @@ component KanbanColumn inherits VerticalLayout {
             // código de cor por status fica na BORDA da caixa.
             if root.data.orders.length == 0: Rectangle {
                 height: 140px;
-                border-radius: 10px;
+                border-radius: Theme.radius-xl;
                 border-width: 1px;
                 border-color: root.accent.transparentize(0.55);
                 background: transparent;
@@ -323,7 +323,7 @@ export component OrdersPage inherits VerticalLayout {
                     width: 36px; height: 36px;
                     clicked => { root.order-detail-id = ""; }
                     Rectangle {
-                        border-radius: 6px;
+                        border-radius: Theme.radius-sm;
                         border-width: 1px;
                         border-color: parent.has-hover ? Theme.border : transparent;
                         background: parent.has-hover ? Theme.row-hover : transparent;
@@ -387,7 +387,7 @@ export component OrdersPage inherits VerticalLayout {
                 // Preenche a TouchArea para o rótulo centralizar na altura.
                 x: 0; y: 0;
                 width: parent.width; height: parent.height;
-                border-radius: 6px;
+                border-radius: Theme.radius-sm;
                 // Selecionado = estilo tênue de ação (borda + tint fraco).
                 border-width: active ? 1.5px : 1px;
                 border-color: active ? Theme.btn-accent : Theme.border;
@@ -599,7 +599,7 @@ export component OrdersPage inherits VerticalLayout {
             min-width: kanban-row.col-w;
             max-width: kanban-row.col-w;
             // Fundo da coluna = leve tint da cor do status (como no mockup).
-            border-radius: 12px;
+            border-radius: Theme.radius-2xl;
             background: OrderPalette.st-color(kc.key).transparentize(0.90);
             KanbanColumn {
                 data: kc;
@@ -620,10 +620,10 @@ export component OrdersPage inherits VerticalLayout {
                 property <OrderData> o: root.detail-order;
                 property <color> status-color:
                     o.status == "delivered"  ? Theme.success :
-                    o.status == "ready"      ? #66BB6A :
-                    o.status == "preparing"  ? #FF9E40 :
-                    o.status == "confirmed"  ? #42A5F5 :
-                    o.status == "cancelled"  ? #EF5350 : #C9A227;
+                    o.status == "ready"      ? Theme.status-ready :
+                    o.status == "preparing"  ? Theme.status-preparing :
+                    o.status == "confirmed"  ? Theme.status-confirmed :
+                    o.status == "cancelled"  ? Theme.status-cancelled : Theme.status-pending;
                 /// Pagamento editável só em pedido EM ABERTO ainda não
                 /// acertado (tipicamente vindo do cardápio web). Pedido
                 /// do PDV nasce pago (ou fiado via carteira) → fixo.
@@ -818,7 +818,7 @@ export component OrdersPage inherits VerticalLayout {
                                 }
                                 if root.detail-order-items.length == 0: Rectangle {
                                     height: 44px;
-                                    border-radius: 6px;
+                                    border-radius: Theme.radius-sm;
                                     border-width: 1px;
                                     border-color: Theme.card-border;
                                     drop-shadow-blur: 12px;
@@ -834,7 +834,7 @@ export component OrdersPage inherits VerticalLayout {
 
                             if o.notes != "": Rectangle { height: 12px; }
                             if o.notes != "": Rectangle {
-                                border-radius: 6px;
+                                border-radius: Theme.radius-sm;
                                 border-width: 1px;
                                 border-color: Theme.dark-mode ? #4a3d28 : #FFE0B2;
                                 background: Theme.dark-mode ? #2a2620 : #FFF8F0;
@@ -873,7 +873,7 @@ export component OrdersPage inherits VerticalLayout {
                             // e o "centro" ficava deslocado. Timer 60s no
                             // Rust recalcula `elapsed-display`.
                             if o.status != "delivered" && o.status != "cancelled": Rectangle {
-                                border-radius: 10px;
+                                border-radius: Theme.radius-xl;
                                 border-width: 1px;
                                 border-color: Theme.dark-mode ? #4a3d28 : #FFE0B2;
                                 background: Theme.dark-mode ? #2a2620 : #FFF8F0;
@@ -983,7 +983,7 @@ export component OrdersPage inherits VerticalLayout {
                                         enabled: pay-editable;
                                         clicked => { root.set-payment(o.id, o.payment-method, !o.paid); }
                                         Rectangle {
-                                            border-radius: 6px;
+                                            border-radius: Theme.radius-sm;
                                             border-width: 1px;
                                             border-color: paid-label == "Pago" ? Theme.success
                                                 : (paid-label == "Fiado" ? Theme.btn-accent : #EF5350);
@@ -1009,7 +1009,7 @@ export component OrdersPage inherits VerticalLayout {
                                     if !pay-editable: Rectangle {
                                         height: 28px;
                                         width: fixed-pm-label.preferred-width + 28px;
-                                        border-radius: 6px;
+                                        border-radius: Theme.radius-sm;
                                         border-width: 1.5px;
                                         border-color: Theme.btn-accent;
                                         background: Theme.btn-accent.transparentize(0.88);
@@ -1034,7 +1034,7 @@ export component OrdersPage inherits VerticalLayout {
                                         horizontal-stretch: 1; min-width: 0; height: 32px;
                                         clicked => { root.set-payment(o.id, opt.value, o.paid); }
                                         Rectangle {
-                                            border-radius: 6px;
+                                            border-radius: Theme.radius-sm;
                                             border-width: o.payment-method == opt.value ? 1.5px : 1px;
                                             border-color: o.payment-method == opt.value ? Theme.btn-accent : Theme.border;
                                             background: o.payment-method == opt.value

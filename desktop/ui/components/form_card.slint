@@ -14,7 +14,7 @@ export component FormCard inherits Rectangle {
     in property <string> subtitle: "";
 
     background: Theme.surface;
-    border-radius: 12px;
+    border-radius: Theme.radius-2xl;
     border-width: 1px;
     border-color: Theme.card-border;
     drop-shadow-blur: 10px;
@@ -72,7 +72,7 @@ export component ImagePicker inherits VerticalLayout {
         Rectangle {
             x: 0; y: 0;
             width: parent.width; height: parent.height;
-            border-radius: 10px;
+            border-radius: Theme.radius-xl;
             // Tracejado não existe no Slint: usamos borda fina que ganha a
             // cor de destaque no hover, sinalizando que é clicável.
             border-width: 1.5px;

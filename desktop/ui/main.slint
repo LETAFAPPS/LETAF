@@ -370,7 +370,7 @@ export component MainWindow inherits Window {
                         clicked => { root.exit-impersonation(); }
                         Rectangle {
                             width: parent.width; height: parent.height;
-                            border-radius: 6px;
+                            border-radius: Theme.radius-sm;
                             background: exit-ta.has-hover ? #ffffff33 : transparent;
                             Text {
                                 text: "✕"; color: white; font-size: 15px;
@@ -1942,7 +1942,7 @@ export component MainWindow inherits Window {
                     width: 420px;
                     // Contas a receber ganham VALOR + forma de pagamento.
                     height: FinanceState.finance-settle-target-kind == "receivable" ? 396px : 240px;
-                    border-radius: 12px;
+                    border-radius: Theme.radius-2xl;
                     background: Theme.surface;
                     border-width: 1px;
                     border-color: Theme.card-border;
@@ -2067,7 +2067,7 @@ export component MainWindow inherits Window {
                                     horizontal-stretch: 1; min-width: 0; height: 32px;
                                     clicked => { FinanceState.finance-settle-method = opt.value; }
                                     Rectangle {
-                                        border-radius: 6px;
+                                        border-radius: Theme.radius-sm;
                                         border-width: FinanceState.finance-settle-method == opt.value ? 1.5px : 1px;
                                         border-color: FinanceState.finance-settle-method == opt.value ? Theme.btn-accent : Theme.border;
                                         background: FinanceState.finance-settle-method == opt.value
@@ -2140,7 +2140,7 @@ export component MainWindow inherits Window {
                 Rectangle {
                     width: 420px;
                     height: 240px;
-                    border-radius: 12px;
+                    border-radius: Theme.radius-2xl;
                     background: Theme.surface;
                     border-width: 1px;
                     border-color: Theme.card-border;

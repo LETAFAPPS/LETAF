@@ -15,7 +15,7 @@ component Toggle inherits TouchArea {
         border-radius: 13px;
         background: root.on ? Theme.sidebar-sel-bg : Theme.border;
         Rectangle {
-            width: 20px; height: 20px; border-radius: 10px;
+            width: 20px; height: 20px; border-radius: Theme.radius-xl;
             background: white;
             x: root.on ? parent.width - self.width - 3px : 3px;
             y: (parent.height - self.height) / 2;
