@@ -71,30 +71,34 @@ pub fn AccountPanel(on_close: Callback<()>) -> impl IntoView {
                             {move || Suspend::new(async move {
                                 match profile.await {
                                     Ok(p) => view! {
-                                        <input class="field" type="email" prop:value=p.email disabled=true/>
-                                        <input
-                                            class="field"
-                                            placeholder="Nome"
-                                            prop:value=move || name.get()
-                                            on:input=move |e| set_name.set(event_target_value(&e))
-                                        />
-                                        <input
-                                            class="field"
-                                            placeholder="Telefone"
-                                            prop:value=move || phone.get()
-                                            on:input=move |e| set_phone.set(event_target_value(&e))
-                                        />
-                                        {move || (!err.get().is_empty())
-                                            .then(|| view! { <p class="auth-error">{err.get()}</p> })}
-                                        {move || saved.get()
-                                            .then(|| view! { <p class="acc-saved">"Dados salvos!"</p> })}
-                                        <button
-                                            class="pm-add auth-submit"
-                                            disabled=move || busy.get()
-                                            on:click=move |_| save.run(())
-                                        >
-                                            {move || if busy.get() { "Salvando…" } else { "Salvar" }}
-                                        </button>
+                                        <form on:submit=move |ev: leptos::ev::SubmitEvent| { ev.prevent_default(); save.run(()); }>
+                                            <input class="field" type="email" aria-label="E-mail" prop:value=p.email disabled=true/>
+                                            <input
+                                                class="field"
+                                                placeholder="Nome"
+                                                aria-label="Nome"
+                                                prop:value=move || name.get()
+                                                on:input=move |e| set_name.set(event_target_value(&e))
+                                            />
+                                            <input
+                                                class="field"
+                                                placeholder="Telefone"
+                                                aria-label="Telefone"
+                                                prop:value=move || phone.get()
+                                                on:input=move |e| set_phone.set(event_target_value(&e))
+                                            />
+                                            {move || (!err.get().is_empty())
+                                                .then(|| view! { <p class="auth-error">{err.get()}</p> })}
+                                            {move || saved.get()
+                                                .then(|| view! { <p class="acc-saved">"Dados salvos!"</p> })}
+                                            <button
+                                                type="submit"
+                                                class="pm-add auth-submit"
+                                                disabled=move || busy.get()
+                                            >
+                                                {move || if busy.get() { "Salvando…" } else { "Salvar" }}
+                                            </button>
+                                        </form>
                                     }.into_any(),
                                     Err(_) => view! {
                                         <p class="state error">"Não foi possível carregar o perfil."</p>

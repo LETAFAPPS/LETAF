@@ -222,6 +222,7 @@ pub fn CartDrawer() -> impl IntoView {
                         <footer class="cart-drawer-foot">
                             <textarea
                                 class="field"
+                                aria-label="Observações do pedido"
                                 placeholder="Observações (opcional)"
                                 prop:value=move || notes.get()
                                 on:input=move |e| set_notes.set(event_target_value(&e))
@@ -244,6 +245,7 @@ pub fn CartDrawer() -> impl IntoView {
                                     {move || (!addresses.get().is_empty()).then(|| view! {
                                         <select
                                             class="field"
+                                            aria-label="Endereço de entrega"
                                             on:change=move |e| set_address_id.set(event_target_value(&e))
                                         >
                                             <For
@@ -268,16 +270,16 @@ pub fn CartDrawer() -> impl IntoView {
                                     })}
                                     {move || novo_aberto.get().then(|| view! {
                                         <div class="cart-address-form">
-                                            <input class="field" placeholder="Rua"
+                                            <input class="field" placeholder="Rua" aria-label="Rua"
                                                 prop:value=move || a_rua.get()
                                                 on:input=move |e| set_a_rua.set(event_target_value(&e)) />
-                                            <input class="field" placeholder="Número"
+                                            <input class="field" placeholder="Número" aria-label="Número"
                                                 prop:value=move || a_numero.get()
                                                 on:input=move |e| set_a_numero.set(event_target_value(&e)) />
-                                            <input class="field" placeholder="Bairro"
+                                            <input class="field" placeholder="Bairro" aria-label="Bairro"
                                                 prop:value=move || a_bairro.get()
                                                 on:input=move |e| set_a_bairro.set(event_target_value(&e)) />
-                                            <input class="field" placeholder="Complemento (opcional)"
+                                            <input class="field" placeholder="Complemento (opcional)" aria-label="Complemento"
                                                 prop:value=move || a_compl.get()
                                                 on:input=move |e| set_a_compl.set(event_target_value(&e)) />
                                             <button class="link-btn" on:click=salvar_endereco>
@@ -290,6 +292,7 @@ pub fn CartDrawer() -> impl IntoView {
 
                             <input
                                 class="field"
+                                aria-label="Cupom de desconto"
                                 placeholder="Cupom (opcional)"
                                 prop:value=move || coupon.get()
                                 on:input=move |e| set_coupon.set(event_target_value(&e))
