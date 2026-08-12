@@ -24,6 +24,12 @@ export global Theme {
     // Sucesso (confirmações positivas: venda finalizada, sincronizado…).
     // Token para não hardcodear o verde nos componentes.
     out property <color> success:        #2E7D32;
+    // Informação/entrada (azul). Unifica os vários azuis que cumpriam este
+    // papel (#1565C0/#1E88E5/#42A5F5) num só token.
+    out property <color> info:           #1E88E5;
+    // Scrim (fundo escurecido) padrão dos modais — fonte ÚNICA para o
+    // overlay, que variava entre 6 opacidades diferentes pelo sistema.
+    out property <color> scrim:          #00000066;
     out property <color> bg:             dark-mode ? #181818 : #f8f7f4;
     out property <color> surface:        dark-mode ? #1e1e1c : #ffffff;
     // Sidebar — acento laranja. No tema CLARO o fundo é café torrado;

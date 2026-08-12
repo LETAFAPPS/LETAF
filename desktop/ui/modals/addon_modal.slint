@@ -23,7 +23,7 @@ export component AddonGroupModal inherits Rectangle {
     callback add-group();
     callback update-group();
 
-    background: #00000060;
+    background: Theme.scrim;
     TouchArea { clicked => { root.close(); } }
 
     VerticalLayout {
@@ -166,7 +166,7 @@ export component AddonItemModal inherits Rectangle {
     callback add-addon();
     callback update-addon();
 
-    background: #00000060;
+    background: Theme.scrim;
     TouchArea { clicked => { root.close(); } }
 
     VerticalLayout {

@@ -298,7 +298,7 @@ export component SettingsPage inherits VerticalLayout {
                             clicked => { root.pick-store-cover(); }
                             Rectangle {
                                 border-radius: 14px;
-                                background: #00000080;
+                                background: Theme.scrim;
                                 Text {
                                     text: "\u{270E}";
                                     font-size: 14px;
@@ -711,7 +711,7 @@ export component SettingsPage inherits VerticalLayout {
     palette-card := Rectangle {
         property <[PaletteSwatch]> palettes: [
             { slug: "", label: "Nenhuma", color: #cccccc },
-            { slug: "laranja", label: "Laranja", color: #e8731c },
+            { slug: "laranja", label: "Laranja", color: Theme.primary },
             { slug: "azul", label: "Azul", color: #2563eb },
             { slug: "verde", label: "Verde", color: #16a34a },
             { slug: "vermelho", label: "Vermelho", color: #dc2626 },
@@ -938,7 +938,7 @@ export component SettingsPage inherits VerticalLayout {
                                         alignment: center;
                                         VerticalLayout {
                                             alignment: center;
-                                            AssetIcon { width: 12px; height: 12px; icon-size: 12px; icon-color: del-printer-ta.has-hover ? #C62828 : Theme.text-secondary; source: @image-url("../assets/icons/fechar.svg"); }
+                                            AssetIcon { width: 12px; height: 12px; icon-size: 12px; icon-color: del-printer-ta.has-hover ? Theme.danger : Theme.text-secondary; source: @image-url("../assets/icons/fechar.svg"); }
                                         }
                                     }
                                 }

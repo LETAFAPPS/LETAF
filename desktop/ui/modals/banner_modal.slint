@@ -63,7 +63,7 @@ export component BannerModal inherits Rectangle {
     callback update-banner();
     callback filter-products();
 
-    background: #00000060;
+    background: Theme.scrim;
 
     TouchArea {
         clicked => { root.close(); }

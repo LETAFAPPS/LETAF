@@ -55,12 +55,12 @@ component MovementRow inherits Rectangle {
                 : (root.data.amount-tone == "neutral" ? Theme.row-alt : #FFEBEE);
             if root.data.amount-tone == "pos": AssetIcon {
                 width: parent.width; height: parent.height;
-                icon-size: 15px; icon-color: #2E7D32;
+                icon-size: 15px; icon-color: Theme.success;
                 source: @image-url("../assets/icons/entrada-estoque.svg");
             }
             if root.data.amount-tone == "neg": AssetIcon {
                 width: parent.width; height: parent.height;
-                icon-size: 15px; icon-color: #E53935;
+                icon-size: 15px; icon-color: Theme.danger-hover;
                 source: @image-url("../assets/icons/saida-estoque.svg");
             }
             if root.data.amount-tone == "neutral": AssetIcon {
@@ -100,8 +100,8 @@ component MovementRow inherits Rectangle {
             Text {
                 text: root.data.amount-display;
                 font-size: 12px; font-weight: 800;
-                color: root.data.amount-tone == "pos" ? #2E7D32
-                    : (root.data.amount-tone == "neutral" ? Theme.text-primary : #E53935);
+                color: root.data.amount-tone == "pos" ? Theme.success
+                    : (root.data.amount-tone == "neutral" ? Theme.text-primary : Theme.danger-hover);
                 horizontal-alignment: right;
             }
             Text {
@@ -196,7 +196,7 @@ export component WalletCard inherits Rectangle {
                     Text {
                         text: "Este cliente ainda não tem carteira ativa.";
                         font-size: 13px; font-weight: 700;
-                        color: #FF9800;
+                        color: Theme.btn-accent;
                     }
                     Text {
                         text: "Abra uma carteira para registrar depósitos, saques e vendas no fiado.";
@@ -245,8 +245,8 @@ export component WalletCard inherits Rectangle {
                             text: root.summary.balance-display;
                             font-size: 26px; font-weight: 800;
                             color: root.summary.balance-tone == "neg"
-                                ? #C62828
-                                : (root.summary.balance-tone == "pos" ? #2E7D32 : Theme.text-primary);
+                                ? Theme.danger
+                                : (root.summary.balance-tone == "pos" ? Theme.success : Theme.text-primary);
                         }
                         Text {
                             text: root.summary.available-display;

@@ -26,7 +26,7 @@ export component ReceiptModal inherits Rectangle {
     callback close();
     callback print();
 
-    background: #00000080;
+    background: Theme.scrim;
 
     // Clique fora do painel fecha.
     TouchArea { clicked => { root.close(); } }

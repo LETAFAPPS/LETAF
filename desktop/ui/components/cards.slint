@@ -15,7 +15,7 @@ export component Toast inherits Rectangle {
     property <color> toast-bg:
         toast-type == "error" ? Theme.danger :
         toast-type == "warning" ? #EF6C00 :
-        toast-type == "info"  ? Theme.primary-dark : #2E7D32;
+        toast-type == "info"  ? Theme.primary-dark : Theme.success;
 
     background: toast-bg;
     border-radius: 10px;
@@ -152,7 +152,7 @@ export component ProductCard inherits Rectangle {
                 text: "R$ " + product.price;
                 font-size: 13px;
                 font-weight: 600;
-                color: product.active ? #2E7D32 : Theme.text-secondary;
+                color: product.active ? Theme.success : Theme.text-secondary;
                 horizontal-alignment: center;
             }
             // Cor do estoque (texto): azul (ok), laranja (low), vermelho (out).
@@ -430,7 +430,7 @@ export component OrderItemCard inherits Rectangle {
                 Text {
                     text: item.price;
                     font-size: 12px;
-                    color: item.list-price != "" ? #2E7D32 : Theme.text-secondary;
+                    color: item.list-price != "" ? Theme.success : Theme.text-secondary;
                     font-weight: item.list-price != "" ? 700 : 400;
                     horizontal-alignment: left;
                 }
@@ -460,7 +460,7 @@ export component OrderCard inherits Rectangle {
 
     property <color> status-bg: transparent;
     property <color> status-fg:
-        order.status == "delivered"  ? #2E7D32 :
+        order.status == "delivered"  ? Theme.success :
         order.status == "ready"      ? #81C784 :
         order.status == "preparing"  ? #FF9E40 :
         order.status == "confirmed"  ? #42A5F5 :
@@ -470,8 +470,8 @@ export component OrderCard inherits Rectangle {
     property <bool> is-pdv: order.payment-method != "";
     property <color> dtype-bg: transparent;
     // PDV = verde; senão Retirada (laranja) ou Entrega (azul).
-    property <color> dtype-fg: is-pdv ? #2E7D32
-        : (order.delivery-type == "pickup" ? #FF9800 : #1565C0);
+    property <color> dtype-fg: is-pdv ? Theme.success
+        : (order.delivery-type == "pickup" ? Theme.btn-accent : #1565C0);
     property <string> dtype-text: is-pdv ? "PDV"
         : (order.delivery-type == "pickup" ? "Retirada" : "Entrega");
 
@@ -554,7 +554,7 @@ export component OrderCard inherits Rectangle {
             text: order.total;
             font-size: 15px;
             font-weight: 800;
-            color: #2E7D32;
+            color: Theme.success;
             horizontal-alignment: center;
         }
 

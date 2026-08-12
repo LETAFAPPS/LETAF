@@ -24,7 +24,7 @@ export component CashOpenModal inherits Rectangle {
     callback close();
     callback confirm();
 
-    background: #00000060;
+    background: Theme.scrim;
     TouchArea { clicked => { root.close(); } }
 
     VerticalLayout {

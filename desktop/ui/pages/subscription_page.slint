@@ -80,7 +80,7 @@ component PlanCard inherits Rectangle {
                     width: parent.width; height: parent.height;
                     text: "ATUAL";
                     font-size: 10px; font-weight: 800;
-                    color: #2E7D32;
+                    color: Theme.success;
                     letter-spacing: 1px;
                     horizontal-alignment: center; vertical-alignment: center;
                 }
@@ -130,7 +130,7 @@ component PlanCard inherits Rectangle {
         if data.cycle-display != "": Text {
             text: data.cycle-display;
             font-size: 11px; font-weight: 700;
-            color: #2E7D32;
+            color: Theme.success;
             overflow: elide;
         }
 
@@ -235,16 +235,16 @@ component InvoiceRow inherits Rectangle {
                 width: 8px; height: 8px;
                 y: (parent.height - 8px) / 2;
                 border-radius: 4px;
-                background: root.data.status-key == "paid" ? #2E7D32
-                          : root.data.status-key == "failed" ? #E53935
-                          : #C62828;
+                background: root.data.status-key == "paid" ? Theme.success
+                          : root.data.status-key == "failed" ? Theme.danger-hover
+                          : Theme.danger;
             }
             Text {
                 text: root.data.status-label;
                 font-size: 12px; font-weight: 600;
-                color: root.data.status-key == "paid" ? #2E7D32
-                     : root.data.status-key == "failed" ? #E53935
-                     : #C62828;
+                color: root.data.status-key == "paid" ? Theme.success
+                     : root.data.status-key == "failed" ? Theme.danger-hover
+                     : Theme.danger;
                 vertical-alignment: center;
             }
         }
@@ -265,7 +265,7 @@ component InvoiceRow inherits Rectangle {
             clicked => { root.pay(); }
             Rectangle {
                 border-radius: 6px;
-                background: pay-ta.has-hover ? #A21B1B : #C62828;
+                background: pay-ta.has-hover ? #A21B1B : Theme.danger;
                 Text {
                     width: parent.width; height: parent.height;
                     text: "Pagar";
@@ -368,7 +368,7 @@ component LeftPanel inherits VerticalLayout {
                     alignment: center;
                     Rectangle {
                         width: 24px; height: 24px; border-radius: 12px;
-                        background: #C62828;
+                        background: Theme.danger;
                         Text { width: parent.width; height: parent.height; text: "!"; font-size: 14px; font-weight: 800; color: white; horizontal-alignment: center; vertical-alignment: center; }
                     }
                 }
@@ -376,8 +376,8 @@ component LeftPanel inherits VerticalLayout {
                     horizontal-stretch: 1;
                     alignment: center;
                     spacing: 2px;
-                    Text { text: "Fatura vencida"; font-size: 13px; font-weight: 800; color: #C62828; }
-                    Text { text: inv.number + " · " + inv.amount-display + " pendente"; font-size: 11px; color: #C62828; overflow: elide; }
+                    Text { text: "Fatura vencida"; font-size: 13px; font-weight: 800; color: Theme.danger; }
+                    Text { text: inv.number + " · " + inv.amount-display + " pendente"; font-size: 11px; color: Theme.danger; overflow: elide; }
                 }
                 VerticalLayout {
                     alignment: center;
@@ -386,7 +386,7 @@ component LeftPanel inherits VerticalLayout {
                         clicked => { root.pay-invoice(inv.id); }
                         Rectangle {
                             border-radius: 8px;
-                            background: pay-alert-ta.has-hover ? #A21B1B : #C62828;
+                            background: pay-alert-ta.has-hover ? #A21B1B : Theme.danger;
                             Text { width: parent.width; height: parent.height; text: "Pagar"; font-size: 12px; font-weight: 800; color: white; horizontal-alignment: center; vertical-alignment: center; }
                         }
                     }
@@ -406,7 +406,7 @@ component LeftPanel inherits VerticalLayout {
             Rectangle {
                 border-radius: 8px;
                 border-width: 1px;
-                border-color: root.data.card-active ? (card-ta.has-hover ? #E53935 : #2E7D32) : Theme.border;
+                border-color: root.data.card-active ? (card-ta.has-hover ? Theme.danger-hover : Theme.success) : Theme.border;
                 background: card-ta.has-hover ? (root.data.card-active ? #FDECEA : #00000008) : Theme.surface;
                 Text {
                     width: parent.width; height: parent.height;
@@ -414,7 +414,7 @@ component LeftPanel inherits VerticalLayout {
                         ? (card-ta.has-hover ? "Cancelar cartão" : "Cartão cadastrado")
                         : "+ Cartão";
                     font-size: 12px; font-weight: 700;
-                    color: root.data.card-active ? (card-ta.has-hover ? #E53935 : #2E7D32) : Theme.text-primary;
+                    color: root.data.card-active ? (card-ta.has-hover ? Theme.danger-hover : Theme.success) : Theme.text-primary;
                     horizontal-alignment: center; vertical-alignment: center;
                 }
             }
@@ -425,7 +425,7 @@ component LeftPanel inherits VerticalLayout {
             Rectangle {
                 border-radius: 8px;
                 border-width: root.data.pix-auto-active ? 1px : 1.5px;
-                border-color: root.data.pix-auto-active ? (pixauto-ta.has-hover ? #E53935 : #2E7D32) : Theme.sidebar-sel-bg;
+                border-color: root.data.pix-auto-active ? (pixauto-ta.has-hover ? Theme.danger-hover : Theme.success) : Theme.sidebar-sel-bg;
                 background: pixauto-ta.has-hover ? Theme.row-hover
                     : (root.data.pix-auto-active ? Theme.surface : transparent);
                 Text {
@@ -434,7 +434,7 @@ component LeftPanel inherits VerticalLayout {
                         ? (pixauto-ta.has-hover ? "Cancelar PIX Auto" : "PIX Auto ativo")
                         : "+ PIX Auto";
                     font-size: 12px; font-weight: 700;
-                    color: root.data.pix-auto-active ? (pixauto-ta.has-hover ? #E53935 : #2E7D32) : Theme.sidebar-sel-bg;
+                    color: root.data.pix-auto-active ? (pixauto-ta.has-hover ? Theme.danger-hover : Theme.success) : Theme.sidebar-sel-bg;
                     horizontal-alignment: center; vertical-alignment: center;
                 }
             }
@@ -555,11 +555,11 @@ component LeftPanel inherits VerticalLayout {
                 spacing: 8px;
                 Text {
                     horizontal-stretch: 1; text: root.data.discount-label;
-                    font-size: 12px; color: #2E7D32; vertical-alignment: center; overflow: elide;
+                    font-size: 12px; color: Theme.success; vertical-alignment: center; overflow: elide;
                 }
                 Text {
                     text: root.data.discount-amount;
-                    font-size: 12px; font-weight: 700; color: #2E7D32; vertical-alignment: center;
+                    font-size: 12px; font-weight: 700; color: Theme.success; vertical-alignment: center;
                 }
             }
             Rectangle {
@@ -634,7 +634,7 @@ component RightPanel inherits VerticalLayout {
                 Text {
                     text: root.open-invoice-overdue ? "Fatura vencida" : "Fatura em aberto";
                     font-size: 14px; font-weight: 800;
-                    color: root.open-invoice-overdue ? #C62828 : #EF6C00;
+                    color: root.open-invoice-overdue ? Theme.danger : #EF6C00;
                 }
                 Text {
                     text: root.open-invoice-label;
@@ -648,7 +648,7 @@ component RightPanel inherits VerticalLayout {
                 Text {
                     text: root.open-invoice-amount;
                     font-size: 18px; font-weight: 800;
-                    color: root.open-invoice-overdue ? #C62828 : Theme.text-primary;
+                    color: root.open-invoice-overdue ? Theme.danger : Theme.text-primary;
                 }
             }
             VerticalLayout {
@@ -737,7 +737,7 @@ component RightPanel inherits VerticalLayout {
             }
             Rectangle {
                 height: 34px;
-                background: #00000005;
+                background: Theme.scrim;
                 HorizontalLayout {
                     padding-left: 28px; padding-right: 28px;
                     spacing: 14px;

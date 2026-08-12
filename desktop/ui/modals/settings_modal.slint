@@ -17,7 +17,7 @@ export component SettingsModal inherits Rectangle {
     callback save-business-hours();
     callback apply-time-mask(string) -> string;
 
-    background: #00000060;
+    background: Theme.scrim;
 
     TouchArea { clicked => { root.close(); } }
 

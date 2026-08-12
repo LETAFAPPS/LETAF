@@ -41,7 +41,7 @@ export component ProductConfiguratorModal inherits Rectangle {
     callback config-confirm();
     callback config-cancel();
 
-    background: #00000080;
+    background: Theme.scrim;
 
     // Clique fora do painel cancela (mesma UX do EditOrderModal).
     TouchArea { clicked => { root.config-cancel(); } }

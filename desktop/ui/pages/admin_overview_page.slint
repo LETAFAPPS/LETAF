@@ -7,9 +7,9 @@ import { AdminRevenuePoint } from "../types.slint";
 // ── Cores dos status (reaproveitadas nas quebras) ──
 // active=verde, overdue=laranja, cancelled=vermelho, inactive=cinza.
 global Palette {
-    out property <color> active: #2E7D32;
+    out property <color> active: Theme.success;
     out property <color> overdue: #E65100;
-    out property <color> cancelled: #C62828;
+    out property <color> cancelled: Theme.danger;
     out property <color> inactive: #9E9E9E;
     out property <color> company-on: #1E88E5;
     out property <color> company-off: #BDBDBD;

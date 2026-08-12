@@ -87,9 +87,9 @@ component InventoryRow inherits Rectangle {
     callback add();
     callback consume();
 
-    property <color> st-color: root.data.status == "out" ? #C62828
+    property <color> st-color: root.data.status == "out" ? Theme.danger
         : (root.data.status == "low" ? #F57F17
-        : (root.data.status == "ok" ? #2E7D32 : #9E9E9E));
+        : (root.data.status == "ok" ? Theme.success : #9E9E9E));
 
     height: 72px;
     border-radius: 12px;
@@ -336,7 +336,7 @@ export component InventoryPage inherits VerticalLayout {
             value: root.health.out-count;
             hint: "Precisam de\nreposição";
             tint: #FBE3E0;
-            accent: #C62828;
+            accent: Theme.danger;
             icon-source: @image-url("../assets/icons/nao-conformidade.svg");
         }
         KpiCard {

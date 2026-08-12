@@ -134,7 +134,7 @@ export component SidebarFooter inherits VerticalLayout {
             width: 8px;
             height: 8px;
             border-radius: 4px;
-            background: root.online ? #4CAF50 : #C62828;
+            background: root.online ? #4CAF50 : Theme.danger;
             y: (parent.height - self.height) / 2;
         }
         if !root.compact: Text {

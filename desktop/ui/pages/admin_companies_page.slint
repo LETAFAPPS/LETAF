@@ -20,9 +20,9 @@ component StatusBadge inherits Rectangle {
     in property <string> status;
     // Cor do texto (o fundo é a mesma cor transparentizada).
     property <color> tone:
-        root.status == "active" ? #2E7D32
+        root.status == "active" ? Theme.success
         : (root.status == "overdue" ? #E65100
-            : (root.status == "cancelled" ? #C62828
+            : (root.status == "cancelled" ? Theme.danger
                 : Theme.text-secondary));
     width: label.preferred-width + 20px;
     height: 22px;

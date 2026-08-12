@@ -46,7 +46,7 @@ export component ModalShell inherits Rectangle {
 
     callback close();
 
-    background: #00000060;
+    background: Theme.scrim;
 
     // Clique no fundo fecha o modal.
     TouchArea { clicked => { root.close(); } }

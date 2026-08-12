@@ -22,7 +22,7 @@ export component CategoryModal inherits Rectangle {
     callback add-category();
     callback update-category();
 
-    background: #00000060;
+    background: Theme.scrim;
 
     TouchArea { clicked => { root.close(); } }
 
@@ -143,7 +143,7 @@ export component SubcategoryModal inherits Rectangle {
     callback add-subcategory();
     callback update-subcategory();
 
-    background: #00000060;
+    background: Theme.scrim;
 
     TouchArea {
         clicked => {

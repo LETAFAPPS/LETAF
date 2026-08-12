@@ -1932,7 +1932,7 @@ export component MainWindow inherits Window {
 
     // ── Modal de confirmação: dar baixa (Receber/Pagar) ──────
     if FinanceState.finance-show-settle-confirm: Rectangle {
-        background: #00000080;
+        background: Theme.scrim;
         TouchArea { clicked => { FinanceState.finance-close-settle-confirm(); } }
         VerticalLayout {
             alignment: center;
@@ -1996,7 +1996,7 @@ export component MainWindow inherits Window {
                                         text: FinanceState.finance-settle-target-amount;
                                         font-size: 14px; font-weight: 800;
                                         color: FinanceState.finance-settle-target-kind == "receivable"
-                                            ? #2E7D32 : #E53935;
+                                            ? Theme.success : Theme.danger-hover;
                                     }
                                 }
                                 if FinanceState.finance-settle-target-party != "": Text {
@@ -2131,7 +2131,7 @@ export component MainWindow inherits Window {
 
     // ── Modal de confirmação: excluir lançamento ─────────────
     if FinanceState.finance-show-delete-confirm: Rectangle {
-        background: #00000080;
+        background: Theme.scrim;
         TouchArea { clicked => { FinanceState.finance-close-delete-confirm(); } }
         VerticalLayout {
             alignment: center;
@@ -2188,7 +2188,7 @@ export component MainWindow inherits Window {
                                         text: FinanceState.finance-delete-target-amount;
                                         font-size: 14px; font-weight: 800;
                                         color: FinanceState.finance-delete-target-kind == "receivable"
-                                            ? #2E7D32 : #E53935;
+                                            ? Theme.success : Theme.danger-hover;
                                     }
                                 }
                             }
@@ -2219,7 +2219,7 @@ export component MainWindow inherits Window {
                                 clicked => { FinanceState.finance-confirm-delete(); }
                                 Rectangle {
                                     border-radius: 8px;
-                                    background: del-confirm-ta.has-hover ? #B71C1C : #E53935;
+                                    background: del-confirm-ta.has-hover ? #B71C1C : Theme.danger-hover;
                                     Text {
                                         width: parent.width; height: parent.height;
                                         text: "Excluir";

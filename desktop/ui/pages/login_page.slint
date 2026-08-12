@@ -520,7 +520,7 @@ export component LoginPage inherits Rectangle {
                     text: root.status;
                     font-size: 12.5px;
                     font-weight: 600;
-                    color: #FF9800;
+                    color: Theme.btn-accent;
                     wrap: word-wrap;
                     width: 100%;
                     horizontal-alignment: center;
@@ -537,14 +537,14 @@ export component LoginPage inherits Rectangle {
                         Rectangle {
                             width: 7px; height: 7px;
                             border-radius: 4px;
-                            background: root.server-online ? #4CAF50 : #C62828;
+                            background: root.server-online ? #4CAF50 : Theme.danger;
                         }
                     }
                     Text {
                         text: root.server-online ? "Servidor Online" : "Servidor Offline";
                         font-size: 12.5px;
                         font-weight: 600;
-                        color: root.server-online ? #4CAF50 : #C62828;
+                        color: root.server-online ? #4CAF50 : Theme.danger;
                         vertical-alignment: center;
                     }
                 }

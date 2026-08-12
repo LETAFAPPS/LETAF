@@ -39,7 +39,7 @@ export component CustomerModal inherits Rectangle {
     callback format-customer-phone(string) -> string;
     callback format-customer-document(string) -> string;
 
-    background: #00000060;
+    background: Theme.scrim;
 
     TouchArea { clicked => { root.close(); } }
 

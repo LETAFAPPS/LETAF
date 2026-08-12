@@ -116,16 +116,16 @@ export component CashPage inherits VerticalLayout {
     // Pagamento" do Dashboard (mesma cor nos dois temas): Dinheiro verde,
     // PIX azul, Crédito vermelho, Débito amarelo.
     pure function method-color(key: string) -> color {
-        return key == "money" ? #2E7D32
+        return key == "money" ? Theme.success
             : (key == "pix" ? #1E88E5
-            : (key == "credit" ? #E53935
+            : (key == "credit" ? Theme.danger-hover
             : (key == "debit" ? #F9A825
             : Theme.btn-accent)));  // wallet
     }
 
     // Cor do ícone de cada tipo de movimentação.
     pure function kind-color(kind: string) -> color {
-        return kind == "sale" ? #2E7D32
+        return kind == "sale" ? Theme.success
             : (kind == "sangria" ? Theme.danger
             : (kind == "suprimento" ? #1E88E5
             : Theme.btn-accent));  // abertura
@@ -315,7 +315,7 @@ export component CashPage inherits VerticalLayout {
                                 Text {
                                     text: s.difference-display == "" ? "—" : s.difference-display;
                                     font-size: 12px; font-weight: 700;
-                                    color: s.difference-display == "R$ 0,00" ? #2E7D32
+                                    color: s.difference-display == "R$ 0,00" ? Theme.success
                                         : (s.difference-display == "" ? Theme.text-secondary : Theme.danger);
                                     horizontal-alignment: right;
                                     width: parent.width;
@@ -640,7 +640,7 @@ export component CashPage inherits VerticalLayout {
                                     Text {
                                         text: mv.amount-display;
                                         font-size: 12.5px; font-weight: 800;
-                                        color: mv.sign == "pos" ? #2E7D32 : (mv.sign == "neg" ? Theme.danger : Theme.text-primary);
+                                        color: mv.sign == "pos" ? Theme.success : (mv.sign == "neg" ? Theme.danger : Theme.text-primary);
                                         width: 110px; horizontal-alignment: right; vertical-alignment: center;
                                     }
                                 }

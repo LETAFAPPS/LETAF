@@ -15,7 +15,7 @@ export component CashSuprimentoModal inherits Rectangle {
     callback close();
     callback confirm();
 
-    background: #00000080;
+    background: Theme.scrim;
     TouchArea { clicked => { root.close(); } }
 
     VerticalLayout {

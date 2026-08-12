@@ -338,7 +338,7 @@ export component CategoriesPage inherits Rectangle {
             if root.selected-category-id != "": VerticalLayout {
                 alignment: center;
                 IconBtn {
-                    label: "Excluir"; accent: #C62828;
+                    label: "Excluir"; accent: Theme.danger;
                     icon: @image-url("../assets/icons/lixeira.svg");
                     clicked => { root.request-delete(root.detail-category.id, root.detail-category.name, "category"); }
                 }

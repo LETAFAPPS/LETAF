@@ -98,16 +98,16 @@ component FinanceListRow inherits Rectangle {
             border-radius: 8px;
             // Entrada = verde, saída = vermelho (mesmo tom dos valores).
             background: root.data.kind == "receivable"
-                ? #2E7D32.transparentize(0.88)
-                : #E53935.transparentize(0.88);
+                ? Theme.success.transparentize(0.88)
+                : Theme.danger-hover.transparentize(0.88);
             if root.data.kind == "receivable": AssetIcon {
                 width: 100%; height: 100%; icon-size: 18px;
-                icon-color: #2E7D32;
+                icon-color: Theme.success;
                 source: @image-url("../assets/icons/entrada-estoque.svg");
             }
             if root.data.kind != "receivable": AssetIcon {
                 width: 100%; height: 100%; icon-size: 18px;
-                icon-color: #E53935;
+                icon-color: Theme.danger-hover;
                 source: @image-url("../assets/icons/saida-estoque.svg");
             }
         }
@@ -249,7 +249,7 @@ component FinanceListRow inherits Rectangle {
                 width: 30px; height: 30px;
                 border-radius: 6px;
                 background: del-ta.has-hover ? #FFEBEE : transparent;
-                AssetIcon { width: parent.width; height: parent.height; icon-size: 14px; icon-color: del-ta.has-hover ? #C62828 : Theme.text-secondary; source: @image-url("../assets/icons/fechar.svg"); }
+                AssetIcon { width: parent.width; height: parent.height; icon-size: 14px; icon-color: del-ta.has-hover ? Theme.danger : Theme.text-secondary; source: @image-url("../assets/icons/fechar.svg"); }
             }
         }
     }
@@ -322,8 +322,8 @@ component CalendarCell inherits TouchArea {
                     text: root.data.total-display;
                     font-size: 10px; font-weight: 700;
                     color: root.data.total-tone == "pos"
-                        ? #2E7D32
-                        : (root.data.total-tone == "neg" ? #C62828 : Theme.text-primary);
+                        ? Theme.success
+                        : (root.data.total-tone == "neg" ? Theme.danger : Theme.text-primary);
                     vertical-alignment: center;
                     overflow: elide;
                 }
@@ -377,7 +377,7 @@ component DayDetailRow inherits Rectangle {
                     width: 6px; height: 6px;
                     y: (parent.height - 6px) / 2;
                     border-radius: 3px;
-                    background: root.data.amount-tone == "pos" ? #2E7D32 : #FF9800;
+                    background: root.data.amount-tone == "pos" ? Theme.success : Theme.btn-accent;
                 }
                 Text {
                     text: root.data.status-label;
@@ -394,7 +394,7 @@ component DayDetailRow inherits Rectangle {
             Text {
                 text: root.data.amount-display;
                 font-size: 13px; font-weight: 800;
-                color: root.data.amount-tone == "pos" ? #2E7D32 : #E53935;
+                color: root.data.amount-tone == "pos" ? Theme.success : Theme.danger-hover;
                 horizontal-alignment: right;
             }
             // Botão de ação ("Receber"/"Pagar") + lixeira lado a lado.
@@ -427,7 +427,7 @@ component DayDetailRow inherits Rectangle {
                         width: 26px; height: 26px;
                         border-radius: 5px;
                         background: del-ta.has-hover ? #FFEBEE : transparent;
-                        AssetIcon { width: parent.width; height: parent.height; icon-size: 12px; icon-color: del-ta.has-hover ? #C62828 : Theme.text-secondary; source: @image-url("../assets/icons/fechar.svg"); }
+                        AssetIcon { width: parent.width; height: parent.height; icon-size: 12px; icon-color: del-ta.has-hover ? Theme.danger : Theme.text-secondary; source: @image-url("../assets/icons/fechar.svg"); }
                     }
                 }
             }
@@ -614,7 +614,7 @@ export component FinancePage inherits Rectangle {
                 alignment: center;
                 OutlineBtn {
                     label: "Receber";
-                    btn-color: #2E7D32;
+                    btn-color: Theme.success;
                     hover-color: #1B5E20;
                     width: 108px; height: 32px;
                     clicked => { root.open-new("receivable"); }
@@ -624,7 +624,7 @@ export component FinancePage inherits Rectangle {
                 alignment: center;
                 OutlineBtn {
                     label: "Pagar";
-                    btn-color: #E53935;
+                    btn-color: Theme.danger-hover;
                     hover-color: #B71C1C;
                     width: 96px; height: 32px;
                     clicked => { root.open-new("payable"); }

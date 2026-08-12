@@ -23,7 +23,7 @@ export component PixAutoModal inherits Rectangle {
     callback close();
     callback submit();
 
-    background: #00000060;
+    background: Theme.scrim;
 
     TouchArea {
         clicked => { root.close(); }
@@ -68,7 +68,7 @@ export component PixAutoModal inherits Rectangle {
                     if root.error != "": Text {
                         text: root.error;
                         font-size: 11px;
-                        color: #E53935;
+                        color: Theme.danger-hover;
                         wrap: word-wrap;
                     }
 

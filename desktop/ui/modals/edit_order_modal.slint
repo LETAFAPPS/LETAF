@@ -53,7 +53,7 @@ export component EditOrderModal inherits Rectangle {
     callback filter-picker(string);
     callback save();
 
-    background: #00000080;
+    background: Theme.scrim;
 
     TouchArea { clicked => { root.close(); } }
 

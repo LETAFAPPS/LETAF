@@ -65,9 +65,9 @@ component KpiCard inherits Rectangle {
             Text {
                 text: root.value-display;
                 font-size: 24px; font-weight: 800;
-                color: root.value-tone == "pos" ? #2E7D32
+                color: root.value-tone == "pos" ? Theme.success
                     : (root.value-tone == "warn" ? #EF6C00
-                    : (root.value-tone == "neg" ? #E53935 : Theme.text-primary));
+                    : (root.value-tone == "neg" ? Theme.danger-hover : Theme.text-primary));
                 overflow: elide;
             }
         }
@@ -76,9 +76,9 @@ component KpiCard inherits Rectangle {
             Text {
                 text: root.delta;
                 font-size: 13px; font-weight: 700;
-                color: root.delta-tone == "pos" ? #2E7D32
+                color: root.delta-tone == "pos" ? Theme.success
                     : (root.delta-tone == "warn" ? #EF6C00
-                    : (root.delta-tone == "neg" ? #E53935
+                    : (root.delta-tone == "neg" ? Theme.danger-hover
                     : (root.delta-tone == "ink" ? Theme.text-primary : Theme.text-secondary)));
             }
         }
@@ -133,16 +133,16 @@ component HeroCard inherits Rectangle {
                 alignment: start;
                 Rectangle {
                     height: 26px;
-                    background: root.delta-tone == "neg" ? #C62828.with-alpha(0.12)
-                        : (root.delta-tone == "pos" ? #2E7D32.with-alpha(0.12) : Theme.row-hover);
+                    background: root.delta-tone == "neg" ? Theme.danger.with-alpha(0.12)
+                        : (root.delta-tone == "pos" ? Theme.success.with-alpha(0.12) : Theme.row-hover);
                     border-radius: 8px;
                     HorizontalLayout {
                         padding-left: 10px; padding-right: 10px;
                         Text {
                             text: root.delta;
                             font-size: 11px; font-weight: 700;
-                            color: root.delta-tone == "neg" ? #C62828
-                                : (root.delta-tone == "pos" ? #2E7D32 : Theme.text-secondary);
+                            color: root.delta-tone == "neg" ? Theme.danger
+                                : (root.delta-tone == "pos" ? Theme.success : Theme.text-secondary);
                             vertical-alignment: center;
                         }
                     }

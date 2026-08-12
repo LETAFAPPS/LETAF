@@ -56,7 +56,7 @@ component ActivePill inherits TouchArea {
         Text {
             text: root.active ? "Ativo" : "Inativo";
             font-size: 11px; font-weight: 600;
-            color: root.active ? #2E7D32 : Theme.text-secondary;
+            color: root.active ? Theme.success : Theme.text-secondary;
             horizontal-alignment: center; vertical-alignment: center;
             width: parent.width; height: parent.height;
         }
@@ -172,9 +172,9 @@ component ProductRow inherits TouchArea {
                     text: root.data.stock-status-label;
                     font-size: 11px; font-weight: 600;
                     horizontal-alignment: right;
-                    color: root.data.stock-status == "out" ? #C62828
+                    color: root.data.stock-status == "out" ? Theme.danger
                         : (root.data.stock-status == "low" ? #FF9E40
-                        : (root.data.stock-status == "ok" ? #2E7D32
+                        : (root.data.stock-status == "ok" ? Theme.success
                         : Theme.text-secondary));
                 }
                 if !root.data.active: Rectangle {
@@ -550,7 +550,7 @@ export component ProductsPage inherits Rectangle {
                                             width: parent.width;
                                             height: parent.height;
                                             icon-size: 26px;
-                                            icon-color: #FF9800;
+                                            icon-color: Theme.btn-accent;
                                             source: @image-url("../assets/icons/atualizar.svg");
                                         }
                                     }
@@ -597,7 +597,7 @@ export component ProductsPage inherits Rectangle {
                                                 border-radius: 4px;
                                                 background: root.editing-id == ""
                                                     ? #BDBDBD
-                                                    : (root.detail-product.synced ? #2E7D32 : #EF6C00);
+                                                    : (root.detail-product.synced ? Theme.success : #EF6C00);
                                             }
                                         }
                                         Text {
@@ -708,7 +708,7 @@ export component ProductsPage inherits Rectangle {
                             hint: root.detail-product.margin-amount-display != ""
                                 ? "Lucro " + root.detail-product.margin-amount-display + " / un"
                                 : "Informe custo e preço";
-                            value-color: #2E7D32;
+                            value-color: Theme.success;
                         }
                         StatCard {
                             horizontal-stretch: 1;

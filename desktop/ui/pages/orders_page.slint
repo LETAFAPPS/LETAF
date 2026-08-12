@@ -9,7 +9,7 @@ import { SearchIcon, AssetIcon } from "../components/icons.slint";
 // Cor de status (mesma paleta dos OrderCard/chips — não muda).
 global OrderPalette {
     pure public function st-color(k: string) -> color {
-        return k == "delivered"  ? #2E7D32
+        return k == "delivered"  ? Theme.success
             : (k == "ready"      ? #66BB6A
             : (k == "preparing"  ? #FF9E40
             : (k == "confirmed"  ? #42A5F5
@@ -30,7 +30,7 @@ export component CalendarPopup inherits Rectangle {
     callback close();
 
     // Fundo escurecido — clique fora fecha.
-    background: #00000066;
+    background: Theme.scrim;
     TouchArea { clicked => { root.close(); } }
 
     Rectangle {
@@ -348,8 +348,8 @@ export component OrdersPage inherits VerticalLayout {
                 text: root.detail-order.payment-method != "" ? "PDV"
                     : (root.detail-order.delivery-type == "pickup" ? "Retirada" : "Entrega");
                 font-size: 13px; font-weight: 700;
-                color: root.detail-order.payment-method != "" ? #2E7D32
-                    : (root.detail-order.delivery-type == "pickup" ? #FF9800 : #1565C0);
+                color: root.detail-order.payment-method != "" ? Theme.success
+                    : (root.detail-order.delivery-type == "pickup" ? Theme.btn-accent : #1565C0);
                 vertical-alignment: center;
             }
         }
@@ -619,7 +619,7 @@ export component OrdersPage inherits VerticalLayout {
             Rectangle {
                 property <OrderData> o: root.detail-order;
                 property <color> status-color:
-                    o.status == "delivered"  ? #2E7D32 :
+                    o.status == "delivered"  ? Theme.success :
                     o.status == "ready"      ? #66BB6A :
                     o.status == "preparing"  ? #FF9E40 :
                     o.status == "confirmed"  ? #42A5F5 :
@@ -842,7 +842,7 @@ export component OrdersPage inherits VerticalLayout {
                                     padding: 12px;
                                     VerticalLayout {
                                         horizontal-stretch: 1; spacing: 4px;
-                                        Text { text: "Observações"; font-size: 11px; font-weight: 600; color: #FF9800; }
+                                        Text { text: "Observações"; font-size: 11px; font-weight: 600; color: Theme.btn-accent; }
                                         Text { text: o.notes; font-size: 13px; color: Theme.text-primary; wrap: word-wrap; horizontal-stretch: 1; }
                                     }
                                 }
@@ -890,7 +890,7 @@ export component OrdersPage inherits VerticalLayout {
                                     Text {
                                         text: "Tempo Ativo";
                                         font-size: 10px; font-weight: 700;
-                                        color: #FF9800;
+                                        color: Theme.btn-accent;
                                         letter-spacing: 1px;
                                         horizontal-alignment: center;
                                     }
@@ -948,7 +948,7 @@ export component OrdersPage inherits VerticalLayout {
                                         o.status == "pending"   ? "Confirmar" :
                                         o.status == "confirmed" ? "Preparar"  :
                                         o.status == "preparing" ? "Pronto"    : "Entregar";
-                                    bg-color: o.status == "ready" ? #2E7D32 : Theme.btn-accent;
+                                    bg-color: o.status == "ready" ? Theme.success : Theme.btn-accent;
                                     height: 40px;
                                     clicked => { root.advance-order-status(o.id); }
                                 }
@@ -985,8 +985,8 @@ export component OrdersPage inherits VerticalLayout {
                                         Rectangle {
                                             border-radius: 6px;
                                             border-width: 1px;
-                                            border-color: paid-label == "Pago" ? #2E7D32
-                                                : (paid-label == "Fiado" ? #FF9800 : #EF5350);
+                                            border-color: paid-label == "Pago" ? Theme.success
+                                                : (paid-label == "Fiado" ? Theme.btn-accent : #EF5350);
                                             background: Theme.dark-mode
                                                 ? (paid-label == "Pago" ? #1e2a20 : (paid-label == "Fiado" ? #2e2416 : #2e1e1e))
                                                 : (paid-label == "Pago" ? #E8F5E9 : (paid-label == "Fiado" ? #FFF3E0 : #FFEBEE));
@@ -996,7 +996,7 @@ export component OrdersPage inherits VerticalLayout {
                                                 font-size: 11px; font-weight: 700;
                                                 color: Theme.dark-mode
                                                     ? (paid-label == "Pago" ? #81C784 : (paid-label == "Fiado" ? #FFB74D : #EF9A9A))
-                                                    : (paid-label == "Pago" ? #2E7D32 : (paid-label == "Fiado" ? #EF6C00 : #C62828));
+                                                    : (paid-label == "Pago" ? Theme.success : (paid-label == "Fiado" ? #EF6C00 : Theme.danger));
                                                 horizontal-alignment: center; vertical-alignment: center;
                                             }
                                         }
@@ -1074,7 +1074,7 @@ export component OrdersPage inherits VerticalLayout {
                                     Text {
                                         text: o.discount-display;
                                         font-size: 12px; font-weight: 600;
-                                        color: o.discount-display == "*" ? Theme.text-primary : #C62828;
+                                        color: o.discount-display == "*" ? Theme.text-primary : Theme.danger;
                                         vertical-alignment: center;
                                     }
                                 }
@@ -1104,7 +1104,7 @@ export component OrdersPage inherits VerticalLayout {
 
                             HorizontalLayout {
                                 Text { text: "Total"; font-size: 13px; font-weight: 700; color: Theme.text-secondary; horizontal-stretch: 1; vertical-alignment: center; }
-                                Text { text: o.total; font-size: 24px; font-weight: 800; color: #2E7D32; vertical-alignment: center; }
+                                Text { text: o.total; font-size: 24px; font-weight: 800; color: Theme.success; vertical-alignment: center; }
                             }
                         }
                     }

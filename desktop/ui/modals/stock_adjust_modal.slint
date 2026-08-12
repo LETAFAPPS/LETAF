@@ -26,7 +26,7 @@ export component StockAdjustModal inherits Rectangle {
     callback close();
     callback confirm();
 
-    background: #00000080;
+    background: Theme.scrim;
     TouchArea { clicked => { root.close(); } }
 
     VerticalLayout {
@@ -67,7 +67,7 @@ export component StockAdjustModal inherits Rectangle {
                                 clicked => { root.direction = "in"; }
                                 Rectangle {
                                     border-radius: 6px;
-                                    background: root.direction == "in" ? #2E7D32 : transparent;
+                                    background: root.direction == "in" ? Theme.success : transparent;
                                     Text {
                                         text: "Adicionar";
                                         font-size: 13px; font-weight: 700;
@@ -80,7 +80,7 @@ export component StockAdjustModal inherits Rectangle {
                                 clicked => { root.direction = "out"; }
                                 Rectangle {
                                     border-radius: 6px;
-                                    background: root.direction == "out" ? #C62828 : transparent;
+                                    background: root.direction == "out" ? Theme.danger : transparent;
                                     Text {
                                         text: "Retirar";
                                         font-size: 13px; font-weight: 700;
@@ -164,7 +164,7 @@ export component StockAdjustModal inherits Rectangle {
                             padding: 10px;
                             Text {
                                 text: "⚠ " + root.error-message;
-                                font-size: 12px; font-weight: 600; color: #C62828;
+                                font-size: 12px; font-weight: 600; color: Theme.danger;
                                 wrap: word-wrap;
                             }
                         }

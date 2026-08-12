@@ -107,8 +107,8 @@ component ReportKpiCard inherits Rectangle {
         Text {
             text: root.data.sub-text;
             font-size: 11px;
-            color: root.data.sub-tone == "pos" ? #2E7D32
-                : (root.data.sub-tone == "neg" ? #E53935 : Theme.text-secondary);
+            color: root.data.sub-tone == "pos" ? Theme.success
+                : (root.data.sub-tone == "neg" ? Theme.danger-hover : Theme.text-secondary);
             overflow: elide;
         }
     }
@@ -634,7 +634,7 @@ export component ReportsPage inherits HorizontalLayout {
                     y: (parent.height - 8px) / 2;
                     width: 8px; height: 8px;
                     border-radius: 4px;
-                    background: #2E7D32;
+                    background: Theme.success;
                 }
             }
 
@@ -751,8 +751,8 @@ export component ReportsPage inherits HorizontalLayout {
                                             width: 6px; height: 6px;
                                             border-radius: 3px;
                                             y: (parent.height - 6px) / 2;
-                                            background: l.tone == "pos" ? #2E7D32
-                                                : (l.tone == "neg" ? #E53935 : Theme.primary);
+                                            background: l.tone == "pos" ? Theme.success
+                                                : (l.tone == "neg" ? Theme.danger-hover : Theme.primary);
                                         }
                                         Text {
                                             horizontal-stretch: 1;
@@ -769,8 +769,8 @@ export component ReportsPage inherits HorizontalLayout {
                                         text: l.value-display;
                                         font-size: l.tone == "total" ? 14px : 12px;
                                         font-weight: l.tone == "total" ? 800 : 700;
-                                        color: l.tone == "pos" ? #2E7D32
-                                            : (l.tone == "neg" ? #E53935
+                                        color: l.tone == "pos" ? Theme.success
+                                            : (l.tone == "neg" ? Theme.danger-hover
                                             : (l.tone == "total" ? Theme.primary : Theme.text-primary));
                                         horizontal-alignment: right;
                                         vertical-alignment: center;
@@ -1239,7 +1239,7 @@ export component ReportsPage inherits HorizontalLayout {
                                     x: 0;
                                     width: parent.width * root.new-vs-ret.returning-progress;
                                     height: parent.height;
-                                    background: #2E7D32;
+                                    background: Theme.success;
                                 }
                                 Rectangle {
                                     x: parent.width * root.new-vs-ret.returning-progress;
@@ -1256,7 +1256,7 @@ export component ReportsPage inherits HorizontalLayout {
                                         width: 10px; height: 10px;
                                         y: (parent.height - 10px) / 2;
                                         border-radius: 5px;
-                                        background: #2E7D32;
+                                        background: Theme.success;
                                     }
                                     Text { horizontal-stretch: 1; text: "Recorrentes"; font-size: 12px; color: Theme.text-primary; vertical-alignment: center; }
                                     Text { text: root.new-vs-ret.returning-count + " Clientes"; font-size: 11px; color: Theme.text-secondary; vertical-alignment: center; }

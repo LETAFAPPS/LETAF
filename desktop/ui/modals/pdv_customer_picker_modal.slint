@@ -20,7 +20,7 @@ export component PdvCustomerPickerModal inherits Rectangle {
     callback search-changed(string);
     callback pick(string);
 
-    background: #00000080;
+    background: Theme.scrim;
     TouchArea { clicked => { root.close(); } }
 
     VerticalLayout {

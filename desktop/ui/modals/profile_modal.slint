@@ -33,7 +33,7 @@ export component ProfileModal inherits Rectangle {
 
     width: 100%;
     height: 100%;
-    background: #00000060;
+    background: Theme.scrim;
 
     // Clique no fundo fecha o modal (padrão do sistema — sem X/Cancelar).
     TouchArea { clicked => { root.close(); } }

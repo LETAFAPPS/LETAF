@@ -56,12 +56,12 @@ component OrdersCard inherits Rectangle {
     changed rk => { root.page = 1; }
 
     function order-color(s: string) -> color {
-        return s == "delivered"  ? #2E7D32
+        return s == "delivered"  ? Theme.success
             : (s == "ready"      ? #81C784
             : (s == "preparing"  ? #FF9E40
             : (s == "confirmed"  ? #42A5F5
             : (s == "cancelled"  ? #EF5350
-            : #e8731c))));
+            : Theme.primary))));
     }
 
     border-radius: 12px; border-width: 1px; border-color: Theme.card-border;

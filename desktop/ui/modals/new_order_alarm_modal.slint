@@ -30,7 +30,7 @@ export component NewOrderAlarmModal inherits Rectangle {
 
     // Background mais escuro que outros modais para reforçar a
     // urgência — convencional em alarmes de POS.
-    background: #000000A0;
+    background: Theme.scrim;
 
     // Clique fora apenas DISMISSA (regra do projeto: ele volta em 5s).
     TouchArea { clicked => { root.dismiss(); } }

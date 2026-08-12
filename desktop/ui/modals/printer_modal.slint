@@ -42,7 +42,7 @@ export component PrinterModal inherits Rectangle {
     /// Estado local do dropdown — aberto/fechado. Não exposto ao caller.
     private property <bool> picker-open: false;
 
-    background: #00000080;
+    background: Theme.scrim;
     TouchArea { clicked => { root.close(); } }
 
     VerticalLayout {

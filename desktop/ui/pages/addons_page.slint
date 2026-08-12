@@ -124,7 +124,7 @@ component AddonItemRow inherits Rectangle {
                     Text {
                         text: root.addon.active ? "Ativo" : "Inativo";
                         font-size: 11px; font-weight: 600;
-                        color: root.addon.active ? #2E7D32 : Theme.text-secondary;
+                        color: root.addon.active ? Theme.success : Theme.text-secondary;
                         horizontal-alignment: center; vertical-alignment: center;
                         width: parent.width; height: parent.height;
                     }

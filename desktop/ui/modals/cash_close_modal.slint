@@ -45,7 +45,7 @@ export component CashCloseModal inherits Rectangle {
     callback recalc();
     callback confirm();
 
-    background: #00000080;
+    background: Theme.scrim;
     TouchArea { clicked => { root.close(); } }
 
     VerticalLayout {
@@ -117,7 +117,7 @@ export component CashCloseModal inherits Rectangle {
                                 edited => { root.recalc(); }
                             }
                         }
-                        Text { text: root.diff-cash-display; font-size: 12px; font-weight: 600; color: root.diff-cash-display == "—" ? Theme.text-secondary : (root.diff-cash-display == "R$ 0,00" ? #2E7D32 : Theme.danger); width: 80px; horizontal-alignment: right; vertical-alignment: center; }
+                        Text { text: root.diff-cash-display; font-size: 12px; font-weight: 600; color: root.diff-cash-display == "—" ? Theme.text-secondary : (root.diff-cash-display == "R$ 0,00" ? Theme.success : Theme.danger); width: 80px; horizontal-alignment: right; vertical-alignment: center; }
                     }
                     // PIX
                     HorizontalLayout {
@@ -148,7 +148,7 @@ export component CashCloseModal inherits Rectangle {
                                 edited => { root.recalc(); }
                             }
                         }
-                        Text { text: root.diff-pix-display; font-size: 12px; font-weight: 600; color: root.diff-pix-display == "—" ? Theme.text-secondary : (root.diff-pix-display == "R$ 0,00" ? #2E7D32 : Theme.danger); width: 80px; horizontal-alignment: right; vertical-alignment: center; }
+                        Text { text: root.diff-pix-display; font-size: 12px; font-weight: 600; color: root.diff-pix-display == "—" ? Theme.text-secondary : (root.diff-pix-display == "R$ 0,00" ? Theme.success : Theme.danger); width: 80px; horizontal-alignment: right; vertical-alignment: center; }
                     }
                     // CRÉDITO
                     HorizontalLayout {
@@ -156,7 +156,7 @@ export component CashCloseModal inherits Rectangle {
                         Rectangle {
                             width: 32px; height: 32px;
                             y: (parent.height - 32px) / 2;
-                            CardIcon { tint: #E53935; debit: true; }
+                            CardIcon { tint: Theme.danger-hover; debit: true; }
                         }
                         VerticalLayout {
                             horizontal-stretch: 1; alignment: center;
@@ -178,7 +178,7 @@ export component CashCloseModal inherits Rectangle {
                                 edited => { root.recalc(); }
                             }
                         }
-                        Text { text: root.diff-credit-display; font-size: 12px; font-weight: 600; color: root.diff-credit-display == "—" ? Theme.text-secondary : (root.diff-credit-display == "R$ 0,00" ? #2E7D32 : Theme.danger); width: 80px; horizontal-alignment: right; vertical-alignment: center; }
+                        Text { text: root.diff-credit-display; font-size: 12px; font-weight: 600; color: root.diff-credit-display == "—" ? Theme.text-secondary : (root.diff-credit-display == "R$ 0,00" ? Theme.success : Theme.danger); width: 80px; horizontal-alignment: right; vertical-alignment: center; }
                     }
                     // DÉBITO
                     HorizontalLayout {
@@ -208,7 +208,7 @@ export component CashCloseModal inherits Rectangle {
                                 edited => { root.recalc(); }
                             }
                         }
-                        Text { text: root.diff-debit-display; font-size: 12px; font-weight: 600; color: root.diff-debit-display == "—" ? Theme.text-secondary : (root.diff-debit-display == "R$ 0,00" ? #2E7D32 : Theme.danger); width: 80px; horizontal-alignment: right; vertical-alignment: center; }
+                        Text { text: root.diff-debit-display; font-size: 12px; font-weight: 600; color: root.diff-debit-display == "—" ? Theme.text-secondary : (root.diff-debit-display == "R$ 0,00" ? Theme.success : Theme.danger); width: 80px; horizontal-alignment: right; vertical-alignment: center; }
                     }
 
                     Rectangle { height: 1px; background: Theme.border; }
@@ -220,7 +220,7 @@ export component CashCloseModal inherits Rectangle {
                         Text { text: "TOTAL"; font-size: 12px; font-weight: 800; color: Theme.text-primary; horizontal-stretch: 1; vertical-alignment: center; }
                         Text { text: root.sys-total-display; font-size: 14px; font-weight: 700; color: Theme.text-primary; width: 90px; horizontal-alignment: right; vertical-alignment: center; }
                         Text { text: root.in-total-display; font-size: 14px; font-weight: 700; color: Theme.text-primary; width: 70px; horizontal-alignment: right; vertical-alignment: center; }
-                        Text { text: root.diff-total-display; font-size: 14px; font-weight: 700; color: root.diff-total-display == "—" ? Theme.text-secondary : (root.has-diff ? Theme.danger : #2E7D32); width: 80px; horizontal-alignment: right; vertical-alignment: center; }
+                        Text { text: root.diff-total-display; font-size: 14px; font-weight: 700; color: root.diff-total-display == "—" ? Theme.text-secondary : (root.has-diff ? Theme.danger : Theme.success); width: 80px; horizontal-alignment: right; vertical-alignment: center; }
                     }
 
                     // Alerta de diferença
@@ -232,7 +232,7 @@ export component CashCloseModal inherits Rectangle {
                             spacing: 2px;
                             Text {
                                 text: "⚠ Diferença Detectada";
-                                font-size: 12px; font-weight: 700; color: #C62828;
+                                font-size: 12px; font-weight: 700; color: Theme.danger;
                                 wrap: word-wrap;
                             }
                         }

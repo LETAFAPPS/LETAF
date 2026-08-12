@@ -603,7 +603,7 @@ export component PdvPage inherits VerticalLayout {
                             border-radius: 6px; border-width: 1px;
                             border-color: cli-clear-ta.has-hover ? #EF5350 : Theme.border;
                             background: cli-clear-ta.has-hover ? #FFEBEE : Theme.surface;
-                            AssetIcon { width: parent.width; height: parent.height; icon-size: 13px; icon-color: cli-clear-ta.has-hover ? #C62828 : Theme.text-secondary; source: @image-url("../assets/icons/fechar.svg"); }
+                            AssetIcon { width: parent.width; height: parent.height; icon-size: 13px; icon-color: cli-clear-ta.has-hover ? Theme.danger : Theme.text-secondary; source: @image-url("../assets/icons/fechar.svg"); }
                         }
                     }
                 }
@@ -847,7 +847,7 @@ export component PdvPage inherits VerticalLayout {
                                                     Text {
                                                         text: p.discount-label;
                                                         font-size: 10px; font-weight: 700;
-                                                        color: #2E7D32;
+                                                        color: Theme.success;
                                                     }
                                                 }
                                             }
@@ -1017,7 +1017,7 @@ export component PdvPage inherits VerticalLayout {
                                                     border-width: 1px;
                                                     border-color: rem-ta.has-hover ? #EF5350 : Theme.border;
                                                     background: rem-ta.has-hover ? #FFEBEE : Theme.surface;
-                                                    AssetIcon { width: parent.width; height: parent.height; icon-size: 11px; icon-color: rem-ta.has-hover ? #C62828 : Theme.text-secondary; source: @image-url("../assets/icons/fechar.svg"); }
+                                                    AssetIcon { width: parent.width; height: parent.height; icon-size: 11px; icon-color: rem-ta.has-hover ? Theme.danger : Theme.text-secondary; source: @image-url("../assets/icons/fechar.svg"); }
                                                 }
                                             }
                                         }
@@ -1260,7 +1260,7 @@ export component PdvPage inherits VerticalLayout {
             HorizontalLayout {
                 Text { text: "TOTAL"; font-size: 13px; font-weight: 800; color: Theme.text-primary; vertical-alignment: center; }
                 Rectangle { horizontal-stretch: 1; }
-                Text { text: root.total-display; font-size: 22px; font-weight: 800; color: #2E7D32; vertical-alignment: center; }
+                Text { text: root.total-display; font-size: 22px; font-weight: 800; color: Theme.success; vertical-alignment: center; }
             }
 
             // Divisor entre Total e Restante/Troco
@@ -1283,7 +1283,7 @@ export component PdvPage inherits VerticalLayout {
                 alignment: center;
                 spacing: 2px;
                 Text { text: "TROCO"; font-size: 10px; font-weight: 700; color: Theme.text-secondary; letter-spacing: 1px; horizontal-alignment: right; }
-                Text { text: root.change-display; font-size: 20px; font-weight: 800; color: #2E7D32; horizontal-alignment: right; }
+                Text { text: root.change-display; font-size: 20px; font-weight: 800; color: Theme.success; horizontal-alignment: right; }
             }
 
             // Spacer
@@ -1510,7 +1510,7 @@ export component PdvPage inherits VerticalLayout {
                     border-radius: 6px;
                     border-width: 1px;
                     border-color: root.total-amount > root.wallet-available-amount
-                        ? #E53935
+                        ? Theme.danger-hover
                         : Theme.border;
                     background: root.total-amount > root.wallet-available-amount
                         ? #FFEBEE
@@ -1531,8 +1531,8 @@ export component PdvPage inherits VerticalLayout {
                             Text {
                                 text: root.wallet-balance-display;
                                 font-size: 14px; font-weight: 800;
-                                color: root.wallet-balance-tone == "neg" ? #C62828
-                                    : (root.wallet-balance-tone == "pos" ? #2E7D32 : Theme.text-primary);
+                                color: root.wallet-balance-tone == "neg" ? Theme.danger
+                                    : (root.wallet-balance-tone == "pos" ? Theme.success : Theme.text-primary);
                             }
                             Text {
                                 text: root.total-amount > root.wallet-available-amount
@@ -1540,7 +1540,7 @@ export component PdvPage inherits VerticalLayout {
                                     : root.wallet-available-display;
                                 font-size: 10px;
                                 color: root.total-amount > root.wallet-available-amount
-                                    ? #C62828
+                                    ? Theme.danger
                                     : Theme.text-secondary;
                             }
                         }
@@ -1628,7 +1628,7 @@ export component PdvPage inherits VerticalLayout {
                             text: "Limpar Carrinho";
                             font-size: 11px; font-weight: 600;
                             color: root.cart-count > 0
-                                ? (clear-cart-btn-ta.has-hover ? #C62828 : Theme.text-secondary)
+                                ? (clear-cart-btn-ta.has-hover ? Theme.danger : Theme.text-secondary)
                                 : #BDBDBD;
                             horizontal-alignment: center; vertical-alignment: center;
                         }

@@ -25,8 +25,8 @@ component MoneyIcon inherits Rectangle {
     AssetIcon {
         width: 100%; height: 100%;
         icon-size: root.box * 0.46;
-        icon-color: root.tone == "pos" ? #2E7D32
-            : (root.tone == "neg" ? #E53935
+        icon-color: root.tone == "pos" ? Theme.success
+            : (root.tone == "neg" ? Theme.danger-hover
             : (root.on-dark ? #D6D3CA : Theme.text-secondary));
         source: root.tone == "neg"
             ? @image-url("../assets/icons/saida-estoque.svg")
@@ -161,7 +161,7 @@ component BreakdownRow inherits Rectangle {
             font-size: 12px; font-weight: 700;
             color: root.data.muted
                 ? Theme.text-secondary.transparentize(0.4)
-                : (root.data.negative ? #C62828 : #2E7D32);
+                : (root.data.negative ? Theme.danger : Theme.success);
             vertical-alignment: center;
         }
     }
@@ -180,7 +180,7 @@ component BreakdownGroup inherits HorizontalLayout {
         Rectangle {
             width: 8px; height: 8px;
             border-radius: 4px;
-            background: root.negative ? #E53935 : #2E7D32;
+            background: root.negative ? Theme.danger-hover : Theme.success;
         }
     }
     VerticalLayout {
@@ -194,7 +194,7 @@ component BreakdownGroup inherits HorizontalLayout {
         Text {
             text: root.total;
             font-size: 15px; font-weight: 800;
-            color: root.negative ? #C62828 : #2E7D32;
+            color: root.negative ? Theme.danger : Theme.success;
         }
     }
 }
@@ -333,7 +333,7 @@ export component TreasuryPage inherits VerticalLayout {
                     }
                     if root.setup-error != "": Text {
                         text: root.setup-error;
-                        font-size: 12px; color: #C62828; wrap: word-wrap;
+                        font-size: 12px; color: Theme.danger; wrap: word-wrap;
                     }
                     HorizontalLayout {
                         alignment: end;
@@ -579,7 +579,7 @@ export component TreasuryPage inherits VerticalLayout {
                                     Text {
                                         text: m.amount-display;
                                         font-size: 13px; font-weight: 800;
-                                        color: m.tone == "pos" ? #2E7D32 : #E53935;
+                                        color: m.tone == "pos" ? Theme.success : Theme.danger-hover;
                                         horizontal-alignment: right;
                                     }
                                 }
@@ -608,7 +608,7 @@ export component TreasuryPage inherits VerticalLayout {
                         Rectangle {
                             border-radius: 10px;
                             border-width: 1px;
-                            border-color: dep-ta.has-hover ? #2E7D32 : #C8E6C9;
+                            border-color: dep-ta.has-hover ? Theme.success : #C8E6C9;
                             background: dep-ta.has-hover ? #DCEFDC : #EDF7ED;
                             VerticalLayout {
                                 alignment: center;
@@ -617,13 +617,13 @@ export component TreasuryPage inherits VerticalLayout {
                                     alignment: center;
                                     AssetIcon {
                                         width: 18px; height: 18px; icon-size: 18px;
-                                        icon-color: #2E7D32;
+                                        icon-color: Theme.success;
                                         source: @image-url("../assets/icons/entrada-estoque.svg");
                                     }
                                 }
                                 Text {
                                     text: "Depositar";
-                                    font-size: 12.5px; font-weight: 700; color: #2E7D32;
+                                    font-size: 12.5px; font-weight: 700; color: Theme.success;
                                     horizontal-alignment: center;
                                 }
                             }
@@ -635,7 +635,7 @@ export component TreasuryPage inherits VerticalLayout {
                         Rectangle {
                             border-radius: 10px;
                             border-width: 1px;
-                            border-color: wit-ta.has-hover ? #E53935 : #FFCDD2;
+                            border-color: wit-ta.has-hover ? Theme.danger-hover : #FFCDD2;
                             background: wit-ta.has-hover ? #FBE0E0 : #FDEFEF;
                             VerticalLayout {
                                 alignment: center;
@@ -644,13 +644,13 @@ export component TreasuryPage inherits VerticalLayout {
                                     alignment: center;
                                     AssetIcon {
                                         width: 18px; height: 18px; icon-size: 18px;
-                                        icon-color: #E53935;
+                                        icon-color: Theme.danger-hover;
                                         source: @image-url("../assets/icons/saida-estoque.svg");
                                     }
                                 }
                                 Text {
                                     text: "Sacar";
-                                    font-size: 12.5px; font-weight: 700; color: #E53935;
+                                    font-size: 12.5px; font-weight: 700; color: Theme.danger-hover;
                                     horizontal-alignment: center;
                                 }
                             }
@@ -764,7 +764,7 @@ export component TreasuryPage inherits VerticalLayout {
                     TotalLine {
                         label: root.summary.net-label;
                         value: root.summary.net-display;
-                        value-color: root.summary.net-positive ? #2E7D32 : #C62828;
+                        value-color: root.summary.net-positive ? Theme.success : Theme.danger;
                     }
                     Rectangle {
                         height: 46px;
@@ -776,7 +776,7 @@ export component TreasuryPage inherits VerticalLayout {
                                 label: "SALDO ATUAL";
                                 value: root.summary.balance-display;
                                 value-size: 16px;
-                                value-color: root.summary.balance-negative ? #C62828 : #2E7D32;
+                                value-color: root.summary.balance-negative ? Theme.danger : Theme.success;
                             }
                         }
                     }
