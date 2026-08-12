@@ -1,6 +1,7 @@
 import { ScrollView } from "std-widgets.slint";
 import { Theme } from "../theme.slint";
 import { AssetIcon } from "../components/icons.slint";
+import { ListSearchBox } from "../components/list_toolbar.slint";
 import { FormCard } from "../components/form_card.slint";
 import { FormField } from "../components/form_fields.slint";
 import { ActionBtn, OutlineBtn } from "../components/buttons.slint";
@@ -165,39 +166,11 @@ export component InsumosPage inherits Rectangle {
                     }
                 }
 
-                // Busca (ícone + input; placeholder absoluto).
-                Rectangle {
-                    height: 36px;
-                    border-radius: 8px;
-                    border-width: 1px;
-                    border-color: search-input.has-focus ? Theme.primary : Theme.border;
-                    background: Theme.bg;
-                    HorizontalLayout {
-                        padding-left: 12px; padding-right: 12px; spacing: 8px;
-                        VerticalLayout {
-                            alignment: center; width: 15px;
-                            AssetIcon {
-                                width: 15px; height: 15px; icon-size: 15px;
-                                icon-color: search-input.has-focus ? Theme.primary : Theme.text-secondary;
-                                source: @image-url("../assets/icons/busca.svg");
-                            }
-                        }
-                        Rectangle {
-                            horizontal-stretch: 1;
-                            search-input := TextInput {
-                                x: 0; y: 0; width: parent.width; height: parent.height;
-                                text <=> InsumosState.insumos-search;
-                                font-size: Theme.fs-13; color: Theme.text-primary;
-                                vertical-alignment: center; single-line: true;
-                                edited => { InsumosState.search-insumos(self.text); }
-                            }
-                            if InsumosState.insumos-search == "": Text {
-                                x: 0; y: 0; width: parent.width; height: parent.height;
-                                text: "Buscar insumo…"; font-size: Theme.fs-13;
-                                color: Theme.text-secondary; vertical-alignment: center;
-                            }
-                        }
-                    }
+                // Busca — componente compartilhado do design system.
+                ListSearchBox {
+                    value <=> InsumosState.insumos-search;
+                    placeholder: "Buscar insumo…";
+                    changed => { InsumosState.search-insumos(InsumosState.insumos-search); }
                 }
 
                 ScrollView {

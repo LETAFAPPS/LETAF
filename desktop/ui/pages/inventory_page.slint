@@ -2,6 +2,7 @@ import { ScrollView } from "std-widgets.slint";
 import { Theme } from "../theme.slint";
 import { AssetIcon } from "../components/icons.slint";
 import { EmptyState } from "../components/empty_state.slint";
+import { ListSearchBox } from "../components/list_toolbar.slint";
 import { InventoryHealthData, InventoryProductRow } from "../types.slint";
 
 // ── Tela: Controle de Estoque ─────────────────────────────────────
@@ -392,48 +393,16 @@ export component InventoryPage inherits VerticalLayout {
                 }
             }
         }
-        // Busca (lupa + auto-focus).
-        Rectangle {
+        // Busca — componente compartilhado do design system (auto-foco).
+        search-box := ListSearchBox {
             horizontal-stretch: 1;
-            height: 32px;
-            border-radius: 8px;
-            border-width: 1px;
-            border-color: search-input.has-focus ? Theme.primary : Theme.card-border;
-            background: Theme.surface;
-            drop-shadow-blur: 6px;
-            drop-shadow-offset-y: 0px;
-            drop-shadow-color: Theme.card-shadow;
-            focus-timer := Timer {
-                interval: 80ms; running: true;
-                triggered => { search-input.focus(); self.running = false; }
-            }
-            HorizontalLayout {
-                padding-left: 14px; padding-right: 14px; spacing: 10px;
-                VerticalLayout {
-                    alignment: center; width: 16px;
-                    AssetIcon {
-                        width: 15px; height: 15px; icon-size: 15px;
-                        icon-color: search-input.has-focus ? Theme.primary : Theme.text-secondary;
-                        source: @image-url("../assets/icons/busca.svg");
-                    }
-                }
-                Rectangle {
-                    horizontal-stretch: 1;
-                    search-input := TextInput {
-                        x: 0; y: 0; width: parent.width; height: parent.height;
-                        text <=> root.search;
-                        font-size: Theme.fs-13; color: Theme.text-primary;
-                        vertical-alignment: center;
-                        single-line: true;
-                        edited => { root.search-changed(self.text); }
-                    }
-                    if root.search == "": Text {
-                        x: 0; y: 0; width: parent.width; height: parent.height;
-                        text: "Buscar produto..."; font-size: Theme.fs-13;
-                        color: Theme.text-secondary; vertical-alignment: center;
-                    }
-                }
-            }
+            value <=> root.search;
+            placeholder: "Buscar produto...";
+            changed => { root.search-changed(root.search); }
+        }
+        Timer {
+            interval: 80ms; running: true;
+            triggered => { search-box.focus-input(); self.running = false; }
         }
 
         // Filtro de Status — um único botão com menu suspenso (substitui as

@@ -2,8 +2,9 @@ import { ScrollView } from "std-widgets.slint";
 import { Theme } from "../theme.slint";
 import { ProductData, CategoryData, SubcategoryData, BusinessHoursData, DiscountTierData, AddonGroupData, VariationData, CategoryFilterEntry, SubcategoryFilterEntry } from "../types.slint";
 import { ActionBtn, OutlineBtn } from "../components/buttons.slint";
-import { SearchIcon, CameraIcon, AssetIcon } from "../components/icons.slint";
+import { CameraIcon, AssetIcon } from "../components/icons.slint";
 import { EmptyState } from "../components/empty_state.slint";
+import { ListSearchBox } from "../components/list_toolbar.slint";
 import { ProductFormPage } from "product_form_page.slint";
 
 // ── Tela de Produtos (master-detail, editor inline) ──────────────────────────
@@ -276,6 +277,9 @@ export component ProductsPage inherits Rectangle {
 
     background: Theme.bg;
 
+    // Texto da busca (bind ao ListSearchBox compartilhado).
+    property <string> search-query;
+
     // Auto-foco na busca ao entrar na tela.
     property <bool> focus-pending: true;
     Timer {
@@ -283,7 +287,7 @@ export component ProductsPage inherits Rectangle {
         running: root.focus-pending;
         triggered => {
             root.focus-pending = false;
-            search-input.focus();
+            search-box.focus-input();
         }
     }
 
@@ -384,37 +388,10 @@ export component ProductsPage inherits Rectangle {
                 // placeholder fica em coordenadas absolutas dentro do
                 // mesmo Rectangle (evita colidir com o cursor, que era
                 // o bug visível no HorizontalLayout anterior).
-                Rectangle {
-                    height: 36px;
-                    border-radius: 8px;
-                    border-width: 1px;
-                    border-color: search-input.has-focus ? Theme.primary : Theme.border;
-                    background: Theme.bg;
-                    Rectangle {
-                        x: 10px; y: 0; width: 16px; height: parent.height;
-                        VerticalLayout {
-                            alignment: center;
-                            SearchIcon { icon-size: 14px; icon-color: Theme.text-secondary; }
-                        }
-                    }
-                    search-input := TextInput {
-                        x: 32px; y: 0;
-                        width: parent.width - 42px;
-                        height: parent.height;
-                        font-size: Theme.fs-13;
-                        color: Theme.text-primary;
-                        vertical-alignment: center;
-                        single-line: true;
-                        edited => { root.search-changed(self.text); }
-                    }
-                    if search-input.text == "" && !search-input.has-focus: Text {
-                        x: 32px; y: 0;
-                        height: parent.height;
-                        text: "Buscar produto…";
-                        font-size: Theme.fs-13;
-                        color: Theme.text-secondary;
-                        vertical-alignment: center;
-                    }
+                search-box := ListSearchBox {
+                    value <=> root.search-query;
+                    placeholder: "Buscar produto…";
+                    changed => { root.search-changed(root.search-query); }
                 }
 
                 ScrollView { vertical-scrollbar-policy: ScrollBarPolicy.always-off; horizontal-scrollbar-policy: ScrollBarPolicy.always-off;
