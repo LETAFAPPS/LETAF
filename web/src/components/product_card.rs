@@ -41,7 +41,9 @@ pub fn ProductCard(product: CatalogProduct) -> impl IntoView {
     let favs = expect_context::<Favorites>();
     let id_read = product.id.clone();
     let id_toggle = product.id.clone();
-    let is_fav = move || favs.0.with(|s| s.contains(&id_read));
+    // Memo (Copy) para reusar em `class:` e nos aria-* do botão sem
+    // reclonar o id — reativo ao conjunto de favoritos.
+    let is_fav = Memo::new(move |_| favs.0.with(|s| s.contains(&id_read)));
     let toggle = move |_| {
         favs.0.update(|s| {
             if !s.remove(&id_toggle) {
@@ -95,13 +97,17 @@ pub fn ProductCard(product: CatalogProduct) -> impl IntoView {
                         </button>
                         <div class="carousel-dots">
                             {(0..n_imgs).map(|k| view! {
-                                <span class="dot" class:dot-on=move || img_idx.get() == k></span>
+                                <button class="dot" class:dot-on=move || img_idx.get() == k
+                                    aria-label=move || format!("Ver imagem {}", k + 1)
+                                    on:click=move |_| set_img_idx.set(k)></button>
                             }).collect_view()}
                         </div>
                     }.into_any()
                 }}
                 {seal.map(|s| view! { <span class="discount-seal">{s}</span> })}
-                <button class="fav" class:fav-on=is_fav on:click=toggle aria-label="Favoritar">
+                <button class="fav" class:fav-on=move || is_fav.get() on:click=toggle
+                    aria-pressed=move || is_fav.get().to_string()
+                    aria-label=move || if is_fav.get() { "Remover dos favoritos" } else { "Adicionar aos favoritos" }>
                     "♥"
                 </button>
                 {move || (!available.get()).then(|| view! {

@@ -8,10 +8,10 @@
 // `restaurante` é o default (visual atual do sistema) e fica no `:root`.
 :root {
     // Laranja de marca — visual atual (tema "restaurante").
-    --brand: #e8731c;
+    --brand: #e8731c; // marca restaurante (default)
     --price: #66bb6a;
     --ink: #1a1a1a;
-    --muted: #9ca3af;
+    --muted: #6b7280; // contraste AA (era #9ca3af, ~2.5:1 sobre branco)
     --line: #e5e7eb;
 }
 
@@ -22,7 +22,7 @@
     --brand: #2563eb;
     --price: #16a34a;
     --ink: #111827;
-    --muted: #94a3b8;
+    --muted: #64748b; // contraste AA (era #94a3b8)
     --line: #e5e7eb;
 }
 
@@ -31,7 +31,7 @@
     --brand: #0e7490;
     --price: #16a34a;
     --ink: #0f172a;
-    --muted: #94a3b8;
+    --muted: #64748b; // contraste AA (era #94a3b8)
     --line: #e2e8f0;
 }
 
@@ -123,10 +123,14 @@ main {
 .banner-dot {
     width: 8px;
     height: 8px;
-    padding: 0;
+    // Área de toque ~20-24px sem inflar o ponto visível (pinta só o
+    // content-box). Alvo de 8px era pequeno demais para o dedo.
+    box-sizing: content-box;
+    padding: 8px 6px;
     border: none;
-    border-radius: 4px;
+    border-radius: 8px;
     background: rgba(255, 255, 255, 0.6);
+    background-clip: content-box;
     cursor: pointer;
     transition: width 0.2s;
 
@@ -173,7 +177,7 @@ main {
 // ── Grid de produtos ────────────────────────────────────────
 .product-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
     gap: 0.75rem;
 }
 
@@ -231,6 +235,9 @@ main {
             &:hover { background: rgba(0, 0, 0, 0.65); }
         }
         &:hover .carousel-nav { opacity: 1; }
+        // Dispositivos de toque não têm :hover — as setas ficam sempre
+        // visíveis, senão a galeria seria inutilizável no celular.
+        @media (hover: none) { .carousel-nav { opacity: 1; } }
 
         .carousel-dots {
             position: absolute;
@@ -244,6 +251,11 @@ main {
             .dot {
                 width: 6px;
                 height: 6px;
+                padding: 0;
+                border: none;
+                appearance: none;
+                -webkit-appearance: none;
+                cursor: pointer;
                 border-radius: 50%;
                 background: rgba(255, 255, 255, 0.6);
                 box-shadow: 0 0 2px rgba(0, 0, 0, 0.4);
@@ -332,7 +344,7 @@ main {
 }
 
 .state {
-    color: #888;
+    color: var(--muted);
     text-align: center;
     padding: 2rem 0;
     &.error { color: #dc2626; }
@@ -551,7 +563,7 @@ textarea.field {
     &.chip-on {
         border-color: var(--brand);
         color: var(--brand);
-        background: rgba(232, 115, 28, 0.08);
+        background: color-mix(in srgb, var(--brand) 8%, transparent);
     }
 }
 .cart-address {
@@ -676,7 +688,7 @@ textarea.field {
 
     &:last-child { border-bottom: none; }
     &:disabled { cursor: not-allowed; opacity: 0.5; }
-    &.opt-sel { background: #fff7ed; }
+    &.opt-sel { background: color-mix(in srgb, var(--brand) 8%, transparent); }
 }
 .opt-name { flex: 1; min-width: 0; }
 .opt-price { font-size: 0.82rem; font-weight: 600; color: var(--price); flex-shrink: 0; }
@@ -855,11 +867,25 @@ button.ind { cursor: pointer; padding: 0; }
     padding: 2px 8px;
     font-size: 0.72rem;
 }
-.acc-order-date { color: #9ca3af; font-size: 0.76rem; }
+.acc-order-date { color: var(--muted); font-size: 0.76rem; }
 .acc-order-total { margin-left: auto; font-weight: 700; color: var(--price); }
 .account-logout {
     margin-top: 10px;
     align-self: flex-start;
     border-color: #dc2626;
     color: #dc2626;
+}
+
+// Acessibilidade: respeita quem pede menos movimento (SO/navegador).
+// Neutraliza transições e animações (inclui o auto-avanço do banner e os
+// efeitos de hover/scale), sem quebrar layout.
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.001ms !important;
+        scroll-behavior: auto !important;
+    }
 }

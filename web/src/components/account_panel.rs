@@ -116,7 +116,7 @@ pub fn AccountPanel(on_close: Callback<()>) -> impl IntoView {
                                                     <span class="acc-order-num">"#" {o.number}</span>
                                                     <span class="acc-order-status">{o.status}</span>
                                                     <span class="acc-order-date">
-                                                        {o.created_at.chars().take(10).collect::<String>()}
+                                                        {format::iso_date_br(&o.created_at)}
                                                     </span>
                                                     <span class="acc-order-total">{format::money(o.total)}</span>
                                                 </div>

@@ -18,7 +18,7 @@ pub fn AuthModal(on_close: Callback<()>) -> impl IntoView {
     let (error, set_error) = signal(String::new());
     let (busy, set_busy) = signal(false);
 
-    let submit = move |_| {
+    let submit = move || {
         if busy.get_untracked() {
             return;
         }
@@ -55,11 +55,12 @@ pub fn AuthModal(on_close: Callback<()>) -> impl IntoView {
                     <div class="pm-name">
                         {move || if is_register.get() { "Criar conta" } else { "Entrar" }}
                     </div>
-                    <button class="cart-close" on:click=move |_| on_close.run(()) aria-label="Fechar">
+                    <button type="button" class="cart-close" on:click=move |_| on_close.run(()) aria-label="Fechar">
                         "✕"
                     </button>
                 </header>
-                <div class="auth-body">
+                <form class="auth-body"
+                    on:submit=move |ev: leptos::ev::SubmitEvent| { ev.prevent_default(); submit(); }>
                     {move || is_register.get().then(|| view! {
                         <input
                             class="field"
@@ -92,7 +93,7 @@ pub fn AuthModal(on_close: Callback<()>) -> impl IntoView {
                     />
                     {move || (!error.get().is_empty())
                         .then(|| view! { <p class="auth-error">{error.get()}</p> })}
-                    <button class="pm-add auth-submit" disabled=move || busy.get() on:click=submit>
+                    <button type="submit" class="pm-add auth-submit" disabled=move || busy.get()>
                         {move || if busy.get() {
                             "Aguarde…".to_string()
                         } else if is_register.get() {
@@ -102,6 +103,7 @@ pub fn AuthModal(on_close: Callback<()>) -> impl IntoView {
                         }}
                     </button>
                     <button
+                        type="button"
                         class="auth-toggle"
                         on:click=move |_| {
                             set_error.set(String::new());
@@ -114,7 +116,7 @@ pub fn AuthModal(on_close: Callback<()>) -> impl IntoView {
                             "Criar uma conta"
                         }}
                     </button>
-                </div>
+                </form>
             </div>
         </div>
     }

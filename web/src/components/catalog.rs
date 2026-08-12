@@ -53,9 +53,18 @@ pub fn CatalogPage() -> impl IntoView {
             {move || Suspend::new(async move {
                 match catalog.await {
                     Ok(data) => view! { <CatalogView data/> }.into_any(),
-                    Err(e) => view! {
-                        <p class="state error">"Erro ao carregar o cardápio: " {e.to_string()}</p>
-                    }.into_any(),
+                    Err(e) => {
+                        // Mensagem amigável (sem jargão do ServerFnError) + caminho
+                        // de recuperação. Antes exibia o erro técnico cru e sem saída.
+                        let detalhe = crate::format::server_error(&e.to_string());
+                        view! {
+                            <div class="state error">
+                                <p>"Não foi possível carregar o cardápio. Verifique a conexão e tente novamente."</p>
+                                <p style="font-size:.8rem;opacity:.7;margin:.25rem 0 .9rem">{detalhe}</p>
+                                <button class="add-btn" on:click=move |_| catalog.refetch()>"Tentar de novo"</button>
+                            </div>
+                        }.into_any()
+                    },
                 }
             })}
         </Suspense>
@@ -156,7 +165,7 @@ fn CatalogView(data: CatalogData) -> impl IntoView {
         <header class="store-header">
             {cover.map(|c| view! { <img class="store-cover" src=c alt=""/> })}
             <div class="store-id">
-                {logo.map(|l| view! { <img class="store-logo" src=l alt=""/> })}
+                {logo.map({ let n = nome.clone(); move |l| view! { <img class="store-logo" src=l alt=n/> } })}
                 <h1 class="store-name">{nome}</h1>
                 {move || availability::store_status(
                     &business_hours.hours, &business_hours.store_override, now.0.get(),
