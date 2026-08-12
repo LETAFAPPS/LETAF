@@ -1,7 +1,7 @@
 import { ScrollView } from "std-widgets.slint";
 import { Theme } from "../theme.slint";
 import { OrderData, OrderItemData } from "../types.slint";
-import { Card } from "../components/cards.slint";
+import { ModalFrame } from "../components/modal_frame.slint";
 import { ActionBtn, OutlineBtn } from "../components/buttons.slint";
 import { AssetIcon } from "../components/icons.slint";
 import { StruckText } from "../components/struck_text.slint";
@@ -26,23 +26,13 @@ export component ReceiptModal inherits Rectangle {
     callback close();
     callback print();
 
-    background: Theme.scrim;
+    width: 100%;
+    height: 100%;
 
     // Clique fora do painel fecha.
-    TouchArea { clicked => { root.close(); } }
-
-    VerticalLayout {
-        alignment: center;
-        HorizontalLayout {
-            alignment: center;
-            Card {
-                width: 420px;
-                // Recorta filhos pelos cantos arredondados do Card —
-                // sem isso, o cabeçalho e a área "papel" cobrem os
-                // cantos e o modal aparece quadrado.
-                clip: true;
-                // Absorve cliques dentro do modal (não fecha).
-                TouchArea { }
+    ModalFrame {
+        card-width: 420px;
+        close => { root.close(); }
 
                 VerticalLayout {
                     padding: 0px;
@@ -340,7 +330,5 @@ export component ReceiptModal inherits Rectangle {
                         }
                     }
                 }
-            }
-        }
     }
 }

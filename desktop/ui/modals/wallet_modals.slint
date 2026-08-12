@@ -1,6 +1,6 @@
 import { Theme } from "../theme.slint";
 import { AssetIcon } from "../components/icons.slint";
-import { Card } from "../components/cards.slint";
+import { ModalFrame } from "../components/modal_frame.slint";
 import { ActionBtn, OutlineBtn } from "../components/buttons.slint";
 
 // ── Modais da carteira do cliente ────────────────────────────────
@@ -28,21 +28,15 @@ component WalletFormModal inherits Rectangle {
     callback close();
     callback confirm();
 
-    background: Theme.scrim;
-    TouchArea { clicked => { root.close(); } }
-    VerticalLayout {
-        alignment: center;
-        HorizontalLayout {
-            alignment: center;
-            Card {
-                width: 440px;
-                // Sem altura explícita as seções internas estouravam o
-                // card (o botão do rodapé caía FORA do modal); com o
-                // clip, as faixas full-bleed respeitam as pontas
-                // arredondadas do Card.
-                height: hdr.preferred-height + body.preferred-height + ftr.preferred-height;
-                clip: true;
-                TouchArea { }
+    width: 100%;
+    height: 100%;
+
+    ModalFrame {
+        card-width: 440px;
+        // Altura fixa: as faixas full-bleed (header/body/footer) precisam
+        // reservar espaço exato — sem isso o botão do rodapé estourava o card.
+        card-height: hdr.preferred-height + body.preferred-height + ftr.preferred-height;
+        close => { root.close(); }
 
                 VerticalLayout {
                     padding: 0px; spacing: 0px;
@@ -186,8 +180,6 @@ component WalletFormModal inherits Rectangle {
                         }
                     }
                 }
-            }
-        }
     }
 }
 

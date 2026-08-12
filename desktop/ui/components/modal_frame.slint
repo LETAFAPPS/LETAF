@@ -19,6 +19,10 @@ import { Card } from "cards.slint";
 export component ModalFrame inherits Rectangle {
     in property <length> card-width: 440px;
     in property <length> card-radius: Theme.radius-3xl;
+    // Altura opcional. 0 (padrão) = card dimensionado pelo conteúdo;
+    // >0 = altura fixa (modais com faixas full-bleed que precisam
+    // reservar espaço exato para header/body/footer).
+    in property <length> card-height: 0px;
     callback close();
 
     width: 100%;
@@ -34,7 +38,11 @@ export component ModalFrame inherits Rectangle {
             alignment: center;
             Card {
                 width: root.card-width;
+                height: root.card-height > 0px ? root.card-height : self.preferred-height;
                 border-radius: root.card-radius;
+                // Recorta o conteúdo aos cantos arredondados (ex.: header
+                // colorido full-bleed do alarme não vaza das quinas).
+                clip: true;
                 // Absorve cliques DENTRO do card (não fecha).
                 TouchArea { }
                 @children
