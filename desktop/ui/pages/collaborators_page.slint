@@ -5,6 +5,7 @@ import { FormField, PasswordField } from "../components/form_fields.slint";
 import { ActionBtn, OutlineBtn } from "../components/buttons.slint";
 import { AssetIcon, SearchIcon } from "../components/icons.slint";
 import { EmptyState } from "../components/empty_state.slint";
+import { Switch } from "../components/switch.slint";
 
 // ── Tela de Colaboradores (RBAC) ─────────────────────────────────────────────
 // Duas abas: Funções (cargo + permissões por tela) e Funcionários (login +
@@ -199,23 +200,6 @@ component MarkAllBtn inherits TouchArea {
 }
 
 // Interruptor (switch) — accent ligado / cinza desligado.
-component Toggle inherits TouchArea {
-    in property <bool> on;
-    callback changed(bool);
-    width: 42px; height: 24px;
-    clicked => { root.changed(!root.on); }
-    Rectangle {
-        border-radius: Theme.radius-2xl;
-        background: root.on ? Theme.accent : Theme.border;
-        Rectangle {
-            width: 18px; height: 18px; border-radius: Theme.radius-lg;
-            y: (parent.height - self.height) / 2;
-            x: root.on ? parent.width - self.width - 3px : 3px;
-            background: white;
-        }
-    }
-}
-
 // Card de uma permissão na grade (nome/descrição + toggle Ver [+ Editar]).
 component PermCard inherits Rectangle {
     in property <CollabPermRow> data;
@@ -239,13 +223,13 @@ component PermCard inherits Rectangle {
         VerticalLayout {
             alignment: center;
             spacing: 3px;
-            Toggle { on: root.data.view-on; changed(v) => { root.toggle(false, v); } }
+            Switch { on: root.data.view-on; toggled(v) => { root.toggle(false, v); } }
             Text { text: "Ver"; font-size: 9px; color: Theme.text-secondary; horizontal-alignment: center; }
         }
         if root.data.has-edit: VerticalLayout {
             alignment: center;
             spacing: 3px;
-            Toggle { on: root.data.edit-on; changed(v) => { root.toggle(true, v); } }
+            Switch { on: root.data.edit-on; toggled(v) => { root.toggle(true, v); } }
             Text { text: "Editar"; font-size: 9px; color: Theme.text-secondary; horizontal-alignment: center; }
         }
     }

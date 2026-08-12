@@ -6,6 +6,7 @@ import { AdminUserRow } from "../types.slint";
 import { EmptyState } from "../components/empty_state.slint";
 import { ListSearchBox, ListAddBtn } from "../components/list_toolbar.slint";
 import { AssetIcon } from "../components/icons.slint";
+import { Switch } from "../components/switch.slint";
 
 // Botão de ação só-ícone (editar / excluir) — mesmo estilo da tela Empresas.
 component IconActionBtn inherits TouchArea {
@@ -26,24 +27,6 @@ component IconActionBtn inherits TouchArea {
 }
 
 // Interruptor liga/desliga (ativa/desativa o acesso do usuário).
-component ToggleSwitch inherits TouchArea {
-    in property <bool> on;
-    width: 46px; height: 26px;
-    Rectangle {
-        width: parent.width; height: parent.height;
-        border-radius: self.height / 2;
-        background: root.on ? Theme.info : #BDBDBD;
-        animate background { duration: 120ms; }
-        Rectangle {
-            width: 20px; height: 20px; border-radius: Theme.radius-xl;
-            background: white;
-            x: root.on ? parent.width - self.width - 3px : 3px;
-            y: (parent.height - self.height) / 2;
-            animate x { duration: 120ms; }
-        }
-    }
-}
-
 // Card de UM usuário na lista.
 component UserCard inherits Rectangle {
     in property <AdminUserRow> u;
@@ -107,9 +90,9 @@ component UserCard inherits Rectangle {
         // Ativo/inativo (só para não-master).
         if !root.is-master: VerticalLayout {
             alignment: center;
-            ToggleSwitch {
+            Switch {
                 on: root.u.active;
-                clicked => { root.toggle-active(); }
+                toggled => { root.toggle-active(); }
             }
         }
         Rectangle { width: 8px; }

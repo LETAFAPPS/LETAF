@@ -4,25 +4,8 @@ import { Theme } from "../theme.slint";
 import { FormField } from "../components/form_fields.slint";
 import { OutlineBtn } from "../components/buttons.slint";
 import { ModalShell } from "../components/modal_shell.slint";
+import { Switch } from "../components/switch.slint";
 
-// Interruptor liga/desliga (padrão do sistema).
-component Toggle inherits TouchArea {
-    in property <bool> on;
-    callback toggled();
-    width: 46px; height: 26px;
-    clicked => { root.toggled(); }
-    Rectangle {
-        border-radius: 13px;
-        background: root.on ? Theme.sidebar-sel-bg : Theme.border;
-        Rectangle {
-            width: 20px; height: 20px; border-radius: Theme.radius-xl;
-            background: white;
-            x: root.on ? parent.width - self.width - 3px : 3px;
-            y: (parent.height - self.height) / 2;
-            animate x { duration: 120ms; easing: ease-in-out; }
-        }
-    }
-}
 
 export component AdminPlanModal inherits Rectangle {
     in property <string> form-id;
@@ -72,7 +55,7 @@ export component AdminPlanModal inherits Rectangle {
                     text: "Ativo"; font-size: Theme.fs-13; color: Theme.text-primary;
                     vertical-alignment: center; horizontal-stretch: 1;
                 }
-                Toggle { on: root.form-active; toggled => { root.form-active = !root.form-active; } }
+                Switch { on: root.form-active; toggled(v) => { root.form-active = v; } }
             }
             HorizontalLayout {
                 alignment: end;

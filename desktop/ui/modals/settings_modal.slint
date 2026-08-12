@@ -4,6 +4,7 @@ import { AssetIcon } from "../components/icons.slint";
 import { Card } from "../components/cards.slint";
 import { TimeInput } from "../components/form_fields.slint";
 import { ActionBtn, OutlineBtn } from "../components/buttons.slint";
+import { Switch } from "../components/switch.slint";
 
 // ── Modal: editar horário de funcionamento ────────────────────────────────────
 
@@ -41,21 +42,9 @@ export component SettingsModal inherits Rectangle {
                     HorizontalLayout {
                         spacing: 12px;
                         Text { text: "Status"; font-size: Theme.fs-body; color: Theme.text-primary; vertical-alignment: center; horizontal-stretch: 1; }
-                        toggle-ta := TouchArea {
-                            width: 52px; height: 28px;
-                            clicked => { root.bh-is-open = !root.bh-is-open; }
-                            Rectangle {
-                                border-radius: Theme.radius-3xl;
-                                background: root.bh-is-open ? Theme.sidebar-sel-bg : #BDBDBD;
-                                Rectangle {
-                                    width: 22px; height: 22px;
-                                    border-radius: 11px;
-                                    background: white;
-                                    x: root.bh-is-open ? parent.width - self.width - 3px : 3px;
-                                    y: (parent.height - self.height) / 2;
-                                    animate x { duration: 150ms; }
-                                }
-                            }
+                        Switch {
+                            on: root.bh-is-open;
+                            toggled(v) => { root.bh-is-open = v; }
                         }
                     }
 

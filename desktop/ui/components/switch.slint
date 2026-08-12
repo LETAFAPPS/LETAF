@@ -1,0 +1,43 @@
+import { Theme } from "../theme.slint";
+
+// Switch (liga/desliga) — FONTE ÚNICA do design system.
+//
+// Antes reimplementado em 3+ lugares com tamanhos e cores divergentes:
+// `ToggleSwitch` (admin, on=azul), `Toggle` (colaboradores, on=accent) e
+// inline em settings/plano/empresas (on=sidebar-sel-bg). Agora um só
+// componente, com o acento da MARCA no estado ligado e neutro no desligado.
+//
+// Uso:
+//   Switch { on: minha-flag; toggled(v) => { minha-flag = v; } }
+export component Switch inherits TouchArea {
+    in property <bool> on;
+    /// Cor do estado LIGADO. Default = marca; pode ser sobrescrita se um
+    /// contexto específico precisar (ex.: manter azul no painel admin).
+    in property <color> on-color: Theme.primary;
+    /// Emitido no clique com o NOVO valor.
+    callback toggled(bool);
+
+    width: 46px;
+    height: 26px;
+    mouse-cursor: pointer;
+    clicked => { root.toggled(!root.on); }
+
+    Rectangle {
+        width: parent.width;
+        height: parent.height;
+        border-radius: self.height / 2;
+        background: root.on ? root.on-color : Theme.border;
+        animate background { duration: 120ms; }
+
+        // Botão deslizante (knob) circular.
+        Rectangle {
+            width: 20px;
+            height: 20px;
+            border-radius: self.height / 2;
+            background: white;
+            x: root.on ? parent.width - self.width - 3px : 3px;
+            y: (parent.height - self.height) / 2;
+            animate x { duration: 120ms; }
+        }
+    }
+}

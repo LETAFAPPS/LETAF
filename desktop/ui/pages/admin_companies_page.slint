@@ -12,6 +12,7 @@ import { ActionBtn, OutlineBtn } from "../components/buttons.slint";
 import { EmptyState } from "../components/empty_state.slint";
 import { AssetIcon } from "../components/icons.slint";
 import { FormCard, ImagePicker } from "../components/form_card.slint";
+import { Switch } from "../components/switch.slint";
 
 // Status da assinatura: retângulo de pontas arredondadas (a pedido).
 // Cores por status: ativa=verde, vencida=laranja, cancelada=vermelho,
@@ -41,24 +42,6 @@ component StatusBadge inherits Rectangle {
 }
 
 // Interruptor liga/desliga: ativa (azul) / suspende (cinza) o tenant.
-component ToggleSwitch inherits TouchArea {
-    in property <bool> on;
-    width: 46px; height: 26px;
-    Rectangle {
-        width: parent.width; height: parent.height;
-        border-radius: self.height / 2;
-        background: root.on ? Theme.info : #BDBDBD;
-        animate background { duration: 120ms; }
-        Rectangle {
-            width: 20px; height: 20px; border-radius: Theme.radius-xl;
-            background: white;
-            x: root.on ? parent.width - self.width - 3px : 3px;
-            y: (parent.height - self.height) / 2;
-            animate x { duration: 120ms; }
-        }
-    }
-}
-
 // Botão de ação só-ícone (editar / excluir) do card.
 component IconActionBtn inherits TouchArea {
     in property <image> icon;
@@ -237,9 +220,9 @@ component CompanyCard inherits Rectangle {
         // Ações: liga/desliga à ESQUERDA; gerenciar (maleta) + visualizar + editar.
         VerticalLayout {
             alignment: center;
-            ToggleSwitch {
+            Switch {
                 on: root.c.active;
-                clicked => { root.toggle-active(); }
+                toggled => { root.toggle-active(); }
             }
         }
         // Espaçador: separa o liga/desliga dos botões de ação.
