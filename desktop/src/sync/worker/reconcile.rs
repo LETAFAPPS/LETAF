@@ -55,6 +55,29 @@ impl SyncWorker {
                 }
             }
         }
+
+        // Rede anti-entropia para as 2 entidades FORA do manifesto por id
+        // (`business_hours`, `treasury_accounts`): elas são excluídas do
+        // `RECONCILE_TABLES` porque a comparação por `id` causaria ping-pong com
+        // ids legados (resolvem por chave natural). Sem isso, um registro dessas
+        // cujo `updated_at` caiu abaixo do cursor (drift de relógio, escrita
+        // fora de ordem) nunca é recuperado pelo incremental. Como são
+        // minúsculas (tesouraria = 1 linha; horários ≤ 7), re-puxá-las desde a
+        // época a cada reconcile (~5 min) é irrisório e restaura a convergência.
+        let epoch = NaiveDateTime::default();
+        let repulls = [
+            ("business_hours", self.pull_business_hours(token, epoch, epoch).await),
+            ("treasury_accounts", self.pull_treasury_accounts(token, epoch, epoch).await),
+        ];
+        for (label, res) in repulls {
+            match res {
+                Ok(_) => {}
+                Err(CoreError::Forbidden(_)) => {
+                    tracing::debug!("Reconcile re-pull {label}: sem permissão para este usuário");
+                }
+                Err(e) => tracing::warn!("Reconcile re-pull {label}: {e}"),
+            }
+        }
     }
 
     /// Re-puxa UMA entidade desde a época (traz tudo do servidor; upsert LWW

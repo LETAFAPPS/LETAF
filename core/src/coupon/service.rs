@@ -216,6 +216,17 @@ impl CouponService {
         self.repo.find_updated_since(company_id, since).await
     }
 
+    /// Página do pull por keyset `(updated_at, id)` — ver trait.
+    pub async fn find_updated_since_paged(
+        &self,
+        company_id: Uuid,
+        since: NaiveDateTime,
+        after_id: Uuid,
+        limit: i64,
+    ) -> Result<Vec<Coupon>, CoreError> {
+        self.repo.find_updated_since_paged(company_id, since, after_id, limit).await
+    }
+
     pub async fn sync_upsert(
         &self,
         company_id: Uuid,

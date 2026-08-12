@@ -273,7 +273,7 @@ impl SyncWorker {
     }
 
     pub(super) async fn pull_coupons(&self, token: &str, since: NaiveDateTime, mut max_ts: NaiveDateTime) -> Result<NaiveDateTime, CoreError> {
-        let items: Vec<Coupon> = self.fetch_pull(token, "/sync/pull/coupons", since).await?;
+        let items: Vec<Coupon> = self.fetch_pull_paged(token, "/sync/pull/coupons", since).await?;
         let cid = self.state.company_id();
         for item in items {
             if item.base.updated_at > max_ts { max_ts = item.base.updated_at; }
