@@ -13,6 +13,18 @@
     --ink: #1a1a1a;
     --muted: #6b7280; // contraste AA (era #9ca3af, ~2.5:1 sobre branco)
     --line: #e5e7eb;
+    // Tokens NÃO-tematizados (iguais em todos os tipos de empresa): fonte
+    // única de superfície, semântica e elevação — antes espalhados como
+    // literais (#fff, var(--danger), sombras repetidas) por todo o CSS.
+    --surface: #fff;
+    --surface-2: #f9fafb;
+    --surface-3: #f3f4f6;
+    --on-brand: #fff;       // texto/ícone sobre --brand/--price
+    --line-strong: #d1d5db; // borda de controle (mais forte que --line)
+    --danger: #dc2626;
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.07);
+    --shadow-md: 0 4px 14px rgba(0, 0, 0, 0.2);
+    --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.3);
 }
 
 // Loja (varejo) — marca azul, mais "e-commerce". O slug vai no wrapper
@@ -33,6 +45,26 @@
     --ink: #0f172a;
     --muted: #64748b; // contraste AA (era #94a3b8)
     --line: #e2e8f0;
+}
+
+// ── Placeholders do design system (fonte ÚNICA reaproveitada via @extend) ──
+// Antes cada botão/card repetia o mesmo bloco (§8 — duplicação). Agora o
+// código comum vive num só lugar; cada uso @extend-e e só acrescenta o que é
+// próprio (tamanho/raio/fonte). A saída CSS é equivalente — visual idêntico.
+%btn-primary {
+    border: none;
+    background: var(--brand);
+    color: var(--on-brand);
+    font-family: inherit;
+    font-weight: 700;
+    cursor: pointer;
+}
+%btn-text {
+    border: none;
+    background: transparent;
+    color: var(--brand);
+    font-family: inherit;
+    cursor: pointer;
 }
 
 * { box-sizing: border-box; }
@@ -347,22 +379,17 @@ main {
     color: var(--muted);
     text-align: center;
     padding: 2rem 0;
-    &.error { color: #dc2626; }
+    &.error { color: var(--danger); }
 }
 
 // ── Botão "+ Adicionar" do card ─────────────────────────────
 .add-btn {
+    @extend %btn-primary;
     margin-top: 8px;
     width: 100%;
     padding: 7px 10px;
-    border: none;
     border-radius: 8px;
-    background: var(--brand);
-    color: #fff;
-    font-family: inherit;
     font-size: 0.8rem;
-    font-weight: 700;
-    cursor: pointer;
     transition: filter 0.15s;
 
     &:hover { filter: brightness(1.05); }
@@ -418,10 +445,11 @@ main {
     background: #16a34a;
     flex-shrink: 0;
 }
-.store-status.closed .store-dot { background: #dc2626; }
+.store-status.closed .store-dot { background: var(--danger); }
 
 // ── Carrinho: botão flutuante + drawer ──────────────────────
 .cart-fab {
+    @extend %btn-primary;
     position: fixed;
     bottom: 16px;
     left: 50%;
@@ -431,15 +459,9 @@ main {
     align-items: center;
     gap: 10px;
     padding: 12px 18px;
-    border: none;
     border-radius: 999px;
-    background: var(--brand);
-    color: #fff;
-    font-family: inherit;
     font-size: 0.9rem;
-    font-weight: 700;
-    cursor: pointer;
-    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+    box-shadow: var(--shadow-md);
 }
 .cart-fab-badge {
     background: #fff;
@@ -577,14 +599,11 @@ textarea.field {
     gap: 0.4rem;
 }
 .link-btn {
+    @extend %btn-text;
     align-self: flex-start;
     padding: 0;
-    border: 0;
-    background: none;
-    color: var(--brand);
     font-size: 0.88rem;
     font-weight: 600;
-    cursor: pointer;
 }
 .cart-success {
     flex: 1;
@@ -612,16 +631,11 @@ textarea.field {
     justify-content: center;
 }
 .cart-checkout {
+    @extend %btn-primary;
     width: 100%;
     padding: 12px;
-    border: none;
     border-radius: 10px;
-    background: var(--brand);
-    color: #fff;
-    font-family: inherit;
     font-size: 0.95rem;
-    font-weight: 700;
-    cursor: pointer;
 
     &:disabled { background: var(--muted); cursor: not-allowed; opacity: 0.85; }
 }
@@ -645,7 +659,7 @@ textarea.field {
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+    box-shadow: var(--shadow-lg);
 }
 .pm-head {
     display: flex;
@@ -744,15 +758,10 @@ button.ind { cursor: pointer; padding: 0; }
 .pm-total-label { font-size: 0.7rem; color: #6b7280; }
 .pm-total-value { font-size: 1.15rem; font-weight: 700; color: var(--price); }
 .pm-add {
+    @extend %btn-primary;
     padding: 10px 18px;
-    border: none;
     border-radius: 10px;
-    background: var(--brand);
-    color: #fff;
-    font-family: inherit;
     font-size: 0.95rem;
-    font-weight: 700;
-    cursor: pointer;
 
     &:disabled { background: var(--muted); cursor: not-allowed; opacity: 0.85; }
 }
@@ -783,7 +792,7 @@ button.ind { cursor: pointer; padding: 0; }
     background: #fff;
     border-radius: 14px;
     width: min(360px, 100%);
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+    box-shadow: var(--shadow-lg);
     overflow: hidden;
 }
 .auth-body {
@@ -802,16 +811,12 @@ button.ind { cursor: pointer; padding: 0; }
 
     &:focus { outline: 2px solid var(--brand); outline-offset: -1px; }
 }
-.auth-error { color: #dc2626; font-size: 0.8rem; margin: 0; }
+.auth-error { color: var(--danger); font-size: 0.8rem; margin: 0; }
 .auth-submit { width: 100%; }
 .auth-toggle {
-    border: none;
-    background: transparent;
-    color: var(--brand);
-    font-family: inherit;
+    @extend %btn-text;
     font-size: 0.82rem;
     font-weight: 600;
-    cursor: pointer;
     padding: 4px;
 }
 
@@ -824,7 +829,7 @@ button.ind { cursor: pointer; padding: 0; }
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+    box-shadow: var(--shadow-lg);
 }
 .account-body {
     padding: 12px 18px 18px;
@@ -872,8 +877,8 @@ button.ind { cursor: pointer; padding: 0; }
 .account-logout {
     margin-top: 10px;
     align-self: flex-start;
-    border-color: #dc2626;
-    color: #dc2626;
+    border-color: var(--danger);
+    color: var(--danger);
 }
 
 // Acessibilidade: respeita quem pede menos movimento (SO/navegador).
