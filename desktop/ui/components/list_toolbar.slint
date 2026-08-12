@@ -22,6 +22,8 @@ export component ListSearchBox inherits Rectangle {
     in-out property <string> value;
     in property <string> placeholder: "Buscar...";
     callback changed();
+    // Permite às telas dar foco ao abrir (ex.: Clientes autofocava a busca).
+    public function focus-input() { input.focus(); }
     height: 32px;
     border-radius: 8px;
     border-width: 1px;

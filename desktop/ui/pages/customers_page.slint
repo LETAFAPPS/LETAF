@@ -2,7 +2,8 @@ import { ScrollView } from "std-widgets.slint";
 import { Theme } from "../theme.slint";
 import { CustomerData, CustomerOrderRow, CustomerAddressRow, WalletSummary, WalletMovementRow } from "../types.slint";
 import { ActionBtn, OutlineBtn } from "../components/buttons.slint";
-import { SearchIcon, PersonIcon, AssetIcon } from "../components/icons.slint";
+import { PersonIcon, AssetIcon } from "../components/icons.slint";
+import { ListSearchBox } from "../components/list_toolbar.slint";
 import { EmptyState } from "../components/empty_state.slint";
 import { PaginationBar } from "../components/pagination.slint";
 import { WalletCard } from "../components/wallet_card.slint";
@@ -264,12 +265,15 @@ export component CustomersPage inherits Rectangle {
     // os cartões de métrica vão para 2x2 — nada é cortado.
     property <bool> narrow: detail-rect.width < 780px;
 
+    // Texto da busca (bind ao ListSearchBox compartilhado).
+    property <string> search-query;
+
     // Foca a busca ao abrir a tela (agiliza a pesquisa).
     property <bool> focus-pending: true;
     Timer {
         interval: 1ms;
         running: root.focus-pending;
-        triggered => { root.focus-pending = false; search-input.focus(); }
+        triggered => { root.focus-pending = false; search-box.focus-input(); }
     }
 
     // Cor de status reutilizada na lista mestre.
@@ -330,37 +334,11 @@ export component CustomersPage inherits Rectangle {
                     }
                 }
 
-                // Busca
-                Rectangle {
-                    height: 36px;
-                    border-radius: 8px;
-                    border-width: 1px;
-                    border-color: search-input.has-focus ? Theme.primary : Theme.border;
-                    background: Theme.bg;
-                    HorizontalLayout {
-                        padding-left: 12px; padding-right: 12px; spacing: 8px;
-                        VerticalLayout {
-                            alignment: center; width: 16px;
-                            SearchIcon {
-                                icon-size: 14px;
-                                icon-color: search-input.has-focus ? Theme.primary : Theme.text-secondary;
-                                icon-stroke: 1.6px;
-                            }
-                        }
-                        Rectangle {
-                            horizontal-stretch: 1;
-                            search-input := TextInput {
-                                x: 0; y: 0; width: parent.width; height: parent.height;
-                                font-size: Theme.fs-13; color: Theme.text-primary;
-                                vertical-alignment: center; single-line: true;
-                                edited => { root.search-changed(self.text); }
-                            }
-                            if search-input.text == "": Text {
-                                x: 0; y: 0; width: parent.width; height: parent.height;
-                                text: "Buscar..."; font-size: Theme.fs-13; color: Theme.text-secondary; vertical-alignment: center;
-                            }
-                        }
-                    }
+                // Busca — componente compartilhado do design system.
+                search-box := ListSearchBox {
+                    value <=> root.search-query;
+                    placeholder: "Buscar...";
+                    changed => { root.search-changed(root.search-query); }
                 }
 
                 ScrollView { vertical-scrollbar-policy: ScrollBarPolicy.always-off; horizontal-scrollbar-policy: ScrollBarPolicy.always-off;
