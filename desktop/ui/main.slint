@@ -301,7 +301,7 @@ export component MainWindow inherits Window {
     in-out property <string> toast-type: "success";
 
     toast-timer := Timer {
-        interval: 3000ms;
+        interval: 4500ms;
         running: root.toast-visible;
         triggered => { root.toast-visible = false; }
     }

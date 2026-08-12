@@ -75,7 +75,7 @@ export component FormField inherits VerticalLayout {
         if root.value == "": Text {
             text: root.placeholder;
             font-size: 13px;
-            color: #BDBDBD;
+            color: Theme.text-secondary;
             vertical-alignment: center;
             x: root.icon.width > 0 ? 29px : 8px;
             width: parent.width - (root.icon.width > 0 ? 37px : 16px);
@@ -171,7 +171,7 @@ export component PasswordField inherits VerticalLayout {
         if root.value == "": Text {
             text: root.placeholder;
             font-size: 13px;
-            color: #BDBDBD;
+            color: Theme.text-secondary;
             vertical-alignment: center;
             x: 8px;
             width: parent.width - 36px;
@@ -241,7 +241,7 @@ export component TimeInput inherits VerticalLayout {
         if root.value == "": Text {
             text: "00:00";
             font-size: 13px;
-            color: #BDBDBD;
+            color: Theme.text-secondary;
             vertical-alignment: center;
             x: 8px;
             width: parent.width - 16px;

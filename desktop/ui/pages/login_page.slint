@@ -402,7 +402,7 @@ export component LoginPage inherits Rectangle {
 
         // ── LOGIN (recovery-step == 0) ──────────────────────────────
         if root.recovery-step == 0: Rectangle {
-            width: 400px;
+            width: min(400px, parent.width);
             height: login-col.preferred-height;
             x: (parent.width - self.width) / 2;
             y: (parent.height - self.height) / 2;
@@ -553,7 +553,7 @@ export component LoginPage inherits Rectangle {
 
         // ── RECUPERAÇÃO DE SENHA (recovery-step > 0) ────────────────
         if root.recovery-step > 0: Rectangle {
-            width: 400px;
+            width: min(400px, parent.width);
             height: rec-col.preferred-height;
             x: (parent.width - self.width) / 2;
             y: (parent.height - self.height) / 2;

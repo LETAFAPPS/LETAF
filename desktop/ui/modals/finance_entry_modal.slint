@@ -1,5 +1,5 @@
 import { Theme } from "../theme.slint";
-import { AssetIcon } from "../components/icons.slint";
+import { AssetIcon, SearchIcon } from "../components/icons.slint";
 import { Card } from "../components/cards.slint";
 import { ActionBtn, OutlineBtn } from "../components/buttons.slint";
 
@@ -236,11 +236,9 @@ export component FinanceEntryModal inherits Rectangle {
                                                     vertical-alignment: center;
                                                     overflow: elide;
                                                 }
-                                                Text {
-                                                    text: "🔍";
-                                                    font-size: 13px;
-                                                    color: Theme.text-secondary;
-                                                    vertical-alignment: center;
+                                                SearchIcon {
+                                                    icon-size: 14px;
+                                                    icon-color: Theme.text-secondary;
                                                 }
                                             }
                                         }
@@ -292,11 +290,11 @@ export component FinanceEntryModal inherits Rectangle {
                                                         : Theme.text-secondary;
                                                     vertical-alignment: center;
                                                 }
-                                                Text {
-                                                    text: "📅";
-                                                    font-size: 13px;
-                                                    color: Theme.text-secondary;
-                                                    vertical-alignment: center;
+                                                AssetIcon {
+                                                    width: 16px; height: 16px;
+                                                    icon-size: 15px;
+                                                    icon-color: Theme.text-secondary;
+                                                    source: @image-url("../assets/icons/calendario.svg");
                                                 }
                                             }
                                         }

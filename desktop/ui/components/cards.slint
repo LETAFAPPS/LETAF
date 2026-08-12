@@ -3,6 +3,7 @@ import { ProductData, CategoryData, SubcategoryData, CustomerData, OrderData, Or
 import { DeleteBtn, EditBtn, ToggleActiveBtn, ToggleWebVisibleBtn, AdvanceOrderBtn } from "buttons.slint";
 import { IconGlyph } from "../icon_glyph.slint";
 import { StruckText } from "struck_text.slint";
+import { CameraIcon } from "icons.slint";
 
 // ── Componente: notificação toast ─────────────────────────────────────────
 
@@ -35,8 +36,10 @@ export component Toast inherits Rectangle {
             font-weight: 500;
             color: white;
             vertical-alignment: center;
-            overflow: elide;
-            max-width: 240px;
+            // Quebra em linhas em vez de truncar em "…": mensagens de erro
+            // precisam ser lidas por inteiro.
+            wrap: word-wrap;
+            max-width: 360px;
         }
     }
 }
@@ -121,14 +124,13 @@ export component ProductCard inherits Rectangle {
                     source: product.product-image;
                     image-fit: cover;
                 }
-                if product.product-image.width == 0: Text {
-                    text: "📷";
-                    font-size: 36px;
-                    color: #BDBDBD;
-                    width: parent.width;
-                    height: parent.height;
-                    horizontal-alignment: center;
-                    vertical-alignment: center;
+                // Placeholder sem imagem: Path (não emoji — a fonte Hanken não
+                // renderiza emoji de cor de forma consistente; saía tofu/□).
+                if product.product-image.width == 0: CameraIcon {
+                    icon-size: 36px;
+                    x: (parent.width - self.width) / 2;
+                    y: (parent.height - self.height) / 2;
+                    icon-color: Theme.text-secondary;
                 }
             }
         }
