@@ -836,8 +836,8 @@ export component OrdersPage inherits VerticalLayout {
                             if o.notes != "": Rectangle {
                                 border-radius: 6px;
                                 border-width: 1px;
-                                border-color: #FFE0B2;
-                                background: #FFF8F0;
+                                border-color: Theme.dark-mode ? #4a3d28 : #FFE0B2;
+                                background: Theme.dark-mode ? #2a2620 : #FFF8F0;
                                 HorizontalLayout {
                                     padding: 12px;
                                     VerticalLayout {
@@ -875,8 +875,8 @@ export component OrdersPage inherits VerticalLayout {
                             if o.status != "delivered" && o.status != "cancelled": Rectangle {
                                 border-radius: 10px;
                                 border-width: 1px;
-                                border-color: #FFE0B2;
-                                background: #FFF8F0;
+                                border-color: Theme.dark-mode ? #4a3d28 : #FFE0B2;
+                                background: Theme.dark-mode ? #2a2620 : #FFF8F0;
                                 // Apenas duas linhas centradas — o ícone
                                 // ⏱ foi removido porque deslocava o título
                                 // do centro visual quando inline. Em
@@ -987,14 +987,16 @@ export component OrdersPage inherits VerticalLayout {
                                             border-width: 1px;
                                             border-color: paid-label == "Pago" ? #2E7D32
                                                 : (paid-label == "Fiado" ? #FF9800 : #EF5350);
-                                            background: paid-label == "Pago" ? #E8F5E9
-                                                : (paid-label == "Fiado" ? #FFF3E0 : #FFEBEE);
+                                            background: Theme.dark-mode
+                                                ? (paid-label == "Pago" ? #1e2a20 : (paid-label == "Fiado" ? #2e2416 : #2e1e1e))
+                                                : (paid-label == "Pago" ? #E8F5E9 : (paid-label == "Fiado" ? #FFF3E0 : #FFEBEE));
                                             Text {
                                                 width: parent.width; height: parent.height;
                                                 text: paid-label;
                                                 font-size: 11px; font-weight: 700;
-                                                color: paid-label == "Pago" ? #2E7D32
-                                                    : (paid-label == "Fiado" ? #EF6C00 : #C62828);
+                                                color: Theme.dark-mode
+                                                    ? (paid-label == "Pago" ? #81C784 : (paid-label == "Fiado" ? #FFB74D : #EF9A9A))
+                                                    : (paid-label == "Pago" ? #2E7D32 : (paid-label == "Fiado" ? #EF6C00 : #C62828));
                                                 horizontal-alignment: center; vertical-alignment: center;
                                             }
                                         }

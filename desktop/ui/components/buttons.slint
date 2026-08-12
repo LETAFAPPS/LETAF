@@ -308,6 +308,8 @@ export component OutlineBtn inherits TouchArea {
 export component DeleteBtn inherits TouchArea {
     height: 30px;
     width: 30px;
+    accessible-role: button;
+    accessible-label: "Excluir";
 
     Rectangle {
         x: 0; y: 0;
@@ -335,6 +337,8 @@ export component ToggleActiveBtn inherits TouchArea {
     in property <bool> active: true;
     height: 30px;
     width: 30px;
+    accessible-role: button;
+    accessible-label: root.active ? "Desativar" : "Ativar";
 
     Rectangle {
         x: 0; y: 0;
@@ -404,6 +408,8 @@ export component ToggleWebVisibleBtn inherits TouchArea {
     in property <bool> is-visible: true;
     height: 32px;
     width: 32px;
+    accessible-role: button;
+    accessible-label: root.is-visible ? "Ocultar do cardápio" : "Mostrar no cardápio";
 
     Rectangle {
         x: 0; y: 0;
@@ -436,6 +442,8 @@ export component ToggleWebVisibleBtn inherits TouchArea {
 export component EditBtn inherits TouchArea {
     height: 30px;
     width: 30px;
+    accessible-role: button;
+    accessible-label: "Editar";
 
     Rectangle {
         x: 0; y: 0;
@@ -495,6 +503,8 @@ export component AdvanceOrderBtn inherits TouchArea {
     height: 32px;
     width: 36px;
     mouse-cursor: pointer;
+    accessible-role: button;
+    accessible-label: "Avançar status do pedido";
 
     Rectangle {
         x: 0; y: 0;
