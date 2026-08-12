@@ -63,12 +63,12 @@ export component CalendarPopup inherits Rectangle {
                     Rectangle {
                         border-radius: Theme.radius-sm;
                         background: prev-ta.has-hover ? Theme.row-hover : transparent;
-                        Text { text: "\u{2039}"; font-size: 18px; color: Theme.text-primary; horizontal-alignment: center; vertical-alignment: center; width: parent.width; height: parent.height; }
+                        Text { text: "\u{2039}"; font-size: Theme.fs-heading; color: Theme.text-primary; horizontal-alignment: center; vertical-alignment: center; width: parent.width; height: parent.height; }
                     }
                 }
                 Text {
                     text: root.title;
-                    font-size: 14px; font-weight: 700; color: Theme.text-primary;
+                    font-size: Theme.fs-body; font-weight: Theme.fw-bold; color: Theme.text-primary;
                     horizontal-stretch: 1; horizontal-alignment: center; vertical-alignment: center;
                 }
                 next-ta := TouchArea {
@@ -77,7 +77,7 @@ export component CalendarPopup inherits Rectangle {
                     Rectangle {
                         border-radius: Theme.radius-sm;
                         background: next-ta.has-hover ? Theme.row-hover : transparent;
-                        Text { text: "\u{203A}"; font-size: 18px; color: Theme.text-primary; horizontal-alignment: center; vertical-alignment: center; width: parent.width; height: parent.height; }
+                        Text { text: "\u{203A}"; font-size: Theme.fs-heading; color: Theme.text-primary; horizontal-alignment: center; vertical-alignment: center; width: parent.width; height: parent.height; }
                     }
                 }
             }
@@ -85,7 +85,7 @@ export component CalendarPopup inherits Rectangle {
             HorizontalLayout {
                 spacing: 2px;
                 for w in ["D", "S", "T", "Q", "Q", "S", "S"]: Text {
-                    text: w; font-size: 11px; font-weight: 600;
+                    text: w; font-size: Theme.fs-11; font-weight: Theme.fw-strong;
                     color: Theme.text-secondary;
                     horizontal-stretch: 1; horizontal-alignment: center;
                 }
@@ -110,7 +110,7 @@ export component CalendarPopup inherits Rectangle {
                         border-color: cell-ta.d.selected ? Theme.btn-accent : Theme.primary;
                         Text {
                             text: cell-ta.d.label;
-                            font-size: 12px;
+                            font-size: Theme.fs-caption;
                             font-weight: cell-ta.d.selected ? 700 : 400;
                             color: cell-ta.d.selected ? Theme.btn-accent : Theme.text-primary;
                             horizontal-alignment: center; vertical-alignment: center;
@@ -301,13 +301,13 @@ export component OrdersPage inherits VerticalLayout {
             spacing: 2px;
             Text {
                 text: "Pedidos";
-                font-size: 22px; font-weight: 700;
+                font-size: 22px; font-weight: Theme.fw-bold;
                 color: Theme.text-primary;
                 overflow: elide;
             }
             Text {
                 text: root.orders.length + " Pedidos Totais";
-                font-size: 12px;
+                font-size: Theme.fs-caption;
                 color: Theme.text-secondary;
                 overflow: elide;
             }
@@ -339,7 +339,7 @@ export component OrdersPage inherits VerticalLayout {
             }
             Text {
                 text: "Pedido " + root.detail-order.number;
-                font-size: 22px; font-weight: 700;
+                font-size: 22px; font-weight: Theme.fw-bold;
                 color: Theme.text-primary;
                 vertical-alignment: center;
                 horizontal-stretch: 1;
@@ -347,9 +347,9 @@ export component OrdersPage inherits VerticalLayout {
             Text {
                 text: root.detail-order.payment-method != "" ? "PDV"
                     : (root.detail-order.delivery-type == "pickup" ? "Retirada" : "Entrega");
-                font-size: 13px; font-weight: 700;
+                font-size: Theme.fs-13; font-weight: Theme.fw-bold;
                 color: root.detail-order.payment-method != "" ? Theme.success
-                    : (root.detail-order.delivery-type == "pickup" ? Theme.btn-accent : #1565C0);
+                    : (root.detail-order.delivery-type == "pickup" ? Theme.btn-accent : Theme.info);
                 vertical-alignment: center;
             }
         }
@@ -398,7 +398,7 @@ export component OrdersPage inherits VerticalLayout {
                     text: chip-def.label;
                     width: parent.width; height: parent.height;
                     horizontal-alignment: center; vertical-alignment: center;
-                    font-size: 13px;
+                    font-size: Theme.fs-13;
                     font-weight: active ? 700 : 400;
                     color: active ? Theme.btn-accent : Theme.text-secondary;
                 }
@@ -442,7 +442,7 @@ export component OrdersPage inherits VerticalLayout {
                     horizontal-stretch: 1;
                     search-input := TextInput {
                         x: 0; y: 0; width: parent.width; height: parent.height;
-                        font-size: 13px; color: Theme.text-primary;
+                        font-size: Theme.fs-13; color: Theme.text-primary;
                         vertical-alignment: center; single-line: true;
                         text: root.order-search-query;
                         edited => {
@@ -453,8 +453,8 @@ export component OrdersPage inherits VerticalLayout {
                     }
                     if search-input.text == "": Text {
                         x: 0; y: 0; width: parent.width; height: parent.height;
-                        text: "Buscar Pedido / Cliente..."; font-size: 13px;
-                        color: #BDBDBD; vertical-alignment: center;
+                        text: "Buscar Pedido / Cliente..."; font-size: Theme.fs-13;
+                        color: Theme.text-secondary; vertical-alignment: center;
                     }
                 }
             }
@@ -479,7 +479,7 @@ export component OrdersPage inherits VerticalLayout {
                     padding-left: 12px; padding-right: 10px; spacing: 8px;
                     Text {
                         text: root.order-date-label;
-                        font-size: 13px;
+                        font-size: Theme.fs-13;
                         color: root.order-date-start == "" ? #BDBDBD : Theme.text-primary;
                         vertical-alignment: center;
                         horizontal-stretch: 1;
@@ -695,7 +695,7 @@ export component OrdersPage inherits VerticalLayout {
                             }
                             if o.status == "cancelled": Text {
                                 text: "✕  Pedido Cancelado";
-                                font-size: 13px; font-weight: 700;
+                                font-size: Theme.fs-13; font-weight: Theme.fw-bold;
                                 color: #EF5350;
                                 vertical-alignment: center;
                             }
@@ -704,8 +704,8 @@ export component OrdersPage inherits VerticalLayout {
 
                             VerticalLayout {
                                 spacing: 4px;
-                                Text { text: "Cliente"; font-size: 11px; font-weight: 600; color: Theme.text-secondary; }
-                                Text { text: o.customer-name; font-size: 15px; font-weight: 600; color: Theme.text-primary; }
+                                Text { text: "Cliente"; font-size: Theme.fs-11; font-weight: Theme.fw-strong; color: Theme.text-secondary; }
+                                Text { text: o.customer-name; font-size: 15px; font-weight: Theme.fw-strong; color: Theme.text-primary; }
                             }
 
                             if o.delivery-street != "": Rectangle { height: 10px; }
@@ -743,7 +743,7 @@ export component OrdersPage inherits VerticalLayout {
                                         }
                                         Text {
                                             text: "Endereço de Entrega";
-                                            font-size: 11px; font-weight: 700;
+                                            font-size: Theme.fs-11; font-weight: Theme.fw-bold;
                                             color: Theme.text-secondary;
                                             vertical-alignment: center;
                                             horizontal-stretch: 1;
@@ -757,49 +757,49 @@ export component OrdersPage inherits VerticalLayout {
                                         padding-bottom: 4px;
                                         Rectangle {
                                             width: 58px;
-                                            Text { text: "Tipo"; font-size: 11px; color: Theme.text-secondary; vertical-alignment: center; }
+                                            Text { text: "Tipo"; font-size: Theme.fs-11; color: Theme.text-secondary; vertical-alignment: center; }
                                         }
-                                        Text { text: ":"; font-size: 11px; color: Theme.text-secondary; vertical-alignment: center; width: 12px; }
-                                        Text { text: o.delivery-label; font-size: 11px; font-weight: 600; color: Theme.text-primary; vertical-alignment: center; horizontal-stretch: 1; }
+                                        Text { text: ":"; font-size: Theme.fs-11; color: Theme.text-secondary; vertical-alignment: center; width: 12px; }
+                                        Text { text: o.delivery-label; font-size: Theme.fs-11; font-weight: Theme.fw-strong; color: Theme.text-primary; vertical-alignment: center; horizontal-stretch: 1; }
                                     }
                                     HorizontalLayout {
                                         spacing: 0px;
                                         padding-bottom: 4px;
                                         Rectangle {
                                             width: 58px;
-                                            Text { text: "Rua"; font-size: 11px; color: Theme.text-secondary; vertical-alignment: center; }
+                                            Text { text: "Rua"; font-size: Theme.fs-11; color: Theme.text-secondary; vertical-alignment: center; }
                                         }
-                                        Text { text: ":"; font-size: 11px; color: Theme.text-secondary; vertical-alignment: center; width: 12px; }
-                                        Text { text: o.delivery-street; font-size: 11px; color: Theme.text-primary; wrap: word-wrap; horizontal-stretch: 1; vertical-alignment: center; }
+                                        Text { text: ":"; font-size: Theme.fs-11; color: Theme.text-secondary; vertical-alignment: center; width: 12px; }
+                                        Text { text: o.delivery-street; font-size: Theme.fs-11; color: Theme.text-primary; wrap: word-wrap; horizontal-stretch: 1; vertical-alignment: center; }
                                     }
                                     HorizontalLayout {
                                         spacing: 0px;
                                         padding-bottom: 4px;
                                         Rectangle {
                                             width: 58px;
-                                            Text { text: "Número"; font-size: 11px; color: Theme.text-secondary; vertical-alignment: center; }
+                                            Text { text: "Número"; font-size: Theme.fs-11; color: Theme.text-secondary; vertical-alignment: center; }
                                         }
-                                        Text { text: ":"; font-size: 11px; color: Theme.text-secondary; vertical-alignment: center; width: 12px; }
-                                        Text { text: o.delivery-number; font-size: 11px; color: Theme.text-primary; vertical-alignment: center; horizontal-stretch: 1; }
+                                        Text { text: ":"; font-size: Theme.fs-11; color: Theme.text-secondary; vertical-alignment: center; width: 12px; }
+                                        Text { text: o.delivery-number; font-size: Theme.fs-11; color: Theme.text-primary; vertical-alignment: center; horizontal-stretch: 1; }
                                     }
                                     HorizontalLayout {
                                         spacing: 0px;
                                         padding-bottom: o.delivery-apartment != "" ? 4px : 0px;
                                         Rectangle {
                                             width: 58px;
-                                            Text { text: "Bairro"; font-size: 11px; color: Theme.text-secondary; vertical-alignment: center; }
+                                            Text { text: "Bairro"; font-size: Theme.fs-11; color: Theme.text-secondary; vertical-alignment: center; }
                                         }
-                                        Text { text: ":"; font-size: 11px; color: Theme.text-secondary; vertical-alignment: center; width: 12px; }
-                                        Text { text: o.delivery-neighborhood; font-size: 11px; color: Theme.text-primary; vertical-alignment: center; horizontal-stretch: 1; }
+                                        Text { text: ":"; font-size: Theme.fs-11; color: Theme.text-secondary; vertical-alignment: center; width: 12px; }
+                                        Text { text: o.delivery-neighborhood; font-size: Theme.fs-11; color: Theme.text-primary; vertical-alignment: center; horizontal-stretch: 1; }
                                     }
                                     if o.delivery-apartment != "": HorizontalLayout {
                                         spacing: 0px;
                                         Rectangle {
                                             width: 58px;
-                                            Text { text: "Apto"; font-size: 11px; color: Theme.text-secondary; vertical-alignment: center; }
+                                            Text { text: "Apto"; font-size: Theme.fs-11; color: Theme.text-secondary; vertical-alignment: center; }
                                         }
-                                        Text { text: ":"; font-size: 11px; color: Theme.text-secondary; vertical-alignment: center; width: 12px; }
-                                        Text { text: o.delivery-apartment; font-size: 11px; color: Theme.text-primary; vertical-alignment: center; horizontal-stretch: 1; }
+                                        Text { text: ":"; font-size: Theme.fs-11; color: Theme.text-secondary; vertical-alignment: center; width: 12px; }
+                                        Text { text: o.delivery-apartment; font-size: Theme.fs-11; color: Theme.text-primary; vertical-alignment: center; horizontal-stretch: 1; }
                                     }
                                 }
                             }
@@ -808,7 +808,7 @@ export component OrdersPage inherits VerticalLayout {
                             Rectangle { height: 1px; background: Theme.border; }
                             Rectangle { height: 12px; }
 
-                            Text { text: "Itens"; font-size: 13px; font-weight: 700; color: Theme.text-primary; }
+                            Text { text: "Itens"; font-size: Theme.fs-13; font-weight: Theme.fw-bold; color: Theme.text-primary; }
                             Rectangle { height: 8px; }
                             VerticalLayout {
                                 spacing: 8px;
@@ -827,7 +827,7 @@ export component OrdersPage inherits VerticalLayout {
                                     background: Theme.bg;
                                     HorizontalLayout {
                                         padding: 12px;
-                                        Text { text: o.items-summary; font-size: 13px; color: Theme.text-primary; wrap: word-wrap; horizontal-stretch: 1; }
+                                        Text { text: o.items-summary; font-size: Theme.fs-13; color: Theme.text-primary; wrap: word-wrap; horizontal-stretch: 1; }
                                     }
                                 }
                             }
@@ -842,8 +842,8 @@ export component OrdersPage inherits VerticalLayout {
                                     padding: 12px;
                                     VerticalLayout {
                                         horizontal-stretch: 1; spacing: 4px;
-                                        Text { text: "Observações"; font-size: 11px; font-weight: 600; color: Theme.btn-accent; }
-                                        Text { text: o.notes; font-size: 13px; color: Theme.text-primary; wrap: word-wrap; horizontal-stretch: 1; }
+                                        Text { text: "Observações"; font-size: Theme.fs-11; font-weight: Theme.fw-strong; color: Theme.btn-accent; }
+                                        Text { text: o.notes; font-size: Theme.fs-13; color: Theme.text-primary; wrap: word-wrap; horizontal-stretch: 1; }
                                     }
                                 }
                             }
@@ -889,14 +889,14 @@ export component OrdersPage inherits VerticalLayout {
                                     spacing: 2px;
                                     Text {
                                         text: "Tempo Ativo";
-                                        font-size: 10px; font-weight: 700;
+                                        font-size: Theme.fs-label; font-weight: Theme.fw-bold;
                                         color: Theme.btn-accent;
                                         letter-spacing: 1px;
                                         horizontal-alignment: center;
                                     }
                                     Text {
                                         text: o.elapsed-display != "" ? o.elapsed-display : "agora";
-                                        font-size: 16px; font-weight: 700;
+                                        font-size: Theme.fs-section; font-weight: Theme.fw-bold;
                                         color: #BF360C;
                                         horizontal-alignment: center;
                                     }
@@ -974,7 +974,7 @@ export component OrdersPage inherits VerticalLayout {
                             VerticalLayout {
                                 spacing: 8px;
                                 HorizontalLayout {
-                                    Text { text: "Status:"; font-size: 11px; font-weight: 600; color: Theme.text-secondary; horizontal-stretch: 1; vertical-alignment: center; }
+                                    Text { text: "Status:"; font-size: Theme.fs-11; font-weight: Theme.fw-strong; color: Theme.text-secondary; horizontal-stretch: 1; vertical-alignment: center; }
                                     // Selo Pago (verde) / Fiado (laranja) /
                                     // Não pago (vermelho) — retangular de
                                     // pontas arredondadas.
@@ -993,7 +993,7 @@ export component OrdersPage inherits VerticalLayout {
                                             Text {
                                                 width: parent.width; height: parent.height;
                                                 text: paid-label;
-                                                font-size: 11px; font-weight: 700;
+                                                font-size: Theme.fs-11; font-weight: Theme.fw-bold;
                                                 color: Theme.dark-mode
                                                     ? (paid-label == "Pago" ? #81C784 : (paid-label == "Fiado" ? #FFB74D : #EF9A9A))
                                                     : (paid-label == "Pago" ? Theme.success : (paid-label == "Fiado" ? #EF6C00 : Theme.danger));
@@ -1003,7 +1003,7 @@ export component OrdersPage inherits VerticalLayout {
                                     }
                                 }
                                 HorizontalLayout {
-                                    Text { text: "Forma de Pagamento:"; font-size: 11px; font-weight: 600; color: Theme.text-secondary; horizontal-stretch: 1; vertical-alignment: center; }
+                                    Text { text: "Forma de Pagamento:"; font-size: Theme.fs-11; font-weight: Theme.fw-strong; color: Theme.text-secondary; horizontal-stretch: 1; vertical-alignment: center; }
                                     // Fixo: chip informativo com a forma
                                     // registrada (incl. Carteira).
                                     if !pay-editable: Rectangle {
@@ -1016,7 +1016,7 @@ export component OrdersPage inherits VerticalLayout {
                                         fixed-pm-label := Text {
                                             width: parent.width; height: parent.height;
                                             text: pay-label;
-                                            font-size: 11px; font-weight: 600;
+                                            font-size: Theme.fs-11; font-weight: Theme.fw-strong;
                                             color: Theme.btn-accent;
                                             horizontal-alignment: center; vertical-alignment: center;
                                         }
@@ -1043,7 +1043,7 @@ export component OrdersPage inherits VerticalLayout {
                                             Text {
                                                 width: parent.width; height: parent.height;
                                                 text: opt.label;
-                                                font-size: 11px; font-weight: 600;
+                                                font-size: Theme.fs-11; font-weight: Theme.fw-strong;
                                                 color: o.payment-method == opt.value ? Theme.btn-accent : Theme.text-primary;
                                                 horizontal-alignment: center; vertical-alignment: center;
                                             }
@@ -1062,36 +1062,36 @@ export component OrdersPage inherits VerticalLayout {
                             VerticalLayout {
                                 spacing: 6px;
                                 HorizontalLayout {
-                                    Text { text: "Subtotal"; font-size: 11px; color: Theme.text-secondary; horizontal-stretch: 1; vertical-alignment: center; }
-                                    Text { text: o.subtotal-display; font-size: 12px; font-weight: 600; color: Theme.text-primary; vertical-alignment: center; }
+                                    Text { text: "Subtotal"; font-size: Theme.fs-11; color: Theme.text-secondary; horizontal-stretch: 1; vertical-alignment: center; }
+                                    Text { text: o.subtotal-display; font-size: Theme.fs-caption; font-weight: Theme.fw-strong; color: Theme.text-primary; vertical-alignment: center; }
                                 }
                                 HorizontalLayout {
-                                    Text { text: "Taxa de entrega"; font-size: 11px; color: Theme.text-secondary; horizontal-stretch: 1; vertical-alignment: center; }
-                                    Text { text: o.delivery-fee-display; font-size: 12px; font-weight: 600; color: Theme.text-primary; vertical-alignment: center; }
+                                    Text { text: "Taxa de entrega"; font-size: Theme.fs-11; color: Theme.text-secondary; horizontal-stretch: 1; vertical-alignment: center; }
+                                    Text { text: o.delivery-fee-display; font-size: Theme.fs-caption; font-weight: Theme.fw-strong; color: Theme.text-primary; vertical-alignment: center; }
                                 }
                                 HorizontalLayout {
-                                    Text { text: "Desconto"; font-size: 11px; color: Theme.text-secondary; horizontal-stretch: 1; vertical-alignment: center; }
+                                    Text { text: "Desconto"; font-size: Theme.fs-11; color: Theme.text-secondary; horizontal-stretch: 1; vertical-alignment: center; }
                                     Text {
                                         text: o.discount-display;
-                                        font-size: 12px; font-weight: 600;
+                                        font-size: Theme.fs-caption; font-weight: Theme.fw-strong;
                                         color: o.discount-display == "*" ? Theme.text-primary : Theme.danger;
                                         vertical-alignment: center;
                                     }
                                 }
                                 HorizontalLayout {
-                                    Text { text: "Adicional"; font-size: 11px; color: Theme.text-secondary; horizontal-stretch: 1; vertical-alignment: center; }
+                                    Text { text: "Adicional"; font-size: Theme.fs-11; color: Theme.text-secondary; horizontal-stretch: 1; vertical-alignment: center; }
                                     Text {
                                         text: o.additional-display;
-                                        font-size: 12px; font-weight: 600;
+                                        font-size: Theme.fs-caption; font-weight: Theme.fw-strong;
                                         color: Theme.text-primary;
                                         vertical-alignment: center;
                                     }
                                 }
                                 HorizontalLayout {
-                                    Text { text: "Cupom"; font-size: 11px; color: Theme.text-secondary; horizontal-stretch: 1; vertical-alignment: center; }
+                                    Text { text: "Cupom"; font-size: Theme.fs-11; color: Theme.text-secondary; horizontal-stretch: 1; vertical-alignment: center; }
                                     Text {
                                         text: o.coupon-code-display;
-                                        font-size: 12px; font-weight: 600;
+                                        font-size: Theme.fs-caption; font-weight: Theme.fw-strong;
                                         color: o.coupon-code-display == "*" ? Theme.text-primary : Theme.primary;
                                         vertical-alignment: center;
                                     }
@@ -1103,8 +1103,8 @@ export component OrdersPage inherits VerticalLayout {
                             Rectangle { height: 12px; }
 
                             HorizontalLayout {
-                                Text { text: "Total"; font-size: 13px; font-weight: 700; color: Theme.text-secondary; horizontal-stretch: 1; vertical-alignment: center; }
-                                Text { text: o.total; font-size: 24px; font-weight: 800; color: Theme.success; vertical-alignment: center; }
+                                Text { text: "Total"; font-size: Theme.fs-13; font-weight: Theme.fw-bold; color: Theme.text-secondary; horizontal-stretch: 1; vertical-alignment: center; }
+                                Text { text: o.total; font-size: 24px; font-weight: Theme.fw-extrabold; color: Theme.success; vertical-alignment: center; }
                             }
                         }
                     }

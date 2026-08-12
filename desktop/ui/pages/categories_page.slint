@@ -48,7 +48,7 @@ component IconBtn inherits TouchArea {
             }
             Text {
                 text: root.label;
-                font-size: 14px; font-weight: 700;
+                font-size: Theme.fs-body; font-weight: Theme.fw-bold;
                 color: root.accent;
                 vertical-alignment: center;
             }
@@ -74,7 +74,7 @@ component CategoryChip inherits TouchArea {
             alignment: center;
             Text {
                 text: root.label;
-                font-size: 14px; font-weight: root.active ? 700 : 600;
+                font-size: Theme.fs-body; font-weight: root.active ? 700 : 600;
                 color: root.active ? Theme.sidebar-sel-bg : Theme.text-secondary;
                 vertical-alignment: center;
             }
@@ -99,7 +99,7 @@ component StatCard inherits Rectangle {
         padding: 16px;
         spacing: 6px;
         Text { text: root.label; font-size: Theme.fs-eyebrow; font-weight: Theme.fw-strong; letter-spacing: 1px; color: Theme.text-secondary; overflow: elide; }
-        Text { text: root.value; font-size: 24px; font-weight: 800; color: Theme.text-primary; overflow: elide; }
+        Text { text: root.value; font-size: 24px; font-weight: Theme.fw-extrabold; color: Theme.text-primary; overflow: elide; }
         Text { text: root.hint; font-size: Theme.fs-meta; color: Theme.text-secondary; overflow: elide; }
     }
 }
@@ -160,7 +160,7 @@ component ProductsCard inherits Rectangle {
             }
             Text {
                 text: "Adicione produtos usando o botão acima.";
-                font-size: 12px; color: Theme.text-secondary;
+                font-size: Theme.fs-caption; color: Theme.text-secondary;
                 horizontal-alignment: center;
             }
         }
@@ -185,11 +185,11 @@ component ProductsCard inherits Rectangle {
                 VerticalLayout {
                     horizontal-stretch: 1;
                     alignment: center;
-                    Text { text: p.name; font-size: 13px; font-weight: 600; color: Theme.text-primary; overflow: elide; }
+                    Text { text: p.name; font-size: Theme.fs-13; font-weight: Theme.fw-strong; color: Theme.text-primary; overflow: elide; }
                 }
-                Text { text: p.sub-name; font-size: 12px; color: Theme.text-secondary; vertical-alignment: center; width: 110px; overflow: elide; }
-                Text { text: p.qty; font-size: 12px; color: Theme.text-secondary; vertical-alignment: center; width: 78px; horizontal-alignment: right; }
-                Text { text: p.price; font-size: 13px; font-weight: 700; color: Theme.primary; vertical-alignment: center; width: 80px; horizontal-alignment: right; }
+                Text { text: p.sub-name; font-size: Theme.fs-caption; color: Theme.text-secondary; vertical-alignment: center; width: 110px; overflow: elide; }
+                Text { text: p.qty; font-size: Theme.fs-caption; color: Theme.text-secondary; vertical-alignment: center; width: 78px; horizontal-alignment: right; }
+                Text { text: p.price; font-size: Theme.fs-13; font-weight: Theme.fw-bold; color: Theme.primary; vertical-alignment: center; width: 80px; horizontal-alignment: right; }
             }
         }
         if root.total-pages > 1: PaginationBar {
@@ -263,8 +263,8 @@ component SubsPanel inherits Rectangle {
                     horizontal-stretch: 1;
                     alignment: center;
                     spacing: 2px;
-                    Text { text: s.name; font-size: 13px; font-weight: 700; color: Theme.text-primary; overflow: elide; }
-                    Text { text: s.count-label; font-size: 11px; color: Theme.text-secondary; }
+                    Text { text: s.name; font-size: Theme.fs-13; font-weight: Theme.fw-bold; color: Theme.text-primary; overflow: elide; }
+                    Text { text: s.count-label; font-size: Theme.fs-11; color: Theme.text-secondary; }
                 }
                 VerticalLayout {
                     alignment: center;
@@ -324,8 +324,8 @@ export component CategoriesPage inherits Rectangle {
                 horizontal-stretch: 1;
                 alignment: center;
                 spacing: 2px;
-                Text { text: "Categorias"; font-size: 24px; font-weight: 800; color: Theme.text-primary; }
-                Text { text: root.category-count + " categorias cadastradas"; font-size: 12px; color: Theme.text-secondary; }
+                Text { text: "Categorias"; font-size: 24px; font-weight: Theme.fw-extrabold; color: Theme.text-primary; }
+                Text { text: root.category-count + " categorias cadastradas"; font-size: Theme.fs-caption; color: Theme.text-secondary; }
             }
             if root.selected-category-id != "": VerticalLayout {
                 alignment: center;
@@ -389,7 +389,7 @@ export component CategoriesPage inherits Rectangle {
             // Existem categorias, mas nenhuma selecionada → instrução.
             if root.category-tree.length > 0: Text {
                 text: "Selecione uma categoria acima para ver os detalhes.";
-                font-size: 14px; color: Theme.text-secondary;
+                font-size: Theme.fs-body; color: Theme.text-secondary;
                 horizontal-alignment: center;
             }
         }

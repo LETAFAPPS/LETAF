@@ -51,14 +51,14 @@ export component EmptyState inherits Rectangle {
             text: root.title;
             horizontal-alignment: center;
             font-size: 15px;
-            font-weight: 600;
+            font-weight: Theme.fw-strong;
             color: Theme.text-primary;
         }
 
         if root.subtitle != "": Text {
             text: root.subtitle;
             horizontal-alignment: center;
-            font-size: 13px;
+            font-size: Theme.fs-13;
             color: Theme.text-secondary;
             wrap: word-wrap;
         }

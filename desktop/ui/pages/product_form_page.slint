@@ -35,13 +35,13 @@ component AddonGroupChip inherits TouchArea {
             alignment: center;
             Text {
                 text: root.selected ? "✓" : "+";
-                font-size: 12px; font-weight: 700;
+                font-size: Theme.fs-caption; font-weight: Theme.fw-bold;
                 color: root.selected ? Theme.sidebar-sel-bg : Theme.text-secondary;
                 vertical-alignment: center;
             }
             Text {
                 text: root.label;
-                font-size: 12px;
+                font-size: Theme.fs-caption;
                 font-weight: root.selected ? 700 : 500;
                 color: root.selected ? Theme.sidebar-sel-bg : Theme.text-primary;
                 vertical-alignment: center;
@@ -70,7 +70,7 @@ component SelectionPill inherits TouchArea {
         background: root.active ? transparent : (root.has-hover ? Theme.row-hover : Theme.surface);
         Text {
             text: root.label;
-            font-size: 11px;
+            font-size: Theme.fs-11;
             font-weight: root.active ? 700 : 500;
             color: root.active ? Theme.sidebar-sel-bg : Theme.text-secondary;
             horizontal-alignment: center;
@@ -99,7 +99,7 @@ component DiscountPill inherits TouchArea {
         background: root.active ? transparent : (root.has-hover ? Theme.row-hover : Theme.surface);
         Text {
             text: root.label;
-            font-size: 11px;
+            font-size: Theme.fs-11;
             font-weight: root.active ? 700 : 500;
             color: root.active ? Theme.sidebar-sel-bg : Theme.text-secondary;
             horizontal-alignment: center;
@@ -230,7 +230,7 @@ export component ProductFormPage inherits VerticalLayout {
                     background: back-ta.has-hover ? Theme.row-hover : transparent;
                     Text {
                         text: "\u{2190}";
-                        font-size: 22px; font-weight: 400;
+                        font-size: 22px; font-weight: Theme.fw-regular;
                         color: Theme.text-primary;
                         horizontal-alignment: center; vertical-alignment: center;
                         width: parent.width; height: parent.height;
@@ -241,7 +241,7 @@ export component ProductFormPage inherits VerticalLayout {
 
         Text {
             text: root.editing-id != "" ? "Editar Produto" : "Novo Produto";
-            font-size: 22px; font-weight: 700;
+            font-size: 22px; font-weight: Theme.fw-bold;
             color: Theme.text-primary;
             vertical-alignment: center;
             horizontal-stretch: 1;
@@ -290,7 +290,7 @@ export component ProductFormPage inherits VerticalLayout {
                     padding: 16px;
                     spacing: 10px;
 
-                    Text { text: "Identificação"; font-size: 14px; font-weight: 700; color: Theme.text-primary; }
+                    Text { text: "Identificação"; font-size: Theme.fs-body; font-weight: Theme.fw-bold; color: Theme.text-primary; }
 
                     HorizontalLayout {
                         spacing: 12px;
@@ -305,7 +305,7 @@ export component ProductFormPage inherits VerticalLayout {
                                 Text {
                                     x: 0;
                                     text: "Nome";
-                                    font-size: 12px; font-weight: 500;
+                                    font-size: Theme.fs-caption; font-weight: Theme.fw-medium;
                                     color: Theme.text-secondary;
                                     vertical-alignment: center;
                                     height: parent.height;
@@ -321,7 +321,7 @@ export component ProductFormPage inherits VerticalLayout {
                                     width: parent.width - 20px;
                                     height: parent.height;
                                     text <=> root.product-name;
-                                    font-size: 13px;
+                                    font-size: Theme.fs-13;
                                     color: Theme.text-primary;
                                     vertical-alignment: center;
                                     single-line: true;
@@ -330,12 +330,12 @@ export component ProductFormPage inherits VerticalLayout {
                                     x: 10px; y: 0;
                                     height: parent.height;
                                     text: "Nome do produto";
-                                    font-size: 13px;
-                                    color: #BDBDBD;
+                                    font-size: Theme.fs-13;
+                                    color: Theme.text-secondary;
                                     vertical-alignment: center;
                                 }
                             }
-                            if root.product-error-name != "": Text { text: root.product-error-name; font-size: 11px; color: Theme.danger; }
+                            if root.product-error-name != "": Text { text: root.product-error-name; font-size: Theme.fs-11; color: Theme.danger; }
                         }
                         VerticalLayout {
                             horizontal-stretch: 1;
@@ -346,7 +346,7 @@ export component ProductFormPage inherits VerticalLayout {
                                 Text {
                                     x: 0;
                                     text: "Unidade";
-                                    font-size: 12px; font-weight: 500;
+                                    font-size: Theme.fs-caption; font-weight: Theme.fw-medium;
                                     color: Theme.text-secondary;
                                     vertical-alignment: center;
                                     height: parent.height;
@@ -367,8 +367,8 @@ export component ProductFormPage inherits VerticalLayout {
                                     background: Theme.surface;
                                     HorizontalLayout {
                                         padding-left: 10px; padding-right: 10px;
-                                        Text { text: root.product-unit; font-size: 13px; color: Theme.text-primary; vertical-alignment: center; horizontal-stretch: 1; }
-                                        Text { text: "▾"; font-size: 13px; color: Theme.text-secondary; vertical-alignment: center; }
+                                        Text { text: root.product-unit; font-size: Theme.fs-13; color: Theme.text-primary; vertical-alignment: center; horizontal-stretch: 1; }
+                                        Text { text: "▾"; font-size: Theme.fs-13; color: Theme.text-secondary; vertical-alignment: center; }
                                     }
                                 }
                             }
@@ -377,7 +377,7 @@ export component ProductFormPage inherits VerticalLayout {
 
                     VerticalLayout {
                         spacing: 4px;
-                        Text { text: "Descrição"; font-size: 12px; font-weight: 500; color: Theme.text-secondary; }
+                        Text { text: "Descrição"; font-size: Theme.fs-caption; font-weight: Theme.fw-medium; color: Theme.text-secondary; }
                         // Textarea ampliada: ~7 linhas confortáveis. O TextInput
                         // sem `single-line: true` aceita Enter, então o
                         // operador pode quebrar parágrafos manualmente — as
@@ -391,7 +391,7 @@ export component ProductFormPage inherits VerticalLayout {
                             background: Theme.surface;
                             desc-input := TextInput {
                                 text <=> root.product-description;
-                                font-size: 13px;
+                                font-size: Theme.fs-13;
                                 color: Theme.text-primary;
                                 wrap: word-wrap;
                                 // Explicit `single-line: false` libera o Enter
@@ -405,7 +405,7 @@ export component ProductFormPage inherits VerticalLayout {
                             }
                             if root.product-description == "": Text {
                                 text: "Descrição do produto (opcional). Use Enter para quebrar linhas.";
-                                font-size: 13px; color: #BDBDBD;
+                                font-size: Theme.fs-13; color: Theme.text-secondary;
                                 x: 10px; y: 8px;
                             }
                         }
@@ -437,7 +437,7 @@ export component ProductFormPage inherits VerticalLayout {
                     HorizontalLayout {
                         spacing: 8px;
                         Text {
-                            text: "Preço & Estoque"; font-size: 14px; font-weight: 700;
+                            text: "Preço & Estoque"; font-size: Theme.fs-body; font-weight: Theme.fw-bold;
                             color: Theme.text-primary; horizontal-stretch: 1;
                             vertical-alignment: center;
                         }
@@ -451,7 +451,7 @@ export component ProductFormPage inherits VerticalLayout {
                                     ? Theme.primary
                                     : (unlim-ta.has-hover ? Theme.row-hover : Theme.surface);
                                 Text {
-                                    text: "Ilimitado"; font-size: 11px; font-weight: 600;
+                                    text: "Ilimitado"; font-size: Theme.fs-11; font-weight: Theme.fw-strong;
                                     color: root.product-unlimited-stock ? white : Theme.text-primary;
                                     horizontal-alignment: center; vertical-alignment: center;
                                     width: parent.width; height: parent.height;
@@ -472,7 +472,7 @@ export component ProductFormPage inherits VerticalLayout {
                                 Text {
                                     x: 0;
                                     text: "Preço";
-                                    font-size: 12px; font-weight: 500;
+                                    font-size: Theme.fs-caption; font-weight: Theme.fw-medium;
                                     color: Theme.text-secondary;
                                     vertical-alignment: center;
                                     height: parent.height;
@@ -489,7 +489,7 @@ export component ProductFormPage inherits VerticalLayout {
                                     width: parent.width - 20px;
                                     height: parent.height;
                                     text <=> root.product-price;
-                                    font-size: 13px;
+                                    font-size: Theme.fs-13;
                                     color: Theme.text-primary;
                                     vertical-alignment: center;
                                     single-line: true;
@@ -498,12 +498,12 @@ export component ProductFormPage inherits VerticalLayout {
                                     x: 10px; y: 0;
                                     height: parent.height;
                                     text: "0.00";
-                                    font-size: 13px;
-                                    color: #BDBDBD;
+                                    font-size: Theme.fs-13;
+                                    color: Theme.text-secondary;
                                     vertical-alignment: center;
                                 }
                             }
-                            if root.product-error-price != "": Text { text: root.product-error-price; font-size: 11px; color: Theme.danger; }
+                            if root.product-error-price != "": Text { text: root.product-error-price; font-size: Theme.fs-11; color: Theme.danger; }
                         }
                         // Estoque + toggle "Ilimitado".
                         //
@@ -517,7 +517,7 @@ export component ProductFormPage inherits VerticalLayout {
                                 Text {
                                     x: 0;
                                     text: "Estoque";
-                                    font-size: 12px; font-weight: 500;
+                                    font-size: Theme.fs-caption; font-weight: Theme.fw-medium;
                                     color: Theme.text-secondary;
                                     vertical-alignment: center;
                                     height: parent.height;
@@ -534,7 +534,7 @@ export component ProductFormPage inherits VerticalLayout {
                                     width: parent.width - 20px;
                                     height: parent.height;
                                     text <=> root.product-stock-quantity;
-                                    font-size: 13px;
+                                    font-size: Theme.fs-13;
                                     color: Theme.text-primary;
                                     vertical-alignment: center;
                                     single-line: true;
@@ -543,8 +543,8 @@ export component ProductFormPage inherits VerticalLayout {
                                     x: 10px; y: 0;
                                     height: parent.height;
                                     text: "0";
-                                    font-size: 13px;
-                                    color: #BDBDBD;
+                                    font-size: Theme.fs-13;
+                                    color: Theme.text-secondary;
                                     vertical-alignment: center;
                                 }
                             }
@@ -560,8 +560,8 @@ export component ProductFormPage inherits VerticalLayout {
                                     padding-left: 10px;
                                     Text {
                                         text: "∞  Sem controle de estoque";
-                                        font-size: 13px;
-                                        font-weight: 600;
+                                        font-size: Theme.fs-13;
+                                        font-weight: Theme.fw-strong;
                                         color: Theme.text-secondary;
                                         vertical-alignment: center;
                                     }
@@ -569,7 +569,7 @@ export component ProductFormPage inherits VerticalLayout {
                             }
                             if root.product-error-stock != "": Text {
                                 text: root.product-error-stock;
-                                font-size: 11px;
+                                font-size: Theme.fs-11;
                                 color: Theme.danger;
                             }
                         }
@@ -591,7 +591,7 @@ export component ProductFormPage inherits VerticalLayout {
                                 Text {
                                     x: 0;
                                     text: "Preço de custo";
-                                    font-size: 12px; font-weight: 500;
+                                    font-size: Theme.fs-caption; font-weight: Theme.fw-medium;
                                     color: Theme.text-secondary;
                                     vertical-alignment: center;
                                     height: parent.height;
@@ -607,7 +607,7 @@ export component ProductFormPage inherits VerticalLayout {
                                     width: parent.width - 20px;
                                     height: parent.height;
                                     text <=> root.product-cost-price;
-                                    font-size: 13px;
+                                    font-size: Theme.fs-13;
                                     color: Theme.text-primary;
                                     vertical-alignment: center;
                                     single-line: true;
@@ -616,8 +616,8 @@ export component ProductFormPage inherits VerticalLayout {
                                     x: 10px; y: 0;
                                     height: parent.height;
                                     text: "0.00";
-                                    font-size: 13px;
-                                    color: #BDBDBD;
+                                    font-size: Theme.fs-13;
+                                    color: Theme.text-secondary;
                                     vertical-alignment: center;
                                 }
                             }
@@ -625,7 +625,7 @@ export component ProductFormPage inherits VerticalLayout {
                             // dado → não mostra nada (padrão do sistema).
                             if root.product-margin-display != "": Text {
                                 text: "Margem: " + root.product-margin-display;
-                                font-size: 11px;
+                                font-size: Theme.fs-11;
                                 color: Theme.text-secondary;
                             }
                         }
@@ -638,7 +638,7 @@ export component ProductFormPage inherits VerticalLayout {
                                 Text {
                                     x: 0;
                                     text: "Estoque mínimo";
-                                    font-size: 12px; font-weight: 500;
+                                    font-size: Theme.fs-caption; font-weight: Theme.fw-medium;
                                     color: Theme.text-secondary;
                                     vertical-alignment: center;
                                     height: parent.height;
@@ -654,7 +654,7 @@ export component ProductFormPage inherits VerticalLayout {
                                     width: parent.width - 20px;
                                     height: parent.height;
                                     text <=> root.product-min-stock;
-                                    font-size: 13px;
+                                    font-size: Theme.fs-13;
                                     color: Theme.text-primary;
                                     vertical-alignment: center;
                                     single-line: true;
@@ -663,14 +663,14 @@ export component ProductFormPage inherits VerticalLayout {
                                     x: 10px; y: 0;
                                     height: parent.height;
                                     text: "0";
-                                    font-size: 13px;
-                                    color: #BDBDBD;
+                                    font-size: Theme.fs-13;
+                                    color: Theme.text-secondary;
                                     vertical-alignment: center;
                                 }
                             }
                             Text {
                                 text: "Alerta quando o estoque chegar a este valor.";
-                                font-size: 11px;
+                                font-size: Theme.fs-11;
                                 color: Theme.text-secondary;
                             }
                         }
@@ -684,7 +684,7 @@ export component ProductFormPage inherits VerticalLayout {
                     // Modo da balança (apenas para unit=kg)
                     if root.product-unit == "kg": VerticalLayout {
                         spacing: 4px;
-                        Text { text: "Modo da Balança"; font-size: 12px; font-weight: 500; color: Theme.text-secondary; }
+                        Text { text: "Modo da Balança"; font-size: Theme.fs-caption; font-weight: Theme.fw-medium; color: Theme.text-secondary; }
                         HorizontalLayout {
                             spacing: 8px;
                             balance-price-ta := TouchArea {
@@ -701,7 +701,7 @@ export component ProductFormPage inherits VerticalLayout {
                                         : (balance-price-ta.has-hover ? Theme.row-hover : Theme.surface);
                                     Text {
                                         text: "Valor";
-                                        font-size: 13px;
+                                        font-size: Theme.fs-13;
                                         font-weight: root.product-balance-mode == "price" ? 700 : 500;
                                         color: root.product-balance-mode == "price" ? Theme.sidebar-sel-bg : Theme.text-secondary;
                                         horizontal-alignment: center;
@@ -723,7 +723,7 @@ export component ProductFormPage inherits VerticalLayout {
                                         : (balance-weight-ta.has-hover ? Theme.row-hover : Theme.surface);
                                     Text {
                                         text: "Peso";
-                                        font-size: 13px;
+                                        font-size: Theme.fs-13;
                                         font-weight: root.product-balance-mode == "weight" ? 700 : 500;
                                         color: root.product-balance-mode == "weight" ? Theme.sidebar-sel-bg : Theme.text-secondary;
                                         horizontal-alignment: center;
@@ -745,7 +745,7 @@ export component ProductFormPage inherits VerticalLayout {
                     padding: 16px;
                     spacing: 10px;
 
-                    Text { text: "Categoria"; font-size: 14px; font-weight: 700; color: Theme.text-primary; }
+                    Text { text: "Categoria"; font-size: Theme.fs-body; font-weight: Theme.fw-bold; color: Theme.text-primary; }
 
                     HorizontalLayout {
                         spacing: 12px;
@@ -753,7 +753,7 @@ export component ProductFormPage inherits VerticalLayout {
                             alignment: start;
                             horizontal-stretch: 1;
                             spacing: 4px;
-                            Text { text: "Categoria"; font-size: 12px; font-weight: 500; color: Theme.text-secondary; }
+                            Text { text: "Categoria"; font-size: Theme.fs-caption; font-weight: Theme.fw-medium; color: Theme.text-secondary; }
                             cat-ta := TouchArea {
                                 height: 36px;
                                 property <bool> hov: self.has-hover;
@@ -766,11 +766,11 @@ export component ProductFormPage inherits VerticalLayout {
                                         padding-left: 10px; padding-right: 10px;
                                         Text {
                                             text: root.product-category-id != "" ? root.product-category-name : "Nenhuma";
-                                            font-size: 13px;
+                                            font-size: Theme.fs-13;
                                             color: root.product-category-id != "" ? Theme.text-primary : #BDBDBD;
                                             vertical-alignment: center; horizontal-stretch: 1;
                                         }
-                                        Text { text: root.product-category-open ? "▴" : "▾"; font-size: 13px; color: Theme.text-secondary; vertical-alignment: center; }
+                                        Text { text: root.product-category-open ? "▴" : "▾"; font-size: Theme.fs-13; color: Theme.text-secondary; vertical-alignment: center; }
                                     }
                                 }
                             }
@@ -790,7 +790,7 @@ export component ProductFormPage inherits VerticalLayout {
                                             clicked => { root.product-category-id = ""; root.product-category-name = ""; root.product-subcategory-id = ""; root.product-subcategory-name = ""; root.product-category-open = false; }
                                             Rectangle {
                                                 background: parent.hov ? Theme.row-hover : transparent;
-                                                HorizontalLayout { padding-left: 10px; Text { text: "Nenhuma"; font-size: 13px; color: Theme.text-secondary; vertical-alignment: center; } }
+                                                HorizontalLayout { padding-left: 10px; Text { text: "Nenhuma"; font-size: Theme.fs-13; color: Theme.text-secondary; vertical-alignment: center; } }
                                             }
                                         }
                                         for cat in root.categories: TouchArea {
@@ -799,12 +799,12 @@ export component ProductFormPage inherits VerticalLayout {
                                             clicked => { root.product-category-id = cat.id; root.product-category-name = cat.name; root.product-subcategory-id = ""; root.product-subcategory-name = ""; root.product-category-open = false; }
                                             Rectangle {
                                                 background: parent.hov ? Theme.row-hover : transparent;
-                                                HorizontalLayout { padding-left: 10px; Text { text: cat.name; font-size: 13px; color: Theme.text-primary; vertical-alignment: center; horizontal-stretch: 1; } }
+                                                HorizontalLayout { padding-left: 10px; Text { text: cat.name; font-size: Theme.fs-13; color: Theme.text-primary; vertical-alignment: center; horizontal-stretch: 1; } }
                                             }
                                         }
                                         if root.categories.length == 0: Rectangle {
                                             height: 32px;
-                                            HorizontalLayout { padding-left: 10px; Text { text: "Cadastre uma categoria primeiro"; font-size: 12px; color: Theme.text-secondary; vertical-alignment: center; } }
+                                            HorizontalLayout { padding-left: 10px; Text { text: "Cadastre uma categoria primeiro"; font-size: Theme.fs-caption; color: Theme.text-secondary; vertical-alignment: center; } }
                                         }
                                     }
                                 }
@@ -814,7 +814,7 @@ export component ProductFormPage inherits VerticalLayout {
                             alignment: start;
                             horizontal-stretch: 1;
                             spacing: 4px;
-                            Text { text: "Subcategoria"; font-size: 12px; font-weight: 500; color: Theme.text-secondary; }
+                            Text { text: "Subcategoria"; font-size: Theme.fs-caption; font-weight: Theme.fw-medium; color: Theme.text-secondary; }
                             sub-ta := TouchArea {
                                 height: 36px;
                                 property <bool> hov: self.has-hover;
@@ -829,11 +829,11 @@ export component ProductFormPage inherits VerticalLayout {
                                         padding-left: 10px; padding-right: 10px;
                                         Text {
                                             text: root.product-category-id == "" ? "Selecione a categoria" : (root.product-subcategory-id != "" ? root.product-subcategory-name : "Nenhuma");
-                                            font-size: 13px;
+                                            font-size: Theme.fs-13;
                                             color: root.product-subcategory-id != "" ? Theme.text-primary : #BDBDBD;
                                             vertical-alignment: center; horizontal-stretch: 1;
                                         }
-                                        Text { text: root.product-subcategory-open ? "▴" : "▾"; font-size: 13px; color: Theme.text-secondary; vertical-alignment: center; }
+                                        Text { text: root.product-subcategory-open ? "▴" : "▾"; font-size: Theme.fs-13; color: Theme.text-secondary; vertical-alignment: center; }
                                     }
                                 }
                             }
@@ -853,7 +853,7 @@ export component ProductFormPage inherits VerticalLayout {
                                             clicked => { root.product-subcategory-id = ""; root.product-subcategory-name = ""; root.product-subcategory-open = false; }
                                             Rectangle {
                                                 background: parent.hov ? Theme.row-hover : transparent;
-                                                HorizontalLayout { padding-left: 10px; Text { text: "Nenhuma"; font-size: 13px; color: Theme.text-secondary; vertical-alignment: center; } }
+                                                HorizontalLayout { padding-left: 10px; Text { text: "Nenhuma"; font-size: Theme.fs-13; color: Theme.text-secondary; vertical-alignment: center; } }
                                             }
                                         }
                                         for sub in root.subcategories: TouchArea {
@@ -863,7 +863,7 @@ export component ProductFormPage inherits VerticalLayout {
                                             clicked => { root.product-subcategory-id = sub.id; root.product-subcategory-name = sub.name; root.product-subcategory-open = false; }
                                             Rectangle {
                                                 background: parent.hov ? Theme.row-hover : transparent;
-                                                HorizontalLayout { padding-left: 10px; Text { text: sub.name; font-size: 13px; color: Theme.text-primary; vertical-alignment: center; horizontal-stretch: 1; } }
+                                                HorizontalLayout { padding-left: 10px; Text { text: sub.name; font-size: Theme.fs-13; color: Theme.text-primary; vertical-alignment: center; horizontal-stretch: 1; } }
                                             }
                                         }
                                     }
@@ -896,7 +896,7 @@ export component ProductFormPage inherits VerticalLayout {
                         spacing: 12px;
                         Text {
                             text: "Disponibilidade";
-                            font-size: 14px; font-weight: 700;
+                            font-size: Theme.fs-body; font-weight: Theme.fw-bold;
                             color: Theme.text-primary;
                             vertical-alignment: center;
                             horizontal-stretch: 1;
@@ -916,8 +916,8 @@ export component ProductFormPage inherits VerticalLayout {
                                     : (avail-toggle.has-hover ? Theme.row-hover : Theme.surface);
                                 Text {
                                     text: root.product-availability-enabled ? "Horário Definido" : "Sempre Disponível";
-                                    font-size: 11px;
-                                    font-weight: 600;
+                                    font-size: Theme.fs-11;
+                                    font-weight: Theme.fw-strong;
                                     color: root.product-availability-enabled ? white : Theme.text-primary;
                                     horizontal-alignment: center;
                                     vertical-alignment: center;
@@ -931,7 +931,7 @@ export component ProductFormPage inherits VerticalLayout {
                         text: root.product-availability-enabled
                             ? "O produto só será vendido nos horários abaixo."
                             : "Sempre Disponível - O produto pode ser pedido a qualquer hora.";
-                        font-size: 11px;
+                        font-size: Theme.fs-11;
                         color: Theme.text-secondary;
                     }
 
@@ -944,7 +944,7 @@ export component ProductFormPage inherits VerticalLayout {
                             // Dia da semana (largura fixa)
                             Text {
                                 text: entry.day-name;
-                                font-size: 12px; font-weight: 600;
+                                font-size: Theme.fs-caption; font-weight: Theme.fw-strong;
                                 color: Theme.text-primary;
                                 vertical-alignment: center;
                                 width: 90px;
@@ -965,8 +965,8 @@ export component ProductFormPage inherits VerticalLayout {
                                         : (open-toggle.has-hover ? Theme.row-hover : Theme.surface);
                                     Text {
                                         text: entry.is-open ? "Ativo" : "Inativo";
-                                        font-size: 11px;
-                                        font-weight: 600;
+                                        font-size: Theme.fs-11;
+                                        font-weight: Theme.fw-strong;
                                         color: entry.is-open ? white : Theme.text-secondary;
                                         horizontal-alignment: center;
                                         vertical-alignment: center;
@@ -989,7 +989,7 @@ export component ProductFormPage inherits VerticalLayout {
                                     height: parent.height;
                                     text: entry.open-time;
                                     enabled: entry.is-open;
-                                    font-size: 12px;
+                                    font-size: Theme.fs-caption;
                                     color: Theme.text-primary;
                                     vertical-alignment: center;
                                     single-line: true;
@@ -1001,7 +1001,7 @@ export component ProductFormPage inherits VerticalLayout {
 
                             Text {
                                 text: "às";
-                                font-size: 11px;
+                                font-size: Theme.fs-11;
                                 color: Theme.text-secondary;
                                 vertical-alignment: center;
                                 width: 18px;
@@ -1021,7 +1021,7 @@ export component ProductFormPage inherits VerticalLayout {
                                     height: parent.height;
                                     text: entry.close-time;
                                     enabled: entry.is-open;
-                                    font-size: 12px;
+                                    font-size: Theme.fs-caption;
                                     color: Theme.text-primary;
                                     vertical-alignment: center;
                                     single-line: true;
@@ -1052,10 +1052,10 @@ export component ProductFormPage inherits VerticalLayout {
                     padding: 16px;
                     spacing: 10px;
 
-                    Text { text: "Desconto"; font-size: 14px; font-weight: 700; color: Theme.text-primary; }
+                    Text { text: "Desconto"; font-size: Theme.fs-body; font-weight: Theme.fw-bold; color: Theme.text-primary; }
                     Text {
                         text: "Aplicado automaticamente no preço exibido ao cliente no cardápio web.";
-                        font-size: 11px;
+                        font-size: Theme.fs-11;
                         color: Theme.text-secondary;
                     }
 
@@ -1138,7 +1138,7 @@ export component ProductFormPage inherits VerticalLayout {
                             text: root.product-discount-kind == "bulk_percent"
                                 ? "Defina as faixas: a partir de N unidades, aplica X% de desconto."
                                 : "Defina as faixas: a partir de N unidades, aplica R$ X de desconto.";
-                            font-size: 11px;
+                            font-size: Theme.fs-11;
                             color: Theme.text-secondary;
                         }
 
@@ -1152,7 +1152,7 @@ export component ProductFormPage inherits VerticalLayout {
                                     Text {
                                         x: 0;
                                         text: "Acima de";
-                                        font-size: 12px; font-weight: 500;
+                                        font-size: Theme.fs-caption; font-weight: Theme.fw-medium;
                                         color: Theme.text-secondary;
                                         vertical-alignment: center;
                                         height: parent.height;
@@ -1168,7 +1168,7 @@ export component ProductFormPage inherits VerticalLayout {
                                         width: parent.width - 20px;
                                         height: parent.height;
                                         text: tier.min-qty;
-                                        font-size: 13px;
+                                        font-size: Theme.fs-13;
                                         color: Theme.text-primary;
                                         vertical-alignment: center;
                                         single-line: true;
@@ -1180,8 +1180,8 @@ export component ProductFormPage inherits VerticalLayout {
                                         x: 10px; y: 0;
                                         height: parent.height;
                                         text: "1";
-                                        font-size: 13px;
-                                        color: #BDBDBD;
+                                        font-size: Theme.fs-13;
+                                        color: Theme.text-secondary;
                                         vertical-alignment: center;
                                     }
                                 }
@@ -1197,7 +1197,7 @@ export component ProductFormPage inherits VerticalLayout {
                                     Text {
                                         x: 0;
                                         text: root.product-discount-kind == "bulk_percent" ? "Desconto (%)" : "Desconto (R$)";
-                                        font-size: 12px; font-weight: 500;
+                                        font-size: Theme.fs-caption; font-weight: Theme.fw-medium;
                                         color: Theme.text-secondary;
                                         vertical-alignment: center;
                                         height: parent.height;
@@ -1216,7 +1216,7 @@ export component ProductFormPage inherits VerticalLayout {
                                             width: parent.width - 20px;
                                             height: parent.height;
                                             text: tier.value;
-                                            font-size: 13px;
+                                            font-size: Theme.fs-13;
                                             color: Theme.text-primary;
                                             vertical-alignment: center;
                                             single-line: true;
@@ -1228,8 +1228,8 @@ export component ProductFormPage inherits VerticalLayout {
                                             x: 10px; y: 0;
                                             height: parent.height;
                                             text: "0";
-                                            font-size: 13px;
-                                            color: #BDBDBD;
+                                            font-size: Theme.fs-13;
+                                            color: Theme.text-secondary;
                                             vertical-alignment: center;
                                         }
                                     }
@@ -1256,13 +1256,13 @@ export component ProductFormPage inherits VerticalLayout {
                                         alignment: center; spacing: 6px;
                                         Text {
                                             text: "+";
-                                            font-size: 16px; font-weight: 700;
+                                            font-size: Theme.fs-section; font-weight: Theme.fw-bold;
                                             color: Theme.primary;
                                             vertical-alignment: center;
                                         }
                                         Text {
                                             text: "Adicionar Faixa";
-                                            font-size: 12px; font-weight: 500;
+                                            font-size: Theme.fs-caption; font-weight: Theme.fw-medium;
                                             color: Theme.primary;
                                             vertical-alignment: center;
                                         }
@@ -1291,14 +1291,14 @@ export component ProductFormPage inherits VerticalLayout {
                 VerticalLayout {
                     padding: 16px;
                     spacing: 10px;
-                    Text { text: "Galeria (mais imagens)"; font-size: 14px; font-weight: 700; color: Theme.text-primary; }
+                    Text { text: "Galeria (mais imagens)"; font-size: Theme.fs-body; font-weight: Theme.fw-bold; color: Theme.text-primary; }
                     Text {
                         text: "Imagens adicionais além da principal — exibidas como carrossel no cardápio.";
-                        font-size: 11px; color: Theme.text-secondary; wrap: word-wrap;
+                        font-size: Theme.fs-11; color: Theme.text-secondary; wrap: word-wrap;
                     }
                     if ProductsState.product-gallery.length == 0: Text {
                         text: "Nenhuma imagem adicional.";
-                        font-size: 12px; color: Theme.text-secondary;
+                        font-size: Theme.fs-caption; color: Theme.text-secondary;
                     }
                     // Miniaturas com botão de remover.
                     HorizontalLayout {
@@ -1321,7 +1321,7 @@ export component ProductFormPage inherits VerticalLayout {
                                     border-radius: 11px;
                                     background: rm.has-hover ? Theme.danger : #00000088;
                                     Text {
-                                        text: "✕"; color: white; font-size: 12px; font-weight: 700;
+                                        text: "✕"; color: white; font-size: Theme.fs-caption; font-weight: Theme.fw-bold;
                                         horizontal-alignment: center; vertical-alignment: center;
                                     }
                                 }
@@ -1349,14 +1349,14 @@ export component ProductFormPage inherits VerticalLayout {
                     padding: 16px;
                     spacing: 10px;
 
-                    Text { text: "Insumos (ficha técnica)"; font-size: 14px; font-weight: 700; color: Theme.text-primary; }
+                    Text { text: "Insumos (ficha técnica)"; font-size: Theme.fs-body; font-weight: Theme.fw-bold; color: Theme.text-primary; }
                     Text {
                         text: "Insumos consumidos a cada unidade vendida — o estoque da matéria-prima baixa junto na venda.";
-                        font-size: 11px; color: Theme.text-secondary; wrap: word-wrap;
+                        font-size: Theme.fs-11; color: Theme.text-secondary; wrap: word-wrap;
                     }
                     if ProductsState.product-ingredients.length == 0: Text {
                         text: "Nenhum insumo na ficha técnica.";
-                        font-size: 12px; color: Theme.text-secondary;
+                        font-size: Theme.fs-caption; color: Theme.text-secondary;
                     }
                     for row[idx] in ProductsState.product-ingredients: Rectangle {
                         height: 40px;
@@ -1375,9 +1375,9 @@ export component ProductFormPage inherits VerticalLayout {
                                         horizontal-stretch: 1;
                                         text: row.insumo-name == "" ? "Selecione o insumo" : row.insumo-name;
                                         color: row.insumo-name == "" ? #BDBDBD : Theme.text-primary;
-                                        font-size: 13px; vertical-alignment: center; overflow: elide;
+                                        font-size: Theme.fs-13; vertical-alignment: center; overflow: elide;
                                     }
-                                    Text { text: "▾"; font-size: 12px; color: Theme.text-secondary; vertical-alignment: center; }
+                                    Text { text: "▾"; font-size: Theme.fs-caption; color: Theme.text-secondary; vertical-alignment: center; }
                                 }
                                 ing-pop := PopupWindow {
                                     x: 0; y: parent.height + 4px; width: 260px;
@@ -1399,7 +1399,7 @@ export component ProductFormPage inherits VerticalLayout {
                                                         Text {
                                                             x: 10px; width: parent.width - 20px; height: parent.height;
                                                             text: opt.name + " (" + opt.unit + ")";
-                                                            font-size: 13px; color: Theme.text-primary;
+                                                            font-size: Theme.fs-13; color: Theme.text-primary;
                                                             vertical-alignment: center; overflow: elide;
                                                         }
                                                     }
@@ -1418,18 +1418,18 @@ export component ProductFormPage inherits VerticalLayout {
                                 qty-in := TextInput {
                                     x: 8px; width: parent.width - 16px; height: parent.height;
                                     text: row.quantity;
-                                    font-size: 13px; color: Theme.text-primary;
+                                    font-size: Theme.fs-13; color: Theme.text-primary;
                                     vertical-alignment: center; single-line: true;
                                     edited => { ProductsState.product-ingredients[idx].quantity = self.text; }
                                 }
                                 if row.quantity == "": Text {
                                     x: 8px; width: parent.width - 16px; height: parent.height;
-                                    text: "Qtd"; font-size: 13px; color: #BDBDBD; vertical-alignment: center;
+                                    text: "Qtd"; font-size: Theme.fs-13; color: Theme.text-secondary; vertical-alignment: center;
                                 }
                             }
                             VerticalLayout {
                                 alignment: center; width: 28px;
-                                Text { text: row.unit; font-size: 12px; color: Theme.text-secondary; vertical-alignment: center; }
+                                Text { text: row.unit; font-size: Theme.fs-caption; color: Theme.text-secondary; vertical-alignment: center; }
                             }
                             VerticalLayout {
                                 alignment: center;
@@ -1455,10 +1455,10 @@ export component ProductFormPage inherits VerticalLayout {
                     padding: 16px;
                     spacing: 10px;
 
-                    Text { text: "Adicionais"; font-size: 14px; font-weight: 700; color: Theme.text-primary; }
+                    Text { text: "Adicionais"; font-size: Theme.fs-body; font-weight: Theme.fw-bold; color: Theme.text-primary; }
                     Text {
                         text: "Marque os grupos de adicionais que se aplicam a este produto.";
-                        font-size: 11px;
+                        font-size: Theme.fs-11;
                         color: Theme.text-secondary;
                     }
 
@@ -1472,7 +1472,7 @@ export component ProductFormPage inherits VerticalLayout {
                         }
                         Text {
                             text: "Acesse 'Adicionais' no menu lateral para criar um.";
-                            font-size: 12px;
+                            font-size: Theme.fs-caption;
                             color: Theme.text-secondary;
                             horizontal-alignment: center;
                             wrap: word-wrap;
@@ -1532,10 +1532,10 @@ export component ProductFormPage inherits VerticalLayout {
                     padding: 16px;
                     spacing: 10px;
 
-                    Text { text: "Variações"; font-size: 14px; font-weight: 700; color: Theme.text-primary; }
+                    Text { text: "Variações"; font-size: Theme.fs-body; font-weight: Theme.fw-bold; color: Theme.text-primary; }
                     Text {
                         text: "Defina opções como Tamanho, Sabor etc. O cliente escolhe no cardápio web.";
-                        font-size: 11px;
+                        font-size: Theme.fs-11;
                         color: Theme.text-secondary;
                     }
 
@@ -1563,7 +1563,7 @@ export component ProductFormPage inherits VerticalLayout {
                                         height: 22px;
                                         Text {
                                             x: 0; text: "Título";
-                                            font-size: 12px; font-weight: 500;
+                                            font-size: Theme.fs-caption; font-weight: Theme.fw-medium;
                                             color: Theme.text-secondary;
                                             vertical-alignment: center;
                                             height: parent.height;
@@ -1579,7 +1579,7 @@ export component ProductFormPage inherits VerticalLayout {
                                             width: parent.width - 20px;
                                             height: parent.height;
                                             text: variation.title;
-                                            font-size: 13px;
+                                            font-size: Theme.fs-13;
                                             color: Theme.text-primary;
                                             vertical-alignment: center;
                                             single-line: true;
@@ -1591,8 +1591,8 @@ export component ProductFormPage inherits VerticalLayout {
                                             x: 10px; y: 0;
                                             height: parent.height;
                                             text: "Ex.: Tamanho, Sabor";
-                                            font-size: 13px;
-                                            color: #BDBDBD;
+                                            font-size: Theme.fs-13;
+                                            color: Theme.text-secondary;
                                             vertical-alignment: center;
                                         }
                                     }
@@ -1611,7 +1611,7 @@ export component ProductFormPage inherits VerticalLayout {
                                 spacing: 4px;
                                 Text {
                                     text: "Tipo de seleção";
-                                    font-size: 12px; font-weight: 500;
+                                    font-size: Theme.fs-caption; font-weight: Theme.fw-medium;
                                     color: Theme.text-secondary;
                                 }
                                 HorizontalLayout {
@@ -1667,7 +1667,7 @@ export component ProductFormPage inherits VerticalLayout {
                                     }
                                     Text {
                                         text: "Obrigatório";
-                                        font-size: 12px;
+                                        font-size: Theme.fs-caption;
                                         color: Theme.text-primary;
                                         vertical-alignment: center;
                                     }
@@ -1684,7 +1684,7 @@ export component ProductFormPage inherits VerticalLayout {
                                     spacing: 4px;
                                     Text {
                                         text: "Mín. seleções";
-                                        font-size: 12px; font-weight: 500;
+                                        font-size: Theme.fs-caption; font-weight: Theme.fw-medium;
                                         color: Theme.text-secondary;
                                     }
                                     Rectangle {
@@ -1697,7 +1697,7 @@ export component ProductFormPage inherits VerticalLayout {
                                             width: parent.width - 20px;
                                             height: parent.height;
                                             text: variation.min-select;
-                                            font-size: 13px;
+                                            font-size: Theme.fs-13;
                                             color: Theme.text-primary;
                                             vertical-alignment: center;
                                             single-line: true;
@@ -1710,8 +1710,8 @@ export component ProductFormPage inherits VerticalLayout {
                                             x: 10px; y: 0;
                                             height: parent.height;
                                             text: "0";
-                                            font-size: 13px;
-                                            color: #BDBDBD;
+                                            font-size: Theme.fs-13;
+                                            color: Theme.text-secondary;
                                             vertical-alignment: center;
                                         }
                                     }
@@ -1721,7 +1721,7 @@ export component ProductFormPage inherits VerticalLayout {
                                     spacing: 4px;
                                     Text {
                                         text: "Máx. seleções";
-                                        font-size: 12px; font-weight: 500;
+                                        font-size: Theme.fs-caption; font-weight: Theme.fw-medium;
                                         color: Theme.text-secondary;
                                     }
                                     Rectangle {
@@ -1734,7 +1734,7 @@ export component ProductFormPage inherits VerticalLayout {
                                             width: parent.width - 20px;
                                             height: parent.height;
                                             text: variation.max-select;
-                                            font-size: 13px;
+                                            font-size: Theme.fs-13;
                                             color: Theme.text-primary;
                                             vertical-alignment: center;
                                             single-line: true;
@@ -1747,8 +1747,8 @@ export component ProductFormPage inherits VerticalLayout {
                                             x: 10px; y: 0;
                                             height: parent.height;
                                             text: "Sem limite";
-                                            font-size: 13px;
-                                            color: #BDBDBD;
+                                            font-size: Theme.fs-13;
+                                            color: Theme.text-secondary;
                                             vertical-alignment: center;
                                         }
                                     }
@@ -1760,7 +1760,7 @@ export component ProductFormPage inherits VerticalLayout {
                             // Opções.
                             Text {
                                 text: "Opções";
-                                font-size: 12px; font-weight: 600;
+                                font-size: Theme.fs-caption; font-weight: Theme.fw-strong;
                                 color: Theme.text-secondary;
                             }
                             for option[o_idx] in variation.options: HorizontalLayout {
@@ -1776,7 +1776,7 @@ export component ProductFormPage inherits VerticalLayout {
                                         width: parent.width - 20px;
                                         height: parent.height;
                                         text: option.name;
-                                        font-size: 13px;
+                                        font-size: Theme.fs-13;
                                         color: Theme.text-primary;
                                         vertical-alignment: center;
                                         single-line: true;
@@ -1788,8 +1788,8 @@ export component ProductFormPage inherits VerticalLayout {
                                         x: 10px; y: 0;
                                         height: parent.height;
                                         text: "Nome";
-                                        font-size: 13px;
-                                        color: #BDBDBD;
+                                        font-size: Theme.fs-13;
+                                        color: Theme.text-secondary;
                                         vertical-alignment: center;
                                     }
                                 }
@@ -1804,7 +1804,7 @@ export component ProductFormPage inherits VerticalLayout {
                                         width: parent.width - 20px;
                                         height: parent.height;
                                         text: option.price;
-                                        font-size: 13px;
+                                        font-size: Theme.fs-13;
                                         color: Theme.text-primary;
                                         vertical-alignment: center;
                                         single-line: true;
@@ -1816,8 +1816,8 @@ export component ProductFormPage inherits VerticalLayout {
                                         x: 10px; y: 0;
                                         height: parent.height;
                                         text: "0,00";
-                                        font-size: 13px;
-                                        color: #BDBDBD;
+                                        font-size: Theme.fs-13;
+                                        color: Theme.text-secondary;
                                         vertical-alignment: center;
                                     }
                                 }
@@ -1841,13 +1841,13 @@ export component ProductFormPage inherits VerticalLayout {
                                         alignment: center; spacing: 6px;
                                         Text {
                                             text: "+";
-                                            font-size: 14px; font-weight: 700;
+                                            font-size: Theme.fs-body; font-weight: Theme.fw-bold;
                                             color: Theme.primary;
                                             vertical-alignment: center;
                                         }
                                         Text {
                                             text: "Adicionar Opção";
-                                            font-size: 12px; font-weight: 500;
+                                            font-size: Theme.fs-caption; font-weight: Theme.fw-medium;
                                             color: Theme.primary;
                                             vertical-alignment: center;
                                         }
@@ -1871,13 +1871,13 @@ export component ProductFormPage inherits VerticalLayout {
                                 alignment: center; spacing: 6px;
                                 Text {
                                     text: "+";
-                                    font-size: 16px; font-weight: 700;
+                                    font-size: Theme.fs-section; font-weight: Theme.fw-bold;
                                     color: Theme.primary;
                                     vertical-alignment: center;
                                 }
                                 Text {
                                     text: "Nova Variação";
-                                    font-size: 13px; font-weight: 600;
+                                    font-size: Theme.fs-13; font-weight: Theme.fw-strong;
                                     color: Theme.primary;
                                     vertical-alignment: center;
                                 }
@@ -1892,7 +1892,7 @@ export component ProductFormPage inherits VerticalLayout {
 
         if root.product-save-error != "": Text {
             text: root.product-save-error;
-            font-size: 12px; color: Theme.danger; wrap: word-wrap;
+            font-size: Theme.fs-caption; color: Theme.danger; wrap: word-wrap;
         }
     }
 }

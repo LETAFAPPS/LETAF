@@ -55,13 +55,13 @@ component KpiCard inherits Rectangle {
             spacing: 2px;
             Text {
                 text: root.label;
-                font-size: 10px; font-weight: 700;
+                font-size: Theme.fs-label; font-weight: Theme.fw-bold;
                 letter-spacing: 1px; color: Theme.text-secondary;
                 overflow: elide;
             }
             Text {
                 text: root.value;
-                font-size: 30px; font-weight: 800;
+                font-size: 30px; font-weight: Theme.fw-extrabold;
                 color: root.accent;
             }
         }
@@ -70,7 +70,7 @@ component KpiCard inherits Rectangle {
             alignment: center;
             Text {
                 text: root.hint;
-                font-size: 11px; color: Theme.text-secondary;
+                font-size: Theme.fs-11; color: Theme.text-secondary;
                 horizontal-alignment: right;
                 wrap: word-wrap;
             }
@@ -122,7 +122,7 @@ component InventoryRow inherits Rectangle {
                 if !root.data.has-image: Text {
                     width: parent.width; height: parent.height;
                     text: root.data.initials;
-                    font-size: 14px; font-weight: 700;
+                    font-size: Theme.fs-body; font-weight: Theme.fw-bold;
                     color: root.data.status == "out" ? #C0392B : #8D8275;
                     horizontal-alignment: center; vertical-alignment: center;
                 }
@@ -136,12 +136,12 @@ component InventoryRow inherits Rectangle {
             spacing: 2px;
             Text {
                 text: root.data.name;
-                font-size: 14px; font-weight: 700;
+                font-size: Theme.fs-body; font-weight: Theme.fw-bold;
                 color: Theme.text-primary; overflow: elide;
             }
             Text {
                 text: root.data.category-label;
-                font-size: 11px; color: Theme.text-secondary;
+                font-size: Theme.fs-11; color: Theme.text-secondary;
                 overflow: elide;
             }
         }
@@ -165,7 +165,7 @@ component InventoryRow inherits Rectangle {
             }
             Text {
                 text: root.data.min-display;
-                font-size: 11px; color: Theme.text-secondary;
+                font-size: Theme.fs-11; color: Theme.text-secondary;
                 width: parent.width;
                 horizontal-alignment: center;
             }
@@ -178,13 +178,13 @@ component InventoryRow inherits Rectangle {
             spacing: 2px;
             Text {
                 text: root.data.qty-display;
-                font-size: 16px; font-weight: 800;
+                font-size: Theme.fs-section; font-weight: Theme.fw-extrabold;
                 horizontal-alignment: right;
                 color: root.st-color;
             }
             Text {
                 text: root.data.status-label;
-                font-size: 11px; font-weight: 600;
+                font-size: Theme.fs-11; font-weight: Theme.fw-strong;
                 horizontal-alignment: right;
                 color: root.st-color;
             }
@@ -274,11 +274,11 @@ export component InventoryPage inherits VerticalLayout {
             spacing: 2px;
             Text {
                 text: "Estoque";
-                font-size: 24px; font-weight: 800; color: Theme.text-primary;
+                font-size: 24px; font-weight: Theme.fw-extrabold; color: Theme.text-primary;
             }
             Text {
                 text: "\{root.health.total-count} produtos · \{root.health.out-count + root.health.low-count} precisam de atenção";
-                font-size: 12px; color: Theme.text-secondary;
+                font-size: Theme.fs-caption; color: Theme.text-secondary;
             }
         }
         // Sincronizar (mesma altura da barra de busca).
@@ -319,7 +319,7 @@ export component InventoryPage inherits VerticalLayout {
                         }
                         Text {
                             text: root.syncing ? "Sincronizando…" : "Sincronizar";
-                            font-size: 14px; font-weight: 700; color: Theme.btn-accent;
+                            font-size: Theme.fs-body; font-weight: Theme.fw-bold; color: Theme.btn-accent;
                             vertical-alignment: center;
                         }
                     }
@@ -352,7 +352,7 @@ export component InventoryPage inherits VerticalLayout {
             value: root.health.sync-pending-count;
             hint: "Produtos\npendentes";
             tint: #E3F2FD;
-            accent: #1E88E5;
+            accent: Theme.info;
             icon-source: @image-url("../assets/icons/atualizar.svg");
         }
     }
@@ -383,7 +383,7 @@ export component InventoryPage inherits VerticalLayout {
                         border-color: Theme.btn-accent;
                         Text {
                             text: opt.l;
-                            font-size: 12px; font-weight: 700;
+                            font-size: Theme.fs-caption; font-weight: Theme.fw-bold;
                             color: root.type-filter == opt.k ? Theme.btn-accent : Theme.text-secondary;
                             horizontal-alignment: center; vertical-alignment: center;
                             width: parent.width; height: parent.height;
@@ -422,15 +422,15 @@ export component InventoryPage inherits VerticalLayout {
                     search-input := TextInput {
                         x: 0; y: 0; width: parent.width; height: parent.height;
                         text <=> root.search;
-                        font-size: 13px; color: Theme.text-primary;
+                        font-size: Theme.fs-13; color: Theme.text-primary;
                         vertical-alignment: center;
                         single-line: true;
                         edited => { root.search-changed(self.text); }
                     }
                     if root.search == "": Text {
                         x: 0; y: 0; width: parent.width; height: parent.height;
-                        text: "Buscar produto..."; font-size: 13px;
-                        color: #BDBDBD; vertical-alignment: center;
+                        text: "Buscar produto..."; font-size: Theme.fs-13;
+                        color: Theme.text-secondary; vertical-alignment: center;
                     }
                 }
             }
@@ -462,12 +462,12 @@ export component InventoryPage inherits VerticalLayout {
                     text: root.filter == "ok" ? "Saudável"
                         : (root.filter == "low" ? "Estoque Baixo"
                         : (root.filter == "out" ? "Sem Estoque" : "Status"));
-                    font-size: 13px; font-weight: 600;
+                    font-size: Theme.fs-13; font-weight: Theme.fw-strong;
                     color: root.filter == "all" ? Theme.text-primary : Theme.btn-accent;
                     vertical-alignment: center; overflow: elide;
                 }
                 Text {
-                    text: "▾"; font-size: 12px; color: Theme.text-secondary;
+                    text: "▾"; font-size: Theme.fs-caption; color: Theme.text-secondary;
                     vertical-alignment: center;
                 }
             }
@@ -484,7 +484,7 @@ export component InventoryPage inherits VerticalLayout {
                         padding: 6px; spacing: 2px;
                         Text {
                             text: "STATUS";
-                            font-size: 10px; font-weight: 800; letter-spacing: 1px;
+                            font-size: Theme.fs-label; font-weight: Theme.fw-extrabold; letter-spacing: 1px;
                             color: Theme.btn-accent;
                             horizontal-alignment: left;
                         }
@@ -509,7 +509,7 @@ export component InventoryPage inherits VerticalLayout {
                                     x: 10px;
                                     width: parent.width - 20px; height: parent.height;
                                     text: opt.l;
-                                    font-size: 13px;
+                                    font-size: Theme.fs-13;
                                     font-weight: root.filter == opt.k ? 700 : 500;
                                     color: root.filter == opt.k ? Theme.btn-accent : Theme.text-primary;
                                     vertical-alignment: center;
@@ -547,13 +547,13 @@ export component InventoryPage inherits VerticalLayout {
                     }
                     Text {
                         text: p.group-label;
-                        font-size: 11px; font-weight: 700; letter-spacing: 1px;
+                        font-size: Theme.fs-11; font-weight: Theme.fw-bold; letter-spacing: 1px;
                         color: p.group-color;
                         vertical-alignment: center;
                     }
                     Text {
                         text: " · \{p.group-count}";
-                        font-size: 11px; font-weight: 700;
+                        font-size: Theme.fs-11; font-weight: Theme.fw-bold;
                         color: Theme.text-secondary;
                         vertical-alignment: center;
                     }

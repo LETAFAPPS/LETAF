@@ -52,12 +52,12 @@ export component PdvCustomerPickerModal inherits Rectangle {
                                     horizontal-stretch: 1; spacing: 2px;
                                     Text {
                                         text: "Selecionar Cliente";
-                                        font-size: 16px; font-weight: 700;
+                                        font-size: Theme.fs-section; font-weight: Theme.fw-bold;
                                         color: Theme.text-primary;
                                     }
                                     Text {
                                         text: "Busque por nome, telefone ou documento.";
-                                        font-size: 11px; color: Theme.text-secondary;
+                                        font-size: Theme.fs-11; color: Theme.text-secondary;
                                     }
                                 }
                             }
@@ -82,7 +82,7 @@ export component PdvCustomerPickerModal inherits Rectangle {
                                     width: parent.width - 20px;
                                     height: parent.height;
                                     text <=> root.search;
-                                    font-size: 13px; color: Theme.text-primary;
+                                    font-size: Theme.fs-13; color: Theme.text-primary;
                                     vertical-alignment: center;
                                     single-line: true;
                                     edited => { root.search-changed(self.text); }
@@ -90,7 +90,7 @@ export component PdvCustomerPickerModal inherits Rectangle {
                                 if root.search == "": Text {
                                     x: 10px; y: 0; height: parent.height;
                                     text: "Buscar…";
-                                    font-size: 13px; color: #BDBDBD;
+                                    font-size: Theme.fs-13; color: Theme.text-secondary;
                                     vertical-alignment: center;
                                 }
                                 Timer {
@@ -136,13 +136,13 @@ export component PdvCustomerPickerModal inherits Rectangle {
                                                         spacing: 1px;
                                                         Text {
                                                             text: c.name;
-                                                            font-size: 13px; font-weight: 600;
+                                                            font-size: Theme.fs-13; font-weight: Theme.fw-strong;
                                                             color: Theme.text-primary;
                                                             overflow: elide;
                                                         }
                                                         Text {
                                                             text: c.phone != "" ? c.phone : (c.document != "" ? c.document : "—");
-                                                            font-size: 11px;
+                                                            font-size: Theme.fs-11;
                                                             color: Theme.text-secondary;
                                                         }
                                                     }

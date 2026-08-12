@@ -48,20 +48,20 @@ export component CashSuprimentoModal inherits Rectangle {
                             Rectangle {
                                 width: 32px; height: 32px;
                                 border-radius: Theme.radius-sm;
-                                background: #1565C0;
+                                background: Theme.info;
                                 Text {
                                     width: parent.width; height: parent.height;
-                                    text: "↑"; font-size: 16px; font-weight: 700;
+                                    text: "↑"; font-size: Theme.fs-section; font-weight: Theme.fw-bold;
                                     color: white;
                                     horizontal-alignment: center; vertical-alignment: center;
                                 }
                             }
                             VerticalLayout {
                                 horizontal-stretch: 1; alignment: center; spacing: 2px;
-                                Text { text: "ENTRADA"; font-size: 10px; font-weight: 800; color: #1565C0; letter-spacing: 1px; }
+                                Text { text: "ENTRADA"; font-size: Theme.fs-label; font-weight: Theme.fw-extrabold; color: Theme.info; letter-spacing: 1px; }
                                 Text {
                                     text: "Saldo Agora: " + root.cash-now-display;
-                                    font-size: 12px; color: Theme.text-primary;
+                                    font-size: Theme.fs-caption; color: Theme.text-primary;
                                 }
                             }
                         }
@@ -70,7 +70,7 @@ export component CashSuprimentoModal inherits Rectangle {
                     // Valor
                     VerticalLayout {
                         spacing: 6px;
-                        Text { text: "Valor"; font-size: 10px; font-weight: 700; color: Theme.text-secondary; letter-spacing: 1px; }
+                        Text { text: "Valor"; font-size: Theme.fs-label; font-weight: Theme.fw-bold; color: Theme.text-secondary; letter-spacing: 1px; }
                         Rectangle {
                             height: 40px;
                             border-radius: Theme.radius-sm;
@@ -81,8 +81,8 @@ export component CashSuprimentoModal inherits Rectangle {
                                 padding-left: 12px; padding-right: 12px;
                                 Text {
                                     text: "+R$";
-                                    font-size: 13px; font-weight: 600;
-                                    color: #1565C0;
+                                    font-size: Theme.fs-13; font-weight: Theme.fw-strong;
+                                    color: Theme.info;
                                     vertical-alignment: center;
                                 }
                                 Rectangle {
@@ -91,8 +91,8 @@ export component CashSuprimentoModal inherits Rectangle {
                                         x: 10px; y: 0;
                                         width: parent.width - 20px; height: parent.height;
                                         text <=> root.amount-input;
-                                        font-size: 14px; font-weight: 600;
-                                        color: #1565C0;
+                                        font-size: Theme.fs-body; font-weight: Theme.fw-strong;
+                                        color: Theme.info;
                                         vertical-alignment: center;
                                         single-line: true;
                                        
@@ -100,7 +100,7 @@ export component CashSuprimentoModal inherits Rectangle {
                                     if root.amount-input == "": Text {
                                         x: 10px; y: 0;
                                         width: parent.width - 20px; height: parent.height;
-                                        text: "0,00"; font-size: 14px; color: #BDBDBD;
+                                        text: "0,00"; font-size: Theme.fs-body; color: Theme.text-secondary;
                                         vertical-alignment: center;
                                     }
                                 }
@@ -115,7 +115,7 @@ export component CashSuprimentoModal inherits Rectangle {
                     // Origem (chips)
                     VerticalLayout {
                         spacing: 6px;
-                        Text { text: "Origem"; font-size: 10px; font-weight: 700; color: Theme.text-secondary; letter-spacing: 1px; }
+                        Text { text: "Origem"; font-size: Theme.fs-label; font-weight: Theme.fw-bold; color: Theme.text-secondary; letter-spacing: 1px; }
                         HorizontalLayout {
                             spacing: 8px;
                             for opt[oi] in ["Cofre Troco", "Conta Bancária"]: ch-ta := TouchArea {
@@ -124,13 +124,13 @@ export component CashSuprimentoModal inherits Rectangle {
                                 Rectangle {
                                     border-radius: Theme.radius-sm;
                                     border-width: 1px;
-                                    border-color: root.origin-selected == opt ? #1565C0 : Theme.border;
+                                    border-color: root.origin-selected == opt ? Theme.info : Theme.border;
                                     background: root.origin-selected == opt ? #E3F2FD : (ch-ta.has-hover ? Theme.row-hover : Theme.surface);
                                     Text {
                                         width: parent.width; height: parent.height;
                                         text: opt;
-                                        font-size: 12px; font-weight: 600;
-                                        color: root.origin-selected == opt ? #1565C0 : Theme.text-primary;
+                                        font-size: Theme.fs-caption; font-weight: Theme.fw-strong;
+                                        color: root.origin-selected == opt ? Theme.info : Theme.text-primary;
                                         horizontal-alignment: center; vertical-alignment: center;
                                         overflow: elide;
                                     }
@@ -145,13 +145,13 @@ export component CashSuprimentoModal inherits Rectangle {
                                 Rectangle {
                                     border-radius: Theme.radius-sm;
                                     border-width: 1px;
-                                    border-color: root.origin-selected == opt ? #1565C0 : Theme.border;
+                                    border-color: root.origin-selected == opt ? Theme.info : Theme.border;
                                     background: root.origin-selected == opt ? #E3F2FD : (ch2-ta.has-hover ? Theme.row-hover : Theme.surface);
                                     Text {
                                         width: parent.width; height: parent.height;
                                         text: opt;
-                                        font-size: 12px; font-weight: 600;
-                                        color: root.origin-selected == opt ? #1565C0 : Theme.text-primary;
+                                        font-size: Theme.fs-caption; font-weight: Theme.fw-strong;
+                                        color: root.origin-selected == opt ? Theme.info : Theme.text-primary;
                                         horizontal-alignment: center; vertical-alignment: center;
                                         overflow: elide;
                                     }
@@ -163,7 +163,7 @@ export component CashSuprimentoModal inherits Rectangle {
                     // Detalhe opcional
                     VerticalLayout {
                         spacing: 6px;
-                        Text { text: "Detalhes"; font-size: 10px; font-weight: 700; color: Theme.text-secondary; letter-spacing: 1px; }
+                        Text { text: "Detalhes"; font-size: Theme.fs-label; font-weight: Theme.fw-bold; color: Theme.text-secondary; letter-spacing: 1px; }
                         Rectangle {
                             height: 36px;
                             border-radius: Theme.radius-sm;
@@ -174,7 +174,7 @@ export component CashSuprimentoModal inherits Rectangle {
                                 x: 10px; y: 0;
                                 width: parent.width - 20px; height: parent.height;
                                 text <=> root.detail-input;
-                                font-size: 12px; color: Theme.text-primary;
+                                font-size: Theme.fs-caption; color: Theme.text-primary;
                                 vertical-alignment: center;
                                 single-line: true;
                             }
@@ -182,7 +182,7 @@ export component CashSuprimentoModal inherits Rectangle {
                                 x: 10px; y: 0;
                                 width: parent.width - 20px; height: parent.height;
                                 text: "Ex: 6 notas de R$ 5,00";
-                                font-size: 12px; color: #BDBDBD;
+                                font-size: Theme.fs-caption; color: Theme.text-secondary;
                                 vertical-alignment: center;
                             }
                         }

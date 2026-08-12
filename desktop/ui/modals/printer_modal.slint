@@ -77,7 +77,7 @@ export component PrinterModal inherits Rectangle {
                     // dois grupos visualmente.
                     VerticalLayout {
                         spacing: 4px;
-                        Text { text: "Nome"; font-size: 11px; font-weight: 700; color: Theme.text-secondary; letter-spacing: 1px; }
+                        Text { text: "Nome"; font-size: Theme.fs-11; font-weight: Theme.fw-bold; color: Theme.text-secondary; letter-spacing: 1px; }
                         Rectangle {
                             height: 34px;
                             border-radius: Theme.radius-sm;
@@ -89,14 +89,14 @@ export component PrinterModal inherits Rectangle {
                                 width: parent.width - 20px;
                                 height: parent.height;
                                 text <=> root.printer-name;
-                                font-size: 13px; color: Theme.text-primary;
+                                font-size: Theme.fs-13; color: Theme.text-primary;
                                 vertical-alignment: center;
                                 single-line: true;
                             }
                             if root.printer-name == "": Text {
                                 x: 10px; y: 0; height: parent.height;
                                 text: "Cozinha 1, Balcão, etc.";
-                                font-size: 13px; color: #BDBDBD;
+                                font-size: Theme.fs-13; color: Theme.text-secondary;
                                 vertical-alignment: center;
                             }
                         }
@@ -112,7 +112,7 @@ export component PrinterModal inherits Rectangle {
                     // entre o label e o componente.
                     VerticalLayout {
                         spacing: 10px;
-                        Text { text: "Tipo"; font-size: 11px; font-weight: 700; color: Theme.text-secondary; letter-spacing: 1px; }
+                        Text { text: "Tipo"; font-size: Theme.fs-11; font-weight: Theme.fw-bold; color: Theme.text-secondary; letter-spacing: 1px; }
                         HorizontalLayout {
                             spacing: 8px;
                             for opt[oi] in [
@@ -133,7 +133,7 @@ export component PrinterModal inherits Rectangle {
                                             alignment: center;
                                             Text {
                                                 text: opt.label;
-                                                font-size: 12px; font-weight: 600;
+                                                font-size: Theme.fs-caption; font-weight: Theme.fw-strong;
                                                 color: root.printer-kind == opt.value ? white : Theme.text-primary;
                                             }
                                         }
@@ -151,7 +151,7 @@ export component PrinterModal inherits Rectangle {
                     // — evita erro de digitação do nome do driver.
                     VerticalLayout {
                         spacing: 10px;
-                        Text { text: "Impressora"; font-size: 11px; font-weight: 700; color: Theme.text-secondary; letter-spacing: 1px; }
+                        Text { text: "Impressora"; font-size: Theme.fs-11; font-weight: Theme.fw-bold; color: Theme.text-secondary; letter-spacing: 1px; }
                         printer-picker-ta := TouchArea {
                             clicked => {
                                 if (root.picker-open) {
@@ -175,7 +175,7 @@ export component PrinterModal inherits Rectangle {
                                         text: root.printer-system-name != ""
                                             ? root.printer-system-name
                                             : "Selecionar impressora";
-                                        font-size: 13px;
+                                        font-size: Theme.fs-13;
                                         color: root.printer-system-name != ""
                                             ? Theme.text-primary
                                             : #BDBDBD;
@@ -187,7 +187,7 @@ export component PrinterModal inherits Rectangle {
                                         alignment: center;
                                         Text {
                                             text: root.picker-open ? "▲" : "▼";
-                                            font-size: 10px;
+                                            font-size: Theme.fs-label;
                                             color: Theme.text-secondary;
                                         }
                                     }
@@ -210,7 +210,7 @@ export component PrinterModal inherits Rectangle {
                                     padding-left: 12px; padding-right: 12px;
                                     Text {
                                         text: "Nenhuma impressora detectada. Verifique se há impressoras instaladas no sistema.";
-                                        font-size: 11px;
+                                        font-size: Theme.fs-11;
                                         color: Theme.text-secondary;
                                         horizontal-alignment: center;
                                         wrap: word-wrap;
@@ -249,15 +249,15 @@ export component PrinterModal inherits Rectangle {
                                                     alignment: center;
                                                     Text {
                                                         text: root.printer-system-name == p ? "✓" : "";
-                                                        font-size: 12px;
-                                                        font-weight: 700;
+                                                        font-size: Theme.fs-caption;
+                                                        font-weight: Theme.fw-bold;
                                                         color: Theme.primary;
                                                         width: 12px;
                                                     }
                                                 }
                                                 Text {
                                                     text: p;
-                                                    font-size: 12px;
+                                                    font-size: Theme.fs-caption;
                                                     color: Theme.text-primary;
                                                     vertical-alignment: center;
                                                     horizontal-stretch: 1;
@@ -274,7 +274,7 @@ export component PrinterModal inherits Rectangle {
                     // ── Papel ──
                     VerticalLayout {
                         spacing: 10px;
-                        Text { text: "Papel"; font-size: 11px; font-weight: 700; color: Theme.text-secondary; letter-spacing: 1px; }
+                        Text { text: "Papel"; font-size: Theme.fs-11; font-weight: Theme.fw-bold; color: Theme.text-secondary; letter-spacing: 1px; }
                         HorizontalLayout {
                             spacing: 8px;
                             for opt[oi] in [
@@ -295,7 +295,7 @@ export component PrinterModal inherits Rectangle {
                                             alignment: center;
                                             Text {
                                                 text: opt.label;
-                                                font-size: 12px; font-weight: 600;
+                                                font-size: Theme.fs-caption; font-weight: Theme.fw-strong;
                                                 color: root.printer-paper-width == opt.value ? white : Theme.text-primary;
                                             }
                                         }
@@ -340,12 +340,12 @@ export component PrinterModal inherits Rectangle {
                                     alignment: center;
                                     Text {
                                         text: "Definir como padrão";
-                                        font-size: 12px; font-weight: 600;
+                                        font-size: Theme.fs-caption; font-weight: Theme.fw-strong;
                                         color: Theme.text-primary;
                                     }
                                     Text {
                                         text: "As demais impressoras desse tipo perderão o padrão.";
-                                        font-size: 10px; color: Theme.text-secondary;
+                                        font-size: Theme.fs-label; color: Theme.text-secondary;
                                     }
                                 }
                             }
@@ -368,7 +368,7 @@ export component PrinterModal inherits Rectangle {
                             spacing: 8px;
                             Text {
                                 text: "Categorias";
-                                font-size: 11px; font-weight: 700;
+                                font-size: Theme.fs-11; font-weight: Theme.fw-bold;
                                 color: Theme.text-secondary;
                                 letter-spacing: 1px;
                                 horizontal-stretch: 1;
@@ -419,7 +419,7 @@ export component PrinterModal inherits Rectangle {
                                                 }
                                                 Text {
                                                     text: cat.name;
-                                                    font-size: 12px;
+                                                    font-size: Theme.fs-caption;
                                                     color: Theme.text-primary;
                                                     vertical-alignment: center;
                                                     horizontal-stretch: 1;
@@ -433,7 +433,7 @@ export component PrinterModal inherits Rectangle {
                         }
                         Text {
                             text: "Deixe vazio para receber itens de TODAS as categorias.";
-                            font-size: 10px;
+                            font-size: Theme.fs-label;
                             color: Theme.text-secondary;
                             wrap: word-wrap;
                         }
@@ -443,7 +443,7 @@ export component PrinterModal inherits Rectangle {
                     // Mensagem de erro (validação do service)
                     if root.printer-error != "": Text {
                         text: root.printer-error;
-                        font-size: 11px;
+                        font-size: Theme.fs-11;
                         color: Theme.danger;
                         wrap: word-wrap;
                     }

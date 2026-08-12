@@ -91,15 +91,15 @@ export component ModalShell inherits Rectangle {
 
                     if root.title != "": Text {
                         text: root.title;
-                        font-size: 16px;
-                        font-weight: 700;
+                        font-size: Theme.fs-section;
+                        font-weight: Theme.fw-bold;
                         color: Theme.text-primary;
                         horizontal-alignment: center;
                     }
 
                     if root.message != "": Text {
                         text: root.message;
-                        font-size: 13px;
+                        font-size: Theme.fs-13;
                         color: Theme.text-secondary;
                         horizontal-alignment: center;
                         wrap: word-wrap;

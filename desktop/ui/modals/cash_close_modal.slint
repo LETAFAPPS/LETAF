@@ -75,10 +75,10 @@ export component CashCloseModal inherits Rectangle {
                     HorizontalLayout {
                         spacing: 8px;
                         Rectangle { width: 28px; }  // espaço para o ícone
-                        Text { text: "MÉTODO"; font-size: 10px; font-weight: 700; color: Theme.text-secondary; letter-spacing: 1px; horizontal-stretch: 1; }
-                        Text { text: "VALOR"; font-size: 10px; font-weight: 700; color: Theme.text-secondary; letter-spacing: 1px; width: 90px; horizontal-alignment: right; }
-                        Text { text: "INFORMADO"; font-size: 10px; font-weight: 700; color: Theme.text-secondary; letter-spacing: 1px; width: 70px; horizontal-alignment: right; }
-                        Text { text: "DIFERENÇA"; font-size: 10px; font-weight: 700; color: Theme.text-secondary; letter-spacing: 1px; width: 80px; horizontal-alignment: right; }
+                        Text { text: "MÉTODO"; font-size: Theme.fs-label; font-weight: Theme.fw-bold; color: Theme.text-secondary; letter-spacing: 1px; horizontal-stretch: 1; }
+                        Text { text: "VALOR"; font-size: Theme.fs-label; font-weight: Theme.fw-bold; color: Theme.text-secondary; letter-spacing: 1px; width: 90px; horizontal-alignment: right; }
+                        Text { text: "INFORMADO"; font-size: Theme.fs-label; font-weight: Theme.fw-bold; color: Theme.text-secondary; letter-spacing: 1px; width: 70px; horizontal-alignment: right; }
+                        Text { text: "DIFERENÇA"; font-size: Theme.fs-label; font-weight: Theme.fw-bold; color: Theme.text-secondary; letter-spacing: 1px; width: 80px; horizontal-alignment: right; }
                     }
 
                     // Linhas (cash, pix, credit, debit). Cada uma com:
@@ -98,9 +98,9 @@ export component CashCloseModal inherits Rectangle {
                         }
                         VerticalLayout {
                             horizontal-stretch: 1; alignment: center; spacing: 0px;
-                            Text { text: "Dinheiro"; font-size: 12px; font-weight: 600; color: Theme.text-primary; vertical-alignment: center; }
+                            Text { text: "Dinheiro"; font-size: Theme.fs-caption; font-weight: Theme.fw-strong; color: Theme.text-primary; vertical-alignment: center; }
                         }
-                        Text { text: root.sys-cash-display; font-size: 12px; color: Theme.text-primary; width: 90px; horizontal-alignment: right; vertical-alignment: center; }
+                        Text { text: root.sys-cash-display; font-size: Theme.fs-caption; color: Theme.text-primary; width: 90px; horizontal-alignment: right; vertical-alignment: center; }
                         Rectangle {
                             width: 70px; height: 32px;
                             y: (parent.height - 32px) / 2;
@@ -111,28 +111,28 @@ export component CashCloseModal inherits Rectangle {
                             cash-input := TextInput {
                                 x: 8px; y: 0; width: parent.width - 16px; height: parent.height;
                                 text <=> root.in-cash;
-                                font-size: 12px; color: Theme.text-primary;
+                                font-size: Theme.fs-caption; color: Theme.text-primary;
                                 vertical-alignment: center; horizontal-alignment: right;
                                 single-line: true;
                                 edited => { root.recalc(); }
                             }
                         }
-                        Text { text: root.diff-cash-display; font-size: 12px; font-weight: 600; color: root.diff-cash-display == "—" ? Theme.text-secondary : (root.diff-cash-display == "R$ 0,00" ? Theme.success : Theme.danger); width: 80px; horizontal-alignment: right; vertical-alignment: center; }
+                        Text { text: root.diff-cash-display; font-size: Theme.fs-caption; font-weight: Theme.fw-strong; color: root.diff-cash-display == "—" ? Theme.text-secondary : (root.diff-cash-display == "R$ 0,00" ? Theme.success : Theme.danger); width: 80px; horizontal-alignment: right; vertical-alignment: center; }
                     }
                     // PIX
                     HorizontalLayout {
                         spacing: 8px; height: 32px;
                         Text {
                             width: 32px;
-                            text: "❖"; color: #1E88E5;
+                            text: "❖"; color: Theme.info;
                             font-size: 26px; font-weight: 900;
                             horizontal-alignment: center; vertical-alignment: center;
                         }
                         VerticalLayout {
                             horizontal-stretch: 1; alignment: center;
-                            Text { text: "PIX"; font-size: 12px; font-weight: 600; color: Theme.text-primary; vertical-alignment: center; }
+                            Text { text: "PIX"; font-size: Theme.fs-caption; font-weight: Theme.fw-strong; color: Theme.text-primary; vertical-alignment: center; }
                         }
-                        Text { text: root.sys-pix-display; font-size: 12px; color: Theme.text-primary; width: 90px; horizontal-alignment: right; vertical-alignment: center; }
+                        Text { text: root.sys-pix-display; font-size: Theme.fs-caption; color: Theme.text-primary; width: 90px; horizontal-alignment: right; vertical-alignment: center; }
                         Rectangle {
                             width: 70px; height: 32px;
                             y: (parent.height - 32px) / 2;
@@ -142,13 +142,13 @@ export component CashCloseModal inherits Rectangle {
                             pix-input := TextInput {
                                 x: 8px; y: 0; width: parent.width - 16px; height: parent.height;
                                 text <=> root.in-pix;
-                                font-size: 12px; color: Theme.text-primary;
+                                font-size: Theme.fs-caption; color: Theme.text-primary;
                                 vertical-alignment: center; horizontal-alignment: right;
                                 single-line: true;
                                 edited => { root.recalc(); }
                             }
                         }
-                        Text { text: root.diff-pix-display; font-size: 12px; font-weight: 600; color: root.diff-pix-display == "—" ? Theme.text-secondary : (root.diff-pix-display == "R$ 0,00" ? Theme.success : Theme.danger); width: 80px; horizontal-alignment: right; vertical-alignment: center; }
+                        Text { text: root.diff-pix-display; font-size: Theme.fs-caption; font-weight: Theme.fw-strong; color: root.diff-pix-display == "—" ? Theme.text-secondary : (root.diff-pix-display == "R$ 0,00" ? Theme.success : Theme.danger); width: 80px; horizontal-alignment: right; vertical-alignment: center; }
                     }
                     // CRÉDITO
                     HorizontalLayout {
@@ -160,9 +160,9 @@ export component CashCloseModal inherits Rectangle {
                         }
                         VerticalLayout {
                             horizontal-stretch: 1; alignment: center;
-                            Text { text: "Cartão Crédito"; font-size: 12px; font-weight: 600; color: Theme.text-primary; vertical-alignment: center; }
+                            Text { text: "Cartão Crédito"; font-size: Theme.fs-caption; font-weight: Theme.fw-strong; color: Theme.text-primary; vertical-alignment: center; }
                         }
-                        Text { text: root.sys-credit-display; font-size: 12px; color: Theme.text-primary; width: 90px; horizontal-alignment: right; vertical-alignment: center; }
+                        Text { text: root.sys-credit-display; font-size: Theme.fs-caption; color: Theme.text-primary; width: 90px; horizontal-alignment: right; vertical-alignment: center; }
                         Rectangle {
                             width: 70px; height: 32px;
                             y: (parent.height - 32px) / 2;
@@ -172,13 +172,13 @@ export component CashCloseModal inherits Rectangle {
                             credit-input := TextInput {
                                 x: 8px; y: 0; width: parent.width - 16px; height: parent.height;
                                 text <=> root.in-credit;
-                                font-size: 12px; color: Theme.text-primary;
+                                font-size: Theme.fs-caption; color: Theme.text-primary;
                                 vertical-alignment: center; horizontal-alignment: right;
                                 single-line: true;
                                 edited => { root.recalc(); }
                             }
                         }
-                        Text { text: root.diff-credit-display; font-size: 12px; font-weight: 600; color: root.diff-credit-display == "—" ? Theme.text-secondary : (root.diff-credit-display == "R$ 0,00" ? Theme.success : Theme.danger); width: 80px; horizontal-alignment: right; vertical-alignment: center; }
+                        Text { text: root.diff-credit-display; font-size: Theme.fs-caption; font-weight: Theme.fw-strong; color: root.diff-credit-display == "—" ? Theme.text-secondary : (root.diff-credit-display == "R$ 0,00" ? Theme.success : Theme.danger); width: 80px; horizontal-alignment: right; vertical-alignment: center; }
                     }
                     // DÉBITO
                     HorizontalLayout {
@@ -190,9 +190,9 @@ export component CashCloseModal inherits Rectangle {
                         }
                         VerticalLayout {
                             horizontal-stretch: 1; alignment: center;
-                            Text { text: "Cartão Débito"; font-size: 12px; font-weight: 600; color: Theme.text-primary; vertical-alignment: center; }
+                            Text { text: "Cartão Débito"; font-size: Theme.fs-caption; font-weight: Theme.fw-strong; color: Theme.text-primary; vertical-alignment: center; }
                         }
-                        Text { text: root.sys-debit-display; font-size: 12px; color: Theme.text-primary; width: 90px; horizontal-alignment: right; vertical-alignment: center; }
+                        Text { text: root.sys-debit-display; font-size: Theme.fs-caption; color: Theme.text-primary; width: 90px; horizontal-alignment: right; vertical-alignment: center; }
                         Rectangle {
                             width: 70px; height: 32px;
                             y: (parent.height - 32px) / 2;
@@ -202,13 +202,13 @@ export component CashCloseModal inherits Rectangle {
                             debit-input := TextInput {
                                 x: 8px; y: 0; width: parent.width - 16px; height: parent.height;
                                 text <=> root.in-debit;
-                                font-size: 12px; color: Theme.text-primary;
+                                font-size: Theme.fs-caption; color: Theme.text-primary;
                                 vertical-alignment: center; horizontal-alignment: right;
                                 single-line: true;
                                 edited => { root.recalc(); }
                             }
                         }
-                        Text { text: root.diff-debit-display; font-size: 12px; font-weight: 600; color: root.diff-debit-display == "—" ? Theme.text-secondary : (root.diff-debit-display == "R$ 0,00" ? Theme.success : Theme.danger); width: 80px; horizontal-alignment: right; vertical-alignment: center; }
+                        Text { text: root.diff-debit-display; font-size: Theme.fs-caption; font-weight: Theme.fw-strong; color: root.diff-debit-display == "—" ? Theme.text-secondary : (root.diff-debit-display == "R$ 0,00" ? Theme.success : Theme.danger); width: 80px; horizontal-alignment: right; vertical-alignment: center; }
                     }
 
                     Rectangle { height: 1px; background: Theme.border; }
@@ -217,10 +217,10 @@ export component CashCloseModal inherits Rectangle {
                     HorizontalLayout {
                         spacing: 8px; height: 36px;
                         Rectangle { width: 28px; }
-                        Text { text: "TOTAL"; font-size: 12px; font-weight: 800; color: Theme.text-primary; horizontal-stretch: 1; vertical-alignment: center; }
-                        Text { text: root.sys-total-display; font-size: 14px; font-weight: 700; color: Theme.text-primary; width: 90px; horizontal-alignment: right; vertical-alignment: center; }
-                        Text { text: root.in-total-display; font-size: 14px; font-weight: 700; color: Theme.text-primary; width: 70px; horizontal-alignment: right; vertical-alignment: center; }
-                        Text { text: root.diff-total-display; font-size: 14px; font-weight: 700; color: root.diff-total-display == "—" ? Theme.text-secondary : (root.has-diff ? Theme.danger : Theme.success); width: 80px; horizontal-alignment: right; vertical-alignment: center; }
+                        Text { text: "TOTAL"; font-size: Theme.fs-caption; font-weight: Theme.fw-extrabold; color: Theme.text-primary; horizontal-stretch: 1; vertical-alignment: center; }
+                        Text { text: root.sys-total-display; font-size: Theme.fs-body; font-weight: Theme.fw-bold; color: Theme.text-primary; width: 90px; horizontal-alignment: right; vertical-alignment: center; }
+                        Text { text: root.in-total-display; font-size: Theme.fs-body; font-weight: Theme.fw-bold; color: Theme.text-primary; width: 70px; horizontal-alignment: right; vertical-alignment: center; }
+                        Text { text: root.diff-total-display; font-size: Theme.fs-body; font-weight: Theme.fw-bold; color: root.diff-total-display == "—" ? Theme.text-secondary : (root.has-diff ? Theme.danger : Theme.success); width: 80px; horizontal-alignment: right; vertical-alignment: center; }
                     }
 
                     // Alerta de diferença
@@ -232,7 +232,7 @@ export component CashCloseModal inherits Rectangle {
                             spacing: 2px;
                             Text {
                                 text: "⚠ Diferença Detectada";
-                                font-size: 12px; font-weight: 700; color: Theme.danger;
+                                font-size: Theme.fs-caption; font-weight: Theme.fw-bold; color: Theme.danger;
                                 wrap: word-wrap;
                             }
                         }
@@ -243,7 +243,7 @@ export component CashCloseModal inherits Rectangle {
                         spacing: 6px;
                         Text {
                             text: root.has-diff ? "Observação (Obrigatória)" : "Observação";
-                            font-size: 10px; font-weight: 700; color: Theme.text-secondary; letter-spacing: 1px;
+                            font-size: Theme.fs-label; font-weight: Theme.fw-bold; color: Theme.text-secondary; letter-spacing: 1px;
                         }
                         Rectangle {
                             height: 60px;
@@ -255,14 +255,14 @@ export component CashCloseModal inherits Rectangle {
                                 x: 10px; y: 6px;
                                 width: parent.width - 20px; height: parent.height - 12px;
                                 text <=> root.notes;
-                                font-size: 12px; color: Theme.text-primary;
+                                font-size: Theme.fs-caption; color: Theme.text-primary;
                                 wrap: word-wrap;
                             }
                             if root.notes == "": Text {
                                 x: 10px; y: 6px;
                                 width: parent.width - 20px; height: parent.height - 12px;
                                 text: "Ex: 2 reais de troco a menos · cliente arredondou no PIX";
-                                font-size: 12px; color: #BDBDBD;
+                                font-size: Theme.fs-caption; color: Theme.text-secondary;
                             }
                         }
                     }

@@ -52,12 +52,12 @@ export component AdminCompanyDetailModal inherits Rectangle {
                 }
                 Text {
                     text: root.data.name;
-                    font-size: 18px; font-weight: 800; color: Theme.text-primary;
+                    font-size: Theme.fs-heading; font-weight: Theme.fw-extrabold; color: Theme.text-primary;
                     horizontal-alignment: center;
                 }
                 Text {
                     text: root.data.domain;
-                    font-size: 12.5px; color: Theme.text-secondary;
+                    font-size: Theme.fs-meta; color: Theme.text-secondary;
                     horizontal-alignment: center;
                 }
             }
@@ -73,7 +73,7 @@ export component AdminCompanyDetailModal inherits Rectangle {
                         : Theme.danger.transparentize(0.85);
                     badge := Text {
                         text: root.data.active ? "Acesso Ativo" : "Acesso Suspenso";
-                        font-size: 11px; font-weight: 700;
+                        font-size: Theme.fs-11; font-weight: Theme.fw-bold;
                         color: root.data.active ? Theme.success : Theme.danger;
                         horizontal-alignment: center; vertical-alignment: center;
                         width: parent.width; height: parent.height;
@@ -88,10 +88,10 @@ export component AdminCompanyDetailModal inherits Rectangle {
                 Rectangle {
                     width: parent.width; height: parent.height;
                     border-radius: 8px;
-                    background: manage-ta.has-hover ? #1565C0 : #1E88E5;
+                    background: manage-ta.has-hover ? Theme.info : Theme.info;
                     Text {
                         text: "Gerenciar Empresa";
-                        color: white; font-size: 13px; font-weight: 700;
+                        color: white; font-size: Theme.fs-13; font-weight: Theme.fw-bold;
                         horizontal-alignment: center; vertical-alignment: center;
                         width: parent.width; height: parent.height;
                     }

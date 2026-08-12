@@ -69,7 +69,7 @@ export component AdminPlanModal inherits Rectangle {
             HorizontalLayout {
                 spacing: 10px;
                 Text {
-                    text: "Ativo"; font-size: 13px; color: Theme.text-primary;
+                    text: "Ativo"; font-size: Theme.fs-13; color: Theme.text-primary;
                     vertical-alignment: center; horizontal-stretch: 1;
                 }
                 Toggle { on: root.form-active; toggled => { root.form-active = !root.form-active; } }

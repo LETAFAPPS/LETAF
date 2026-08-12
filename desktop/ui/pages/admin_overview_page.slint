@@ -11,7 +11,7 @@ global Palette {
     out property <color> overdue: #E65100;
     out property <color> cancelled: Theme.danger;
     out property <color> inactive: #9E9E9E;
-    out property <color> company-on: #1E88E5;
+    out property <color> company-on: Theme.info;
     out property <color> company-off: #BDBDBD;
     // Ano anterior no gráfico (cinza neutro); ano atual = destaque.
     out property <color> prev-year: #C7CAD1;
@@ -41,13 +41,13 @@ component KpiCard inherits Rectangle {
         Text {
             text: root.value;
             font-size: root.accent ? 25px : 27px;
-            font-weight: 800;
+            font-weight: Theme.fw-extrabold;
             color: root.accent ? Theme.btn-accent : Theme.text-primary;
             overflow: elide;
         }
         Text {
             text: root.label;
-            font-size: 12.5px; color: Theme.text-secondary;
+            font-size: Theme.fs-meta; color: Theme.text-secondary;
             overflow: elide;
         }
     }
@@ -69,7 +69,7 @@ component Panel inherits Rectangle {
         alignment: start;
         if root.title != "": Text {
             text: root.title;
-            font-size: 13px; font-weight: 700; color: Theme.text-secondary;
+            font-size: Theme.fs-13; font-weight: Theme.fw-bold; color: Theme.text-secondary;
         }
         @children
     }
@@ -88,12 +88,12 @@ component StatusItem inherits HorizontalLayout {
     }
     Text {
         text: root.value;
-        font-size: 14px; font-weight: 800; color: Theme.text-primary;
+        font-size: Theme.fs-body; font-weight: Theme.fw-extrabold; color: Theme.text-primary;
         vertical-alignment: center;
     }
     Text {
         text: root.label;
-        font-size: 13px; color: Theme.text-secondary;
+        font-size: Theme.fs-13; color: Theme.text-secondary;
         vertical-alignment: center;
     }
 }
@@ -128,7 +128,7 @@ component ChartBar inherits TouchArea {
         tip := Text {
             text: root.amount;
             color: Theme.surface;
-            font-size: 10.5px; font-weight: 700;
+            font-size: 10.5px; font-weight: Theme.fw-bold;
             horizontal-alignment: center;
             width: parent.width;
         }
@@ -152,7 +152,7 @@ component LegendItem inherits HorizontalLayout {
     }
     Text {
         text: root.label;
-        font-size: 12px; color: Theme.text-secondary; vertical-alignment: center;
+        font-size: Theme.fs-caption; color: Theme.text-secondary; vertical-alignment: center;
     }
 }
 
@@ -207,7 +207,7 @@ component RevenueChart inherits VerticalLayout {
         for p in root.points: Text {
             horizontal-stretch: 1;
             text: p.label;
-            font-size: 10px; color: Theme.text-secondary;
+            font-size: Theme.fs-label; color: Theme.text-secondary;
             horizontal-alignment: center;
         }
     }
@@ -238,11 +238,11 @@ export component AdminOverviewPage inherits VerticalLayout {
         spacing: 2px;
         Text {
             text: "Dashboard";
-            font-size: 20px; font-weight: 800; color: Theme.text-primary;
+            font-size: 20px; font-weight: Theme.fw-extrabold; color: Theme.text-primary;
         }
         Text {
             text: "Visão geral de todas as empresas do sistema.";
-            font-size: 13px; color: Theme.text-secondary;
+            font-size: Theme.fs-13; color: Theme.text-secondary;
         }
     }
 
@@ -325,7 +325,7 @@ export component AdminOverviewPage inherits VerticalLayout {
                 spacing: 8px;
                 Text {
                     text: "Indicações";
-                    font-size: 13px; font-weight: 700; color: Theme.text-secondary;
+                    font-size: Theme.fs-13; font-weight: Theme.fw-bold; color: Theme.text-secondary;
                     vertical-alignment: center;
                 }
                 Rectangle {
@@ -334,14 +334,14 @@ export component AdminOverviewPage inherits VerticalLayout {
                     background: Theme.btn-accent.transparentize(0.85);
                     eb := Text {
                         text: "Em breve";
-                        font-size: 10px; font-weight: 700; color: Theme.btn-accent;
+                        font-size: Theme.fs-label; font-weight: Theme.fw-bold; color: Theme.btn-accent;
                         x: 7px; vertical-alignment: center;
                     }
                 }
             }
             Text {
                 text: "\{root.referrals}";
-                font-size: 24px; font-weight: 800; color: Theme.text-primary;
+                font-size: 24px; font-weight: Theme.fw-extrabold; color: Theme.text-primary;
             }
         }
     }

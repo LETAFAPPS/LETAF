@@ -30,12 +30,12 @@ export component FormCard inherits Rectangle {
             spacing: 2px;
             Text {
                 text: root.title;
-                font-size: 13px; font-weight: 700;
+                font-size: Theme.fs-13; font-weight: Theme.fw-bold;
                 color: Theme.text-primary;
             }
             if root.subtitle != "": Text {
                 text: root.subtitle;
-                font-size: 11.5px; color: Theme.text-secondary;
+                font-size: Theme.fs-eyebrow; color: Theme.text-secondary;
                 wrap: word-wrap;
             }
         }
@@ -62,7 +62,7 @@ export component ImagePicker inherits VerticalLayout {
 
     Text {
         text: root.label;
-        font-size: 12px; font-weight: 500; color: Theme.text-secondary;
+        font-size: Theme.fs-caption; font-weight: Theme.fw-medium; color: Theme.text-secondary;
     }
 
     ta := TouchArea {
@@ -101,7 +101,7 @@ export component ImagePicker inherits VerticalLayout {
                 }
                 Text {
                     text: "Selecionar imagem";
-                    font-size: 12.5px; font-weight: 600;
+                    font-size: Theme.fs-meta; font-weight: Theme.fw-strong;
                     color: ta.has-hover ? Theme.btn-accent : Theme.text-primary;
                     horizontal-alignment: center;
                 }
@@ -114,7 +114,7 @@ export component ImagePicker inherits VerticalLayout {
 
             if root.loading: Text {
                 text: "Processando…";
-                font-size: 12px; color: Theme.text-secondary;
+                font-size: Theme.fs-caption; color: Theme.text-secondary;
                 horizontal-alignment: center; vertical-alignment: center;
                 width: parent.width; height: parent.height;
             }

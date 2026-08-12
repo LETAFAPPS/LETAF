@@ -50,13 +50,13 @@ component InsumoRow inherits TouchArea {
                 spacing: 2px;
                 Text {
                     text: root.data.name;
-                    font-size: 13px; font-weight: 600;
+                    font-size: Theme.fs-13; font-weight: Theme.fw-strong;
                     color: root.selected ? Theme.primary : Theme.text-primary;
                     overflow: elide;
                 }
                 Text {
                     text: root.data.cost-display;
-                    font-size: 11px; color: Theme.text-secondary;
+                    font-size: Theme.fs-11; color: Theme.text-secondary;
                     overflow: elide;
                 }
             }
@@ -65,7 +65,7 @@ component InsumoRow inherits TouchArea {
                 spacing: 3px;
                 Text {
                     text: root.data.status-label;
-                    font-size: 11px; font-weight: 600;
+                    font-size: Theme.fs-11; font-weight: Theme.fw-strong;
                     horizontal-alignment: right;
                     color: root.data.status == "out" ? Theme.danger
                         : (root.data.status == "low" ? #FF9E40
@@ -105,10 +105,10 @@ export component InsumosPage inherits Rectangle {
                     VerticalLayout {
                         horizontal-stretch: 1;
                         spacing: 2px;
-                        Text { text: "Insumos"; font-size: 22px; font-weight: 700; color: Theme.text-primary; overflow: elide; }
+                        Text { text: "Insumos"; font-size: 22px; font-weight: Theme.fw-bold; color: Theme.text-primary; overflow: elide; }
                         Text {
                             text: InsumosState.insumos-active-count + " ativos · " + InsumosState.insumos-inactive-count + " inativos";
-                            font-size: 11px; color: Theme.text-secondary; overflow: elide;
+                            font-size: Theme.fs-11; color: Theme.text-secondary; overflow: elide;
                         }
                     }
                     // Exportar CSV de insumos.
@@ -187,13 +187,13 @@ export component InsumosPage inherits Rectangle {
                             search-input := TextInput {
                                 x: 0; y: 0; width: parent.width; height: parent.height;
                                 text <=> InsumosState.insumos-search;
-                                font-size: 13px; color: Theme.text-primary;
+                                font-size: Theme.fs-13; color: Theme.text-primary;
                                 vertical-alignment: center; single-line: true;
                                 edited => { InsumosState.search-insumos(self.text); }
                             }
                             if InsumosState.insumos-search == "": Text {
                                 x: 0; y: 0; width: parent.width; height: parent.height;
-                                text: "Buscar insumo…"; font-size: 13px;
+                                text: "Buscar insumo…"; font-size: Theme.fs-13;
                                 color: Theme.text-secondary; vertical-alignment: center;
                             }
                         }
@@ -230,7 +230,7 @@ export component InsumosPage inherits Rectangle {
                     alignment: center;
                     Text {
                         text: "Selecione um insumo à esquerda para ver os detalhes.";
-                        font-size: 14px; color: Theme.text-secondary;
+                        font-size: Theme.fs-body; color: Theme.text-secondary;
                     }
                 }
                 HorizontalLayout {
@@ -255,7 +255,7 @@ export component InsumosPage inherits Rectangle {
 
                     Text {
                         text: InsumosState.editing-insumo-id == "" ? "Novo insumo" : "Editar insumo";
-                        font-size: 20px; font-weight: 800; color: Theme.text-primary;
+                        font-size: 20px; font-weight: Theme.fw-extrabold; color: Theme.text-primary;
                     }
 
                     FormCard {
@@ -320,8 +320,8 @@ export component InsumosPage inherits Rectangle {
                                 VerticalLayout {
                                     horizontal-stretch: 1;
                                     spacing: 2px;
-                                    Text { text: "Ativo"; font-size: 12px; font-weight: 700; color: Theme.text-primary; }
-                                    Text { text: "Insumo inativo some das listas de seleção de receita."; font-size: 11px; color: Theme.text-secondary; }
+                                    Text { text: "Ativo"; font-size: Theme.fs-caption; font-weight: Theme.fw-bold; color: Theme.text-primary; }
+                                    Text { text: "Insumo inativo some das listas de seleção de receita."; font-size: Theme.fs-11; color: Theme.text-secondary; }
                                 }
                                 VerticalLayout {
                                     alignment: center;
@@ -351,7 +351,7 @@ export component InsumosPage inherits Rectangle {
                             padding: 10px;
                             Text {
                                 text: "⚠ " + InsumosState.insumo-save-error;
-                                font-size: 12px; font-weight: 600; color: Theme.danger;
+                                font-size: Theme.fs-caption; font-weight: Theme.fw-strong; color: Theme.danger;
                                 wrap: word-wrap;
                             }
                         }

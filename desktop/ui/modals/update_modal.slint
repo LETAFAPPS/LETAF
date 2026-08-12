@@ -40,25 +40,25 @@ export component UpdateModal inherits Rectangle {
 
             if root.notes != "": Text {
                 text: root.notes;
-                font-size: 13px; color: Theme.text-secondary;
+                font-size: Theme.fs-13; color: Theme.text-secondary;
                 wrap: word-wrap; horizontal-alignment: center;
             }
             if root.mandatory: Text {
                 text: "Atualização obrigatória para continuar usando o sistema.";
-                font-size: 12px; color: Theme.danger;
+                font-size: Theme.fs-caption; color: Theme.danger;
                 wrap: word-wrap; horizontal-alignment: center;
             }
 
             // Progresso do auto-update.
             if root.busy: Text {
                 text: root.status;
-                font-size: 13px; color: Theme.primary;
+                font-size: Theme.fs-13; color: Theme.primary;
                 horizontal-alignment: center;
             }
             // Erro: oferece o download manual como fallback.
             if root.error != "": Text {
                 text: root.error;
-                font-size: 12px; color: Theme.danger;
+                font-size: Theme.fs-caption; color: Theme.danger;
                 wrap: word-wrap; horizontal-alignment: center;
             }
 

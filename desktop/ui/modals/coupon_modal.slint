@@ -20,7 +20,7 @@ component TypePill inherits TouchArea {
         background: root.active ? Theme.sidebar-sel-bg : Theme.surface;
         Text {
             text: root.label;
-            font-size: 12px;
+            font-size: Theme.fs-caption;
             font-weight: root.active ? 700 : 500;
             color: root.active ? white : Theme.text-primary;
             horizontal-alignment: center;
@@ -94,7 +94,7 @@ export component CouponModal inherits Rectangle {
                     // Tipo de Cupom
                     VerticalLayout {
                         spacing: 4px;
-                        Text { text: "Tipo de Cupom"; font-size: 12px; font-weight: 500; color: Theme.text-secondary; }
+                        Text { text: "Tipo de Cupom"; font-size: Theme.fs-caption; font-weight: Theme.fw-medium; color: Theme.text-secondary; }
                         HorizontalLayout {
                             spacing: 10px;
                             TypePill {
@@ -127,12 +127,12 @@ export component CouponModal inherits Rectangle {
                         VerticalLayout {
                             horizontal-stretch: 1;
                             FormField { label: "Título"; value <=> root.coupon-title; placeholder: "Ex.: Desconto de boas-vindas"; }
-                            if root.coupon-error-title != "": Text { text: root.coupon-error-title; font-size: 11px; color: Theme.danger; }
+                            if root.coupon-error-title != "": Text { text: root.coupon-error-title; font-size: Theme.fs-11; color: Theme.danger; }
                         }
                         VerticalLayout {
                             width: 200px;
                             FormField { label: "Código do Cupom"; value <=> root.coupon-code; placeholder: "Ex.: BEMVINDO10"; }
-                            if root.coupon-error-code != "": Text { text: root.coupon-error-code; font-size: 11px; color: Theme.danger; }
+                            if root.coupon-error-code != "": Text { text: root.coupon-error-code; font-size: Theme.fs-11; color: Theme.danger; }
                         }
                     }
 
@@ -141,7 +141,7 @@ export component CouponModal inherits Rectangle {
                         spacing: 10px;
                         VerticalLayout {
                             spacing: 4px;
-                            Text { text: "Tipo de Desconto"; font-size: 12px; font-weight: 500; color: Theme.text-secondary; }
+                            Text { text: "Tipo de Desconto"; font-size: Theme.fs-caption; font-weight: Theme.fw-medium; color: Theme.text-secondary; }
                             HorizontalLayout {
                                 spacing: 10px;
                                 TypePill {
@@ -171,7 +171,7 @@ export component CouponModal inherits Rectangle {
                                 FormField { label: "Desconto Máximo (R$)"; value <=> root.coupon-max-discount; placeholder: "0 = sem teto"; }
                             }
                         }
-                        if root.coupon-error-discount != "": Text { text: root.coupon-error-discount; font-size: 11px; color: Theme.danger; }
+                        if root.coupon-error-discount != "": Text { text: root.coupon-error-discount; font-size: Theme.fs-11; color: Theme.danger; }
                     }
 
                     // Linha: mínimo de compra + limites
@@ -180,7 +180,7 @@ export component CouponModal inherits Rectangle {
                         VerticalLayout {
                             horizontal-stretch: 1;
                             FormField { label: "Valor Mínimo de Compra (R$)"; value <=> root.coupon-min-order; placeholder: "0 = sem mínimo"; }
-                            if root.coupon-error-min != "": Text { text: root.coupon-error-min; font-size: 11px; color: Theme.danger; }
+                            if root.coupon-error-min != "": Text { text: root.coupon-error-min; font-size: Theme.fs-11; color: Theme.danger; }
                         }
                         VerticalLayout {
                             horizontal-stretch: 1;
@@ -192,12 +192,12 @@ export component CouponModal inherits Rectangle {
                                 placeholder: "0 = ilimitado";
                                 enabled: root.coupon-type != "first_purchase";
                             }
-                            if root.coupon-error-per-user != "": Text { text: root.coupon-error-per-user; font-size: 11px; color: Theme.danger; }
+                            if root.coupon-error-per-user != "": Text { text: root.coupon-error-per-user; font-size: Theme.fs-11; color: Theme.danger; }
                         }
                         VerticalLayout {
                             horizontal-stretch: 1;
                             FormField { label: "Limite Total de Usos"; value <=> root.coupon-usage-limit; placeholder: "0 = ilimitado"; }
-                            if root.coupon-error-usage != "": Text { text: root.coupon-error-usage; font-size: 11px; color: Theme.danger; }
+                            if root.coupon-error-usage != "": Text { text: root.coupon-error-usage; font-size: Theme.fs-11; color: Theme.danger; }
                         }
                     }
 
@@ -210,7 +210,7 @@ export component CouponModal inherits Rectangle {
                             spacing: 4px;
                             Text {
                                 text: "Validade - Início";
-                                font-size: 12px; font-weight: 500;
+                                font-size: Theme.fs-caption; font-weight: Theme.fw-medium;
                                 color: Theme.text-secondary;
                             }
                             from-ta := TouchArea {
@@ -227,7 +227,7 @@ export component CouponModal inherits Rectangle {
                                         Text {
                                             horizontal-stretch: 1;
                                             text: root.coupon-valid-from != "" ? root.coupon-valid-from : "opcional";
-                                            font-size: 13px;
+                                            font-size: Theme.fs-13;
                                             color: root.coupon-valid-from != ""
                                                 ? Theme.text-primary
                                                 : Theme.text-secondary;
@@ -250,7 +250,7 @@ export component CouponModal inherits Rectangle {
                             spacing: 4px;
                             Text {
                                 text: "Validade - Final";
-                                font-size: 12px; font-weight: 500;
+                                font-size: Theme.fs-caption; font-weight: Theme.fw-medium;
                                 color: Theme.text-secondary;
                             }
                             until-ta := TouchArea {
@@ -267,7 +267,7 @@ export component CouponModal inherits Rectangle {
                                         Text {
                                             horizontal-stretch: 1;
                                             text: root.coupon-valid-until != "" ? root.coupon-valid-until : "opcional";
-                                            font-size: 13px;
+                                            font-size: Theme.fs-13;
                                             color: root.coupon-valid-until != ""
                                                 ? Theme.text-primary
                                                 : Theme.text-secondary;
@@ -286,7 +286,7 @@ export component CouponModal inherits Rectangle {
                             }
                         }
                     }
-                    if root.coupon-error-validity != "": Text { text: root.coupon-error-validity; font-size: 11px; color: Theme.danger; }
+                    if root.coupon-error-validity != "": Text { text: root.coupon-error-validity; font-size: Theme.fs-11; color: Theme.danger; }
 
                     Rectangle { height: 4px; }
 

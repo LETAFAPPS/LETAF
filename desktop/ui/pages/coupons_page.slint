@@ -42,13 +42,13 @@ export component CouponsPage inherits Rectangle {
                 alignment: start;
                 Text {
                     text: "Lista de Cupons";
-                    font-size: 22px; font-weight: 700;
+                    font-size: 22px; font-weight: Theme.fw-bold;
                     color: Theme.text-primary;
                     overflow: elide;
                 }
                 Text {
                     text: root.coupons-active-count + " ativos · " + root.coupons-inactive-count + " inativos";
-                    font-size: 12px;
+                    font-size: Theme.fs-caption;
                     color: Theme.text-secondary;
                     overflow: elide;
                 }
@@ -112,7 +112,7 @@ export component CouponsPage inherits Rectangle {
                                     background: #FFF7ED;
                                     Text {
                                         text: c.code;
-                                        font-size: 14px; font-weight: 700;
+                                        font-size: Theme.fs-body; font-weight: Theme.fw-bold;
                                         color: Theme.primary;
                                         horizontal-alignment: center;
                                         vertical-alignment: center;
@@ -129,14 +129,14 @@ export component CouponsPage inherits Rectangle {
                                 horizontal-stretch: 1;
                                 Text {
                                     text: c.title;
-                                    font-size: 14px; font-weight: 700;
+                                    font-size: Theme.fs-body; font-weight: Theme.fw-bold;
                                     color: Theme.text-primary;
                                     overflow: elide;
                                 }
                                 Text {
                                     text: c.coupon-type-label + " · " + c.discount-summary
                                         + (c.valid-until != "" ? "  ·  até " + c.valid-until : "");
-                                    font-size: 11px;
+                                    font-size: Theme.fs-11;
                                     color: Theme.text-secondary;
                                     overflow: elide;
                                 }
@@ -156,7 +156,7 @@ export component CouponsPage inherits Rectangle {
                                         background: c.active ? #E8F5E9 : Theme.surface;
                                         Text {
                                             text: c.active ? "Ativo" : "Inativo";
-                                            font-size: 11px; font-weight: 600;
+                                            font-size: Theme.fs-11; font-weight: Theme.fw-strong;
                                             color: c.active ? Theme.success : Theme.text-secondary;
                                             horizontal-alignment: center; vertical-alignment: center;
                                             width: parent.width; height: parent.height;

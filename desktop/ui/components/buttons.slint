@@ -55,7 +55,7 @@ export component SidebarItem inherits TouchArea {
             compact-badge := Text {
                 text: root.badge;
                 font-size: 9px;
-                font-weight: 800;
+                font-weight: Theme.fw-extrabold;
                 color: white;
                 horizontal-alignment: center;
                 vertical-alignment: center;
@@ -79,7 +79,7 @@ export component SidebarItem inherits TouchArea {
 
             Text {
                 text: root.label;
-                font-size: 13px;
+                font-size: Theme.fs-13;
                 font-weight: root.active ? 600 : 400;
                 color: root.active ? Theme.sidebar-active : Theme.sidebar-text;
                 vertical-alignment: center;
@@ -96,8 +96,8 @@ export component SidebarItem inherits TouchArea {
                 y: (parent.height - self.height) / 2;
                 badge-text := Text {
                     text: root.badge;
-                    font-size: 10px;
-                    font-weight: 600;
+                    font-size: Theme.fs-label;
+                    font-weight: Theme.fw-strong;
                     color: white;
                     horizontal-alignment: center;
                     vertical-alignment: center;
@@ -139,8 +139,8 @@ export component SidebarFooter inherits VerticalLayout {
         }
         if !root.compact: Text {
             text: (root.online ? "Online" : "Offline") + " · " + root.status-label;
-            font-size: 11px;
-            font-weight: 600;
+            font-size: Theme.fs-11;
+            font-weight: Theme.fw-strong;
             color: Theme.sidebar-text;
             vertical-alignment: center;
         }
@@ -148,7 +148,7 @@ export component SidebarFooter inherits VerticalLayout {
 
     if !root.compact: Text {
         text: "Última: " + root.last-label + " · " + root.pending-count + " na fila";
-        font-size: 10px;
+        font-size: Theme.fs-label;
         color: #ffffff50;
         overflow: elide;
     }
@@ -166,8 +166,8 @@ export component SidebarSection inherits VerticalLayout {
 
     if !root.compact: Text {
         text: root.title;
-        font-size: 10px;
-        font-weight: 700;
+        font-size: Theme.fs-label;
+        font-weight: Theme.fw-bold;
         color: Theme.sidebar-section;
         letter-spacing: 1.5px;
     }
@@ -224,8 +224,8 @@ export component ActionBtn inherits TouchArea {
             }
             Text {
                 text: root.label;
-                font-size: 14px;
-                font-weight: 700;
+                font-size: Theme.fs-body;
+                font-weight: Theme.fw-bold;
                 color: root.text-color;
                 vertical-alignment: center;
             }
@@ -294,8 +294,8 @@ export component OutlineBtn inherits TouchArea {
             }
             Text {
                 text: root.label;
-                font-size: 14px;
-                font-weight: 700;
+                font-size: Theme.fs-body;
+                font-weight: Theme.fw-bold;
                 color: root.hl;
                 vertical-alignment: center;
             }
@@ -322,8 +322,8 @@ export component DeleteBtn inherits TouchArea {
 
         Text {
             text: "\u{2715}";
-            font-size: 13px;
-            font-weight: 500;
+            font-size: Theme.fs-13;
+            font-weight: Theme.fw-medium;
             color: root.has-hover ? Theme.danger : Theme.text-secondary;
             horizontal-alignment: center;
             vertical-alignment: center;
@@ -355,7 +355,7 @@ export component ToggleActiveBtn inherits TouchArea {
 
         Text {
             text: "●";
-            font-size: 13px;
+            font-size: Theme.fs-13;
             color: root.active
                 ? (root.has-hover ? #388E3C : #4CAF50)
                 : (root.has-hover ? Theme.danger : Theme.danger);
@@ -385,7 +385,7 @@ export component CategoryChip inherits TouchArea {
 
         Text {
             text: root.label;
-            font-size: 12px;
+            font-size: Theme.fs-caption;
             font-weight: root.active ? 600 : 500;
             color: root.active ? white : Theme.text-primary;
             horizontal-alignment: center;
@@ -418,7 +418,7 @@ export component ToggleWebVisibleBtn inherits TouchArea {
         border-radius: Theme.radius-sm;
         border-width: 1px;
         border-color: root.is-visible
-            ? (root.has-hover ? #1565C0 : transparent)
+            ? (root.has-hover ? Theme.info : transparent)
             : (root.has-hover ? Theme.danger : transparent);
         background: root.is-visible
             ? (root.has-hover ? #E3F2FD : transparent)
@@ -428,7 +428,7 @@ export component ToggleWebVisibleBtn inherits TouchArea {
         // acomodar o glyph sem cortar em renderers do Linux/GNOME.
         Text {
             text: root.is-visible ? "\u{1F310}" : "\u{1F6AB}";
-            font-size: 12px;
+            font-size: Theme.fs-caption;
             width: parent.width;
             height: parent.height;
             horizontal-alignment: center;
@@ -485,7 +485,7 @@ export component PageBtn inherits TouchArea {
 
         Text {
             text: root.label;
-            font-size: 12px;
+            font-size: Theme.fs-caption;
             font-weight: root.active ? 700 : 500;
             color: root.active ? white : Theme.text-primary;
             horizontal-alignment: center;
@@ -521,7 +521,7 @@ export component AdvanceOrderBtn inherits TouchArea {
 
         Text {
             text: "▶";
-            font-size: 12px;
+            font-size: Theme.fs-caption;
             color: root.status-color;
             horizontal-alignment: center;
             vertical-alignment: center;

@@ -353,12 +353,12 @@ export component MainWindow inherits Window {
                     spacing: 1px;
                     Text {
                         text: "Gerenciando";
-                        color: white; font-size: 13px; font-weight: 700;
+                        color: white; font-size: Theme.fs-13; font-weight: Theme.fw-bold;
                         horizontal-alignment: center;
                     }
                     Text {
                         text: root.impersonating-company;
-                        color: #ffffffcc; font-size: 11px;
+                        color: #ffffffcc; font-size: Theme.fs-11;
                         horizontal-alignment: center; overflow: elide;
                     }
                 }
@@ -1963,7 +1963,7 @@ export component MainWindow inherits Window {
                                 text: FinanceState.finance-settle-target-kind == "receivable"
                                     ? "Confirmar Recebimento"
                                     : "Confirmar Pagamento";
-                                font-size: 16px; font-weight: 700;
+                                font-size: Theme.fs-section; font-weight: Theme.fw-bold;
                                 color: Theme.text-primary;
                                 horizontal-alignment: center;
                             }
@@ -1971,7 +1971,7 @@ export component MainWindow inherits Window {
                                 text: FinanceState.finance-settle-target-kind == "receivable"
                                     ? "O lançamento será marcado como Recebido."
                                     : "O lançamento será marcado como Pago.";
-                                font-size: 12px;
+                                font-size: Theme.fs-caption;
                                 color: Theme.text-secondary;
                                 horizontal-alignment: center;
                             }
@@ -1988,20 +1988,20 @@ export component MainWindow inherits Window {
                                     Text {
                                         horizontal-stretch: 1;
                                         text: FinanceState.finance-settle-target-desc;
-                                        font-size: 13px; font-weight: 700;
+                                        font-size: Theme.fs-13; font-weight: Theme.fw-bold;
                                         color: Theme.text-primary;
                                         overflow: elide;
                                     }
                                     Text {
                                         text: FinanceState.finance-settle-target-amount;
-                                        font-size: 14px; font-weight: 800;
+                                        font-size: Theme.fs-body; font-weight: Theme.fw-extrabold;
                                         color: FinanceState.finance-settle-target-kind == "receivable"
                                             ? Theme.success : Theme.danger-hover;
                                     }
                                 }
                                 if FinanceState.finance-settle-target-party != "": Text {
                                     text: FinanceState.finance-settle-target-party;
-                                    font-size: 11px;
+                                    font-size: Theme.fs-11;
                                     color: Theme.text-secondary;
                                     overflow: elide;
                                 }
@@ -2015,7 +2015,7 @@ export component MainWindow inherits Window {
                             spacing: 6px;
                             Text {
                                 text: "VALOR RECEBIDO";
-                                font-size: 11px; font-weight: 700;
+                                font-size: Theme.fs-11; font-weight: Theme.fw-bold;
                                 color: Theme.text-secondary;
                                 letter-spacing: 0.5px;
                             }
@@ -2030,7 +2030,7 @@ export component MainWindow inherits Window {
                                     width: parent.width - 24px;
                                     height: parent.height;
                                     text <=> FinanceState.finance-settle-amount-input;
-                                    font-size: 14px; font-weight: 700;
+                                    font-size: Theme.fs-body; font-weight: Theme.fw-bold;
                                     color: Theme.text-primary;
                                     vertical-alignment: center;
                                     single-line: true;
@@ -2052,7 +2052,7 @@ export component MainWindow inherits Window {
                             spacing: 6px;
                             Text {
                                 text: "FORMA DE PAGAMENTO";
-                                font-size: 11px; font-weight: 700;
+                                font-size: Theme.fs-11; font-weight: Theme.fw-bold;
                                 color: Theme.text-secondary;
                                 letter-spacing: 0.5px;
                             }
@@ -2076,7 +2076,7 @@ export component MainWindow inherits Window {
                                         Text {
                                             width: parent.width; height: parent.height;
                                             text: opt.label;
-                                            font-size: 11px; font-weight: 600;
+                                            font-size: Theme.fs-11; font-weight: Theme.fw-strong;
                                             color: FinanceState.finance-settle-method == opt.value ? Theme.btn-accent : Theme.text-primary;
                                             horizontal-alignment: center; vertical-alignment: center;
                                         }
@@ -2099,7 +2099,7 @@ export component MainWindow inherits Window {
                                     Text {
                                         width: parent.width; height: parent.height;
                                         text: "Cancelar";
-                                        font-size: 13px; font-weight: 700;
+                                        font-size: Theme.fs-13; font-weight: Theme.fw-bold;
                                         color: Theme.text-secondary;
                                         horizontal-alignment: center; vertical-alignment: center;
                                     }
@@ -2116,7 +2116,7 @@ export component MainWindow inherits Window {
                                         text: FinanceState.finance-settle-target-kind == "receivable"
                                             ? "Confirmar"
                                             : "Confirmar";
-                                        font-size: 12px; font-weight: 700;
+                                        font-size: Theme.fs-caption; font-weight: Theme.fw-bold;
                                         color: white;
                                         horizontal-alignment: center; vertical-alignment: center;
                                     }
@@ -2156,13 +2156,13 @@ export component MainWindow inherits Window {
                             spacing: 4px;
                             Text {
                                 text: "Excluir Lançamento";
-                                font-size: 16px; font-weight: 700;
+                                font-size: Theme.fs-section; font-weight: Theme.fw-bold;
                                 color: Theme.text-primary;
                                 horizontal-alignment: center;
                             }
                             Text {
                                 text: "Este lançamento será removido. Esta ação não pode ser desfeita.";
-                                font-size: 12px;
+                                font-size: Theme.fs-caption;
                                 color: Theme.text-secondary;
                                 horizontal-alignment: center;
                                 wrap: word-wrap;
@@ -2180,13 +2180,13 @@ export component MainWindow inherits Window {
                                     Text {
                                         horizontal-stretch: 1;
                                         text: FinanceState.finance-delete-target-desc;
-                                        font-size: 13px; font-weight: 700;
+                                        font-size: Theme.fs-13; font-weight: Theme.fw-bold;
                                         color: Theme.text-primary;
                                         overflow: elide;
                                     }
                                     Text {
                                         text: FinanceState.finance-delete-target-amount;
-                                        font-size: 14px; font-weight: 800;
+                                        font-size: Theme.fs-body; font-weight: Theme.fw-extrabold;
                                         color: FinanceState.finance-delete-target-kind == "receivable"
                                             ? Theme.success : Theme.danger-hover;
                                     }
@@ -2208,7 +2208,7 @@ export component MainWindow inherits Window {
                                     Text {
                                         width: parent.width; height: parent.height;
                                         text: "Cancelar";
-                                        font-size: 13px; font-weight: 700;
+                                        font-size: Theme.fs-13; font-weight: Theme.fw-bold;
                                         color: Theme.text-secondary;
                                         horizontal-alignment: center; vertical-alignment: center;
                                     }
@@ -2223,7 +2223,7 @@ export component MainWindow inherits Window {
                                     Text {
                                         width: parent.width; height: parent.height;
                                         text: "Excluir";
-                                        font-size: 13px; font-weight: 700;
+                                        font-size: Theme.fs-13; font-weight: Theme.fw-bold;
                                         color: white;
                                         horizontal-alignment: center; vertical-alignment: center;
                                     }

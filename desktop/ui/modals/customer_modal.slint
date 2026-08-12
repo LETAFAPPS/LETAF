@@ -73,7 +73,7 @@ export component CustomerModal inherits Rectangle {
                             if root.customer-profile-picture.width == 0: Text {
                                 text: root.customer-avatar-initial;
                                 font-size: 22px;
-                                font-weight: 700;
+                                font-weight: Theme.fw-bold;
                                 color: #374151;
                                 horizontal-alignment: center;
                                 vertical-alignment: center;
@@ -89,14 +89,14 @@ export component CustomerModal inherits Rectangle {
 
                     VerticalLayout {
                         FormField { label: "Nome"; value <=> root.customer-name; placeholder: "Nome completo"; }
-                        if root.customer-error-name != "": Text { text: root.customer-error-name; font-size: 11px; color: Theme.danger; }
+                        if root.customer-error-name != "": Text { text: root.customer-error-name; font-size: Theme.fs-11; color: Theme.danger; }
                     }
                     HorizontalLayout {
                         spacing: 12px;
                         VerticalLayout {
                             horizontal-stretch: 1;
                             FormField { label: "Email"; value <=> root.customer-email; placeholder: "email@exemplo.com"; }
-                            if root.customer-error-email != "": Text { text: root.customer-error-email; font-size: 11px; color: Theme.danger; }
+                            if root.customer-error-email != "": Text { text: root.customer-error-email; font-size: Theme.fs-11; color: Theme.danger; }
                         }
                         VerticalLayout {
                             horizontal-stretch: 1;
@@ -107,7 +107,7 @@ export component CustomerModal inherits Rectangle {
                                 force-end-cursor: true;
                                 edited(t) => { root.customer-phone = root.format-customer-phone(t); }
                             }
-                            if root.customer-error-phone != "": Text { text: root.customer-error-phone; font-size: 11px; color: Theme.danger; }
+                            if root.customer-error-phone != "": Text { text: root.customer-error-phone; font-size: Theme.fs-11; color: Theme.danger; }
                         }
                     }
                     VerticalLayout {
@@ -118,7 +118,7 @@ export component CustomerModal inherits Rectangle {
                             force-end-cursor: true;
                             edited(t) => { root.customer-document = root.format-customer-document(t); }
                         }
-                        if root.customer-error-document != "": Text { text: root.customer-error-document; font-size: 11px; color: Theme.danger; }
+                        if root.customer-error-document != "": Text { text: root.customer-error-document; font-size: Theme.fs-11; color: Theme.danger; }
                     }
                     VerticalLayout {
                         FormField {
@@ -130,11 +130,11 @@ export component CustomerModal inherits Rectangle {
 
                     // ── Endereços ───────────────────────────────────
                     Rectangle { height: 1px; background: Theme.border; }
-                    Text { text: "Endereços"; font-size: 13px; font-weight: 600; color: Theme.text-primary; }
+                    Text { text: "Endereços"; font-size: Theme.fs-13; font-weight: Theme.fw-strong; color: Theme.text-primary; }
 
                     if root.editing-id == "": Text {
                         text: "Salve o cliente para adicionar endereços.";
-                        font-size: 11px; color: Theme.text-secondary;
+                        font-size: Theme.fs-11; color: Theme.text-secondary;
                     }
 
                     if root.editing-id != "": VerticalLayout {
@@ -145,15 +145,15 @@ export component CustomerModal inherits Rectangle {
                         // de estado vazio ficaria desproporcional aqui).
                         if root.customer-addresses.length == 0: Text {
                             text: "Nenhum endereço cadastrado.";
-                            font-size: 11px; color: Theme.text-secondary;
+                            font-size: Theme.fs-11; color: Theme.text-secondary;
                         }
 
                         for a in root.customer-addresses: HorizontalLayout {
                             spacing: 8px;
                             VerticalLayout {
                                 horizontal-stretch: 1;
-                                Text { text: a.label; font-size: 12px; font-weight: 600; color: Theme.text-primary; }
-                                Text { text: a.line; font-size: 11px; color: Theme.text-secondary; overflow: elide; }
+                                Text { text: a.label; font-size: Theme.fs-caption; font-weight: Theme.fw-strong; color: Theme.text-primary; }
+                                Text { text: a.line; font-size: Theme.fs-11; color: Theme.text-secondary; overflow: elide; }
                             }
                             VerticalLayout {
                                 alignment: center;
@@ -174,7 +174,7 @@ export component CustomerModal inherits Rectangle {
                                     HorizontalLayout {
                                         padding-left: 12px; padding-right: 12px;
                                         Text {
-                                            text: opt; font-size: 12px;
+                                            text: opt; font-size: Theme.fs-caption;
                                             font-weight: root.addr-label == opt ? 700 : 500;
                                             color: root.addr-label == opt ? white : Theme.text-primary;
                                             vertical-alignment: center;

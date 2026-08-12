@@ -25,7 +25,7 @@ component PaginationStepper inherits HorizontalLayout {
             border-radius: Theme.radius-xs; border-width: 1px;
             border-color: pp-dec5.has-hover ? Theme.primary : Theme.border;
             background: Theme.surface;
-            Text { text: "−5"; font-size: 11px; font-weight: 600; color: Theme.text-primary; horizontal-alignment: center; vertical-alignment: center; }
+            Text { text: "−5"; font-size: Theme.fs-11; font-weight: Theme.fw-strong; color: Theme.text-primary; horizontal-alignment: center; vertical-alignment: center; }
         }
     }
     pp-dec1 := TouchArea {
@@ -35,7 +35,7 @@ component PaginationStepper inherits HorizontalLayout {
             border-radius: Theme.radius-xs; border-width: 1px;
             border-color: pp-dec1.has-hover ? Theme.primary : Theme.border;
             background: Theme.surface;
-            Text { text: "−"; font-size: 14px; font-weight: 700; color: Theme.text-primary; horizontal-alignment: center; vertical-alignment: center; }
+            Text { text: "−"; font-size: Theme.fs-body; font-weight: Theme.fw-bold; color: Theme.text-primary; horizontal-alignment: center; vertical-alignment: center; }
         }
     }
     Rectangle {
@@ -48,7 +48,7 @@ component PaginationStepper inherits HorizontalLayout {
         background: Theme.surface;
         Text {
             text: root.value;
-            font-size: 13px; font-weight: 700;
+            font-size: Theme.fs-13; font-weight: Theme.fw-bold;
             color: Theme.text-primary;
             horizontal-alignment: center;
             vertical-alignment: center;
@@ -61,7 +61,7 @@ component PaginationStepper inherits HorizontalLayout {
             border-radius: Theme.radius-xs; border-width: 1px;
             border-color: pp-inc1.has-hover ? Theme.primary : Theme.border;
             background: Theme.surface;
-            Text { text: "+"; font-size: 14px; font-weight: 700; color: Theme.text-primary; horizontal-alignment: center; vertical-alignment: center; }
+            Text { text: "+"; font-size: Theme.fs-body; font-weight: Theme.fw-bold; color: Theme.text-primary; horizontal-alignment: center; vertical-alignment: center; }
         }
     }
     pp-inc5 := TouchArea {
@@ -71,7 +71,7 @@ component PaginationStepper inherits HorizontalLayout {
             border-radius: Theme.radius-xs; border-width: 1px;
             border-color: pp-inc5.has-hover ? Theme.primary : Theme.border;
             background: Theme.surface;
-            Text { text: "+5"; font-size: 11px; font-weight: 600; color: Theme.text-primary; horizontal-alignment: center; vertical-alignment: center; }
+            Text { text: "+5"; font-size: Theme.fs-11; font-weight: Theme.fw-strong; color: Theme.text-primary; horizontal-alignment: center; vertical-alignment: center; }
         }
     }
 }
@@ -92,8 +92,8 @@ component SyncBadge inherits Rectangle {
     background: root.synced ? #E6F4EA : #FFF4E0;
     Text {
         text: root.synced ? "Sincronizado" : "Editado";
-        font-size: 10px;
-        font-weight: 600;
+        font-size: Theme.fs-label;
+        font-weight: Theme.fw-strong;
         color: root.synced ? #1B7F3A : #B25A00;
         width: parent.width;
         height: parent.height;
@@ -190,15 +190,15 @@ export component SettingsPage inherits VerticalLayout {
             spacing: 2px;
             Text {
                 text: "CONFIGURAÇÕES";
-                font-size: 11px;
-                font-weight: 600;
+                font-size: Theme.fs-11;
+                font-weight: Theme.fw-strong;
                 letter-spacing: 1.5px;
                 color: Theme.text-secondary;
             }
             Text {
                 text: "Informações do estabelecimento";
                 font-size: 22px;
-                font-weight: 700;
+                font-weight: Theme.fw-bold;
                 color: Theme.text-primary;
                 overflow: elide;
             }
@@ -222,7 +222,7 @@ export component SettingsPage inherits VerticalLayout {
                         : Theme.btn-accent.transparentize(0.90);
                     Text {
                         text: "Salvar Alterações";
-                        font-size: 13px; font-weight: 700;
+                        font-size: Theme.fs-13; font-weight: Theme.fw-bold;
                         color: Theme.btn-accent;
                         horizontal-alignment: center; vertical-alignment: center;
                         width: parent.width; height: parent.height;
@@ -259,8 +259,8 @@ export component SettingsPage inherits VerticalLayout {
                     VerticalLayout {
                         horizontal-stretch: 1;
                         spacing: 2px;
-                        Text { text: "Marca & Identidade"; font-size: 14px; font-weight: 700; color: Theme.text-primary; }
-                        Text { text: "Logo, capa e nome público"; font-size: 11px; color: Theme.text-secondary; }
+                        Text { text: "Marca & Identidade"; font-size: Theme.fs-body; font-weight: Theme.fw-bold; color: Theme.text-primary; }
+                        Text { text: "Logo, capa e nome público"; font-size: Theme.fs-11; color: Theme.text-secondary; }
                     }
                     SyncBadge {
                         synced: root.store-synced;
@@ -301,7 +301,7 @@ export component SettingsPage inherits VerticalLayout {
                                 background: Theme.scrim;
                                 Text {
                                     text: "\u{270E}";
-                                    font-size: 14px;
+                                    font-size: Theme.fs-body;
                                     color: white;
                                     width: parent.width; height: parent.height;
                                     horizontal-alignment: center; vertical-alignment: center;
@@ -326,7 +326,7 @@ export component SettingsPage inherits VerticalLayout {
                         if root.store-logo-data == "": Text {
                             text: root.store-name == "" ? "L" : root.store-name;
                             font-size: 22px;
-                            font-weight: 800;
+                            font-weight: Theme.fw-extrabold;
                             color: Theme.primary;
                             width: parent.width; height: parent.height;
                             horizontal-alignment: center; vertical-alignment: center;
@@ -353,7 +353,7 @@ export component SettingsPage inherits VerticalLayout {
 
                 Text {
                     text: "Logo e capa: clique no banner para trocar a capa, no quadrado branco para trocar o logo.";
-                    font-size: 10px;
+                    font-size: Theme.fs-label;
                     color: Theme.text-secondary;
                     wrap: word-wrap;
                 }
@@ -385,8 +385,8 @@ export component SettingsPage inherits VerticalLayout {
                     VerticalLayout {
                         horizontal-stretch: 1;
                         spacing: 2px;
-                        Text { text: "Contato"; font-size: 14px; font-weight: 700; color: Theme.text-primary; }
-                        Text { text: "Aparece nos pedidos e no site público"; font-size: 11px; color: Theme.text-secondary; }
+                        Text { text: "Contato"; font-size: Theme.fs-body; font-weight: Theme.fw-bold; color: Theme.text-primary; }
+                        Text { text: "Aparece nos pedidos e no site público"; font-size: Theme.fs-11; color: Theme.text-secondary; }
                     }
                     SyncBadge {
                         synced: root.store-synced;
@@ -434,8 +434,8 @@ export component SettingsPage inherits VerticalLayout {
                     VerticalLayout {
                         horizontal-stretch: 1;
                         spacing: 2px;
-                        Text { text: "Endereço & Documento"; font-size: 14px; font-weight: 700; color: Theme.text-primary; }
-                        Text { text: "Identificação fiscal e localização"; font-size: 11px; color: Theme.text-secondary; }
+                        Text { text: "Endereço & Documento"; font-size: Theme.fs-body; font-weight: Theme.fw-bold; color: Theme.text-primary; }
+                        Text { text: "Identificação fiscal e localização"; font-size: Theme.fs-11; color: Theme.text-secondary; }
                     }
                     SyncBadge {
                         synced: root.store-synced;
@@ -511,7 +511,7 @@ export component SettingsPage inherits VerticalLayout {
                 height: 28px;
                 Text {
                     text: "Horário de Funcionamento";
-                    font-size: 14px; font-weight: 700;
+                    font-size: Theme.fs-body; font-weight: Theme.fw-bold;
                     color: Theme.text-primary;
                     vertical-alignment: center;
                     horizontal-stretch: 1;
@@ -528,7 +528,7 @@ export component SettingsPage inherits VerticalLayout {
                     }
                     Text {
                         text: "Abrir";
-                        font-size: 12px; font-weight: 700;
+                        font-size: Theme.fs-caption; font-weight: Theme.fw-bold;
                         color: root.store-override == "open" ? white : Theme.text-secondary;
                         horizontal-alignment: center; vertical-alignment: center;
                     }
@@ -545,7 +545,7 @@ export component SettingsPage inherits VerticalLayout {
                     }
                     Text {
                         text: "Fechar";
-                        font-size: 12px; font-weight: 700;
+                        font-size: Theme.fs-caption; font-weight: Theme.fw-bold;
                         color: root.store-override == "closed" ? white : Theme.text-secondary;
                         horizontal-alignment: center; vertical-alignment: center;
                     }
@@ -591,7 +591,7 @@ export component SettingsPage inherits VerticalLayout {
                 spacing: 10px;
                 Text {
                     text: "Paginação · Produtos";
-                    font-size: 14px; font-weight: 700;
+                    font-size: Theme.fs-body; font-weight: Theme.fw-bold;
                     color: Theme.text-primary;
                 }
                 HorizontalLayout {
@@ -601,12 +601,12 @@ export component SettingsPage inherits VerticalLayout {
                         horizontal-stretch: 1;
                         Text {
                             text: "Produtos por página";
-                            font-size: 11px; font-weight: 500;
+                            font-size: Theme.fs-11; font-weight: Theme.fw-medium;
                             color: Theme.text-secondary;
                         }
                         Text {
                             text: "Define quantos cards aparecem por página na tela de Produtos.";
-                            font-size: 10px;
+                            font-size: Theme.fs-label;
                             color: Theme.text-secondary;
                             wrap: word-wrap;
                         }
@@ -627,7 +627,7 @@ export component SettingsPage inherits VerticalLayout {
                 spacing: 10px;
                 Text {
                     text: "Paginação · Pedidos";
-                    font-size: 14px; font-weight: 700;
+                    font-size: Theme.fs-body; font-weight: Theme.fw-bold;
                     color: Theme.text-primary;
                 }
                 HorizontalLayout {
@@ -637,12 +637,12 @@ export component SettingsPage inherits VerticalLayout {
                         horizontal-stretch: 1;
                         Text {
                             text: "Pedidos por página";
-                            font-size: 11px; font-weight: 500;
+                            font-size: Theme.fs-11; font-weight: Theme.fw-medium;
                             color: Theme.text-secondary;
                         }
                         Text {
                             text: "Define quantos cards aparecem por página na tela de Pedidos.";
-                            font-size: 10px;
+                            font-size: Theme.fs-label;
                             color: Theme.text-secondary;
                             wrap: word-wrap;
                         }
@@ -665,7 +665,7 @@ export component SettingsPage inherits VerticalLayout {
             spacing: 10px;
             Text {
                 text: "Entrega";
-                font-size: 14px; font-weight: 700;
+                font-size: Theme.fs-body; font-weight: Theme.fw-bold;
                 color: Theme.text-primary;
             }
             HorizontalLayout {
@@ -675,12 +675,12 @@ export component SettingsPage inherits VerticalLayout {
                     horizontal-stretch: 1;
                     Text {
                         text: "Taxa de entrega (R$)";
-                        font-size: 11px; font-weight: 500;
+                        font-size: Theme.fs-11; font-weight: Theme.fw-medium;
                         color: Theme.text-secondary;
                     }
                     Text {
                         text: "Somada automaticamente ao total quando o pedido é de entrega. Deixe vazio ou 0 para não cobrar.";
-                        font-size: 10px;
+                        font-size: Theme.fs-label;
                         color: Theme.text-secondary;
                         wrap: word-wrap;
                     }
@@ -693,13 +693,13 @@ export component SettingsPage inherits VerticalLayout {
                     fee-input := TextInput {
                         x: 10px; y: 0; width: parent.width - 20px; height: parent.height;
                         text <=> root.store-delivery-fee;
-                        font-size: 13px; color: Theme.text-primary;
+                        font-size: Theme.fs-13; color: Theme.text-primary;
                         vertical-alignment: center; horizontal-alignment: right;
                         single-line: true;
                     }
                     if root.store-delivery-fee == "": Text {
                         x: 10px; y: 0; width: parent.width - 20px; height: parent.height;
-                        text: "0,00"; font-size: 12px; color: #BDBDBD;
+                        text: "0,00"; font-size: Theme.fs-caption; color: Theme.text-secondary;
                         vertical-alignment: center; horizontal-alignment: right;
                     }
                 }
@@ -727,11 +727,11 @@ export component SettingsPage inherits VerticalLayout {
             spacing: 10px;
             Text {
                 text: "Cores do site";
-                font-size: 14px; font-weight: 700; color: Theme.text-primary;
+                font-size: Theme.fs-body; font-weight: Theme.fw-bold; color: Theme.text-primary;
             }
             Text {
                 text: "Escolha a paleta do seu cardápio online. \"Nenhuma\" usa as cores padrão do tipo de estabelecimento.";
-                font-size: 10px; color: Theme.text-secondary; wrap: word-wrap;
+                font-size: Theme.fs-label; color: Theme.text-secondary; wrap: word-wrap;
             }
             HorizontalLayout {
                 spacing: 10px;
@@ -751,7 +751,7 @@ export component SettingsPage inherits VerticalLayout {
                                 ? Theme.text-primary : Theme.border;
                             // "Nenhuma": marca um traço p/ diferenciar do cinza.
                             if p.slug == "": Text {
-                                text: "—"; color: white; font-size: 18px; font-weight: 700;
+                                text: "—"; color: white; font-size: Theme.fs-heading; font-weight: Theme.fw-bold;
                                 horizontal-alignment: center; vertical-alignment: center;
                                 width: parent.width; height: parent.height;
                             }
@@ -782,10 +782,10 @@ export component SettingsPage inherits VerticalLayout {
             HorizontalLayout {
                 VerticalLayout {
                     horizontal-stretch: 1; spacing: 2px;
-                    Text { text: "Impressoras"; font-size: 14px; font-weight: 700; color: Theme.text-primary; }
+                    Text { text: "Impressoras"; font-size: Theme.fs-body; font-weight: Theme.fw-bold; color: Theme.text-primary; }
                     Text {
                         text: "Cadastre Impressoras (Cupom, Comanda, NFC-e).";
-                        font-size: 11px; color: Theme.text-secondary;
+                        font-size: Theme.fs-11; color: Theme.text-secondary;
                     }
                 }
                 add-printer-ta := TouchArea {
@@ -802,7 +802,7 @@ export component SettingsPage inherits VerticalLayout {
                                 alignment: center;
                                 Text {
                                     text: "+ Adicionar";
-                                    font-size: 12px; font-weight: 700;
+                                    font-size: Theme.fs-caption; font-weight: Theme.fw-bold;
                                     color: add-printer-ta.has-hover ? white : Theme.primary;
                                 }
                             }
@@ -832,7 +832,7 @@ export component SettingsPage inherits VerticalLayout {
                     }
                     Text {
                         text: "As comandas usarão a impressora padrão do sistema.";
-                        font-size: 12px; color: Theme.text-secondary;
+                        font-size: Theme.fs-caption; color: Theme.text-secondary;
                         horizontal-alignment: center;
                         wrap: word-wrap;
                     }
@@ -859,13 +859,13 @@ export component SettingsPage inherits VerticalLayout {
                         alignment: center;
                         Text {
                             text: p.name;
-                            font-size: 13px; font-weight: 700;
+                            font-size: Theme.fs-13; font-weight: Theme.fw-bold;
                             color: Theme.text-primary;
                             overflow: elide;
                         }
                         Text {
                             text: p.kind-label + "  ·  " + p.system-name + "  ·  " + p.paper-label;
-                            font-size: 11px; color: Theme.text-secondary;
+                            font-size: Theme.fs-11; color: Theme.text-secondary;
                         }
                     }
 
@@ -877,7 +877,7 @@ export component SettingsPage inherits VerticalLayout {
                         alignment: center;
                         Text {
                             text: "Padrão";
-                            font-size: 11px; font-weight: 700;
+                            font-size: Theme.fs-11; font-weight: Theme.fw-bold;
                             color: Theme.primary;
                             letter-spacing: 1px;
                         }
@@ -902,7 +902,7 @@ export component SettingsPage inherits VerticalLayout {
                                             alignment: center;
                                             Text {
                                                 text: "★";
-                                                font-size: 14px; font-weight: 700;
+                                                font-size: Theme.fs-body; font-weight: Theme.fw-bold;
                                                 color: set-def-ta.has-hover ? Theme.primary : Theme.text-secondary;
                                             }
                                         }

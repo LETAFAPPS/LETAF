@@ -49,7 +49,7 @@ export component PdvCartModal inherits Rectangle {
                 }
                 Text {
                     text: "Itens do Carrinho";
-                    font-size: 16px; font-weight: 800;
+                    font-size: Theme.fs-section; font-weight: Theme.fw-extrabold;
                     color: Theme.text-primary;
                     horizontal-stretch: 1;
                     vertical-alignment: center;
@@ -99,7 +99,7 @@ export component PdvCartModal inherits Rectangle {
                                         }
                                         if !it.has-image: AssetIcon {
                                             width: 48px; height: 48px; icon-size: 22px;
-                                            icon-color: #BDBDBD;
+                                            icon-color: Theme.text-secondary;
                                             source: @image-url("../assets/icons/products.svg");
                                         }
                                     }
@@ -108,8 +108,8 @@ export component PdvCartModal inherits Rectangle {
                                     horizontal-stretch: 1;
                                     alignment: center;
                                     spacing: 1px;
-                                    Text { text: it.name; font-size: 13px; font-weight: 600; color: Theme.text-primary; overflow: elide; }
-                                    if it.addons-summary != "": Text { text: it.addons-summary; font-size: 11px; color: Theme.text-secondary; wrap: word-wrap; }
+                                    Text { text: it.name; font-size: Theme.fs-13; font-weight: Theme.fw-strong; color: Theme.text-primary; overflow: elide; }
+                                    if it.addons-summary != "": Text { text: it.addons-summary; font-size: Theme.fs-11; color: Theme.text-secondary; wrap: word-wrap; }
                                 }
                                 // Excluir item — fica ACIMA do valor (linha 1).
                                 VerticalLayout {
@@ -135,13 +135,13 @@ export component PdvCartModal inherits Rectangle {
                                         border-radius: Theme.radius-sm; border-width: 1px;
                                         border-color: dec-ta.has-hover ? Theme.primary : Theme.border;
                                         background: dec-ta.has-hover ? Theme.row-hover : Theme.surface;
-                                        Text { text: "−"; font-size: 15px; font-weight: 700; color: Theme.text-primary; width: parent.width; height: parent.height; horizontal-alignment: center; vertical-alignment: center; }
+                                        Text { text: "−"; font-size: 15px; font-weight: Theme.fw-bold; color: Theme.text-primary; width: parent.width; height: parent.height; horizontal-alignment: center; vertical-alignment: center; }
                                     }
                                 }
                                 Rectangle {
                                     width: 42px; height: 28px; border-radius: Theme.radius-sm; border-width: 1px;
                                     border-color: Theme.card-border; background: Theme.surface;
-                                    Text { text: it.qty; font-size: 13px; font-weight: 600; color: Theme.text-primary; width: parent.width; height: parent.height; horizontal-alignment: center; vertical-alignment: center; }
+                                    Text { text: it.qty; font-size: Theme.fs-13; font-weight: Theme.fw-strong; color: Theme.text-primary; width: parent.width; height: parent.height; horizontal-alignment: center; vertical-alignment: center; }
                                 }
                                 inc-ta := TouchArea {
                                     width: 32px; height: 28px;
@@ -150,7 +150,7 @@ export component PdvCartModal inherits Rectangle {
                                         border-radius: Theme.radius-sm; border-width: 1px;
                                         border-color: inc-ta.has-hover ? Theme.primary : Theme.border;
                                         background: inc-ta.has-hover ? Theme.row-hover : Theme.surface;
-                                        Text { text: "+"; font-size: 15px; font-weight: 700; color: Theme.text-primary; width: parent.width; height: parent.height; horizontal-alignment: center; vertical-alignment: center; }
+                                        Text { text: "+"; font-size: 15px; font-weight: Theme.fw-bold; color: Theme.text-primary; width: parent.width; height: parent.height; horizontal-alignment: center; vertical-alignment: center; }
                                     }
                                 }
                                 Rectangle { horizontal-stretch: 1; }
@@ -160,7 +160,7 @@ export component PdvCartModal inherits Rectangle {
                                     StruckText { text: it.list-line-display; text-size: 11px; }
                                 }
                                 // Valor do item — fica ABAIXO do excluir (linha 2).
-                                Text { text: it.line-total-display; font-size: 13px; font-weight: 700; color: Theme.primary; vertical-alignment: center; }
+                                Text { text: it.line-total-display; font-size: Theme.fs-13; font-weight: Theme.fw-bold; color: Theme.primary; vertical-alignment: center; }
                             }
                         }
                     }
@@ -169,8 +169,8 @@ export component PdvCartModal inherits Rectangle {
 
             Rectangle { height: 1px; background: Theme.border; }
             HorizontalLayout {
-                Text { text: "Total"; font-size: 14px; font-weight: 700; color: Theme.text-primary; horizontal-stretch: 1; vertical-alignment: center; }
-                Text { text: root.total-display; font-size: 16px; font-weight: 800; color: Theme.success; vertical-alignment: center; }
+                Text { text: "Total"; font-size: Theme.fs-body; font-weight: Theme.fw-bold; color: Theme.text-primary; horizontal-stretch: 1; vertical-alignment: center; }
+                Text { text: root.total-display; font-size: Theme.fs-section; font-weight: Theme.fw-extrabold; color: Theme.success; vertical-alignment: center; }
             }
         }
     }

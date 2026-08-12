@@ -61,7 +61,7 @@ component PlanCard inherits Rectangle {
             Text {
                 horizontal-stretch: 1;
                 text: root.p.name;
-                font-size: 15px; font-weight: 800;
+                font-size: 15px; font-weight: Theme.fw-extrabold;
                 color: Theme.text-primary;
                 overflow: elide;
                 vertical-alignment: center;
@@ -73,7 +73,7 @@ component PlanCard inherits Rectangle {
                 hl := Text {
                     width: parent.width; height: parent.height;
                     text: root.p.highlight-label;
-                    font-size: 10px; font-weight: 700;
+                    font-size: Theme.fs-label; font-weight: Theme.fw-bold;
                     color: Theme.btn-accent;
                     horizontal-alignment: center; vertical-alignment: center;
                 }
@@ -85,7 +85,7 @@ component PlanCard inherits Rectangle {
                 inat := Text {
                     width: parent.width; height: parent.height;
                     text: "Inativo";
-                    font-size: 10px; font-weight: 700; color: Theme.danger;
+                    font-size: Theme.fs-label; font-weight: Theme.fw-bold; color: Theme.danger;
                     horizontal-alignment: center; vertical-alignment: center;
                 }
             }
@@ -99,13 +99,13 @@ component PlanCard inherits Rectangle {
             alignment: start;
             Text {
                 text: root.p.monthly-value;
-                font-size: 28px; font-weight: 800;
+                font-size: Theme.fs-page; font-weight: Theme.fw-extrabold;
                 color: Theme.text-primary;
                 vertical-alignment: bottom;
             }
             Text {
                 text: "/mês";
-                font-size: 12px; font-weight: 600;
+                font-size: Theme.fs-caption; font-weight: Theme.fw-strong;
                 color: Theme.text-secondary;
                 vertical-alignment: bottom;
             }
@@ -135,7 +135,7 @@ component PlanCard inherits Rectangle {
                 Text {
                     horizontal-stretch: 1;
                     text: f;
-                    font-size: 12px;
+                    font-size: Theme.fs-caption;
                     color: Theme.text-primary;
                     overflow: elide;
                     vertical-alignment: center;
@@ -160,7 +160,7 @@ component PlanCard inherits Rectangle {
                 alignment: center;
                 Text {
                     text: root.p.subscribers-display;
-                    font-size: 14px; font-weight: 800;
+                    font-size: Theme.fs-body; font-weight: Theme.fw-extrabold;
                     color: Theme.text-primary;
                 }
                 Text {
@@ -230,10 +230,10 @@ export component AdminPlansPage inherits VerticalLayout {
         VerticalLayout {
             horizontal-stretch: 1;
             spacing: 2px;
-            Text { text: "Planos"; font-size: 20px; font-weight: 800; color: Theme.text-primary; }
+            Text { text: "Planos"; font-size: 20px; font-weight: Theme.fw-extrabold; color: Theme.text-primary; }
             Text {
                 text: "Gestão de planos de assinatura";
-                font-size: 13px; color: Theme.text-secondary;
+                font-size: Theme.fs-13; color: Theme.text-secondary;
             }
         }
         VerticalLayout {
@@ -256,7 +256,7 @@ export component AdminPlansPage inherits VerticalLayout {
                         }
                         Text {
                             text: "Novo Plano";
-                            font-size: 13px; font-weight: 700; color: white;
+                            font-size: Theme.fs-13; font-weight: Theme.fw-bold; color: white;
                             vertical-alignment: center;
                         }
                     }

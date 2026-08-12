@@ -49,7 +49,7 @@ export component PixChargeModal inherits Rectangle {
                         Text {
                             width: parent.width; height: parent.height;
                             text: "Gerando cobrança…";
-                            font-size: 13px;
+                            font-size: Theme.fs-13;
                             color: Theme.text-secondary;
                             horizontal-alignment: center; vertical-alignment: center;
                         }
@@ -84,14 +84,14 @@ export component PixChargeModal inherits Rectangle {
                             spacing: 6px;
                             Text {
                                 text: "Valor:";
-                                font-size: 12px;
+                                font-size: Theme.fs-caption;
                                 color: Theme.text-secondary;
                                 vertical-alignment: center;
                             }
                             Text {
                                 horizontal-stretch: 1;
                                 text: root.data.amount-display;
-                                font-size: 14px; font-weight: 800;
+                                font-size: Theme.fs-body; font-weight: Theme.fw-extrabold;
                                 color: Theme.text-primary;
                                 vertical-alignment: center;
                             }
@@ -113,7 +113,7 @@ export component PixChargeModal inherits Rectangle {
                                 Text {
                                     horizontal-stretch: 1;
                                     text: root.data.pix-copia-cola;
-                                    font-size: 11px;
+                                    font-size: Theme.fs-11;
                                     color: Theme.text-primary;
                                     vertical-alignment: center;
                                     overflow: elide;
@@ -128,7 +128,7 @@ export component PixChargeModal inherits Rectangle {
                                         Text {
                                             width: parent.width; height: parent.height;
                                             text: "Copiar";
-                                            font-size: 12px; font-weight: 700;
+                                            font-size: Theme.fs-caption; font-weight: Theme.fw-bold;
                                             color: white;
                                             horizontal-alignment: center; vertical-alignment: center;
                                         }
@@ -139,7 +139,7 @@ export component PixChargeModal inherits Rectangle {
 
                         Text {
                             text: "Após pagar, o status atualiza automaticamente em segundos.";
-                            font-size: 10px;
+                            font-size: Theme.fs-label;
                             color: Theme.text-secondary;
                             horizontal-alignment: center;
                         }
@@ -154,14 +154,14 @@ export component PixChargeModal inherits Rectangle {
                             Text {
                                 width: parent.width; height: parent.height;
                                 text: "✓ Pagamento confirmado!";
-                                font-size: 16px; font-weight: 800;
+                                font-size: Theme.fs-section; font-weight: Theme.fw-extrabold;
                                 color: Theme.success;
                                 horizontal-alignment: center; vertical-alignment: center;
                             }
                         }
                         Text {
                             text: "A fatura foi marcada como paga.";
-                            font-size: 12px;
+                            font-size: Theme.fs-caption;
                             color: Theme.text-secondary;
                             horizontal-alignment: center;
                         }
@@ -176,14 +176,14 @@ export component PixChargeModal inherits Rectangle {
                             Text {
                                 width: parent.width; height: parent.height;
                                 text: "Não foi possível gerar a cobrança";
-                                font-size: 14px; font-weight: 800;
+                                font-size: Theme.fs-body; font-weight: Theme.fw-extrabold;
                                 color: Theme.danger;
                                 horizontal-alignment: center; vertical-alignment: center;
                             }
                         }
                         Text {
                             text: root.data.message;
-                            font-size: 11px;
+                            font-size: Theme.fs-11;
                             color: Theme.text-secondary;
                             horizontal-alignment: center;
                             wrap: word-wrap;

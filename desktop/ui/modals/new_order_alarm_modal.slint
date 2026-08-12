@@ -66,7 +66,7 @@ export component NewOrderAlarmModal inherits Rectangle {
                             }
                             Text {
                                 text: "NOVO PEDIDO";
-                                font-size: 18px; font-weight: 800;
+                                font-size: Theme.fs-heading; font-weight: Theme.fw-extrabold;
                                 color: Theme.on-primary;
                                 letter-spacing: 1px;
                                 vertical-alignment: center;
@@ -86,14 +86,14 @@ export component NewOrderAlarmModal inherits Rectangle {
                                 text: root.pending-count > 1
                                     ? "Você tem " + root.pending-count + " pedidos pendentes"
                                     : "Você tem 1 pedido pendente";
-                                font-size: 15px; font-weight: 700;
+                                font-size: 15px; font-weight: Theme.fw-bold;
                                 color: Theme.text-primary;
                                 horizontal-alignment: center;
                                 wrap: word-wrap;
                             }
                             Text {
                                 text: "Toque em \"Ver Pedidos\" para abrir a lista e silenciar o alarme.";
-                                font-size: 12px;
+                                font-size: Theme.fs-caption;
                                 color: Theme.text-secondary;
                                 horizontal-alignment: center;
                                 wrap: word-wrap;
@@ -119,7 +119,7 @@ export component NewOrderAlarmModal inherits Rectangle {
                             // — evita expectativa frustrada.
                             Text {
                                 text: "Fechar não silencia o alarme — ele voltará em 5 segundos.";
-                                font-size: 10px;
+                                font-size: Theme.fs-label;
                                 color: Theme.text-secondary;
                                 horizontal-alignment: center;
                                 wrap: word-wrap;

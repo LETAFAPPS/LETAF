@@ -20,7 +20,7 @@ component TypePill inherits TouchArea {
         background: root.active ? Theme.sidebar-sel-bg : Theme.surface;
         Text {
             text: root.label;
-            font-size: 12px;
+            font-size: Theme.fs-caption;
             font-weight: root.active ? 700 : 500;
             color: root.active ? white : Theme.text-primary;
             horizontal-alignment: center;
@@ -97,12 +97,12 @@ export component BannerModal inherits Rectangle {
 
                             VerticalLayout {
                                 FormField { label: "Título"; value <=> root.banner-title; placeholder: "Ex.: Promoção do Açaí"; }
-                                if root.banner-error-title != "": Text { text: root.banner-error-title; font-size: 11px; color: Theme.danger; }
+                                if root.banner-error-title != "": Text { text: root.banner-error-title; font-size: Theme.fs-11; color: Theme.danger; }
                             }
 
                             VerticalLayout {
                                 spacing: 4px;
-                                Text { text: "Tipo de Banner"; font-size: 12px; font-weight: 500; color: Theme.text-secondary; }
+                                Text { text: "Tipo de Banner"; font-size: Theme.fs-caption; font-weight: Theme.fw-medium; color: Theme.text-secondary; }
                                 HorizontalLayout {
                                     spacing: 10px;
                                     TypePill {
@@ -137,7 +137,7 @@ export component BannerModal inherits Rectangle {
                                             spacing: 6px;
                                             Text {
                                                 text: "✓ " + root.banner-product-name;
-                                                font-size: 12px;
+                                                font-size: Theme.fs-caption;
                                                 color: Theme.primary;
                                                 vertical-alignment: center;
                                             }
@@ -175,7 +175,7 @@ export component BannerModal inherits Rectangle {
                                                     background: parent.hov ? Theme.row-hover : transparent;
                                                     HorizontalLayout {
                                                         padding-left: 10px; padding-right: 10px;
-                                                        Text { text: p.name; font-size: 13px; color: Theme.text-primary; vertical-alignment: center; horizontal-stretch: 1; }
+                                                        Text { text: p.name; font-size: Theme.fs-13; color: Theme.text-primary; vertical-alignment: center; horizontal-stretch: 1; }
                                                     }
                                                 }
                                             }
@@ -185,7 +185,7 @@ export component BannerModal inherits Rectangle {
                                                     padding-left: 10px;
                                                     Text {
                                                         text: "Nenhum produto encontrado";
-                                                        font-size: 12px;
+                                                        font-size: Theme.fs-caption;
                                                         color: Theme.text-secondary;
                                                         vertical-alignment: center;
                                                     }
@@ -203,7 +203,7 @@ export component BannerModal inherits Rectangle {
                                 placeholder: "https://exemplo.com.br";
                             }
 
-                            if root.banner-error-target != "": Text { text: root.banner-error-target; font-size: 11px; color: Theme.danger; }
+                            if root.banner-error-target != "": Text { text: root.banner-error-target; font-size: Theme.fs-11; color: Theme.danger; }
                         }
 
                         // Coluna direita: upload de imagem ANCORADO no topo.
@@ -215,7 +215,7 @@ export component BannerModal inherits Rectangle {
                                 spacing: 4px;
                                 Text {
                                     text: "Imagem Banner (3:1)";
-                                    font-size: 12px; font-weight: 500;
+                                    font-size: Theme.fs-caption; font-weight: Theme.fw-medium;
                                     color: Theme.text-secondary;
                                 }
                                 Rectangle {
@@ -243,7 +243,7 @@ export component BannerModal inherits Rectangle {
                                         alignment: center;
                                         Text {
                                             text: root.banner-image-loading ? "Carregando..." : "Enviar (PNG, JPG, WEBP)";
-                                            font-size: 11px;
+                                            font-size: Theme.fs-11;
                                             color: Theme.text-secondary;
                                             horizontal-alignment: center;
                                             wrap: word-wrap;
@@ -251,7 +251,7 @@ export component BannerModal inherits Rectangle {
                                     }
                                 }
                             }
-                            if root.banner-error-image != "": Text { text: root.banner-error-image; font-size: 11px; color: Theme.danger; }
+                            if root.banner-error-image != "": Text { text: root.banner-error-image; font-size: Theme.fs-11; color: Theme.danger; }
                         }
                     }
 

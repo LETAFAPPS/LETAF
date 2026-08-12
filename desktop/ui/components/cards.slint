@@ -32,8 +32,8 @@ export component Toast inherits Rectangle {
         // Sem ícone — apenas o texto da notificação.
         Text {
             text: message;
-            font-size: 13px;
-            font-weight: 500;
+            font-size: Theme.fs-13;
+            font-weight: Theme.fw-medium;
             color: white;
             vertical-alignment: center;
             // Quebra em linhas em vez de truncar em "…": mensagens de erro
@@ -142,16 +142,16 @@ export component ProductCard inherits Rectangle {
 
             Text {
                 text: product.name;
-                font-size: 14px;
-                font-weight: 700;
+                font-size: Theme.fs-body;
+                font-weight: Theme.fw-bold;
                 color: product.active ? Theme.text-primary : Theme.text-secondary;
                 horizontal-alignment: center;
                 overflow: elide;
             }
             if product.price != "": Text {
                 text: "R$ " + product.price;
-                font-size: 13px;
-                font-weight: 600;
+                font-size: Theme.fs-13;
+                font-weight: Theme.fw-strong;
                 color: product.active ? Theme.success : Theme.text-secondary;
                 horizontal-alignment: center;
             }
@@ -169,15 +169,15 @@ export component ProductCard inherits Rectangle {
                 // normal (11px) para não empurrar os botões abaixo.
                 text: "∞";
                 font-size: 15px;
-                font-weight: 700;
-                color: !product.active ? Theme.text-secondary : #1565C0;
+                font-weight: Theme.fw-bold;
+                color: !product.active ? Theme.text-secondary : Theme.info;
                 horizontal-alignment: center;
                 height: 14px;
             }
             if !product.unlimited-stock && product.stock-status == "out": Text {
                 text: "Sem Estoque";
-                font-size: 11px;
-                font-weight: 600;
+                font-size: Theme.fs-11;
+                font-weight: Theme.fw-strong;
                 color: !product.active ? Theme.text-secondary : #EF5350;
                 horizontal-alignment: center;
             }
@@ -186,24 +186,24 @@ export component ProductCard inherits Rectangle {
                 spacing: 4px;
                 Text {
                     text: product.stock-quantity;
-                    font-size: 11px;
-                    font-weight: 600;
+                    font-size: Theme.fs-11;
+                    font-weight: Theme.fw-strong;
                     color: !product.active
                         ? Theme.text-secondary
-                        : (product.stock-status == "low" ? #EF6C00 : #1565C0);
+                        : (product.stock-status == "low" ? #EF6C00 : Theme.info);
                 }
                 if product.unit != "": Text {
                     text: product.unit;
-                    font-size: 11px;
-                    font-weight: 600;
+                    font-size: Theme.fs-11;
+                    font-weight: Theme.fw-strong;
                     color: !product.active
                         ? Theme.text-secondary
-                        : (product.stock-status == "low" ? #EF6C00 : #1565C0);
+                        : (product.stock-status == "low" ? #EF6C00 : Theme.info);
                 }
             }
             if product.barcode != "": Text {
                 text: product.barcode;
-                font-size: 10px;
+                font-size: Theme.fs-label;
                 color: Theme.text-secondary;
                 horizontal-alignment: center;
                 overflow: elide;
@@ -281,8 +281,8 @@ export component CustomerCard inherits Rectangle {
                 clip: true;
                 if customer.profile-picture.width == 0: Text {
                     text: customer.avatar-initial;
-                    font-size: 16px;
-                    font-weight: 700;
+                    font-size: Theme.fs-section;
+                    font-weight: Theme.fw-bold;
                     color: #374151;
                     horizontal-alignment: center;
                     vertical-alignment: center;
@@ -298,28 +298,28 @@ export component CustomerCard inherits Rectangle {
 
         Text {
             text: customer.name;
-            font-size: 13px;
-            font-weight: 700;
+            font-size: Theme.fs-13;
+            font-weight: Theme.fw-bold;
             color: Theme.text-primary;
             horizontal-alignment: center;
             overflow: elide;
         }
         Text {
             text: customer.email;
-            font-size: 11px;
+            font-size: Theme.fs-11;
             color: Theme.text-secondary;
             horizontal-alignment: center;
             overflow: elide;
         }
         Text {
             text: customer.phone;
-            font-size: 11px;
+            font-size: Theme.fs-11;
             color: Theme.text-secondary;
             horizontal-alignment: center;
         }
         if customer.document != "": Text {
             text: customer.document;
-            font-size: 11px;
+            font-size: Theme.fs-11;
             color: Theme.text-secondary;
             horizontal-alignment: center;
         }
@@ -363,7 +363,7 @@ export component OrderItemCard inherits Rectangle {
             alignment: center;
             Text {
                 text: item.qty-label;
-                font-size: 12px; font-weight: 700;
+                font-size: Theme.fs-caption; font-weight: Theme.fw-bold;
                 color: Theme.text-secondary;
                 horizontal-alignment: center;
                 width: 24px;
@@ -385,7 +385,7 @@ export component OrderItemCard inherits Rectangle {
                 }
                 if item.product-image.width == 0: Text {
                     text: "?";
-                    font-size: 18px;
+                    font-size: Theme.fs-heading;
                     color: Theme.text-secondary;
                     horizontal-alignment: center;
                     vertical-alignment: center;
@@ -399,7 +399,7 @@ export component OrderItemCard inherits Rectangle {
             spacing: 3px;
             Text {
                 text: item.product-name;
-                font-size: 13px; font-weight: 600;
+                font-size: Theme.fs-13; font-weight: Theme.fw-strong;
                 color: Theme.text-primary;
                 overflow: elide;
                 horizontal-alignment: left;
@@ -413,7 +413,7 @@ export component OrderItemCard inherits Rectangle {
             // para o atendente confirmar o que vai sair na cozinha.
             if item.addons-summary != "": Text {
                 text: item.addons-summary;
-                font-size: 11px;
+                font-size: Theme.fs-11;
                 color: Theme.text-secondary;
                 horizontal-alignment: left;
                 wrap: word-wrap;
@@ -429,7 +429,7 @@ export component OrderItemCard inherits Rectangle {
                 }
                 Text {
                     text: item.price;
-                    font-size: 12px;
+                    font-size: Theme.fs-caption;
                     color: item.list-price != "" ? Theme.success : Theme.text-secondary;
                     font-weight: item.list-price != "" ? 700 : 400;
                     horizontal-alignment: left;
@@ -471,7 +471,7 @@ export component OrderCard inherits Rectangle {
     property <color> dtype-bg: transparent;
     // PDV = verde; senão Retirada (laranja) ou Entrega (azul).
     property <color> dtype-fg: is-pdv ? Theme.success
-        : (order.delivery-type == "pickup" ? Theme.btn-accent : #1565C0);
+        : (order.delivery-type == "pickup" ? Theme.btn-accent : Theme.info);
     property <string> dtype-text: is-pdv ? "PDV"
         : (order.delivery-type == "pickup" ? "Retirada" : "Entrega");
 
@@ -495,8 +495,8 @@ export component OrderCard inherits Rectangle {
         HorizontalLayout {
             Text {
                 text: "#" + order.number;
-                font-size: 14px;
-                font-weight: 700;
+                font-size: Theme.fs-body;
+                font-weight: Theme.fw-bold;
                 color: Theme.text-primary;
                 horizontal-stretch: 1;
                 vertical-alignment: center;
@@ -510,8 +510,8 @@ export component OrderCard inherits Rectangle {
                     alignment: center;
                     Text {
                         text: dtype-text;
-                        font-size: 13px;
-                        font-weight: 700;
+                        font-size: Theme.fs-13;
+                        font-weight: Theme.fw-bold;
                         color: dtype-fg;
                         vertical-alignment: center;
                     }
@@ -522,8 +522,8 @@ export component OrderCard inherits Rectangle {
         // ── Nome do cliente (centralizado, acima da data) ──
         Text {
             text: order.customer-name;
-            font-size: 12px;
-            font-weight: 600;
+            font-size: Theme.fs-caption;
+            font-weight: Theme.fw-strong;
             color: Theme.text-primary;
             horizontal-alignment: center;
             overflow: elide;
@@ -534,13 +534,13 @@ export component OrderCard inherits Rectangle {
             spacing: 1px;
             Text {
                 text: order.order-date;
-                font-size: 11px;
+                font-size: Theme.fs-11;
                 color: Theme.text-secondary;
                 horizontal-alignment: center;
             }
             Text {
                 text: order.order-time;
-                font-size: 10px;
+                font-size: Theme.fs-label;
                 color: Theme.text-secondary;
                 horizontal-alignment: center;
             }
@@ -553,7 +553,7 @@ export component OrderCard inherits Rectangle {
         Text {
             text: order.total;
             font-size: 15px;
-            font-weight: 800;
+            font-weight: Theme.fw-extrabold;
             color: Theme.success;
             horizontal-alignment: center;
         }
@@ -608,8 +608,8 @@ export component BusinessHoursCard inherits Rectangle {
 
         Text {
             text: bh.day-name;
-            font-size: 11px;
-            font-weight: 700;
+            font-size: Theme.fs-11;
+            font-weight: Theme.fw-bold;
             color: Theme.text-primary;
             horizontal-alignment: center;
             overflow: elide;
@@ -624,7 +624,7 @@ export component BusinessHoursCard inherits Rectangle {
                 background: bh.is-open ? Theme.sidebar-sel-bg : #BDBDBD;
                 Text {
                     text: bh.is-open ? "Aberto" : "Fechado";
-                    font-size: 10px; font-weight: 700;
+                    font-size: Theme.fs-label; font-weight: Theme.fw-bold;
                     color: white;
                     horizontal-alignment: center; vertical-alignment: center;
                 }
@@ -633,13 +633,13 @@ export component BusinessHoursCard inherits Rectangle {
 
         Text {
             text: bh.is-open ? bh.open-time : "";
-            font-size: 12px; font-weight: 600;
+            font-size: Theme.fs-caption; font-weight: Theme.fw-strong;
             color: Theme.text-primary;
             horizontal-alignment: center;
         }
         Text {
             text: bh.is-open ? bh.close-time : "—";
-            font-size: 12px;
+            font-size: Theme.fs-caption;
             color: bh.is-open ? Theme.text-secondary : Theme.text-secondary;
             horizontal-alignment: center;
         }

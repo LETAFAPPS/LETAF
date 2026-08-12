@@ -382,8 +382,8 @@ export component Sidebar inherits Rectangle {
                         horizontal-stretch: 1;
                         alignment: center;
                         spacing: 1px;
-                        Text { text: root.user-name; font-size: 13px; font-weight: 700; color: profile-ta.has-hover ? Theme.primary : white; overflow: elide; }
-                        Text { text: root.user-role; font-size: 10px; color: Theme.sidebar-section; overflow: elide; }
+                        Text { text: root.user-name; font-size: Theme.fs-13; font-weight: Theme.fw-bold; color: profile-ta.has-hover ? Theme.primary : white; overflow: elide; }
+                        Text { text: root.user-role; font-size: Theme.fs-label; color: Theme.sidebar-section; overflow: elide; }
                     }
                 }
             }

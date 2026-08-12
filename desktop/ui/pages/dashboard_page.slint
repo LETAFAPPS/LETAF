@@ -59,12 +59,12 @@ component KpiCard inherits Rectangle {
             spacing: 3px;
             Text {
                 text: root.label;
-                font-size: 10px; font-weight: 700;
+                font-size: Theme.fs-label; font-weight: Theme.fw-bold;
                 color: Theme.text-secondary; letter-spacing: 1px;
             }
             Text {
                 text: root.value-display;
-                font-size: 24px; font-weight: 800;
+                font-size: 24px; font-weight: Theme.fw-extrabold;
                 color: root.value-tone == "pos" ? Theme.success
                     : (root.value-tone == "warn" ? #EF6C00
                     : (root.value-tone == "neg" ? Theme.danger-hover : Theme.text-primary));
@@ -75,7 +75,7 @@ component KpiCard inherits Rectangle {
             alignment: center;
             Text {
                 text: root.delta;
-                font-size: 13px; font-weight: 700;
+                font-size: Theme.fs-13; font-weight: Theme.fw-bold;
                 color: root.delta-tone == "pos" ? Theme.success
                     : (root.delta-tone == "warn" ? #EF6C00
                     : (root.delta-tone == "neg" ? Theme.danger-hover
@@ -120,12 +120,12 @@ component HeroCard inherits Rectangle {
             spacing: 8px;
             Text {
                 text: root.revenue-label;
-                font-size: 11px; font-weight: 700;
+                font-size: Theme.fs-11; font-weight: Theme.fw-bold;
                 color: Theme.text-secondary; letter-spacing: 1.5px;
             }
             Text {
                 text: root.revenue;
-                font-size: 42px; font-weight: 800;
+                font-size: 42px; font-weight: Theme.fw-extrabold;
                 color: Theme.text-primary;
             }
             // Badge de variação — pílula tintada (verde sobe / vermelho cai).
@@ -140,7 +140,7 @@ component HeroCard inherits Rectangle {
                         padding-left: 10px; padding-right: 10px;
                         Text {
                             text: root.delta;
-                            font-size: 11px; font-weight: 700;
+                            font-size: Theme.fs-11; font-weight: Theme.fw-bold;
                             color: root.delta-tone == "neg" ? Theme.danger
                                 : (root.delta-tone == "pos" ? Theme.success : Theme.text-secondary);
                             vertical-alignment: center;
@@ -154,18 +154,18 @@ component HeroCard inherits Rectangle {
                 spacing: 40px;
                 VerticalLayout {
                     spacing: 2px;
-                    Text { text: root.orders; font-size: 18px; font-weight: 800; color: Theme.text-primary; }
-                    Text { text: "Pedidos"; font-size: 11px; color: Theme.text-secondary; }
+                    Text { text: root.orders; font-size: Theme.fs-heading; font-weight: Theme.fw-extrabold; color: Theme.text-primary; }
+                    Text { text: "Pedidos"; font-size: Theme.fs-11; color: Theme.text-secondary; }
                 }
                 VerticalLayout {
                     spacing: 2px;
-                    Text { text: root.ticket; font-size: 18px; font-weight: 800; color: Theme.text-primary; }
-                    Text { text: "Ticket Médio"; font-size: 11px; color: Theme.text-secondary; }
+                    Text { text: root.ticket; font-size: Theme.fs-heading; font-weight: Theme.fw-extrabold; color: Theme.text-primary; }
+                    Text { text: "Ticket Médio"; font-size: Theme.fs-11; color: Theme.text-secondary; }
                 }
                 VerticalLayout {
                     spacing: 2px;
-                    Text { text: root.best-day; font-size: 18px; font-weight: 800; color: Theme.text-primary; }
-                    Text { text: "Melhor Dia"; font-size: 11px; color: Theme.text-secondary; }
+                    Text { text: root.best-day; font-size: Theme.fs-heading; font-weight: Theme.fw-extrabold; color: Theme.text-primary; }
+                    Text { text: "Melhor Dia"; font-size: Theme.fs-11; color: Theme.text-secondary; }
                 }
                 Rectangle { horizontal-stretch: 1; }
             }
@@ -235,7 +235,7 @@ component HeroCard inherits Rectangle {
                     tt-txt := Text {
                         width: parent.width; height: parent.height;
                         text: pt.label + ": " + pt.value-display;
-                        font-size: 11px; font-weight: 700;
+                        font-size: Theme.fs-11; font-weight: Theme.fw-bold;
                         color: Theme.text-primary;
                         horizontal-alignment: center; vertical-alignment: center;
                     }
@@ -298,12 +298,12 @@ component ComparePairSlot inherits Rectangle {
             padding: 4px;
             Text {
                 text: "Atual: " + root.current-display;
-                font-size: 10px; font-weight: 700; color: Theme.primary;
+                font-size: Theme.fs-label; font-weight: Theme.fw-bold; color: Theme.primary;
                 horizontal-alignment: center;
             }
             Text {
                 text: "Ant.: " + (root.previous-display != "" ? root.previous-display : "—");
-                font-size: 10px; font-weight: 600; color: #8A8A8A;
+                font-size: Theme.fs-label; font-weight: Theme.fw-strong; color: #8A8A8A;
                 horizontal-alignment: center;
             }
         }
@@ -342,12 +342,12 @@ component WeeklyCompareChart inherits Rectangle {
                 spacing: 2px;
                 Text {
                     text: "Comparativo";
-                    font-size: 15px; font-weight: 700;
+                    font-size: 15px; font-weight: Theme.fw-bold;
                     color: Theme.text-primary;
                 }
                 Text {
                     text: root.subtitle;
-                    font-size: 11px; color: Theme.text-secondary;
+                    font-size: Theme.fs-11; color: Theme.text-secondary;
                 }
             }
             HorizontalLayout {
@@ -356,12 +356,12 @@ component WeeklyCompareChart inherits Rectangle {
                 HorizontalLayout {
                     spacing: 6px;
                     VerticalLayout { alignment: center; Rectangle { width: 12px; height: 12px; border-radius: 3px; background: Theme.primary; } }
-                    Text { text: "Atual"; font-size: 11px; color: Theme.text-secondary; vertical-alignment: center; }
+                    Text { text: "Atual"; font-size: Theme.fs-11; color: Theme.text-secondary; vertical-alignment: center; }
                 }
                 HorizontalLayout {
                     spacing: 6px;
                     VerticalLayout { alignment: center; Rectangle { width: 12px; height: 12px; border-radius: 3px; background: #C9C7BD; } }
-                    Text { text: "Anterior"; font-size: 11px; color: Theme.text-secondary; vertical-alignment: center; }
+                    Text { text: "Anterior"; font-size: Theme.fs-11; color: Theme.text-secondary; vertical-alignment: center; }
                 }
             }
         }
@@ -403,13 +403,13 @@ component TopProductsCard inherits Rectangle {
         HorizontalLayout {
             Text {
                 text: "Melhores Produtos";
-                font-size: 15px; font-weight: 700;
+                font-size: 15px; font-weight: Theme.fw-bold;
                 color: Theme.text-primary;
                 horizontal-stretch: 1;
             }
             Text {
                 text: root.period-label;
-                font-size: 11px; color: Theme.text-secondary;
+                font-size: Theme.fs-11; color: Theme.text-secondary;
                 vertical-alignment: center;
             }
         }
@@ -435,7 +435,7 @@ component TopProductsCard inherits Rectangle {
                     alignment: center;
                     Text {
                         text: "\{p.rank}°";
-                        font-size: 18px; font-weight: 800;
+                        font-size: Theme.fs-heading; font-weight: Theme.fw-extrabold;
                         color: Theme.accent;
                         horizontal-alignment: center;
                     }
@@ -447,13 +447,13 @@ component TopProductsCard inherits Rectangle {
                     spacing: 4px;
                     Text {
                         text: p.name;
-                        font-size: 13px; font-weight: 700;
+                        font-size: Theme.fs-13; font-weight: Theme.fw-bold;
                         color: Theme.text-primary;
                         overflow: elide;
                     }
                     Text {
                         text: p.sales-display;
-                        font-size: 10px; color: Theme.text-secondary;
+                        font-size: Theme.fs-label; color: Theme.text-secondary;
                     }
                 }
                 // Mini-donut (anel de progresso) — à ESQUERDA do valor.
@@ -484,7 +484,7 @@ component TopProductsCard inherits Rectangle {
                     alignment: center;
                     Text {
                         text: p.revenue-display;
-                        font-size: 14px; font-weight: 800;
+                        font-size: Theme.fs-body; font-weight: Theme.fw-extrabold;
                         color: Theme.text-primary;
                         horizontal-alignment: right;
                     }
@@ -530,7 +530,7 @@ component PaymentDonutCard inherits Rectangle {
         spacing: 14px;
         Text {
             text: "Formas de Pagamento";
-            font-size: 15px; font-weight: 700;
+            font-size: 15px; font-weight: Theme.fw-bold;
             color: Theme.text-primary;
             horizontal-alignment: center;
         }
@@ -552,13 +552,13 @@ component PaymentDonutCard inherits Rectangle {
                     alignment: center;
                     Text {
                         text: root.total;
-                        font-size: 22px; font-weight: 800;
+                        font-size: 22px; font-weight: Theme.fw-extrabold;
                         color: Theme.text-primary;
                         horizontal-alignment: center;
                     }
                     Text {
                         text: "Recebido";
-                        font-size: 11px; color: Theme.text-secondary;
+                        font-size: Theme.fs-11; color: Theme.text-secondary;
                         horizontal-alignment: center;
                     }
                 }
@@ -580,7 +580,7 @@ component PaymentDonutCard inherits Rectangle {
                     }
                     Text {
                         text: s.label;
-                        font-size: 13px;
+                        font-size: Theme.fs-13;
                         font-weight: i == root.hovered ? 700 : 400;
                         color: Theme.text-primary;
                         vertical-alignment: center;
@@ -588,12 +588,12 @@ component PaymentDonutCard inherits Rectangle {
                     }
                     Text {
                         text: s.value-display;
-                        font-size: 12px; color: Theme.text-secondary;
+                        font-size: Theme.fs-caption; color: Theme.text-secondary;
                         vertical-alignment: center;
                     }
                     Text {
                         text: s.pct-display;
-                        font-size: 13px; font-weight: 700;
+                        font-size: Theme.fs-13; font-weight: Theme.fw-bold;
                         color: Theme.text-primary;
                         vertical-alignment: center;
                     }
@@ -646,12 +646,12 @@ export component DashboardPage inherits VerticalLayout {
             spacing: 2px;
             Text {
                 text: "Resumo Executivo";
-                font-size: 22px; font-weight: 800;
+                font-size: 22px; font-weight: Theme.fw-extrabold;
                 color: Theme.text-primary;
             }
             Text {
                 text: root.subtitle;
-                font-size: 12px; color: Theme.text-secondary;
+                font-size: Theme.fs-caption; color: Theme.text-secondary;
             }
         }
         // Filtro de período (dropdown)
@@ -680,14 +680,14 @@ export component DashboardPage inherits VerticalLayout {
                         }
                         Text {
                             text: root.period-label;
-                            font-size: 13px; font-weight: 700;
+                            font-size: Theme.fs-13; font-weight: Theme.fw-bold;
                             color: Theme.btn-accent;
                             vertical-alignment: center;
                             horizontal-stretch: 1;
                         }
                         Text {
                             text: "▾";
-                            font-size: 12px; color: Theme.btn-accent;
+                            font-size: Theme.fs-caption; color: Theme.btn-accent;
                             vertical-alignment: center;
                         }
                     }
@@ -721,7 +721,7 @@ export component DashboardPage inherits VerticalLayout {
                                         padding-left: 10px; padding-right: 10px;
                                         Text {
                                             text: opt.l;
-                                            font-size: 13px;
+                                            font-size: Theme.fs-13;
                                             font-weight: root.period == opt.k ? 700 : 500;
                                             color: root.period == opt.k ? Theme.primary : Theme.text-primary;
                                             vertical-alignment: center;

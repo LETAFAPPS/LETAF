@@ -45,12 +45,12 @@ export component AddonGroupModal inherits Rectangle {
 
                     VerticalLayout {
                         FormField { label: "Nome"; value <=> root.group-name; placeholder: "Ex.: Borda, Acompanhamentos"; }
-                        if root.error-name != "": Text { text: root.error-name; font-size: 11px; color: Theme.danger; }
+                        if root.error-name != "": Text { text: root.error-name; font-size: Theme.fs-11; color: Theme.danger; }
                     }
 
                     VerticalLayout {
                         spacing: 4px;
-                        Text { text: "Modo de seleção"; font-size: 12px; font-weight: 500; color: Theme.text-secondary; }
+                        Text { text: "Modo de seleção"; font-size: Theme.fs-caption; font-weight: Theme.fw-medium; color: Theme.text-secondary; }
                         HorizontalLayout {
                             spacing: 8px;
                             single-ta := TouchArea {
@@ -69,7 +69,7 @@ export component AddonGroupModal inherits Rectangle {
                                     background: root.group-selection == "single" ? Theme.sidebar-sel-bg : (single-ta.has-hover ? Theme.row-hover : Theme.surface);
                                     Text {
                                         text: "Único";
-                                        font-size: 12px; font-weight: 600;
+                                        font-size: Theme.fs-caption; font-weight: Theme.fw-strong;
                                         color: root.group-selection == "single" ? white : Theme.text-primary;
                                         horizontal-alignment: center; vertical-alignment: center;
                                         width: parent.width; height: parent.height;
@@ -94,7 +94,7 @@ export component AddonGroupModal inherits Rectangle {
                                     background: root.group-selection == "multi" ? Theme.sidebar-sel-bg : (multi-ta.has-hover ? Theme.row-hover : Theme.surface);
                                     Text {
                                         text: "Múltiplos";
-                                        font-size: 12px; font-weight: 600;
+                                        font-size: Theme.fs-caption; font-weight: Theme.fw-strong;
                                         color: root.group-selection == "multi" ? white : Theme.text-primary;
                                         horizontal-alignment: center; vertical-alignment: center;
                                         width: parent.width; height: parent.height;
@@ -133,7 +133,7 @@ export component AddonGroupModal inherits Rectangle {
                         text: root.group-selection == "single"
                             ? "Cliente escolhe no máximo 1 item desse grupo."
                             : "Cliente pode marcar vários itens desse grupo.";
-                        font-size: 11px;
+                        font-size: Theme.fs-11;
                         color: Theme.text-secondary;
                     }
 
@@ -184,7 +184,7 @@ export component AddonItemModal inherits Rectangle {
                     HorizontalLayout {
                         Text {
                             text: root.editing-id != "" ? "Editar Adicional" : "Novo Adicional";
-                            font-size: 18px; font-weight: 700;
+                            font-size: Theme.fs-heading; font-weight: Theme.fw-bold;
                             color: Theme.text-primary;
                             horizontal-stretch: 1; vertical-alignment: center;
                         }
@@ -194,13 +194,13 @@ export component AddonItemModal inherits Rectangle {
 
                     if root.group-name != "": Text {
                         text: "Grupo: " + root.group-name;
-                        font-size: 12px;
+                        font-size: Theme.fs-caption;
                         color: Theme.text-secondary;
                     }
 
                     VerticalLayout {
                         FormField { label: "Nome"; value <=> root.addon-name; placeholder: "Ex.: Catupiry, Cheddar"; }
-                        if root.error-name != "": Text { text: root.error-name; font-size: 11px; color: Theme.danger; }
+                        if root.error-name != "": Text { text: root.error-name; font-size: Theme.fs-11; color: Theme.danger; }
                     }
 
                     FormField {
@@ -210,7 +210,7 @@ export component AddonItemModal inherits Rectangle {
                     }
                     Text {
                         text: "Use 0 para adicionais gratuitos (ex.: 'Sem Cebola').";
-                        font-size: 11px;
+                        font-size: Theme.fs-11;
                         color: Theme.text-secondary;
                     }
 

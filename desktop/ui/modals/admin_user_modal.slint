@@ -58,7 +58,7 @@ export component AdminUserModal inherits Rectangle {
             // "Master" (sem função) = acesso total.
             Text {
                 text: "Função";
-                font-size: 12.5px; font-weight: 600; color: Theme.text-secondary;
+                font-size: Theme.fs-meta; font-weight: Theme.fw-strong; color: Theme.text-secondary;
             }
             VerticalLayout {
                 spacing: 6px;
@@ -74,7 +74,7 @@ export component AdminUserModal inherits Rectangle {
                         padding-left: 12px; padding-right: 12px;
                         Text {
                             text: "Super Admin";
-                            font-size: 13px; font-weight: 700;
+                            font-size: Theme.fs-13; font-weight: Theme.fw-bold;
                             color: Theme.btn-accent;
                             vertical-alignment: center;
                         }
@@ -97,7 +97,7 @@ export component AdminUserModal inherits Rectangle {
                                 padding-left: 12px; padding-right: 12px;
                                 Text {
                                     text: opt.label;
-                                    font-size: 13px; font-weight: root.role-id == opt.key ? 700 : 500;
+                                    font-size: Theme.fs-13; font-weight: root.role-id == opt.key ? 700 : 500;
                                     color: root.role-id == opt.key ? Theme.btn-accent : Theme.text-primary;
                                     vertical-alignment: center;
                                 }
@@ -107,7 +107,7 @@ export component AdminUserModal inherits Rectangle {
                     // Sem funções cadastradas: orienta a criar uma em "Funções".
                     if root.roles.length == 0: Text {
                         text: "Cadastre uma função na aba Funções para atribuir.";
-                        font-size: 12px; color: Theme.text-secondary; wrap: word-wrap;
+                        font-size: Theme.fs-caption; color: Theme.text-secondary; wrap: word-wrap;
                     }
                 }
             }

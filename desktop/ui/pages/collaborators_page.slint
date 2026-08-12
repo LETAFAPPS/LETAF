@@ -68,7 +68,7 @@ component Tag inherits Rectangle {
     background: root.accent ? Theme.accent.transparentize(0.86) : Theme.row-alt;
     tag-t := Text {
         text: root.text;
-        font-size: 10px; font-weight: 700;
+        font-size: Theme.fs-label; font-weight: Theme.fw-bold;
         color: root.accent ? Theme.accent : Theme.text-secondary;
         width: parent.width; height: parent.height;
         horizontal-alignment: center; vertical-alignment: center;
@@ -102,8 +102,8 @@ component MasterListCard inherits Rectangle {
             VerticalLayout {
                 horizontal-stretch: 1;
                 spacing: 2px;
-                Text { text: root.title; font-size: 22px; font-weight: 700; color: Theme.text-primary; overflow: elide; }
-                Text { text: root.count-label; font-size: 12px; color: Theme.text-secondary; overflow: elide; }
+                Text { text: root.title; font-size: 22px; font-weight: Theme.fw-bold; color: Theme.text-primary; overflow: elide; }
+                Text { text: root.count-label; font-size: Theme.fs-caption; color: Theme.text-secondary; overflow: elide; }
             }
             VerticalLayout {
                 alignment: center;
@@ -149,13 +149,13 @@ component MasterListCard inherits Rectangle {
                     horizontal-stretch: 1;
                     list-search := TextInput {
                         x: 0; y: 0; width: parent.width; height: parent.height;
-                        font-size: 13px; color: Theme.text-primary;
+                        font-size: Theme.fs-13; color: Theme.text-primary;
                         vertical-alignment: center; single-line: true;
                         edited => { root.search-changed(self.text); }
                     }
                     if list-search.text == "": Text {
                         x: 0; y: 0; width: parent.width; height: parent.height;
-                        text: "Buscar..."; font-size: 13px; color: Theme.text-secondary; vertical-alignment: center;
+                        text: "Buscar..."; font-size: Theme.fs-13; color: Theme.text-secondary; vertical-alignment: center;
                     }
                 }
             }
@@ -190,7 +190,7 @@ component MarkAllBtn inherits TouchArea {
             }
             Text {
                 text: root.active ? "Desmarcar tudo" : "Marcar tudo";
-                font-size: 14px; font-weight: root.active ? 700 : 600;
+                font-size: Theme.fs-body; font-weight: root.active ? 700 : 600;
                 color: root.active ? Theme.btn-accent : Theme.text-secondary;
                 vertical-alignment: center;
             }
@@ -233,8 +233,8 @@ component PermCard inherits Rectangle {
             horizontal-stretch: 1;
             alignment: center;
             spacing: 2px;
-            Text { text: root.data.label; font-size: 13px; font-weight: 700; color: Theme.text-primary; overflow: elide; }
-            Text { text: root.data.sub-label; font-size: 10px; color: Theme.text-secondary; overflow: elide; }
+            Text { text: root.data.label; font-size: Theme.fs-13; font-weight: Theme.fw-bold; color: Theme.text-primary; overflow: elide; }
+            Text { text: root.data.sub-label; font-size: Theme.fs-label; color: Theme.text-secondary; overflow: elide; }
         }
         VerticalLayout {
             alignment: center;
@@ -273,10 +273,10 @@ component RoleSelect inherits Rectangle {
             Text {
                 horizontal-stretch: 1;
                 text: root.options[root.current-index];
-                font-size: 13px; color: Theme.text-primary;
+                font-size: Theme.fs-13; color: Theme.text-primary;
                 vertical-alignment: center; overflow: elide;
             }
-            Text { text: "▾"; font-size: 12px; color: Theme.text-secondary; vertical-alignment: center; }
+            Text { text: "▾"; font-size: Theme.fs-caption; color: Theme.text-secondary; vertical-alignment: center; }
         }
     }
     pop := PopupWindow {
@@ -300,7 +300,7 @@ component RoleSelect inherits Rectangle {
                             padding-left: 10px; padding-right: 10px;
                             Text {
                                 text: opt;
-                                font-size: 13px;
+                                font-size: Theme.fs-13;
                                 font-weight: i == root.current-index ? 700 : 500;
                                 color: i == root.current-index ? Theme.accent : Theme.text-primary;
                                 vertical-alignment: center; horizontal-stretch: 1;
@@ -362,8 +362,8 @@ export component CollaboratorsPage inherits Rectangle {
                 horizontal-stretch: 1;
                 alignment: center;
                 spacing: 2px;
-                Text { text: "Usuários"; font-size: 24px; font-weight: 800; color: Theme.text-primary; }
-                Text { text: "Funções (permissões) e funcionários com login"; font-size: 13px; color: Theme.text-secondary; }
+                Text { text: "Usuários"; font-size: 24px; font-weight: Theme.fw-extrabold; color: Theme.text-primary; }
+                Text { text: "Funções (permissões) e funcionários com login"; font-size: Theme.fs-13; color: Theme.text-secondary; }
             }
             VerticalLayout {
                 alignment: center;
@@ -389,7 +389,7 @@ export component CollaboratorsPage inherits Rectangle {
                                 Text {
                                     width: parent.width; height: parent.height;
                                     text: "Funções";
-                                    font-size: 13px; font-weight: 700;
+                                    font-size: Theme.fs-13; font-weight: Theme.fw-bold;
                                     color: root.tab == "roles" ? Theme.btn-accent : Theme.text-primary;
                                     horizontal-alignment: center; vertical-alignment: center;
                                 }
@@ -407,7 +407,7 @@ export component CollaboratorsPage inherits Rectangle {
                                 Text {
                                     width: parent.width; height: parent.height;
                                     text: "Funcionários";
-                                    font-size: 13px; font-weight: 700;
+                                    font-size: Theme.fs-13; font-weight: Theme.fw-bold;
                                     color: root.tab == "employees" ? Theme.btn-accent : Theme.text-primary;
                                     horizontal-alignment: center; vertical-alignment: center;
                                 }
@@ -466,8 +466,8 @@ export component CollaboratorsPage inherits Rectangle {
                                         horizontal-stretch: 1;
                                         alignment: center;
                                         spacing: 3px;
-                                        Text { text: r.name; font-size: 13px; font-weight: Theme.fw-strong; color: role-ta.sel ? Theme.primary : Theme.text-primary; overflow: elide; }
-                                        Text { text: r.perm-summary; font-size: 11px; color: Theme.text-secondary; overflow: elide; }
+                                        Text { text: r.name; font-size: Theme.fs-13; font-weight: Theme.fw-strong; color: role-ta.sel ? Theme.primary : Theme.text-primary; overflow: elide; }
+                                        Text { text: r.perm-summary; font-size: Theme.fs-11; color: Theme.text-secondary; overflow: elide; }
                                     }
                                     VerticalLayout {
                                         alignment: center;
@@ -498,11 +498,11 @@ export component CollaboratorsPage inherits Rectangle {
                             Text {
                                 text: root.editing-role-id == "" ? "Nova função"
                                     : (root.role-name != "" ? root.role-name : "Função");
-                                font-size: 16px; font-weight: 700; color: Theme.text-primary;
+                                font-size: Theme.fs-section; font-weight: Theme.fw-bold; color: Theme.text-primary;
                             }
                             Text {
                                 text: root.perm-active + " de " + root.perm-total + " permissões ativas";
-                                font-size: 12px; color: Theme.text-secondary;
+                                font-size: Theme.fs-caption; color: Theme.text-secondary;
                             }
                         }
                         VerticalLayout {
@@ -596,7 +596,7 @@ export component CollaboratorsPage inherits Rectangle {
                                             Text {
                                                 width: 100%; height: 100%;
                                                 text: e.initial;
-                                                font-size: 14px; font-weight: 800;
+                                                font-size: Theme.fs-body; font-weight: Theme.fw-extrabold;
                                                 color: e.is-admin ? white : e.avatar-color;
                                                 horizontal-alignment: center; vertical-alignment: center;
                                             }
@@ -606,12 +606,12 @@ export component CollaboratorsPage inherits Rectangle {
                                         horizontal-stretch: 1;
                                         alignment: center;
                                         spacing: 3px;
-                                        Text { text: e.name; font-size: 13px; font-weight: Theme.fw-strong; color: emp-ta.sel ? Theme.primary : Theme.text-primary; overflow: elide; }
+                                        Text { text: e.name; font-size: Theme.fs-13; font-weight: Theme.fw-strong; color: emp-ta.sel ? Theme.primary : Theme.text-primary; overflow: elide; }
                                         HorizontalLayout {
                                             spacing: 6px;
                                             Text {
                                                 text: e.email;
-                                                font-size: 11px; color: Theme.text-secondary;
+                                                font-size: Theme.fs-11; color: Theme.text-secondary;
                                                 overflow: elide;
                                             }
                                             Tag { accent: true; text: e.is-admin ? e.role-label : e.job-role-name; }
@@ -644,9 +644,9 @@ export component CollaboratorsPage inherits Rectangle {
                             spacing: 2px;
                             Text {
                                 text: root.emp-id == "" ? "Novo funcionário" : "Editar funcionário";
-                                font-size: 16px; font-weight: 700; color: Theme.text-primary;
+                                font-size: Theme.fs-section; font-weight: Theme.fw-bold; color: Theme.text-primary;
                             }
-                            Text { text: "Preencha os dados e salve"; font-size: 12px; color: Theme.text-secondary; }
+                            Text { text: "Preencha os dados e salve"; font-size: Theme.fs-caption; color: Theme.text-secondary; }
                         }
                     }
                     FormField { label: "NOME COMPLETO"; placeholder: "Nome completo"; value <=> root.emp-name; }
@@ -666,7 +666,7 @@ export component CollaboratorsPage inherits Rectangle {
                     }
                     VerticalLayout {
                         spacing: 4px;
-                        Text { text: "FUNÇÃO"; font-size: 12px; font-weight: 500; color: Theme.text-secondary; }
+                        Text { text: "FUNÇÃO"; font-size: Theme.fs-caption; font-weight: Theme.fw-medium; color: Theme.text-secondary; }
                         RoleSelect {
                             options: root.role-combo;
                             current-index <=> root.emp-role-index;

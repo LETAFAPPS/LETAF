@@ -73,7 +73,7 @@ component TipLine inherits HorizontalLayout {
     spacing: 10px;
     Text {
         text: root.label;
-        font-size: 11px;
+        font-size: Theme.fs-11;
         font-weight: root.strong ? 700 : 400;
         color: root.strong ? #E6E3DC : #A8A29A;
         horizontal-stretch: 1;
@@ -82,7 +82,7 @@ component TipLine inherits HorizontalLayout {
     Text {
         text: root.value;
         font-size: root.strong ? 12px : 11px;
-        font-weight: 800;
+        font-weight: Theme.fw-extrabold;
         color: root.value-color;
         vertical-alignment: center;
     }
@@ -105,7 +105,7 @@ component ChartTip inherits Rectangle {
         spacing: 7px;
         Text {
             text: root.data.hour-label;
-            font-size: 11px; font-weight: 800;
+            font-size: Theme.fs-11; font-weight: Theme.fw-extrabold;
             letter-spacing: 0.6px;
             color: white;
         }
@@ -150,7 +150,7 @@ component BreakdownRow inherits Rectangle {
         spacing: 8px;
         Text {
             text: root.data.label;
-            font-size: 12px;
+            font-size: Theme.fs-caption;
             color: root.data.muted ? Theme.text-secondary.transparentize(0.4) : Theme.text-primary;
             horizontal-stretch: 1;
             overflow: elide;
@@ -158,7 +158,7 @@ component BreakdownRow inherits Rectangle {
         }
         Text {
             text: root.data.value;
-            font-size: 12px; font-weight: 700;
+            font-size: Theme.fs-caption; font-weight: Theme.fw-bold;
             color: root.data.muted
                 ? Theme.text-secondary.transparentize(0.4)
                 : (root.data.negative ? Theme.danger : Theme.success);
@@ -188,12 +188,12 @@ component BreakdownGroup inherits HorizontalLayout {
         spacing: 2px;
         Text {
             text: root.label;
-            font-size: 10px; font-weight: 800; letter-spacing: 1px;
+            font-size: Theme.fs-label; font-weight: Theme.fw-extrabold; letter-spacing: 1px;
             color: Theme.text-secondary;
         }
         Text {
             text: root.total;
-            font-size: 15px; font-weight: 800;
+            font-size: 15px; font-weight: Theme.fw-extrabold;
             color: root.negative ? Theme.danger : Theme.success;
         }
     }
@@ -208,14 +208,14 @@ component TotalLine inherits HorizontalLayout {
     spacing: 8px;
     Text {
         text: root.label;
-        font-size: 11.5px;
+        font-size: Theme.fs-eyebrow;
         color: Theme.text-secondary;
         horizontal-stretch: 1;
         vertical-alignment: center;
     }
     Text {
         text: root.value;
-        font-size: root.value-size; font-weight: 800;
+        font-size: root.value-size; font-weight: Theme.fw-extrabold;
         color: root.value-color;
         vertical-alignment: center;
     }
@@ -257,8 +257,8 @@ export component TreasuryPage inherits VerticalLayout {
         VerticalLayout {
             horizontal-stretch: 1;
             spacing: 2px;
-            Text { text: "Carteira"; font-size: 22px; font-weight: 800; color: Theme.text-primary; }
-            Text { text: "Gestão do dinheiro do estabelecimento"; font-size: 12px; color: Theme.text-secondary; }
+            Text { text: "Carteira"; font-size: 22px; font-weight: Theme.fw-extrabold; color: Theme.text-primary; }
+            Text { text: "Gestão do dinheiro do estabelecimento"; font-size: Theme.fs-caption; color: Theme.text-secondary; }
         }
     }
 
@@ -282,13 +282,13 @@ export component TreasuryPage inherits VerticalLayout {
                         }
                         VerticalLayout {
                             horizontal-stretch: 1; spacing: 2px;
-                            Text { text: "Criar carteira do estabelecimento"; font-size: 16px; font-weight: 700; color: Theme.text-primary; }
-                            Text { text: "Informe o saldo inicial. Entradas e saídas de Pedidos, Caixa, Financeiro e Fiados passam a compor o saldo."; font-size: 11px; color: Theme.text-secondary; wrap: word-wrap; }
+                            Text { text: "Criar carteira do estabelecimento"; font-size: Theme.fs-section; font-weight: Theme.fw-bold; color: Theme.text-primary; }
+                            Text { text: "Informe o saldo inicial. Entradas e saídas de Pedidos, Caixa, Financeiro e Fiados passam a compor o saldo."; font-size: Theme.fs-11; color: Theme.text-secondary; wrap: word-wrap; }
                         }
                     }
                     VerticalLayout {
                         spacing: 6px;
-                        Text { text: "SALDO INICIAL"; font-size: 11px; font-weight: 700; color: Theme.text-secondary; letter-spacing: 0.5px; }
+                        Text { text: "SALDO INICIAL"; font-size: Theme.fs-11; font-weight: Theme.fw-bold; color: Theme.text-secondary; letter-spacing: 0.5px; }
                         Rectangle {
                             height: 44px;
                             border-radius: 8px;
@@ -298,20 +298,20 @@ export component TreasuryPage inherits VerticalLayout {
                             initial-in := TextInput {
                                 x: 12px; y: 0; width: parent.width - 24px; height: parent.height;
                                 text <=> root.initial-input;
-                                font-size: 16px; font-weight: 700;
+                                font-size: Theme.fs-section; font-weight: Theme.fw-bold;
                                 color: Theme.text-primary;
                                 vertical-alignment: center; single-line: true;
                             }
                             if initial-in.text == "" && !initial-in.has-focus: Text {
                                 x: 12px; y: 0; height: parent.height;
-                                text: "0,00"; font-size: 16px; color: Theme.text-secondary;
+                                text: "0,00"; font-size: Theme.fs-section; color: Theme.text-secondary;
                                 vertical-alignment: center;
                             }
                         }
                     }
                     VerticalLayout {
                         spacing: 6px;
-                        Text { text: "OBSERVAÇÃO"; font-size: 11px; font-weight: 700; color: Theme.text-secondary; letter-spacing: 0.5px; }
+                        Text { text: "OBSERVAÇÃO"; font-size: Theme.fs-11; font-weight: Theme.fw-bold; color: Theme.text-secondary; letter-spacing: 0.5px; }
                         Rectangle {
                             height: 64px;
                             border-radius: 8px;
@@ -321,19 +321,19 @@ export component TreasuryPage inherits VerticalLayout {
                             notes-in := TextInput {
                                 x: 12px; y: 8px; width: parent.width - 24px; height: parent.height - 16px;
                                 text <=> root.notes-input;
-                                font-size: 13px; color: Theme.text-primary;
+                                font-size: Theme.fs-13; color: Theme.text-primary;
                                 wrap: word-wrap; single-line: false;
                             }
                             if notes-in.text == "" && !notes-in.has-focus: Text {
                                 x: 12px; y: 8px;
                                 text: "Anotações internas (opcional)";
-                                font-size: 13px; color: Theme.text-secondary;
+                                font-size: Theme.fs-13; color: Theme.text-secondary;
                             }
                         }
                     }
                     if root.setup-error != "": Text {
                         text: root.setup-error;
-                        font-size: 12px; color: Theme.danger; wrap: word-wrap;
+                        font-size: Theme.fs-caption; color: Theme.danger; wrap: word-wrap;
                     }
                     HorizontalLayout {
                         alignment: end;
@@ -399,7 +399,7 @@ export component TreasuryPage inherits VerticalLayout {
             // Saldo em destaque.
             Text {
                 text: "SALDO ATUAL";
-                font-size: 10px; font-weight: 800;
+                font-size: Theme.fs-label; font-weight: Theme.fw-extrabold;
                 letter-spacing: 1.4px;
                 color: #A8A29A;
             }
@@ -409,20 +409,20 @@ export component TreasuryPage inherits VerticalLayout {
                 alignment: start;
                 Text {
                     text: root.summary.balance-main;
-                    font-size: 34px; font-weight: 800;
+                    font-size: 34px; font-weight: Theme.fw-extrabold;
                     color: root.summary.balance-negative ? #FF8A80 : white;
                     vertical-alignment: bottom;
                 }
                 Text {
                     text: root.summary.balance-cents;
-                    font-size: 18px; font-weight: 800;
+                    font-size: Theme.fs-heading; font-weight: Theme.fw-extrabold;
                     color: root.summary.balance-negative ? #FF8A80 : #E6E3DC;
                     vertical-alignment: bottom;
                 }
             }
             Text {
                 text: "Inicial + entradas − saídas";
-                font-size: 11px;
+                font-size: Theme.fs-11;
                 color: #8F8A80;
             }
 
@@ -443,8 +443,8 @@ export component TreasuryPage inherits VerticalLayout {
                     VerticalLayout {
                         alignment: center;
                         spacing: 1px;
-                        Text { text: "ENTRADAS"; font-size: 9px; font-weight: 800; letter-spacing: 1px; color: #A8A29A; }
-                        Text { text: root.summary.inflow-display; font-size: 14px; font-weight: 800; color: white; }
+                        Text { text: "ENTRADAS"; font-size: 9px; font-weight: Theme.fw-extrabold; letter-spacing: 1px; color: #A8A29A; }
+                        Text { text: root.summary.inflow-display; font-size: Theme.fs-body; font-weight: Theme.fw-extrabold; color: white; }
                     }
                 }
                 // Saídas
@@ -457,8 +457,8 @@ export component TreasuryPage inherits VerticalLayout {
                     VerticalLayout {
                         alignment: center;
                         spacing: 1px;
-                        Text { text: "SAÍDAS"; font-size: 9px; font-weight: 800; letter-spacing: 1px; color: #A8A29A; }
-                        Text { text: root.summary.outflow-display; font-size: 14px; font-weight: 800; color: white; }
+                        Text { text: "SAÍDAS"; font-size: 9px; font-weight: Theme.fw-extrabold; letter-spacing: 1px; color: #A8A29A; }
+                        Text { text: root.summary.outflow-display; font-size: Theme.fs-body; font-weight: Theme.fw-extrabold; color: white; }
                     }
                 }
                 // Saldo inicial
@@ -471,8 +471,8 @@ export component TreasuryPage inherits VerticalLayout {
                     VerticalLayout {
                         alignment: center;
                         spacing: 1px;
-                        Text { text: "SALDO INICIAL"; font-size: 9px; font-weight: 800; letter-spacing: 1px; color: #A8A29A; }
-                        Text { text: root.summary.initial-display; font-size: 14px; font-weight: 800; color: white; }
+                        Text { text: "SALDO INICIAL"; font-size: 9px; font-weight: Theme.fw-extrabold; letter-spacing: 1px; color: #A8A29A; }
+                        Text { text: root.summary.initial-display; font-size: Theme.fs-body; font-weight: Theme.fw-extrabold; color: white; }
                     }
                 }
                 Rectangle { horizontal-stretch: 1; background: transparent; }
@@ -482,13 +482,13 @@ export component TreasuryPage inherits VerticalLayout {
                     spacing: 1px;
                     Text {
                         text: root.summary.net-label;
-                        font-size: 9px; font-weight: 800; letter-spacing: 1px;
+                        font-size: 9px; font-weight: Theme.fw-extrabold; letter-spacing: 1px;
                         color: #A8A29A;
                         horizontal-alignment: right;
                     }
                     Text {
                         text: root.summary.net-display;
-                        font-size: 15px; font-weight: 800;
+                        font-size: 15px; font-weight: Theme.fw-extrabold;
                         color: root.summary.net-positive ? #7BD389 : #FF8A80;
                         horizontal-alignment: right;
                     }
@@ -512,7 +512,7 @@ export component TreasuryPage inherits VerticalLayout {
                     spacing: 10px;
                     Text {
                         text: "MOVIMENTAÇÕES";
-                        font-size: 11px; font-weight: 800; letter-spacing: 1px;
+                        font-size: Theme.fs-11; font-weight: Theme.fw-extrabold; letter-spacing: 1px;
                         color: Theme.text-primary;
                         horizontal-stretch: 1;
                         vertical-alignment: center;
@@ -520,7 +520,7 @@ export component TreasuryPage inherits VerticalLayout {
                     Text {
                         // Acompanha `MOVEMENTS_LIMIT` (treasury/mod.rs).
                         text: "Últimas 15";
-                        font-size: 11px; color: Theme.text-secondary;
+                        font-size: Theme.fs-11; color: Theme.text-secondary;
                         vertical-alignment: center;
                     }
                 }
@@ -531,7 +531,7 @@ export component TreasuryPage inherits VerticalLayout {
                         alignment: center;
                         Text {
                             text: "Nenhuma movimentação registrada";
-                            font-size: 13px; color: Theme.text-secondary;
+                            font-size: Theme.fs-13; color: Theme.text-secondary;
                             horizontal-alignment: center;
                         }
                     }
@@ -563,7 +563,7 @@ export component TreasuryPage inherits VerticalLayout {
                                     spacing: 2px;
                                     Text {
                                         text: m.title;
-                                        font-size: 12.5px; font-weight: 700;
+                                        font-size: Theme.fs-meta; font-weight: Theme.fw-bold;
                                         color: Theme.text-primary;
                                         overflow: elide;
                                     }
@@ -578,7 +578,7 @@ export component TreasuryPage inherits VerticalLayout {
                                     alignment: center;
                                     Text {
                                         text: m.amount-display;
-                                        font-size: 13px; font-weight: 800;
+                                        font-size: Theme.fs-13; font-weight: Theme.fw-extrabold;
                                         color: m.tone == "pos" ? Theme.success : Theme.danger-hover;
                                         horizontal-alignment: right;
                                     }
@@ -623,7 +623,7 @@ export component TreasuryPage inherits VerticalLayout {
                                 }
                                 Text {
                                     text: "Depositar";
-                                    font-size: 12.5px; font-weight: 700; color: Theme.success;
+                                    font-size: Theme.fs-meta; font-weight: Theme.fw-bold; color: Theme.success;
                                     horizontal-alignment: center;
                                 }
                             }
@@ -650,7 +650,7 @@ export component TreasuryPage inherits VerticalLayout {
                                 }
                                 Text {
                                     text: "Sacar";
-                                    font-size: 12.5px; font-weight: 700; color: Theme.danger-hover;
+                                    font-size: Theme.fs-meta; font-weight: Theme.fw-bold; color: Theme.danger-hover;
                                     horizontal-alignment: center;
                                 }
                             }
@@ -669,7 +669,7 @@ export component TreasuryPage inherits VerticalLayout {
                         spacing: 8px;
                         Text {
                             text: "Meta de reserva do mês";
-                            font-size: 13px; font-weight: 700;
+                            font-size: Theme.fs-13; font-weight: Theme.fw-bold;
                             color: Theme.text-primary;
                             horizontal-stretch: 1;
                             vertical-alignment: center;
@@ -702,7 +702,7 @@ export component TreasuryPage inherits VerticalLayout {
                     }
                     Text {
                         text: root.summary.goal-display;
-                        font-size: 11px; color: Theme.text-secondary;
+                        font-size: Theme.fs-11; color: Theme.text-secondary;
                         overflow: elide;
                     }
                 }
@@ -718,14 +718,14 @@ export component TreasuryPage inherits VerticalLayout {
                         spacing: 8px;
                         Text {
                             text: "DETALHAMENTO";
-                            font-size: 11px; font-weight: 800; letter-spacing: 1px;
+                            font-size: Theme.fs-11; font-weight: Theme.fw-extrabold; letter-spacing: 1px;
                             color: Theme.text-primary;
                             horizontal-stretch: 1;
                             vertical-alignment: center;
                         }
                         Text {
                             text: "Hoje";
-                            font-size: 11px; color: Theme.text-secondary;
+                            font-size: Theme.fs-11; color: Theme.text-secondary;
                             vertical-alignment: center;
                         }
                     }

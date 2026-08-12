@@ -51,17 +51,17 @@ export component CashSangriaModal inherits Rectangle {
                                 background: Theme.btn-accent;
                                 Text {
                                     width: parent.width; height: parent.height;
-                                    text: "↓"; font-size: 16px; font-weight: 700;
+                                    text: "↓"; font-size: Theme.fs-section; font-weight: Theme.fw-bold;
                                     color: white;
                                     horizontal-alignment: center; vertical-alignment: center;
                                 }
                             }
                             VerticalLayout {
                                 horizontal-stretch: 1; alignment: center; spacing: 2px;
-                                Text { text: "SAÍDA"; font-size: 10px; font-weight: 800; color: Theme.btn-accent; letter-spacing: 1px; }
+                                Text { text: "SAÍDA"; font-size: Theme.fs-label; font-weight: Theme.fw-extrabold; color: Theme.btn-accent; letter-spacing: 1px; }
                                 Text {
                                     text: "Saldo Agora: " + root.cash-now-display;
-                                    font-size: 12px; color: Theme.text-primary;
+                                    font-size: Theme.fs-caption; color: Theme.text-primary;
                                 }
                             }
                         }
@@ -70,7 +70,7 @@ export component CashSangriaModal inherits Rectangle {
                     // Valor
                     VerticalLayout {
                         spacing: 6px;
-                        Text { text: "Valor"; font-size: 10px; font-weight: 700; color: Theme.text-secondary; letter-spacing: 1px; }
+                        Text { text: "Valor"; font-size: Theme.fs-label; font-weight: Theme.fw-bold; color: Theme.text-secondary; letter-spacing: 1px; }
                         Rectangle {
                             height: 40px;
                             border-radius: Theme.radius-sm;
@@ -81,7 +81,7 @@ export component CashSangriaModal inherits Rectangle {
                                 padding-left: 12px; padding-right: 12px;
                                 Text {
                                     text: "−R$";
-                                    font-size: 13px; font-weight: 600;
+                                    font-size: Theme.fs-13; font-weight: Theme.fw-strong;
                                     color: Theme.btn-accent;
                                     vertical-alignment: center;
                                 }
@@ -91,7 +91,7 @@ export component CashSangriaModal inherits Rectangle {
                                         x: 10px; y: 0;
                                         width: parent.width - 20px; height: parent.height;
                                         text <=> root.amount-input;
-                                        font-size: 14px; font-weight: 600;
+                                        font-size: Theme.fs-body; font-weight: Theme.fw-strong;
                                         color: Theme.btn-accent;
                                         vertical-alignment: center;
                                         single-line: true;
@@ -100,7 +100,7 @@ export component CashSangriaModal inherits Rectangle {
                                     if root.amount-input == "": Text {
                                         x: 10px; y: 0;
                                         width: parent.width - 20px; height: parent.height;
-                                        text: "0,00"; font-size: 14px; color: #BDBDBD;
+                                        text: "0,00"; font-size: Theme.fs-body; color: Theme.text-secondary;
                                         vertical-alignment: center;
                                     }
                                 }
@@ -115,7 +115,7 @@ export component CashSangriaModal inherits Rectangle {
                     // Motivo (chips)
                     VerticalLayout {
                         spacing: 6px;
-                        Text { text: "Motivo"; font-size: 10px; font-weight: 700; color: Theme.text-secondary; letter-spacing: 1px; }
+                        Text { text: "Motivo"; font-size: Theme.fs-label; font-weight: Theme.fw-bold; color: Theme.text-secondary; letter-spacing: 1px; }
                         HorizontalLayout {
                             spacing: 8px;
                             for opt[oi] in ["Depósito Bancário", "Despesa"]: ch-ta := TouchArea {
@@ -129,7 +129,7 @@ export component CashSangriaModal inherits Rectangle {
                                     Text {
                                         width: parent.width; height: parent.height;
                                         text: opt;
-                                        font-size: 12px; font-weight: 600;
+                                        font-size: Theme.fs-caption; font-weight: Theme.fw-strong;
                                         color: root.reason-selected == opt ? Theme.btn-accent : Theme.text-primary;
                                         horizontal-alignment: center; vertical-alignment: center;
                                         overflow: elide;
@@ -150,7 +150,7 @@ export component CashSangriaModal inherits Rectangle {
                                     Text {
                                         width: parent.width; height: parent.height;
                                         text: opt;
-                                        font-size: 12px; font-weight: 600;
+                                        font-size: Theme.fs-caption; font-weight: Theme.fw-strong;
                                         color: root.reason-selected == opt ? Theme.btn-accent : Theme.text-primary;
                                         horizontal-alignment: center; vertical-alignment: center;
                                         overflow: elide;
@@ -163,7 +163,7 @@ export component CashSangriaModal inherits Rectangle {
                     // Detalhe opcional
                     VerticalLayout {
                         spacing: 6px;
-                        Text { text: "Detalhes"; font-size: 10px; font-weight: 700; color: Theme.text-secondary; letter-spacing: 1px; }
+                        Text { text: "Detalhes"; font-size: Theme.fs-label; font-weight: Theme.fw-bold; color: Theme.text-secondary; letter-spacing: 1px; }
                         Rectangle {
                             height: 36px;
                             border-radius: Theme.radius-sm;
@@ -174,7 +174,7 @@ export component CashSangriaModal inherits Rectangle {
                                 x: 10px; y: 0;
                                 width: parent.width - 20px; height: parent.height;
                                 text <=> root.detail-input;
-                                font-size: 12px; color: Theme.text-primary;
+                                font-size: Theme.fs-caption; color: Theme.text-primary;
                                 vertical-alignment: center;
                                 single-line: true;
                             }
@@ -182,7 +182,7 @@ export component CashSangriaModal inherits Rectangle {
                                 x: 10px; y: 0;
                                 width: parent.width - 20px; height: parent.height;
                                 text: "Ex: Banco do Brasil ag. 0001 · envelope #2204";
-                                font-size: 12px; color: #BDBDBD;
+                                font-size: Theme.fs-caption; color: Theme.text-secondary;
                                 vertical-alignment: center;
                             }
                         }

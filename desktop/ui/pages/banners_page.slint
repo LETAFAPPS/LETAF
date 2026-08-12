@@ -48,13 +48,13 @@ export component BannersPage inherits Rectangle {
                 alignment: start;
                 Text {
                     text: "Lista de Banners";
-                    font-size: 22px; font-weight: 700;
+                    font-size: 22px; font-weight: Theme.fw-bold;
                     color: Theme.text-primary;
                     overflow: elide;
                 }
                 Text {
                     text: root.banners-active-count + " ativos · " + root.banners-inactive-count + " inativos";
-                    font-size: 12px;
+                    font-size: Theme.fs-caption;
                     color: Theme.text-secondary;
                     overflow: elide;
                 }
@@ -129,13 +129,13 @@ export component BannersPage inherits Rectangle {
                         horizontal-stretch: 1;
                         Text {
                             text: b.title;
-                            font-size: 14px; font-weight: 700;
+                            font-size: Theme.fs-body; font-weight: Theme.fw-bold;
                             color: Theme.text-primary;
                             overflow: elide;
                         }
                         Text {
                             text: b.item-type == "product" ? ("Produto: " + b.item-name) : ("URL: " + b.item-url);
-                            font-size: 11px;
+                            font-size: Theme.fs-11;
                             color: Theme.text-secondary;
                             overflow: elide;
                         }
@@ -155,7 +155,7 @@ export component BannersPage inherits Rectangle {
                                 background: b.active ? #E8F5E9 : Theme.surface;
                                 Text {
                                     text: b.active ? "Ativo" : "Inativo";
-                                    font-size: 11px; font-weight: 600;
+                                    font-size: Theme.fs-11; font-weight: Theme.fw-strong;
                                     color: b.active ? Theme.success : Theme.text-secondary;
                                     horizontal-alignment: center; vertical-alignment: center;
                                     width: parent.width; height: parent.height;

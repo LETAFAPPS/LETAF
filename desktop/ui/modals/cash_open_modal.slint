@@ -49,7 +49,7 @@ export component CashOpenModal inherits Rectangle {
                     // ── Operador (somente leitura) ──
                     VerticalLayout {
                         spacing: 4px;
-                        Text { text: "Operador"; font-size: 12px; font-weight: 500; color: Theme.text-secondary; }
+                        Text { text: "Operador"; font-size: Theme.fs-caption; font-weight: Theme.fw-medium; color: Theme.text-secondary; }
                         Rectangle {
                             height: 32px;
                             border-radius: Theme.radius-sm;
@@ -61,7 +61,7 @@ export component CashOpenModal inherits Rectangle {
                                 x: 8px; y: 0;
                                 width: parent.width - 16px; height: parent.height;
                                 text: root.operator-label;
-                                font-size: 13px; color: Theme.text-primary;
+                                font-size: Theme.fs-13; color: Theme.text-primary;
                                 vertical-alignment: center;
                             }
                         }
@@ -70,7 +70,7 @@ export component CashOpenModal inherits Rectangle {
                     // ── Troco inicial ──
                     VerticalLayout {
                         spacing: 4px;
-                        Text { text: "Troco inicial"; font-size: 12px; font-weight: 500; color: Theme.text-secondary; }
+                        Text { text: "Troco inicial"; font-size: Theme.fs-caption; font-weight: Theme.fw-medium; color: Theme.text-secondary; }
                         Rectangle {
                             height: 40px;
                             border-radius: Theme.radius-sm;
@@ -81,7 +81,7 @@ export component CashOpenModal inherits Rectangle {
                                 padding-left: 10px; padding-right: 10px;
                                 Text {
                                     text: "R$";
-                                    font-size: 13px; font-weight: 600;
+                                    font-size: Theme.fs-13; font-weight: Theme.fw-strong;
                                     color: Theme.text-secondary;
                                     vertical-alignment: center;
                                 }
@@ -91,7 +91,7 @@ export component CashOpenModal inherits Rectangle {
                                         x: 8px; y: 0;
                                         width: parent.width - 16px; height: parent.height;
                                         text <=> root.amount-input;
-                                        font-size: 14px; font-weight: 600;
+                                        font-size: Theme.fs-body; font-weight: Theme.fw-strong;
                                         color: Theme.text-primary;
                                         vertical-alignment: center;
                                         single-line: true;
@@ -100,7 +100,7 @@ export component CashOpenModal inherits Rectangle {
                                     if root.amount-input == "": Text {
                                         x: 8px; y: 0;
                                         width: parent.width - 16px; height: parent.height;
-                                        text: "0,00"; font-size: 14px; color: #BDBDBD;
+                                        text: "0,00"; font-size: Theme.fs-body; color: Theme.text-secondary;
                                         vertical-alignment: center;
                                     }
                                 }
@@ -124,7 +124,7 @@ export component CashOpenModal inherits Rectangle {
                                     Text {
                                         width: parent.width; height: parent.height;
                                         text: "R$ " + opt;
-                                        font-size: 12px; font-weight: 600;
+                                        font-size: Theme.fs-caption; font-weight: Theme.fw-strong;
                                         color: Theme.text-primary;
                                         horizontal-alignment: center; vertical-alignment: center;
                                     }

@@ -25,7 +25,7 @@ component WalletActionBtn inherits TouchArea {
         Text {
             width: parent.width; height: parent.height;
             text: root.label;
-            font-size: 12px; font-weight: 700;
+            font-size: Theme.fs-caption; font-weight: Theme.fw-bold;
             color: root.primary ? Theme.sidebar-sel-bg : Theme.text-primary;
             horizontal-alignment: center; vertical-alignment: center;
         }
@@ -76,20 +76,20 @@ component MovementRow inherits Rectangle {
             spacing: 2px;
             Text {
                 text: root.data.title;
-                font-size: 12px; font-weight: 700;
+                font-size: Theme.fs-caption; font-weight: Theme.fw-bold;
                 color: Theme.text-primary;
                 overflow: elide;
             }
             Text {
                 text: root.data.time-display;
-                font-size: 10px;
+                font-size: Theme.fs-label;
                 color: Theme.text-secondary;
                 overflow: elide;
             }
             // Observação/justificativa digitada no modal da operação.
             if root.data.notes != "": Text {
                 text: root.data.notes;
-                font-size: 10px;
+                font-size: Theme.fs-label;
                 color: Theme.text-secondary;
                 overflow: elide;
             }
@@ -99,14 +99,14 @@ component MovementRow inherits Rectangle {
             spacing: 2px;
             Text {
                 text: root.data.amount-display;
-                font-size: 12px; font-weight: 800;
+                font-size: Theme.fs-caption; font-weight: Theme.fw-extrabold;
                 color: root.data.amount-tone == "pos" ? Theme.success
                     : (root.data.amount-tone == "neutral" ? Theme.text-primary : Theme.danger-hover);
                 horizontal-alignment: right;
             }
             Text {
                 text: root.data.balance-after-display;
-                font-size: 10px;
+                font-size: Theme.fs-label;
                 color: Theme.text-secondary;
                 horizontal-alignment: right;
             }
@@ -159,14 +159,14 @@ export component WalletCard inherits Rectangle {
                 spacing: 0px;
                 Text {
                     text: "Carteira do Cliente";
-                    font-size: 14px; font-weight: 700;
+                    font-size: Theme.fs-body; font-weight: Theme.fw-bold;
                     color: Theme.text-primary;
                 }
                 Text {
                     text: root.summary.has-account
                         ? root.summary.status-label
                         : "Nenhuma carteira ativa";
-                    font-size: 11px;
+                    font-size: Theme.fs-11;
                     color: Theme.text-secondary;
                 }
             }
@@ -195,12 +195,12 @@ export component WalletCard inherits Rectangle {
                     alignment: center;
                     Text {
                         text: "Este cliente ainda não tem carteira ativa.";
-                        font-size: 13px; font-weight: 700;
+                        font-size: Theme.fs-13; font-weight: Theme.fw-bold;
                         color: Theme.btn-accent;
                     }
                     Text {
                         text: "Abra uma carteira para registrar depósitos, saques e vendas no fiado.";
-                        font-size: 11px;
+                        font-size: Theme.fs-11;
                         color: Theme.text-secondary;
                         wrap: word-wrap;
                     }
@@ -237,20 +237,20 @@ export component WalletCard inherits Rectangle {
                         spacing: 4px;
                         Text {
                             text: "SALDO ATUAL";
-                            font-size: 9px; font-weight: 800;
+                            font-size: 9px; font-weight: Theme.fw-extrabold;
                             color: Theme.text-secondary;
                             letter-spacing: 1px;
                         }
                         Text {
                             text: root.summary.balance-display;
-                            font-size: 26px; font-weight: 800;
+                            font-size: 26px; font-weight: Theme.fw-extrabold;
                             color: root.summary.balance-tone == "neg"
                                 ? Theme.danger
                                 : (root.summary.balance-tone == "pos" ? Theme.success : Theme.text-primary);
                         }
                         Text {
                             text: root.summary.available-display;
-                            font-size: 11px;
+                            font-size: Theme.fs-11;
                             color: Theme.text-secondary;
                         }
                     }
@@ -259,14 +259,14 @@ export component WalletCard inherits Rectangle {
                         spacing: 4px;
                         Text {
                             text: "LIMITE DE FIADO";
-                            font-size: 9px; font-weight: 800;
+                            font-size: 9px; font-weight: Theme.fw-extrabold;
                             color: Theme.text-secondary;
                             letter-spacing: 1px;
                             horizontal-alignment: right;
                         }
                         Text {
                             text: root.summary.credit-limit-display;
-                            font-size: 14px; font-weight: 700;
+                            font-size: Theme.fs-body; font-weight: Theme.fw-bold;
                             color: Theme.text-primary;
                             horizontal-alignment: right;
                         }
@@ -303,7 +303,7 @@ export component WalletCard inherits Rectangle {
                 HorizontalLayout {
                     Text {
                         text: "HISTÓRICO";
-                        font-size: 10px; font-weight: 800;
+                        font-size: Theme.fs-label; font-weight: Theme.fw-extrabold;
                         color: Theme.text-secondary;
                         letter-spacing: 1px;
                         horizontal-stretch: 1;
@@ -311,7 +311,7 @@ export component WalletCard inherits Rectangle {
                     }
                     Text {
                         text: root.summary.movements-count + " movimentos";
-                        font-size: 11px;
+                        font-size: Theme.fs-11;
                         color: Theme.text-secondary;
                     }
                 }

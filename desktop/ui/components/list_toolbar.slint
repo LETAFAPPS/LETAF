@@ -41,7 +41,7 @@ export component ListSearchBox inherits Rectangle {
         height: parent.height;
         vertical-alignment: center;
         text <=> root.value;
-        font-size: 13px;
+        font-size: Theme.fs-13;
         color: Theme.text-primary;
         single-line: true;
         edited => { root.changed(); }
@@ -51,7 +51,7 @@ export component ListSearchBox inherits Rectangle {
         width: parent.width - 42px;
         height: parent.height;
         text: root.placeholder;
-        font-size: 13px;
+        font-size: Theme.fs-13;
         color: Theme.text-secondary;
         vertical-alignment: center;
     }
@@ -108,14 +108,14 @@ export component ListFilterBtn inherits TouchArea {
             Text {
                 text: root.label;
                 horizontal-stretch: 1;
-                font-size: 12.5px; font-weight: 600;
+                font-size: Theme.fs-meta; font-weight: Theme.fw-strong;
                 color: root.realcado ? Theme.btn-accent : Theme.text-primary;
                 vertical-alignment: center;
                 overflow: elide;
             }
             Text {
                 text: "▾";
-                font-size: 11px;
+                font-size: Theme.fs-11;
                 color: root.realcado ? Theme.btn-accent : Theme.text-secondary;
                 vertical-alignment: center;
             }
@@ -152,7 +152,7 @@ export component ListFilterBtn inherits TouchArea {
                             padding-left: 10px; padding-right: 10px;
                             Text {
                                 text: o.label;
-                                font-size: 12.5px;
+                                font-size: Theme.fs-meta;
                                 font-weight: root.selected == o.key ? 700 : 500;
                                 color: root.selected == o.key ? Theme.btn-accent : Theme.text-primary;
                                 vertical-alignment: center;

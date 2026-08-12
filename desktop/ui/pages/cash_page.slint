@@ -32,7 +32,7 @@ component SegBtn inherits TouchArea {
         seg-t := Text {
             width: parent.width; height: parent.height;
             text: root.label;
-            font-size: 13px; font-weight: 700;
+            font-size: Theme.fs-13; font-weight: Theme.fw-bold;
             color: root.selected ? Theme.btn-accent : Theme.text-primary;
             horizontal-alignment: center; vertical-alignment: center;
         }
@@ -60,13 +60,13 @@ component StatCard inherits Rectangle {
         alignment: center;
         Text {
             text: root.label;
-            font-size: 10px; font-weight: 800;
+            font-size: Theme.fs-label; font-weight: Theme.fw-extrabold;
             letter-spacing: 1px;
             color: Theme.text-secondary;
         }
         Text {
             text: root.value;
-            font-size: 20px; font-weight: 800;
+            font-size: 20px; font-weight: Theme.fw-extrabold;
             color: Theme.text-primary;
         }
     }
@@ -82,13 +82,13 @@ component HeroStat inherits VerticalLayout {
     spacing: 3px;
     Text {
         text: root.label;
-        font-size: 9px; font-weight: 800;
+        font-size: 9px; font-weight: Theme.fw-extrabold;
         letter-spacing: 1px;
         color: #A8A29A;
     }
     Text {
         text: root.value;
-        font-size: 14px; font-weight: 800;
+        font-size: Theme.fs-body; font-weight: Theme.fw-extrabold;
         color: root.value-color;
         overflow: elide;
     }
@@ -117,7 +117,7 @@ export component CashPage inherits VerticalLayout {
     // PIX azul, Crédito vermelho, Débito amarelo.
     pure function method-color(key: string) -> color {
         return key == "money" ? Theme.success
-            : (key == "pix" ? #1E88E5
+            : (key == "pix" ? Theme.info
             : (key == "credit" ? Theme.danger-hover
             : (key == "debit" ? #F9A825
             : Theme.btn-accent)));  // wallet
@@ -127,7 +127,7 @@ export component CashPage inherits VerticalLayout {
     pure function kind-color(kind: string) -> color {
         return kind == "sale" ? Theme.success
             : (kind == "sangria" ? Theme.danger
-            : (kind == "suprimento" ? #1E88E5
+            : (kind == "suprimento" ? Theme.info
             : Theme.btn-accent));  // abertura
     }
 
@@ -155,7 +155,7 @@ export component CashPage inherits VerticalLayout {
                 }
                 Text {
                     text: root.summary.status-headline;
-                    font-size: 22px; font-weight: 800;
+                    font-size: 22px; font-weight: Theme.fw-extrabold;
                     color: Theme.text-primary;
                     vertical-alignment: center;
                 }
@@ -168,7 +168,7 @@ export component CashPage inherits VerticalLayout {
                         background: Theme.accent.transparentize(0.86);
                         badge-txt := Text {
                             text: root.summary.status-subtitle;
-                            font-size: 11px; font-weight: 700;
+                            font-size: Theme.fs-11; font-weight: Theme.fw-bold;
                             color: Theme.accent;
                             width: parent.width; height: parent.height;
                             horizontal-alignment: center; vertical-alignment: center;
@@ -179,7 +179,7 @@ export component CashPage inherits VerticalLayout {
             }
             Text {
                 text: root.summary.open ? root.summary.opened-summary : root.summary.status-subtitle;
-                font-size: 12px; color: Theme.text-secondary;
+                font-size: Theme.fs-caption; color: Theme.text-secondary;
             }
         }
         // Ações.
@@ -233,12 +233,12 @@ export component CashPage inherits VerticalLayout {
             spacing: 2px;
             Text {
                 text: "SESSÕES ANTERIORES";
-                font-size: 11px; font-weight: 800; letter-spacing: 1px;
+                font-size: Theme.fs-11; font-weight: Theme.fw-extrabold; letter-spacing: 1px;
                 color: Theme.text-primary;
             }
             Text {
                 text: "Histórico dos últimos fechamentos · toque para ver os detalhes";
-                font-size: 11px; color: Theme.text-secondary;
+                font-size: Theme.fs-11; color: Theme.text-secondary;
             }
         }
 
@@ -277,13 +277,13 @@ export component CashPage inherits VerticalLayout {
                                 horizontal-stretch: 1;
                                 Text {
                                     text: s.opened-date;
-                                    font-size: 13px; font-weight: 700;
+                                    font-size: Theme.fs-13; font-weight: Theme.fw-bold;
                                     color: Theme.text-primary;
                                 }
                                 Text {
                                     text: "Abertura " + s.opened-time
                                         + (s.closed-time != "" ? " · Fechamento " + s.closed-time : "");
-                                    font-size: 11px; color: Theme.text-secondary;
+                                    font-size: Theme.fs-11; color: Theme.text-secondary;
                                 }
                             }
                             // Operador.
@@ -292,7 +292,7 @@ export component CashPage inherits VerticalLayout {
                                 width: 150px;
                                 Text {
                                     text: s.operator-name;
-                                    font-size: 12px; color: Theme.text-primary;
+                                    font-size: Theme.fs-caption; color: Theme.text-primary;
                                     overflow: elide;
                                 }
                             }
@@ -302,7 +302,7 @@ export component CashPage inherits VerticalLayout {
                                 width: 120px;
                                 Text {
                                     text: s.total-display;
-                                    font-size: 13px; font-weight: 700;
+                                    font-size: Theme.fs-13; font-weight: Theme.fw-bold;
                                     color: Theme.text-primary;
                                     horizontal-alignment: right;
                                     width: parent.width;
@@ -314,7 +314,7 @@ export component CashPage inherits VerticalLayout {
                                 width: 110px;
                                 Text {
                                     text: s.difference-display == "" ? "—" : s.difference-display;
-                                    font-size: 12px; font-weight: 700;
+                                    font-size: Theme.fs-caption; font-weight: Theme.fw-bold;
                                     color: s.difference-display == "R$ 0,00" ? Theme.success
                                         : (s.difference-display == "" ? Theme.text-secondary : Theme.danger);
                                     horizontal-alignment: right;
@@ -355,7 +355,7 @@ export component CashPage inherits VerticalLayout {
                 spacing: 14px;
                 Text {
                     text: "Sessão de " + root.detail-session.opened-date;
-                    font-size: 17px; font-weight: 800; color: Theme.text-primary;
+                    font-size: 17px; font-weight: Theme.fw-extrabold; color: Theme.text-primary;
                 }
                 Rectangle { height: 1px; background: Theme.border; }
                 // Linhas de detalhe (rótulo à esquerda, valor à direita).
@@ -370,12 +370,12 @@ export component CashPage inherits VerticalLayout {
                 ]: HorizontalLayout {
                     Text {
                         text: row.l;
-                        font-size: 13px; color: Theme.text-secondary;
+                        font-size: Theme.fs-13; color: Theme.text-secondary;
                         horizontal-stretch: 1;
                     }
                     Text {
                         text: row.v;
-                        font-size: 13px; font-weight: 600; color: Theme.text-primary;
+                        font-size: Theme.fs-13; font-weight: Theme.fw-strong; color: Theme.text-primary;
                     }
                 }
             }
@@ -403,14 +403,14 @@ export component CashPage inherits VerticalLayout {
                     spacing: 0px;
                     Text {
                         text: "TOTAL ESPERADO";
-                        font-size: 10px; font-weight: 800;
+                        font-size: Theme.fs-label; font-weight: Theme.fw-extrabold;
                         letter-spacing: 1.4px;
                         color: #A8A29A;
                     }
                     Rectangle { height: 6px; }
                     Text {
                         text: root.summary.cash-now-display;
-                        font-size: 30px; font-weight: 800;
+                        font-size: 30px; font-weight: Theme.fw-extrabold;
                         color: white;
                     }
                     Rectangle { vertical-stretch: 1; background: transparent; }
@@ -440,7 +440,7 @@ export component CashPage inherits VerticalLayout {
                     alignment: start;
                     Text {
                         text: "PAGAMENTOS";
-                        font-size: 11px; font-weight: 800; letter-spacing: 1px;
+                        font-size: Theme.fs-11; font-weight: Theme.fw-extrabold; letter-spacing: 1px;
                         color: Theme.text-primary;
                     }
                     for m in root.method-totals: Rectangle {
@@ -468,7 +468,7 @@ export component CashPage inherits VerticalLayout {
                                 spacing: 2px;
                                 Text {
                                     text: m.label;
-                                    font-size: 12.5px; font-weight: 700;
+                                    font-size: Theme.fs-meta; font-weight: Theme.fw-bold;
                                     color: Theme.text-primary;
                                     overflow: elide;
                                 }
@@ -483,7 +483,7 @@ export component CashPage inherits VerticalLayout {
                                 alignment: center;
                                 Text {
                                     text: m.amount-display;
-                                    font-size: 13px; font-weight: 800;
+                                    font-size: Theme.fs-13; font-weight: Theme.fw-extrabold;
                                     color: Theme.text-primary;
                                     horizontal-alignment: right;
                                 }
@@ -528,7 +528,7 @@ export component CashPage inherits VerticalLayout {
                             alignment: center;
                             Text {
                                 text: "MOVIMENTAÇÕES";
-                                font-size: 11px; font-weight: 800; letter-spacing: 1px;
+                                font-size: Theme.fs-11; font-weight: Theme.fw-extrabold; letter-spacing: 1px;
                                 color: Theme.text-primary;
                             }
                         }
@@ -601,7 +601,7 @@ export component CashPage inherits VerticalLayout {
                                     spacing: 12px;
                                     Text {
                                         text: mv.time-display;
-                                        font-size: 12px; color: Theme.text-secondary;
+                                        font-size: Theme.fs-caption; color: Theme.text-secondary;
                                         width: 54px; vertical-alignment: center;
                                     }
                                     // Ícone do tipo + rótulo.
@@ -626,7 +626,7 @@ export component CashPage inherits VerticalLayout {
                                             alignment: center;
                                             Text {
                                                 text: mv.title;
-                                                font-size: 12.5px; font-weight: 700;
+                                                font-size: Theme.fs-meta; font-weight: Theme.fw-bold;
                                                 color: Theme.text-primary;
                                                 overflow: elide;
                                             }
@@ -634,12 +634,12 @@ export component CashPage inherits VerticalLayout {
                                     }
                                     Text {
                                         text: mv.method-label;
-                                        font-size: 11px; color: Theme.text-secondary;
+                                        font-size: Theme.fs-11; color: Theme.text-secondary;
                                         width: 140px; horizontal-alignment: right; vertical-alignment: center;
                                     }
                                     Text {
                                         text: mv.amount-display;
-                                        font-size: 12.5px; font-weight: 800;
+                                        font-size: Theme.fs-meta; font-weight: Theme.fw-extrabold;
                                         color: mv.sign == "pos" ? Theme.success : (mv.sign == "neg" ? Theme.danger : Theme.text-primary);
                                         width: 110px; horizontal-alignment: right; vertical-alignment: center;
                                     }

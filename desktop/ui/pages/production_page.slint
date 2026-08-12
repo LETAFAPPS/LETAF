@@ -14,10 +14,10 @@ export component ProductionPage inherits VerticalLayout {
     // Cabeçalho.
     VerticalLayout {
         spacing: 2px;
-        Text { text: "Produção"; font-size: 20px; font-weight: 800; color: Theme.text-primary; }
+        Text { text: "Produção"; font-size: 20px; font-weight: Theme.fw-extrabold; color: Theme.text-primary; }
         Text {
             text: "Produza itens: dá entrada no estoque do produto e consome os insumos da ficha técnica.";
-            font-size: 13px; color: Theme.text-secondary;
+            font-size: Theme.fs-13; color: Theme.text-secondary;
         }
     }
 
@@ -58,13 +58,13 @@ export component ProductionPage inherits VerticalLayout {
                         spacing: 2px;
                         Text {
                             text: p.name;
-                            font-size: 14px; font-weight: 700; color: Theme.text-primary;
+                            font-size: Theme.fs-body; font-weight: Theme.fw-bold; color: Theme.text-primary;
                             overflow: elide;
                         }
                         Text {
                             text: p.unlimited-stock ? "Estoque ilimitado (não produzível)"
                                 : ("Em estoque: " + p.stock-quantity + "  ·  " + p.stock-status-label);
-                            font-size: 11px; color: Theme.text-secondary;
+                            font-size: Theme.fs-11; color: Theme.text-secondary;
                         }
                     }
                     // Botão Produzir (some p/ produto de estoque ilimitado).

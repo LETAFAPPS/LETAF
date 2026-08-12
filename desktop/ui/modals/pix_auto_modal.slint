@@ -47,7 +47,7 @@ export component PixAutoModal inherits Rectangle {
 
                     Text {
                         text: "Débito automático recorrente. Você autoriza uma única vez no app do seu banco, depois as cobranças são debitadas sozinhas a cada ciclo.";
-                        font-size: 11px;
+                        font-size: Theme.fs-11;
                         color: Theme.text-secondary;
                         wrap: word-wrap;
                     }
@@ -67,7 +67,7 @@ export component PixAutoModal inherits Rectangle {
 
                     if root.error != "": Text {
                         text: root.error;
-                        font-size: 11px;
+                        font-size: Theme.fs-11;
                         color: Theme.danger-hover;
                         wrap: word-wrap;
                     }

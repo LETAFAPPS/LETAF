@@ -48,11 +48,11 @@ component RoleCard inherits Rectangle {
             spacing: 3px;
             Text {
                 text: root.r.name;
-                font-size: 14px; font-weight: 700; color: Theme.text-primary; overflow: elide;
+                font-size: Theme.fs-body; font-weight: Theme.fw-bold; color: Theme.text-primary; overflow: elide;
             }
             Text {
                 text: root.r.screen-count + (root.r.screen-count == 1 ? " Tela · " : " Telas · ") + root.r.screens-summary;
-                font-size: 11.5px; color: Theme.text-secondary; overflow: elide;
+                font-size: Theme.fs-eyebrow; color: Theme.text-secondary; overflow: elide;
             }
         }
         VerticalLayout {
@@ -61,7 +61,7 @@ component RoleCard inherits Rectangle {
             Text {
                 text: root.r.users == 0 ? "Nenhum Usuário"
                     : (root.r.users == 1 ? "1 Usuário" : root.r.users + " Usuários");
-                font-size: 11.5px; font-weight: root.r.users > 0 ? 700 : 400;
+                font-size: Theme.fs-eyebrow; font-weight: root.r.users > 0 ? 700 : 400;
                 color: root.r.users > 0 ? Theme.btn-accent : Theme.text-secondary;
                 horizontal-alignment: center; overflow: elide;
             }
@@ -99,10 +99,10 @@ export component AdminRolesPage inherits VerticalLayout {
 
     VerticalLayout {
         spacing: 2px;
-        Text { text: "Funções"; font-size: 20px; font-weight: 800; color: Theme.text-primary; }
+        Text { text: "Funções"; font-size: 20px; font-weight: Theme.fw-extrabold; color: Theme.text-primary; }
         Text {
             text: "Defina quais telas do painel cada função libera.";
-            font-size: 13px; color: Theme.text-secondary;
+            font-size: Theme.fs-13; color: Theme.text-secondary;
         }
     }
 

@@ -32,14 +32,14 @@ component FinanceKpiCard inherits Rectangle {
         alignment: center;
         Text {
             text: root.data.label;
-            font-size: 9px; font-weight: 700;
+            font-size: 9px; font-weight: Theme.fw-bold;
             color: Theme.text-secondary;
             letter-spacing: 1px;
             overflow: elide;
         }
         Text {
             text: root.data.value-display;
-            font-size: 18px; font-weight: 800;
+            font-size: Theme.fs-heading; font-weight: Theme.fw-extrabold;
             color: root.data.value-neutral ? Theme.text-primary : root.data.accent-color;
             overflow: elide;
         }
@@ -47,7 +47,7 @@ component FinanceKpiCard inherits Rectangle {
         Rectangle { height: 6px; background: transparent; }
         Text {
             text: root.data.sub-text;
-            font-size: 10px;
+            font-size: Theme.fs-label;
             // Preto no claro / claro no escuro (segue o tema).
             color: Theme.text-primary;
             overflow: elide;
@@ -123,7 +123,7 @@ component FinanceListRow inherits Rectangle {
                 alignment: start;
                 Text {
                     text: root.data.description;
-                    font-size: 13px; font-weight: 700;
+                    font-size: Theme.fs-13; font-weight: Theme.fw-bold;
                     color: Theme.text-primary;
                     vertical-alignment: center;
                     overflow: elide;
@@ -142,7 +142,7 @@ component FinanceListRow inherits Rectangle {
                         width: parent.width - 10px;
                         height: parent.height;
                         text: root.data.installment-label;
-                        font-size: 9px; font-weight: 700;
+                        font-size: 9px; font-weight: Theme.fw-bold;
                         color: Theme.text-secondary;
                         horizontal-alignment: center;
                         vertical-alignment: center;
@@ -151,7 +151,7 @@ component FinanceListRow inherits Rectangle {
             }
             Text {
                 text: root.data.party-name;
-                font-size: 11px;
+                font-size: Theme.fs-11;
                 color: Theme.text-secondary;
                 overflow: elide;
             }
@@ -165,13 +165,13 @@ component FinanceListRow inherits Rectangle {
             spacing: 2px;
             Text {
                 text: root.data.due-date-display;
-                font-size: 12px; font-weight: 600;
+                font-size: Theme.fs-caption; font-weight: Theme.fw-strong;
                 color: Theme.text-primary;
                 horizontal-alignment: left;
             }
             if root.data.days-display != "": Text {
                 text: root.data.days-display;
-                font-size: 10px;
+                font-size: Theme.fs-label;
                 color: Theme.text-secondary;
                 horizontal-alignment: left;
             }
@@ -192,7 +192,7 @@ component FinanceListRow inherits Rectangle {
                 Text {
                     width: parent.width; height: parent.height;
                     text: root.data.status-label;
-                    font-size: 11px; font-weight: 700;
+                    font-size: Theme.fs-11; font-weight: Theme.fw-bold;
                     color: root.data.status-color;
                     horizontal-alignment: left; vertical-alignment: center;
                 }
@@ -208,7 +208,7 @@ component FinanceListRow inherits Rectangle {
                 width: parent.width - 14px; height: parent.height;
                 x: 0;
                 text: root.data.amount-display;
-                font-size: 13px; font-weight: 800;
+                font-size: Theme.fs-13; font-weight: Theme.fw-extrabold;
                 color: root.data.amount-color;
                 horizontal-alignment: right;
                 vertical-alignment: center;
@@ -228,7 +228,7 @@ component FinanceListRow inherits Rectangle {
                 Text {
                     width: parent.width; height: parent.height;
                     text: root.data.action-label;
-                    font-size: 12px; font-weight: 700;
+                    font-size: Theme.fs-caption; font-weight: Theme.fw-bold;
                     color: action-ta.has-hover ? white : Theme.primary;
                     horizontal-alignment: center; vertical-alignment: center;
                 }
@@ -285,7 +285,7 @@ component CalendarCell inherits TouchArea {
                 Text {
                     horizontal-stretch: 1;
                     text: root.data.in-month ? root.data.day : "";
-                    font-size: 12px;
+                    font-size: Theme.fs-caption;
                     font-weight: (root.data.today || root.data.selected) ? 800 : 600;
                     color: root.data.selected
                         ? Theme.btn-accent
@@ -302,7 +302,7 @@ component CalendarCell inherits TouchArea {
                     Text {
                         width: parent.width; height: parent.height;
                         text: root.data.count;
-                        font-size: 9px; font-weight: 700;
+                        font-size: 9px; font-weight: Theme.fw-bold;
                         color: Theme.text-secondary;
                         horizontal-alignment: center; vertical-alignment: center;
                     }
@@ -320,7 +320,7 @@ component CalendarCell inherits TouchArea {
                     x: 6px; y: 0;
                     width: parent.width - 12px; height: parent.height;
                     text: root.data.total-display;
-                    font-size: 10px; font-weight: 700;
+                    font-size: Theme.fs-label; font-weight: Theme.fw-bold;
                     color: root.data.total-tone == "pos"
                         ? Theme.success
                         : (root.data.total-tone == "neg" ? Theme.danger : Theme.text-primary);
@@ -360,13 +360,13 @@ component DayDetailRow inherits Rectangle {
             spacing: 3px;
             Text {
                 text: root.data.title;
-                font-size: 12px; font-weight: 700;
+                font-size: Theme.fs-caption; font-weight: Theme.fw-bold;
                 color: Theme.text-primary;
                 overflow: elide;
             }
             Text {
                 text: root.data.subtitle;
-                font-size: 10px;
+                font-size: Theme.fs-label;
                 color: Theme.text-secondary;
                 overflow: elide;
             }
@@ -381,7 +381,7 @@ component DayDetailRow inherits Rectangle {
                 }
                 Text {
                     text: root.data.status-label;
-                    font-size: 10px; font-weight: 600;
+                    font-size: Theme.fs-label; font-weight: Theme.fw-strong;
                     color: Theme.text-secondary;
                     vertical-alignment: center;
                     overflow: elide;
@@ -393,7 +393,7 @@ component DayDetailRow inherits Rectangle {
             spacing: 6px;
             Text {
                 text: root.data.amount-display;
-                font-size: 13px; font-weight: 800;
+                font-size: Theme.fs-13; font-weight: Theme.fw-extrabold;
                 color: root.data.amount-tone == "pos" ? Theme.success : Theme.danger-hover;
                 horizontal-alignment: right;
             }
@@ -414,7 +414,7 @@ component DayDetailRow inherits Rectangle {
                         Text {
                             width: parent.width; height: parent.height;
                             text: root.data.kind == "receivable" ? "Receber" : "Pagar";
-                            font-size: 11px; font-weight: 700;
+                            font-size: Theme.fs-11; font-weight: Theme.fw-bold;
                             color: action-ta.has-hover ? white : Theme.primary;
                             horizontal-alignment: center; vertical-alignment: center;
                         }
@@ -473,7 +473,7 @@ component ViewToggle inherits HorizontalLayout {
                     Text {
                         width: parent.width; height: parent.height;
                         text: "Lista";
-                        font-size: 13px; font-weight: 700;
+                        font-size: Theme.fs-13; font-weight: Theme.fw-bold;
                         color: root.active == "list" ? Theme.btn-accent : Theme.text-primary;
                         horizontal-alignment: center; vertical-alignment: center;
                     }
@@ -495,7 +495,7 @@ component ViewToggle inherits HorizontalLayout {
                     Text {
                         width: parent.width; height: parent.height;
                         text: "Calendário";
-                        font-size: 13px; font-weight: 700;
+                        font-size: Theme.fs-13; font-weight: Theme.fw-bold;
                         color: root.active == "calendar" ? Theme.btn-accent : Theme.text-primary;
                         horizontal-alignment: center; vertical-alignment: center;
                     }
@@ -527,7 +527,7 @@ component StatusFilterChip inherits TouchArea {
         txt := Text {
             width: parent.width; height: parent.height;
             text: root.label;
-            font-size: 13px; font-weight: root.active ? 700 : 400;
+            font-size: Theme.fs-13; font-weight: root.active ? 700 : 400;
             color: root.active ? Theme.btn-accent : Theme.text-secondary;
             horizontal-alignment: center; vertical-alignment: center;
         }
@@ -590,13 +590,13 @@ export component FinancePage inherits Rectangle {
                 spacing: 2px;
                 Text {
                     text: "Financeiro";
-                    font-size: 22px; font-weight: 800;
+                    font-size: 22px; font-weight: Theme.fw-extrabold;
                     color: Theme.text-primary;
                     horizontal-alignment: left;
                 }
                 Text {
                     text: "Contas a pagar e a receber";
-                    font-size: 11px;
+                    font-size: Theme.fs-11;
                     color: Theme.text-secondary;
                     horizontal-alignment: left;
                 }
@@ -661,7 +661,7 @@ export component FinancePage inherits Rectangle {
                 width: parent.width - 54px;
                 height: parent.height;
                 text <=> root.search-query;
-                font-size: 13px;
+                font-size: Theme.fs-13;
                 color: Theme.text-primary;
                 vertical-alignment: center;
                 single-line: true;
@@ -671,7 +671,7 @@ export component FinancePage inherits Rectangle {
                 x: 40px; y: 0;
                 height: parent.height;
                 text: "Buscar cliente, fornecedor, descrição…";
-                font-size: 13px;
+                font-size: Theme.fs-13;
                 color: Theme.text-secondary;
                 vertical-alignment: center;
             }
@@ -727,13 +727,13 @@ export component FinancePage inherits Rectangle {
                         }
                         Text {
                             text: e.group-label;
-                            font-size: 12px; font-weight: 800;
+                            font-size: Theme.fs-caption; font-weight: Theme.fw-extrabold;
                             color: e.group-color; letter-spacing: 1px;
                             vertical-alignment: center;
                         }
                         Text {
                             text: " · " + e.group-meta;
-                            font-size: 12px; color: Theme.text-secondary;
+                            font-size: Theme.fs-caption; color: Theme.text-secondary;
                             vertical-alignment: center;
                             horizontal-stretch: 1;
                         }
@@ -761,7 +761,7 @@ export component FinancePage inherits Rectangle {
                         }
                         Text {
                             text: "Página " + e.group-page + " de " + e.group-pages;
-                            font-size: 12px; color: Theme.text-secondary;
+                            font-size: Theme.fs-caption; color: Theme.text-secondary;
                             vertical-alignment: center;
                         }
                         PageBtn {
@@ -855,7 +855,7 @@ export component FinancePage inherits Rectangle {
                             Text {
                                 width: parent.width; height: parent.height;
                                 text: "Hoje";
-                                font-size: 12px; font-weight: 700;
+                                font-size: Theme.fs-caption; font-weight: Theme.fw-bold;
                                 color: Theme.text-primary;
                                 horizontal-alignment: center; vertical-alignment: center;
                             }
@@ -867,13 +867,13 @@ export component FinancePage inherits Rectangle {
                         spacing: 0px;
                         Text {
                             text: root.cal-title;
-                            font-size: 18px; font-weight: 800;
+                            font-size: Theme.fs-heading; font-weight: Theme.fw-extrabold;
                             color: Theme.text-primary;
                             horizontal-alignment: left;
                         }
                         Text {
                             text: "Total do mês: " + root.cal-month-total;
-                            font-size: 11px;
+                            font-size: Theme.fs-11;
                             color: Theme.text-secondary;
                             horizontal-alignment: left;
                         }
@@ -886,7 +886,7 @@ export component FinancePage inherits Rectangle {
                     for label in ["DOM", "SEG", "TER", "QUA", "QUI", "SEX", "SÁB"]: Text {
                         horizontal-stretch: 1;
                         text: label;
-                        font-size: 10px; font-weight: 700;
+                        font-size: Theme.fs-label; font-weight: Theme.fw-bold;
                         color: Theme.text-secondary;
                         letter-spacing: 1px;
                         horizontal-alignment: center;
@@ -941,13 +941,13 @@ export component FinancePage inherits Rectangle {
                         spacing: 0px;
                         Text {
                             text: root.cal-detail-header;
-                            font-size: 11px; font-weight: 700;
+                            font-size: Theme.fs-11; font-weight: Theme.fw-bold;
                             color: Theme.text-secondary;
                             letter-spacing: 1px;
                         }
                         Text {
                             text: root.cal-detail-summary;
-                            font-size: 16px; font-weight: 800;
+                            font-size: Theme.fs-section; font-weight: Theme.fw-extrabold;
                             color: Theme.text-primary;
                             wrap: word-wrap;
                         }
@@ -970,7 +970,7 @@ export component FinancePage inherits Rectangle {
                                     text: root.cal-selected == ""
                                         ? "Clique em um dia para ver os lançamentos."
                                         : "Nenhum lançamento neste dia.";
-                                    font-size: 12px;
+                                    font-size: Theme.fs-caption;
                                     color: Theme.text-secondary;
                                     horizontal-alignment: center;
                                     vertical-alignment: center;

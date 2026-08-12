@@ -31,7 +31,7 @@ component StatCard inherits Rectangle {
         padding: 16px;
         spacing: 6px;
         Text { text: root.label; font-size: Theme.fs-eyebrow; font-weight: Theme.fw-strong; letter-spacing: 1px; color: Theme.text-secondary; overflow: elide; }
-        Text { text: root.value; font-size: 24px; font-weight: 800; color: root.value-color; overflow: elide; }
+        Text { text: root.value; font-size: 24px; font-weight: Theme.fw-extrabold; color: root.value-color; overflow: elide; }
         Text { text: root.hint; font-size: Theme.fs-meta; color: Theme.text-secondary; overflow: elide; }
     }
 }
@@ -95,17 +95,17 @@ component OrdersCard inherits Rectangle {
             HorizontalLayout {
                 padding-left: 12px; padding-right: 12px;
                 spacing: 12px;
-                Text { text: o.number; font-size: 13px; font-weight: 600; color: Theme.text-secondary; vertical-alignment: center; width: 56px; }
-                Text { text: o.date; font-size: 12px; color: Theme.text-secondary; vertical-alignment: center; horizontal-stretch: 1; overflow: elide; }
+                Text { text: o.number; font-size: Theme.fs-13; font-weight: Theme.fw-strong; color: Theme.text-secondary; vertical-alignment: center; width: 56px; }
+                Text { text: o.date; font-size: Theme.fs-caption; color: Theme.text-secondary; vertical-alignment: center; horizontal-stretch: 1; overflow: elide; }
                 VerticalLayout {
                     alignment: center;
                     Rectangle {
                         width: 82px; height: 22px; border-radius: Theme.radius-sm;
                         background: Theme.row-alt;
-                        Text { text: o.status-label; font-size: 11px; font-weight: 600; color: root.order-color(o.status); horizontal-alignment: center; vertical-alignment: center; width: parent.width; height: parent.height; }
+                        Text { text: o.status-label; font-size: Theme.fs-11; font-weight: Theme.fw-strong; color: root.order-color(o.status); horizontal-alignment: center; vertical-alignment: center; width: parent.width; height: parent.height; }
                     }
                 }
-                Text { text: o.total; font-size: 13px; font-weight: 700; color: Theme.text-primary; vertical-alignment: center; width: 78px; horizontal-alignment: right; }
+                Text { text: o.total; font-size: Theme.fs-13; font-weight: Theme.fw-bold; color: Theme.text-primary; vertical-alignment: center; width: 78px; horizontal-alignment: right; }
                 VerticalLayout {
                     alignment: center;
                     eye-ta := TouchArea {
@@ -170,8 +170,8 @@ component InfoPanel inherits Rectangle {
                     { k: "Cadastrado", v: root.c.created-at },
                 ]: HorizontalLayout {
                     spacing: 8px;
-                    Text { text: kv.k; font-size: 12px; color: Theme.text-secondary; }
-                    Text { text: kv.v != "" ? kv.v : "—"; font-size: 12px; color: Theme.text-primary; horizontal-stretch: 1; horizontal-alignment: right; overflow: elide; }
+                    Text { text: kv.k; font-size: Theme.fs-caption; color: Theme.text-secondary; }
+                    Text { text: kv.v != "" ? kv.v : "—"; font-size: Theme.fs-caption; color: Theme.text-primary; horizontal-stretch: 1; horizontal-alignment: right; overflow: elide; }
                 }
             }
         }
@@ -193,8 +193,8 @@ component InfoPanel inherits Rectangle {
                 }
                 for a in root.addresses: VerticalLayout {
                     spacing: 2px;
-                    Text { text: a.label; font-size: 12px; font-weight: 600; color: Theme.text-primary; }
-                    Text { text: a.line; font-size: 12px; color: Theme.text-secondary; wrap: word-wrap; }
+                    Text { text: a.label; font-size: Theme.fs-caption; font-weight: Theme.fw-strong; color: Theme.text-primary; }
+                    Text { text: a.line; font-size: Theme.fs-caption; color: Theme.text-secondary; wrap: word-wrap; }
                 }
             }
         }
@@ -216,7 +216,7 @@ component InfoPanel inherits Rectangle {
                         padding: 12px;
                         Text {
                             text: root.c.notes != "" ? root.c.notes : "Sem observações.";
-                            font-size: 12px;
+                            font-size: Theme.fs-caption;
                             color: root.c.notes != "" ? Theme.text-primary : Theme.text-secondary;
                             wrap: word-wrap;
                         }
@@ -303,8 +303,8 @@ export component CustomersPage inherits Rectangle {
                     VerticalLayout {
                         horizontal-stretch: 1;
                         spacing: 2px;
-                        Text { text: "Clientes"; font-size: 22px; font-weight: 700; color: Theme.text-primary; overflow: elide; }
-                        Text { text: root.customers.length + " Cadastrados"; font-size: 12px; color: Theme.text-secondary; overflow: elide; }
+                        Text { text: "Clientes"; font-size: 22px; font-weight: Theme.fw-bold; color: Theme.text-primary; overflow: elide; }
+                        Text { text: root.customers.length + " Cadastrados"; font-size: Theme.fs-caption; color: Theme.text-secondary; overflow: elide; }
                     }
                     VerticalLayout {
                         alignment: center;
@@ -351,13 +351,13 @@ export component CustomersPage inherits Rectangle {
                             horizontal-stretch: 1;
                             search-input := TextInput {
                                 x: 0; y: 0; width: parent.width; height: parent.height;
-                                font-size: 13px; color: Theme.text-primary;
+                                font-size: Theme.fs-13; color: Theme.text-primary;
                                 vertical-alignment: center; single-line: true;
                                 edited => { root.search-changed(self.text); }
                             }
                             if search-input.text == "": Text {
                                 x: 0; y: 0; width: parent.width; height: parent.height;
-                                text: "Buscar..."; font-size: 13px; color: Theme.text-secondary; vertical-alignment: center;
+                                text: "Buscar..."; font-size: Theme.fs-13; color: Theme.text-secondary; vertical-alignment: center;
                             }
                         }
                     }
@@ -404,19 +404,19 @@ export component CustomersPage inherits Rectangle {
                                         horizontal-stretch: 1;
                                         alignment: center;
                                         spacing: 3px;
-                                        Text { text: c.name; font-size: 13px; font-weight: Theme.fw-strong; color: row-ta.sel ? Theme.primary : Theme.text-primary; overflow: elide; }
+                                        Text { text: c.name; font-size: Theme.fs-13; font-weight: Theme.fw-strong; color: row-ta.sel ? Theme.primary : Theme.text-primary; overflow: elide; }
                                         HorizontalLayout {
                                             spacing: 6px;
                                             VerticalLayout {
                                                 alignment: center;
                                                 Rectangle { width: 6px; height: 6px; border-radius: 3px; background: root.status-color(c.status); }
                                             }
-                                            Text { text: c.status-label; font-size: 11px; color: Theme.text-secondary; }
+                                            Text { text: c.status-label; font-size: Theme.fs-11; color: Theme.text-secondary; }
                                         }
                                     }
                                     VerticalLayout {
                                         alignment: center;
-                                        Text { text: c.last-order; font-size: 11px; color: Theme.text-secondary; }
+                                        Text { text: c.last-order; font-size: Theme.fs-11; color: Theme.text-secondary; }
                                     }
                                 }
                             }
@@ -446,7 +446,7 @@ export component CustomersPage inherits Rectangle {
                 // Há clientes, mas nenhum selecionado → instrução.
                 if root.customers.length > 0: Text {
                     text: "Selecione um cliente à esquerda para ver os detalhes.";
-                    font-size: 14px; color: Theme.text-secondary;
+                    font-size: Theme.fs-body; color: Theme.text-secondary;
                     horizontal-alignment: center;
                 }
             }
@@ -495,7 +495,7 @@ export component CustomersPage inherits Rectangle {
                                 Text {
                                     text: root.detail-customer.name;
                                     font-size: root.narrow ? 22px : 26px;
-                                    font-weight: 800; color: Theme.text-primary;
+                                    font-weight: Theme.fw-extrabold; color: Theme.text-primary;
                                     vertical-alignment: center; overflow: elide;
                                 }
                             }

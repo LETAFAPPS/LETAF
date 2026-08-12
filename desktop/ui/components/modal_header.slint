@@ -30,14 +30,14 @@ export component ModalHeader inherits VerticalLayout {
     }
     if root.title != "": Text {
         text: root.title;
-        font-size: 18px;
-        font-weight: 700;
+        font-size: Theme.fs-heading;
+        font-weight: Theme.fw-bold;
         color: Theme.text-primary;
         horizontal-alignment: center;
     }
     if root.subtitle != "": Text {
         text: root.subtitle;
-        font-size: 13px;
+        font-size: Theme.fs-13;
         color: Theme.text-secondary;
         horizontal-alignment: center;
         wrap: word-wrap;

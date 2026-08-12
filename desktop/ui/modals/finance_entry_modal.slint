@@ -25,7 +25,7 @@ component LabeledTextField inherits VerticalLayout {
     spacing: 6px;
     Text {
         text: root.label;
-        font-size: 11px; font-weight: 700;
+        font-size: Theme.fs-11; font-weight: Theme.fw-bold;
         color: Theme.text-secondary;
         letter-spacing: 0.5px;
     }
@@ -42,7 +42,7 @@ component LabeledTextField inherits VerticalLayout {
             width: parent.width - 24px;
             height: parent.height;
             text <=> root.value;
-            font-size: 13px;
+            font-size: Theme.fs-13;
             color: Theme.text-primary;
             vertical-alignment: center;
             single-line: true;
@@ -52,14 +52,14 @@ component LabeledTextField inherits VerticalLayout {
             x: 12px; y: 0;
             height: parent.height;
             text: root.placeholder;
-            font-size: 13px;
+            font-size: Theme.fs-13;
             color: Theme.text-secondary;
             vertical-alignment: center;
         }
     }
     if root.error != "": Text {
         text: root.error;
-        font-size: 10px;
+        font-size: Theme.fs-label;
         color: Theme.danger-hover;
     }
 }
@@ -82,7 +82,7 @@ component ChipBtn inherits TouchArea {
             Text {
                 width: parent.width; height: parent.height;
                 text: root.label;
-                font-size: 13px; font-weight: 700;
+                font-size: Theme.fs-13; font-weight: Theme.fw-bold;
                 color: root.selected ? white : Theme.text-primary;
                 horizontal-alignment: center; vertical-alignment: center;
             }
@@ -163,12 +163,12 @@ export component FinanceEntryModal inherits Rectangle {
                                         text: root.editing
                                             ? (root.kind == "receivable" ? "Editar conta a receber" : "Editar conta a pagar")
                                             : (root.kind == "receivable" ? "Nova conta a receber" : "Nova conta a pagar");
-                                        font-size: 16px; font-weight: 700;
+                                        font-size: Theme.fs-section; font-weight: Theme.fw-bold;
                                         color: Theme.text-primary;
                                     }
                                     Text {
                                         text: "Lançamento financeiro avulso · não vinculado a um pedido";
-                                        font-size: 11px; color: Theme.text-secondary;
+                                        font-size: Theme.fs-11; color: Theme.text-secondary;
                                     }
                                 }
                             }
@@ -201,7 +201,7 @@ export component FinanceEntryModal inherits Rectangle {
                                 spacing: 6px;
                                 Text {
                                     text: root.kind == "receivable" ? "CLIENTE" : "FORNECEDOR";
-                                    font-size: 11px; font-weight: 700;
+                                    font-size: Theme.fs-11; font-weight: Theme.fw-bold;
                                     color: Theme.text-secondary;
                                     letter-spacing: 0.5px;
                                 }
@@ -229,7 +229,7 @@ export component FinanceEntryModal inherits Rectangle {
                                                         : (root.kind == "receivable"
                                                             ? "Buscar cliente…"
                                                             : "Buscar fornecedor…");
-                                                    font-size: 13px;
+                                                    font-size: Theme.fs-13;
                                                     color: root.party != ""
                                                         ? Theme.text-primary
                                                         : Theme.text-secondary;
@@ -262,7 +262,7 @@ export component FinanceEntryModal inherits Rectangle {
                                     spacing: 6px;
                                     Text {
                                         text: "VENCIMENTO";
-                                        font-size: 11px; font-weight: 700;
+                                        font-size: Theme.fs-11; font-weight: Theme.fw-bold;
                                         color: Theme.text-secondary;
                                         letter-spacing: 0.5px;
                                     }
@@ -284,7 +284,7 @@ export component FinanceEntryModal inherits Rectangle {
                                                     horizontal-stretch: 1;
                                                     text: root.no-due ? "Sem vencimento"
                                                         : (root.due-date != "" ? root.due-date : "dd/mm/aaaa");
-                                                    font-size: 13px;
+                                                    font-size: Theme.fs-13;
                                                     color: (root.due-date != "" && !root.no-due)
                                                         ? Theme.text-primary
                                                         : Theme.text-secondary;
@@ -314,7 +314,7 @@ export component FinanceEntryModal inherits Rectangle {
                                             Text {
                                                 width: parent.width; height: parent.height;
                                                 text: "Sem vencimento";
-                                                font-size: 10px; font-weight: 700;
+                                                font-size: Theme.fs-label; font-weight: Theme.fw-bold;
                                                 color: root.no-due ? Theme.btn-accent : Theme.text-secondary;
                                                 horizontal-alignment: center; vertical-alignment: center;
                                             }
@@ -322,7 +322,7 @@ export component FinanceEntryModal inherits Rectangle {
                                     }
                                     if root.error-due-date != "": Text {
                                         text: root.error-due-date;
-                                        font-size: 10px;
+                                        font-size: Theme.fs-label;
                                         color: Theme.danger-hover;
                                     }
                                 }
@@ -332,7 +332,7 @@ export component FinanceEntryModal inherits Rectangle {
                                     spacing: 6px;
                                     Text {
                                         text: "PARCELAS";
-                                        font-size: 11px; font-weight: 700;
+                                        font-size: Theme.fs-11; font-weight: Theme.fw-bold;
                                         color: Theme.text-secondary;
                                         letter-spacing: 0.5px;
                                     }
@@ -352,7 +352,7 @@ export component FinanceEntryModal inherits Rectangle {
                                                 text: root.installments == 1
                                                     ? "1x à vista"
                                                     : root.installments + "x";
-                                                font-size: 13px;
+                                                font-size: Theme.fs-13;
                                                 color: Theme.text-primary;
                                                 vertical-alignment: center;
                                             }
@@ -371,7 +371,7 @@ export component FinanceEntryModal inherits Rectangle {
                                                     Text {
                                                         width: parent.width; height: parent.height;
                                                         text: "−";
-                                                        font-size: 14px; font-weight: 800;
+                                                        font-size: Theme.fs-body; font-weight: Theme.fw-extrabold;
                                                         color: Theme.text-primary;
                                                         horizontal-alignment: center; vertical-alignment: center;
                                                     }
@@ -391,7 +391,7 @@ export component FinanceEntryModal inherits Rectangle {
                                                     Text {
                                                         width: parent.width; height: parent.height;
                                                         text: "+";
-                                                        font-size: 14px; font-weight: 800;
+                                                        font-size: Theme.fs-body; font-weight: Theme.fw-extrabold;
                                                         color: Theme.text-primary;
                                                         horizontal-alignment: center; vertical-alignment: center;
                                                     }
@@ -407,7 +407,7 @@ export component FinanceEntryModal inherits Rectangle {
                                 spacing: 6px;
                                 Text {
                                     text: "RECORRÊNCIA";
-                                    font-size: 11px; font-weight: 700;
+                                    font-size: Theme.fs-11; font-weight: Theme.fw-bold;
                                     color: Theme.text-secondary;
                                     letter-spacing: 0.5px;
                                 }
@@ -440,7 +440,7 @@ export component FinanceEntryModal inherits Rectangle {
                                 spacing: 6px;
                                 Text {
                                     text: "OBSERVAÇÃO";
-                                    font-size: 11px; font-weight: 700;
+                                    font-size: Theme.fs-11; font-weight: Theme.fw-bold;
                                     color: Theme.text-secondary;
                                     letter-spacing: 0.5px;
                                 }
@@ -455,7 +455,7 @@ export component FinanceEntryModal inherits Rectangle {
                                         width: parent.width - 24px;
                                         height: parent.height - 16px;
                                         text <=> root.notes;
-                                        font-size: 13px;
+                                        font-size: Theme.fs-13;
                                         color: Theme.text-primary;
                                         wrap: word-wrap;
                                         single-line: false;
@@ -463,7 +463,7 @@ export component FinanceEntryModal inherits Rectangle {
                                     if notes-input.text == "" && !notes-input.has-focus: Text {
                                         x: 12px; y: 8px;
                                         text: "Notas internas";
-                                        font-size: 13px;
+                                        font-size: Theme.fs-13;
                                         color: Theme.text-secondary;
                                     }
                                 }
@@ -478,7 +478,7 @@ export component FinanceEntryModal inherits Rectangle {
                                     x: 12px; y: 0;
                                     width: parent.width - 24px; height: parent.height;
                                     text: root.error-general;
-                                    font-size: 12px; color: Theme.danger;
+                                    font-size: Theme.fs-caption; color: Theme.danger;
                                     vertical-alignment: center;
                                     wrap: word-wrap;
                                 }

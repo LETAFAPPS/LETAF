@@ -27,8 +27,8 @@ export component FormField inherits VerticalLayout {
 
     Text {
         text: root.label;
-        font-size: 12px;
-        font-weight: 500;
+        font-size: Theme.fs-caption;
+        font-weight: Theme.fw-medium;
         color: Theme.text-secondary;
     }
     Rectangle {
@@ -58,7 +58,7 @@ export component FormField inherits VerticalLayout {
             input := TextInput {
                 text <=> root.value;
                 input-type: root.input-type;
-                font-size: 13px;
+                font-size: Theme.fs-13;
                 color: Theme.text-primary;
                 single-line: true;
                 vertical-alignment: center;
@@ -74,7 +74,7 @@ export component FormField inherits VerticalLayout {
         // placeholder
         if root.value == "": Text {
             text: root.placeholder;
-            font-size: 13px;
+            font-size: Theme.fs-13;
             color: Theme.text-secondary;
             vertical-alignment: center;
             x: root.icon.width > 0 ? 29px : 8px;
@@ -95,7 +95,7 @@ export component FormField inherits VerticalLayout {
     // dos formulários que não usam esta funcionalidade).
     if root.error != "": Text {
         text: root.error;
-        font-size: 11px;
+        font-size: Theme.fs-11;
         color: Theme.danger;
         wrap: word-wrap;
     }
@@ -117,8 +117,8 @@ export component PasswordField inherits VerticalLayout {
 
     Text {
         text: root.label;
-        font-size: 12px;
-        font-weight: 500;
+        font-size: Theme.fs-caption;
+        font-weight: Theme.fw-medium;
         color: Theme.text-secondary;
     }
     Rectangle {
@@ -135,7 +135,7 @@ export component PasswordField inherits VerticalLayout {
             pwd-input := TextInput {
                 text <=> root.value;
                 input-type: root.show-password ? InputType.text : InputType.password;
-                font-size: 13px;
+                font-size: Theme.fs-13;
                 color: Theme.text-primary;
                 single-line: true;
                 vertical-alignment: center;
@@ -170,7 +170,7 @@ export component PasswordField inherits VerticalLayout {
 
         if root.value == "": Text {
             text: root.placeholder;
-            font-size: 13px;
+            font-size: Theme.fs-13;
             color: Theme.text-secondary;
             vertical-alignment: center;
             x: 8px;
@@ -210,8 +210,8 @@ export component TimeInput inherits VerticalLayout {
 
     Text {
         text: root.label;
-        font-size: 12px;
-        font-weight: 500;
+        font-size: Theme.fs-caption;
+        font-weight: Theme.fw-medium;
         color: Theme.text-secondary;
     }
     Rectangle {
@@ -227,7 +227,7 @@ export component TimeInput inherits VerticalLayout {
 
             ti := TextInput {
                 text <=> root.value;
-                font-size: 13px;
+                font-size: Theme.fs-13;
                 color: Theme.text-primary;
                 single-line: true;
                 vertical-alignment: center;
@@ -240,7 +240,7 @@ export component TimeInput inherits VerticalLayout {
 
         if root.value == "": Text {
             text: "00:00";
-            font-size: 13px;
+            font-size: Theme.fs-13;
             color: Theme.text-secondary;
             vertical-alignment: center;
             x: 8px;

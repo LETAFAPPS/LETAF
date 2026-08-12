@@ -40,7 +40,7 @@ export component SettingsModal inherits Rectangle {
 
                     HorizontalLayout {
                         spacing: 12px;
-                        Text { text: "Status"; font-size: 14px; color: Theme.text-primary; vertical-alignment: center; horizontal-stretch: 1; }
+                        Text { text: "Status"; font-size: Theme.fs-body; color: Theme.text-primary; vertical-alignment: center; horizontal-stretch: 1; }
                         toggle-ta := TouchArea {
                             width: 52px; height: 28px;
                             clicked => { root.bh-is-open = !root.bh-is-open; }

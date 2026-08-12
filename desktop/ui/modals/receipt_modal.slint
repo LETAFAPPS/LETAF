@@ -64,12 +64,12 @@ export component ReceiptModal inherits Rectangle {
                                     horizontal-stretch: 1; spacing: 2px;
                                     Text {
                                         text: root.mode == "kitchen" ? "Comanda" : "Cupom";
-                                        font-size: 16px; font-weight: 700;
+                                        font-size: Theme.fs-section; font-weight: Theme.fw-bold;
                                         color: Theme.text-primary;
                                     }
                                     Text {
                                         text: "Pedido #" + root.order.number + " · " + root.order.order-date + " " + root.order.order-time;
-                                        font-size: 11px;
+                                        font-size: Theme.fs-11;
                                         color: Theme.text-secondary;
                                     }
                                 }
@@ -99,12 +99,12 @@ export component ReceiptModal inherits Rectangle {
                                 spacing: 0px;
                                 Text {
                                     text: "PEDIDO #" + root.order.number;
-                                    font-size: 20px; font-weight: 800; color: black;
+                                    font-size: 20px; font-weight: Theme.fw-extrabold; color: black;
                                     horizontal-alignment: center;
                                 }
                                 Text {
                                     text: root.order.order-date + " · " + root.order.order-time;
-                                    font-size: 12px; color: black;
+                                    font-size: Theme.fs-caption; color: black;
                                     horizontal-alignment: center;
                                 }
                                 Rectangle { height: 10px; }
@@ -112,7 +112,7 @@ export component ReceiptModal inherits Rectangle {
                                 // ── Modalidade (cabeçalho destacado) ──
                                 Text {
                                     text: root.order.delivery-type == "pickup" ? "RETIRADA" : "ENTREGA";
-                                    font-size: 17px; font-weight: 800; color: black;
+                                    font-size: 17px; font-weight: Theme.fw-extrabold; color: black;
                                     letter-spacing: 2px;
                                     horizontal-alignment: center;
                                 }
@@ -128,7 +128,7 @@ export component ReceiptModal inherits Rectangle {
                                 // mais precisa quando bate o olho na comanda.
                                 Text {
                                     text: root.order.customer-name;
-                                    font-size: 18px; font-weight: 700; color: black;
+                                    font-size: Theme.fs-heading; font-weight: Theme.fw-bold; color: black;
                                     wrap: word-wrap;
                                 }
                                 // Telefone do cliente — útil tanto para a
@@ -138,32 +138,32 @@ export component ReceiptModal inherits Rectangle {
                                 // cadastrado → linha some.
                                 if root.order.customer-phone != "": Text {
                                     text: root.order.customer-phone;
-                                    font-size: 14px; font-weight: 600; color: black;
+                                    font-size: Theme.fs-body; font-weight: Theme.fw-strong; color: black;
                                 }
                                 if root.order.delivery-street != "": Text {
                                     text: root.order.delivery-street + ", " + root.order.delivery-number + " — " + root.order.delivery-neighborhood;
-                                    font-size: 14px; font-weight: 600; color: black;
+                                    font-size: Theme.fs-body; font-weight: Theme.fw-strong; color: black;
                                     wrap: word-wrap;
                                 }
 
                                 Rectangle { height: 10px; }
                                 Rectangle { height: 1px; background: black; }
                                 Rectangle { height: 8px; }
-                                Text { text: "ITENS"; font-size: 13px; font-weight: 700; color: black; letter-spacing: 1px; }
+                                Text { text: "ITENS"; font-size: Theme.fs-13; font-weight: Theme.fw-bold; color: black; letter-spacing: 1px; }
                                 Rectangle { height: 4px; }
                                 for it in root.items: VerticalLayout {
                                     padding-top: 4px;
                                     spacing: 2px;
                                     HorizontalLayout {
                                         spacing: 6px;
-                                        Text { text: it.qty-label; font-size: 15px; font-weight: 700; color: black; width: 48px; }
-                                        Text { text: it.product-name; font-size: 15px; font-weight: 600; color: black; horizontal-stretch: 1; wrap: word-wrap; }
+                                        Text { text: it.qty-label; font-size: 15px; font-weight: Theme.fw-bold; color: black; width: 48px; }
+                                        Text { text: it.product-name; font-size: 15px; font-weight: Theme.fw-strong; color: black; horizontal-stretch: 1; wrap: word-wrap; }
                                         // Preço de tabela riscado — item com desconto de produto.
                                         if it.list-price != "": VerticalLayout {
                                             alignment: center;
                                             StruckText { text: it.list-price; text-size: 12px; text-color: black; }
                                         }
-                                        Text { text: it.price; font-size: 14px; font-weight: 600; color: black; }
+                                        Text { text: it.price; font-size: Theme.fs-body; font-weight: Theme.fw-strong; color: black; }
                                     }
                                     // Variações + adicionais (snapshot já formatado:
                                     // "Sabor: A, B · Borda: C"). Indentado para
@@ -173,7 +173,7 @@ export component ReceiptModal inherits Rectangle {
                                         Rectangle { width: 48px; }
                                         Text {
                                             text: it.addons-summary;
-                                            font-size: 13px;
+                                            font-size: Theme.fs-13;
                                             color: black;
                                             wrap: word-wrap;
                                             horizontal-stretch: 1;
@@ -185,30 +185,30 @@ export component ReceiptModal inherits Rectangle {
                                 Rectangle { height: 8px; }
                                 HorizontalLayout {
                                     padding-bottom: 3px;
-                                    Text { text: "Subtotal"; font-size: 12px; color: black; horizontal-stretch: 1; }
-                                    Text { text: root.order.subtotal-display; font-size: 13px; font-weight: 600; color: black; }
+                                    Text { text: "Subtotal"; font-size: Theme.fs-caption; color: black; horizontal-stretch: 1; }
+                                    Text { text: root.order.subtotal-display; font-size: Theme.fs-13; font-weight: Theme.fw-strong; color: black; }
                                 }
                                 HorizontalLayout {
                                     padding-bottom: 3px;
-                                    Text { text: "Taxa de entrega"; font-size: 12px; color: black; horizontal-stretch: 1; }
-                                    Text { text: root.order.delivery-fee-display; font-size: 13px; font-weight: 600; color: black; }
+                                    Text { text: "Taxa de entrega"; font-size: Theme.fs-caption; color: black; horizontal-stretch: 1; }
+                                    Text { text: root.order.delivery-fee-display; font-size: Theme.fs-13; font-weight: Theme.fw-strong; color: black; }
                                 }
                                 if root.order.discount-display != "—": HorizontalLayout {
                                     padding-bottom: 3px;
-                                    Text { text: "Desconto"; font-size: 12px; color: black; horizontal-stretch: 1; }
-                                    Text { text: root.order.discount-display; font-size: 13px; font-weight: 600; color: black; }
+                                    Text { text: "Desconto"; font-size: Theme.fs-caption; color: black; horizontal-stretch: 1; }
+                                    Text { text: root.order.discount-display; font-size: Theme.fs-13; font-weight: Theme.fw-strong; color: black; }
                                 }
                                 if root.order.coupon-code-display != "—": HorizontalLayout {
                                     padding-bottom: 3px;
-                                    Text { text: "Cupom"; font-size: 12px; color: black; horizontal-stretch: 1; }
-                                    Text { text: root.order.coupon-code-display; font-size: 13px; font-weight: 600; color: black; }
+                                    Text { text: "Cupom"; font-size: Theme.fs-caption; color: black; horizontal-stretch: 1; }
+                                    Text { text: root.order.coupon-code-display; font-size: Theme.fs-13; font-weight: Theme.fw-strong; color: black; }
                                 }
                                 Rectangle { height: 4px; }
                                 Rectangle { height: 1px; background: black; }
                                 Rectangle { height: 6px; }
                                 HorizontalLayout {
-                                    Text { text: "TOTAL"; font-size: 16px; font-weight: 700; color: black; horizontal-stretch: 1; }
-                                    Text { text: root.order.total; font-size: 18px; font-weight: 800; color: black; }
+                                    Text { text: "TOTAL"; font-size: Theme.fs-section; font-weight: Theme.fw-bold; color: black; horizontal-stretch: 1; }
+                                    Text { text: root.order.total; font-size: Theme.fs-heading; font-weight: Theme.fw-extrabold; color: black; }
                                 }
                                 if root.order.notes != "": Rectangle { height: 10px; }
                                 if root.order.notes != "": Rectangle {
@@ -217,8 +217,8 @@ export component ReceiptModal inherits Rectangle {
                                     VerticalLayout {
                                         padding: 8px;
                                         spacing: 2px;
-                                        Text { text: "Observações"; font-size: 11px; font-weight: 700; color: black; letter-spacing: 1px; }
-                                        Text { text: root.order.notes; font-size: 13px; color: black; wrap: word-wrap; }
+                                        Text { text: "Observações"; font-size: Theme.fs-11; font-weight: Theme.fw-bold; color: black; letter-spacing: 1px; }
+                                        Text { text: root.order.notes; font-size: Theme.fs-13; color: black; wrap: word-wrap; }
                                     }
                                 }
                             }
@@ -235,12 +235,12 @@ export component ReceiptModal inherits Rectangle {
                                 spacing: 0px;
                                 Text {
                                     text: "COZINHA · #" + root.order.number;
-                                    font-size: 20px; font-weight: 800; color: black;
+                                    font-size: 20px; font-weight: Theme.fw-extrabold; color: black;
                                     horizontal-alignment: center;
                                 }
                                 Text {
                                     text: root.order.order-time + "   ·   " + (root.order.elapsed-display != "" ? root.order.elapsed-display : "—");
-                                    font-size: 13px; font-weight: 600; color: black;
+                                    font-size: Theme.fs-13; font-weight: Theme.fw-strong; color: black;
                                     horizontal-alignment: center;
                                 }
                                 Rectangle { height: 10px; }
@@ -248,7 +248,7 @@ export component ReceiptModal inherits Rectangle {
                                 // ── Modalidade (cabeçalho destacado) ──
                                 Text {
                                     text: root.order.delivery-type == "pickup" ? "RETIRADA" : "ENTREGA";
-                                    font-size: 17px; font-weight: 800; color: black;
+                                    font-size: 17px; font-weight: Theme.fw-extrabold; color: black;
                                     letter-spacing: 2px;
                                     horizontal-alignment: center;
                                 }
@@ -260,7 +260,7 @@ export component ReceiptModal inherits Rectangle {
                                 // ── Cliente + endereço ──
                                 Text {
                                     text: root.order.customer-name;
-                                    font-size: 18px; font-weight: 700; color: black;
+                                    font-size: Theme.fs-heading; font-weight: Theme.fw-bold; color: black;
                                     wrap: word-wrap;
                                 }
                                 // Telefone do cliente — útil tanto para a
@@ -270,11 +270,11 @@ export component ReceiptModal inherits Rectangle {
                                 // cadastrado → linha some.
                                 if root.order.customer-phone != "": Text {
                                     text: root.order.customer-phone;
-                                    font-size: 14px; font-weight: 600; color: black;
+                                    font-size: Theme.fs-body; font-weight: Theme.fw-strong; color: black;
                                 }
                                 if root.order.delivery-street != "": Text {
                                     text: root.order.delivery-street + ", " + root.order.delivery-number + " — " + root.order.delivery-neighborhood;
-                                    font-size: 14px; font-weight: 600; color: black;
+                                    font-size: Theme.fs-body; font-weight: Theme.fw-strong; color: black;
                                     wrap: word-wrap;
                                 }
 
@@ -286,8 +286,8 @@ export component ReceiptModal inherits Rectangle {
                                     padding-bottom: 6px;
                                     spacing: 2px;
                                     HorizontalLayout {
-                                        Text { text: it.qty-label; font-size: 16px; font-weight: 800; color: black; width: 50px; }
-                                        Text { text: it.product-name; font-size: 15px; font-weight: 600; color: black; horizontal-stretch: 1; wrap: word-wrap; }
+                                        Text { text: it.qty-label; font-size: Theme.fs-section; font-weight: Theme.fw-extrabold; color: black; width: 50px; }
+                                        Text { text: it.product-name; font-size: 15px; font-weight: Theme.fw-strong; color: black; horizontal-stretch: 1; wrap: word-wrap; }
                                     }
                                     // Variações + adicionais — crítico para a cozinha:
                                     // sem isso, o preparador não sabe qual sabor / borda
@@ -297,7 +297,7 @@ export component ReceiptModal inherits Rectangle {
                                         Rectangle { width: 50px; }
                                         Text {
                                             text: it.addons-summary;
-                                            font-size: 13px;
+                                            font-size: Theme.fs-13;
                                             color: black;
                                             wrap: word-wrap;
                                             horizontal-stretch: 1;
@@ -314,8 +314,8 @@ export component ReceiptModal inherits Rectangle {
                                     VerticalLayout {
                                         padding: 10px;
                                         spacing: 2px;
-                                        Text { text: "Observações"; font-size: 12px; font-weight: 700; color: black; letter-spacing: 1px; }
-                                        Text { text: root.order.notes; font-size: 13px; color: black; wrap: word-wrap; }
+                                        Text { text: "Observações"; font-size: Theme.fs-caption; font-weight: Theme.fw-bold; color: black; letter-spacing: 1px; }
+                                        Text { text: root.order.notes; font-size: Theme.fs-13; color: black; wrap: word-wrap; }
                                     }
                                 }
                             }

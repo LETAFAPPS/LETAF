@@ -34,7 +34,7 @@ component StatusBadge inherits Rectangle {
             : (root.status == "none" ? "Sem plano"
                 : (root.status == "inactive" ? "Inativa"
                     : (root.status == "overdue" ? "Vencida" : "Cancelada")));
-        font-size: 11px; font-weight: 700;
+        font-size: Theme.fs-11; font-weight: Theme.fw-bold;
         color: root.tone;
         vertical-alignment: center;
     }
@@ -47,7 +47,7 @@ component ToggleSwitch inherits TouchArea {
     Rectangle {
         width: parent.width; height: parent.height;
         border-radius: self.height / 2;
-        background: root.on ? #1E88E5 : #BDBDBD;
+        background: root.on ? Theme.info : #BDBDBD;
         animate background { duration: 120ms; }
         Rectangle {
             width: 20px; height: 20px; border-radius: Theme.radius-xl;
@@ -134,7 +134,7 @@ component CompanyCard inherits Rectangle {
                 alignment: start;
                 Text {
                     text: root.c.name;
-                    font-size: 14px; font-weight: 700;
+                    font-size: Theme.fs-body; font-weight: Theme.fw-bold;
                     color: root.c.active ? Theme.text-primary : Theme.text-secondary;
                     overflow: elide; vertical-alignment: center; height: 20px;
                 }
@@ -144,7 +144,7 @@ component CompanyCard inherits Rectangle {
                     background: Theme.danger.transparentize(0.85);
                     y: (parent.height - self.height) / 2;
                     susp := Text {
-                        text: "Suspensa"; font-size: 10px; font-weight: 700;
+                        text: "Suspensa"; font-size: Theme.fs-label; font-weight: Theme.fw-bold;
                         color: Theme.danger;
                         horizontal-alignment: center; vertical-alignment: center;
                         width: parent.width; height: parent.height;
@@ -153,7 +153,7 @@ component CompanyCard inherits Rectangle {
             }
             Text {
                 text: root.c.domain;
-                font-size: 12px; color: Theme.text-secondary; overflow: elide;
+                font-size: Theme.fs-caption; color: Theme.text-secondary; overflow: elide;
             }
         }
 
@@ -164,12 +164,12 @@ component CompanyCard inherits Rectangle {
             spacing: 2px;
             Text {
                 text: root.c.owner == "" ? "Sem proprietário" : root.c.owner;
-                font-size: 12.5px; color: Theme.text-primary; overflow: elide;
+                font-size: Theme.fs-meta; color: Theme.text-primary; overflow: elide;
                 horizontal-alignment: center;
             }
             Text {
                 text: root.c.owner-phone == "" ? "Sem telefone" : root.c.owner-phone;
-                font-size: 11.5px; color: Theme.text-secondary; overflow: elide;
+                font-size: Theme.fs-eyebrow; color: Theme.text-secondary; overflow: elide;
                 horizontal-alignment: center;
             }
         }
@@ -180,7 +180,7 @@ component CompanyCard inherits Rectangle {
             alignment: center;
             Text {
                 text: root.c.city == "" ? "—" : root.c.city;
-                font-size: 12.5px; font-weight: 600; color: Theme.text-primary; overflow: elide;
+                font-size: Theme.fs-meta; font-weight: Theme.fw-strong; color: Theme.text-primary; overflow: elide;
                 horizontal-alignment: center;
             }
         }
@@ -192,7 +192,7 @@ component CompanyCard inherits Rectangle {
             spacing: 4px;
             Text {
                 text: root.c.plan == "" ? "Sem plano" : root.c.plan;
-                font-size: 12.5px; color: Theme.text-primary;
+                font-size: Theme.fs-meta; color: Theme.text-primary;
                 horizontal-alignment: center;
             }
             HorizontalLayout { alignment: center; StatusBadge { status: root.c.status; } }
@@ -205,7 +205,7 @@ component CompanyCard inherits Rectangle {
             spacing: 2px;
             Text {
                 text: "Forma de pagamento";
-                font-size: 10px; font-weight: 700; color: Theme.text-secondary;
+                font-size: Theme.fs-label; font-weight: Theme.fw-bold; color: Theme.text-secondary;
                 horizontal-alignment: center;
             }
             Text {
@@ -213,7 +213,7 @@ component CompanyCard inherits Rectangle {
                     : (root.c.payment-kind == "pix" ? "Pix"
                         : (root.c.payment-kind == "boleto" ? "Boleto"
                             : (root.c.payment-kind == "" ? "—" : root.c.payment-kind)));
-                font-size: 12.5px; color: Theme.text-primary;
+                font-size: Theme.fs-meta; color: Theme.text-primary;
                 horizontal-alignment: center;
             }
         }
@@ -224,12 +224,12 @@ component CompanyCard inherits Rectangle {
             spacing: 2px;
             Text {
                 text: "Próxima Fatura";
-                font-size: 10px; font-weight: 700; color: Theme.text-secondary;
+                font-size: Theme.fs-label; font-weight: Theme.fw-bold; color: Theme.text-secondary;
                 horizontal-alignment: center;
             }
             Text {
                 text: root.c.next-charge == "" ? "—" : root.c.next-charge;
-                font-size: 12.5px; color: Theme.text-primary;
+                font-size: Theme.fs-meta; color: Theme.text-primary;
                 horizontal-alignment: center;
             }
         }
@@ -412,7 +412,7 @@ export component AdminCompaniesPage inherits VerticalLayout {
         spacing: 2px;
         Text {
             text: root.show-form ? (root.editing ? "Editar Empresa" : "Nova Empresa") : "Empresas";
-            font-size: 20px; font-weight: 800; color: Theme.text-primary;
+            font-size: 20px; font-weight: Theme.fw-extrabold; color: Theme.text-primary;
         }
         Text {
             text: root.show-form
@@ -420,7 +420,7 @@ export component AdminCompaniesPage inherits VerticalLayout {
                     ? "Atualiza os dados do estabelecimento."
                     : "Cria a empresa, o administrador inicial e os dados do estabelecimento.")
                 : root.companies.length + " Empresas Cadastradas.";
-            font-size: 13px; color: Theme.text-secondary;
+            font-size: Theme.fs-13; color: Theme.text-secondary;
         }
     }
 
@@ -590,7 +590,7 @@ export component AdminCompaniesPage inherits VerticalLayout {
                                 padding-left: 14px; padding-right: 14px;
                                 Text {
                                     text: opt.label;
-                                    font-size: 13px;
+                                    font-size: Theme.fs-13;
                                     font-weight: root.form-business-type == opt.key ? 700 : 500;
                                     color: root.form-business-type == opt.key ? Theme.btn-accent : Theme.text-secondary;
                                     vertical-alignment: center;
@@ -624,7 +624,7 @@ export component AdminCompaniesPage inherits VerticalLayout {
                                     padding-left: 14px; padding-right: 14px;
                                     Text {
                                         text: opt.label;
-                                        font-size: 13px;
+                                        font-size: Theme.fs-13;
                                         font-weight: root.form-plan == opt.key ? 700 : 500;
                                         color: root.form-plan == opt.key ? Theme.btn-accent : Theme.text-secondary;
                                         vertical-alignment: center;
@@ -838,7 +838,7 @@ export component AdminCompaniesPage inherits VerticalLayout {
                     }
                     if root.err-admin-password != "": Text {
                         text: root.err-admin-password;
-                        font-size: 11px; color: Theme.danger; wrap: word-wrap;
+                        font-size: Theme.fs-11; color: Theme.danger; wrap: word-wrap;
                     }
                 }
             }
