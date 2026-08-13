@@ -68,15 +68,14 @@ pub fn App() -> impl IntoView {
     // PREVALECE (§11 — só preferência de UI, sem autoridade).
     let scheme = crate::theme::Scheme(RwSignal::new(String::new()));
     provide_context(scheme);
-    // Resolve o esquema inicial no cliente (roda uma vez).
+    // Aplica a ESCOLHA salva do usuário (prevalece). Se não houver, deixa
+    // vazio — o `CatalogView` resolve o inicial pelo padrão da empresa
+    // (default_scheme) e, na falta dele, pelo sistema.
     Effect::new(move |_| {
         let saved = crate::theme::load();
-        let val = if saved.is_empty() {
-            if crate::theme::prefers_dark() { "dark" } else { "light" }.to_string()
-        } else {
-            saved
-        };
-        scheme.0.set(val);
+        if !saved.is_empty() {
+            scheme.0.set(saved);
+        }
     });
     // Aplica no <html data-scheme> sempre que o esquema muda (toggle).
     Effect::new(move |_| {

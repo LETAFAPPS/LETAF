@@ -37,6 +37,7 @@ struct CompanyRow {
     active: bool,
     business_type_id: Option<Uuid>,
     color_palette: Option<String>,
+    default_scheme: Option<String>,
     created_at: NaiveDateTime,
     updated_at: NaiveDateTime,
     deleted_at: Option<NaiveDateTime>,
@@ -70,6 +71,7 @@ impl From<CompanyRow> for Company {
             active: r.active,
             business_type_id: r.business_type_id,
             color_palette: r.color_palette,
+            default_scheme: r.default_scheme,
             created_at: r.created_at,
             updated_at: r.updated_at,
             deleted_at: r.deleted_at,
@@ -118,7 +120,7 @@ impl CompanyRepository for PgCompanyRepository {
                     CASE WHEN logo_data IS NOT NULL THEN '1' END AS logo_data,
                     CASE WHEN cover_data IS NOT NULL THEN '1' END AS cover_data,
                     products_per_page, orders_per_page, delivery_fee, utc_offset_minutes, active,
-                    business_type_id, color_palette,
+                    business_type_id, color_palette, default_scheme,
                     created_at, updated_at, deleted_at, synced
                FROM companies WHERE id = $1 AND deleted_at IS NULL",
         )
@@ -193,8 +195,9 @@ impl CompanyRepository for PgCompanyRepository {
              location_url = $14,
              logo_data = $15, cover_data = $16,
              products_per_page = $17, orders_per_page = $18, active = $19, updated_at = $20, synced = $21,
-             delivery_fee = $22, business_type_id = $23, color_palette = $24
-             WHERE id = $25 AND deleted_at IS NULL",
+             delivery_fee = $22, business_type_id = $23, color_palette = $24,
+             default_scheme = $25
+             WHERE id = $26 AND deleted_at IS NULL",
         )
         .bind(&company.name)
         .bind(&company.subdomain)
@@ -220,6 +223,7 @@ impl CompanyRepository for PgCompanyRepository {
         .bind(company.delivery_fee)
         .bind(company.business_type_id)
         .bind(&company.color_palette)
+        .bind(&company.default_scheme)
         .bind(company.id)
         .execute(&self.pool)
         .await
@@ -290,9 +294,9 @@ impl CompanyRepository for PgCompanyRepository {
                 neighborhood, zip_code, city, uf, location_url,
                 logo_data, cover_data, products_per_page, orders_per_page,
                 created_at, updated_at, deleted_at, synced, delivery_fee,
-                utc_offset_minutes, color_palette)
+                utc_offset_minutes, color_palette, default_scheme)
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12,
-                $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26)
+                $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27)
              ON CONFLICT (id) DO UPDATE SET
                  name = EXCLUDED.name,
                  -- subdomain NÃO é atualizado no conflito: é a CHAVE de
@@ -321,6 +325,8 @@ impl CompanyRepository for PgCompanyRepository {
                  utc_offset_minutes = EXCLUDED.utc_offset_minutes,
                  -- Paleta de cores do site: configuração da empresa, propaga.
                  color_palette = EXCLUDED.color_palette,
+                 -- Tema padrão do site (claro/escuro): config da empresa, propaga.
+                 default_scheme = EXCLUDED.default_scheme,
                  updated_at = EXCLUDED.updated_at,
                  -- deleted_at NÃO é atualizado no conflito: excluir a empresa é
                  -- operação de plataforma/admin, nunca algo que um cliente de
@@ -357,6 +363,7 @@ impl CompanyRepository for PgCompanyRepository {
         .bind(company.delivery_fee)
         .bind(company.utc_offset_minutes)
         .bind(&company.color_palette)
+        .bind(&company.default_scheme)
         .execute(&self.pool)
         .await
         .map_err(map_db)?;

@@ -234,6 +234,10 @@ struct CatalogInfo {
     /// Paleta de cores escolhida pela EMPRESA (as 5 variáveis já resolvidas).
     /// `None` quando a empresa não escolheu — o web fica no tema do tipo.
     palette: Option<CatalogPalette>,
+    /// Tema padrão (claro/escuro) com que o site INICIA: `"light"` |
+    /// `"dark"` | `None` (automático, segue o sistema). O web usa como
+    /// estado inicial — a escolha manual do visitante prevalece.
+    default_scheme: Option<String>,
 }
 
 /// As 5 cores da paleta do site, prontas para o web aplicar inline.
@@ -416,6 +420,7 @@ async fn get_info(
         delivery_fee: company.delivery_fee.to_f64().unwrap_or(0.0),
         theme,
         palette,
+        default_scheme: company.default_scheme,
     }))
 }
 

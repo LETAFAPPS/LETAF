@@ -36,6 +36,9 @@ pub struct UpdateInfoInput {
     /// Paleta de cores do site (slug); `None`/inválido = sem paleta (usa o
     /// tema do tipo). Validado no service (§11).
     pub color_palette: Option<String>,
+    /// Tema padrão do site: `"light"` | `"dark"` | `None`/inválido =
+    /// automático (segue o sistema). Validado no service (§11).
+    pub default_scheme: Option<String>,
 }
 
 /// Service para o domínio Company.
@@ -217,6 +220,11 @@ impl CompanyService {
         company.color_palette = input
             .color_palette
             .filter(|s| crate::theme_palette::palette_is_valid(s));
+        // Tema padrão: só "light"/"dark"; qualquer outra coisa → None
+        // (automático). §11 — não confia no valor cru do front.
+        company.default_scheme = input
+            .default_scheme
+            .filter(|s| s == "light" || s == "dark");
         company.updated_at = chrono::Utc::now().naive_utc();
         company.synced = false;
         self.repo.update(&company).await?;
@@ -284,6 +292,7 @@ impl CompanyService {
             active: true,
             business_type_id: None,
             color_palette: None,
+            default_scheme: None,
             created_at: epoch,
             updated_at: epoch,
             deleted_at: None,

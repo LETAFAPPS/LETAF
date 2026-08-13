@@ -108,6 +108,13 @@ pub struct Company {
     /// empresa (editável por ela, sincroniza — como logo), NÃO plataforma.
     #[serde(default)]
     pub color_palette: Option<String>,
+    /// Tema padrão do site (esquema claro/escuro) com que o cardápio web
+    /// INICIA para o visitante: `"light"` | `"dark"` | `None` (automático,
+    /// segue o sistema). NÃO sobrepõe a escolha manual do visitante (que
+    /// vive no localStorage do navegador). Config da empresa (editável por
+    /// ela, sincroniza — como `color_palette`), NÃO plataforma.
+    #[serde(default)]
+    pub default_scheme: Option<String>,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
     pub deleted_at: Option<NaiveDateTime>,
@@ -142,6 +149,7 @@ impl Company {
             active: true,
             business_type_id: None,
             color_palette: None,
+            default_scheme: None,
             created_at: now,
             updated_at: now,
             deleted_at: None,

@@ -143,6 +143,8 @@ export component SettingsPage inherits VerticalLayout {
     in-out property <string> store-delivery-fee;
     /// Paleta de cores do site (slug); "" = usa o tema do tipo.
     in-out property <string> store-site-palette;
+    /// Tema padrão do site: "" = automático (segue o sistema) | "light" | "dark".
+    in-out property <string> store-default-scheme;
 
     /// Impressoras cadastradas (lista refrescada por Rust via
     /// `refresh-printers`). Cada linha tem rótulo, tipo, sistema,
@@ -762,6 +764,51 @@ export component SettingsPage inherits VerticalLayout {
                             color: root.store-site-palette == p.slug ? Theme.text-primary : Theme.text-secondary;
                             font-weight: root.store-site-palette == p.slug ? 700 : 400;
                             horizontal-alignment: center;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // ── Tema padrão do site (claro/escuro) ──────────────────────
+    scheme-card := Rectangle {
+        property <[{slug: string, label: string}]> options: [
+            { slug: "", label: "Automático" },
+            { slug: "light", label: "Claro" },
+            { slug: "dark", label: "Escuro" },
+        ];
+        border-radius: Theme.radius-xl; border-width: 1px; border-color: Theme.card-border;
+        background: Theme.surface;
+        VerticalLayout {
+            padding: 14px;
+            spacing: 10px;
+            Text {
+                text: "Tema padrão do site";
+                font-size: Theme.fs-body; font-weight: Theme.fw-bold; color: Theme.text-primary;
+            }
+            Text {
+                text: "Tema com que o cardápio online abre para o cliente. \"Automático\" segue o aparelho dele. O visitante ainda pode trocar no site (a escolha dele prevalece).";
+                font-size: Theme.fs-label; color: Theme.text-secondary; wrap: word-wrap;
+            }
+            HorizontalLayout {
+                spacing: 10px;
+                alignment: start;
+                for o in scheme-card.options: TouchArea {
+                    width: 110px; height: 40px;
+                    clicked => { root.store-default-scheme = o.slug; }
+                    Rectangle {
+                        border-radius: Theme.radius-lg;
+                        background: root.store-default-scheme == o.slug ? Theme.primary : Theme.surface;
+                        border-width: 1px;
+                        border-color: root.store-default-scheme == o.slug ? Theme.primary : Theme.border;
+                        Text {
+                            text: o.label;
+                            font-size: Theme.fs-label;
+                            font-weight: root.store-default-scheme == o.slug ? 700 : 400;
+                            color: root.store-default-scheme == o.slug ? white : Theme.text-primary;
+                            horizontal-alignment: center; vertical-alignment: center;
+                            width: parent.width; height: parent.height;
                         }
                     }
                 }

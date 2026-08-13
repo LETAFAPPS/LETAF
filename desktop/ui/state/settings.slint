@@ -55,6 +55,8 @@ export global SettingsState {
     /// Paleta de cores do site (slug de core::theme_palette); "" = usa o tema
     /// do tipo. Escolhida por swatches nas Configurações.
     in-out property <string> store-site-palette;
+    /// Tema padrão do site: "" = automático (segue o sistema) | "light" | "dark".
+    in-out property <string> store-default-scheme;
     callback refresh-business-hours();
     callback save-business-hours();
     callback set-store-override(string);

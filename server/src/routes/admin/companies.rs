@@ -190,6 +190,7 @@ pub(super) async fn create_company(
         orders_per_page: 20,
         delivery_fee: rust_decimal::Decimal::ZERO,
         color_palette: None, // a empresa escolhe depois, nas Configurações
+        default_scheme: None, // idem — tema padrão definido nas Configurações
     };
     if let Err(e) = state.company_service.update_info(company.id, info).await {
         let _ = state.company_service.soft_delete(company.id).await;
@@ -479,6 +480,8 @@ pub(super) async fn update_company(
         delivery_fee: current.delivery_fee,
         // Preserva a paleta escolhida pela empresa (o super admin não a edita).
         color_palette: current.color_palette,
+        // Preserva o tema padrão escolhido pela empresa.
+        default_scheme: current.default_scheme,
     };
     state.company_service.update_info(id, info).await?;
 

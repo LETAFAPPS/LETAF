@@ -31,6 +31,11 @@ pub struct CatalogInfo {
     /// = usa o tema do tipo. Aplicada como `<style>` inline sobre as variáveis.
     #[serde(default)]
     pub palette: Option<CatalogPalette>,
+    /// Tema padrão (claro/escuro) com que o site INICIA: `"light"` | `"dark"`
+    /// | `None` (automático). Estado inicial do scheme — a escolha do
+    /// visitante (localStorage) prevalece.
+    #[serde(default)]
+    pub default_scheme: Option<String>,
 }
 
 fn default_theme() -> String {

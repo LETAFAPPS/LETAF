@@ -118,6 +118,9 @@ fn CatalogView(data: CatalogData) -> impl IntoView {
     // `data-theme` no wrapper `.store-root` → preset de CSS (as variáveis
     // cascateiam p/ todo o conteúdo). Aplicado no SSR (SEO/1ª pintura).
     let theme = data.info.theme.clone();
+    // Tema padrão do site (claro/escuro) escolhido pela empresa; estado
+    // inicial do scheme quando o visitante ainda não escolheu.
+    let default_scheme = data.info.default_scheme.clone();
     // Paleta escolhida pela EMPRESA: sobrepõe as cores do tema via `style`
     // inline no wrapper (variáveis CSS; inline vence o preset do tipo). Vazio
     // quando a empresa não escolheu paleta.
@@ -177,6 +180,23 @@ fn CatalogView(data: CatalogData) -> impl IntoView {
     let (query, set_query) = signal(String::new());
     // Tema claro/escuro (preferência do usuário; ver `theme.rs`).
     let scheme = expect_context::<crate::theme::Scheme>();
+    // Estado inicial do scheme: a escolha salva do visitante PREVALECE; na
+    // falta dela usa o padrão da empresa (default_scheme); na falta deste,
+    // segue o sistema. Roda uma vez no cliente (get_untracked → sem loop).
+    Effect::new(move |_| {
+        if !crate::theme::load().is_empty() {
+            return; // visitante já escolheu → prevalece
+        }
+        if !scheme.0.get_untracked().is_empty() {
+            return; // já resolvido
+        }
+        let initial = match default_scheme.as_deref() {
+            Some("light") => "light",
+            Some("dark") => "dark",
+            _ => if crate::theme::prefers_dark() { "dark" } else { "light" },
+        };
+        scheme.0.set(initial.to_string());
+    });
     // Relógio do cliente (horário de funcionamento da loja).
     let now = expect_context::<Now>();
 
