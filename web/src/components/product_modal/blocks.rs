@@ -23,6 +23,7 @@ pub fn render_variation(
     let badge = logic::variation_badge_label(&v);
     let hint = logic::max_value_hint(&v, &selected);
     let title = v.title.clone();
+    let title_a = v.title.clone();
 
     let rows = v
         .options
@@ -38,11 +39,13 @@ pub fn render_variation(
                 <button
                     class="opt-row"
                     class:opt-sel=is_sel
+                    role=if is_single { "radio" } else { "checkbox" }
+                    aria-checked=is_sel.to_string()
                     on:click=move |_| var_selection.update(|s| {
                         logic::toggle_variation_option(s, idx, oidx, is_single, max_sel);
                     })
                 >
-                    <span class=ind>{mark}</span>
+                    <span class=ind aria-hidden="true">{mark}</span>
                     <span class="opt-name">{name}</span>
                     <span class="opt-price">{price_txt}</span>
                 </button>
@@ -57,7 +60,11 @@ pub fn render_variation(
                 <span class="pm-badge">{badge}</span>
             </div>
             {hint.map(|h| view! { <div class="pm-hint">{h}</div> })}
-            <div class="pm-options">{rows}</div>
+            <div
+                class="pm-options"
+                role=if is_single { "radiogroup" } else { "group" }
+                aria-label=title_a
+            >{rows}</div>
         </div>
     }
     .into_any()
@@ -74,6 +81,7 @@ pub fn render_group(
     let max_sel = g.max_select;
     let badge = logic::group_badge_label(&g);
     let title = g.name.clone();
+    let title_a = g.name.clone();
     let gid = g.id.clone();
 
     let rows = g
@@ -93,6 +101,8 @@ pub fn render_group(
                     <button
                         class="opt-row"
                         class:opt-sel=selected
+                        role="radio"
+                        aria-checked=selected.to_string()
                         on:click=move |_| {
                             let delta = if selected { -1 } else { 1 };
                             selection.update(|s| {
@@ -100,7 +110,7 @@ pub fn render_group(
                             });
                         }
                     >
-                        <span class=indicator_class(true, selected)></span>
+                        <span class=indicator_class(true, selected) aria-hidden="true"></span>
                         <span class="opt-name">{name}</span>
                         <span class="opt-price">{price_txt}</span>
                     </button>
@@ -111,6 +121,8 @@ pub fn render_group(
                 view! {
                     <button
                         class="opt-row"
+                        role="checkbox"
+                        aria-checked="false"
                         disabled=!can_inc
                         on:click=move |_| {
                             if can_inc {
@@ -120,7 +132,7 @@ pub fn render_group(
                             }
                         }
                     >
-                        <span class=indicator_class(false, false)></span>
+                        <span class=indicator_class(false, false) aria-hidden="true"></span>
                         <span class="opt-name">{name}</span>
                         <span class="opt-price">{price_txt}</span>
                     </button>
@@ -175,7 +187,11 @@ pub fn render_group(
                 <span class="pm-block-title">{title}</span>
                 <span class="pm-badge">{badge}</span>
             </div>
-            <div class="pm-options">{rows}</div>
+            <div
+                class="pm-options"
+                role=if is_single { "radiogroup" } else { "group" }
+                aria-label=title_a
+            >{rows}</div>
         </div>
     }
     .into_any()

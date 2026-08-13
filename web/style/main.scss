@@ -1052,6 +1052,17 @@ textarea.field {
     font-size: 0.74rem;
     color: var(--muted);
 }
+// Aviso de loja fechada no carrinho (âmbar suave, tematizável).
+.cart-closed {
+    margin: 0;
+    padding: 8px 10px;
+    border-radius: var(--r-sm);
+    background: color-mix(in srgb, var(--brand) 12%, var(--surface));
+    border: 1px solid var(--brand);
+    color: var(--ink);
+    font-size: 0.78rem;
+    font-weight: 600;
+}
 .pm-pending {
     margin: 0;
     padding: 8px 18px 0;

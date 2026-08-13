@@ -20,6 +20,11 @@ pub fn shell(options: LeptosOptions) -> impl IntoView {
             <head>
                 <meta charset="utf-8"/>
                 <meta name="viewport" content="width=device-width, initial-scale=1"/>
+                // Aplica a preferência de tema salva ANTES da 1ª pintura (sem
+                // flash claro→escuro para quem já escolheu). Só a escolha
+                // explícita do usuário; sistema (prefers-color-scheme) já é
+                // tratado pelo CSS, sem flash.
+                <script inner_html="try{var s=localStorage.getItem('letaf:scheme');if(s==='dark'||s==='light')document.documentElement.setAttribute('data-scheme',s);}catch(e){}"></script>
                 <AutoReload options=options.clone() />
                 <HydrationScripts options/>
                 <MetaTags/>
@@ -61,6 +66,8 @@ pub fn App() -> impl IntoView {
     // reativamente. Sem isto, o contexto vivia dentro do `Router` e o
     // `CartDrawer` (irmão) nunca o via → taxa sempre 0.
     provide_context(DeliveryFee(RwSignal::new(0.0)));
+    // Loja aberta? (default aberta no SSR; o CatalogView atualiza no cliente.)
+    provide_context(crate::components::catalog::StoreOpen(RwSignal::new(true)));
 
     // Tema claro/escuro (preferência do cliente). Nasce vazio (SSR usa o
     // tema padrão pelo CSS). No cliente: usa a escolha salva; se não há,

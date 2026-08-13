@@ -168,7 +168,17 @@ pub fn validate_variation(v: &CatalogVariation, selected_count: usize) -> bool {
 
 /// Badge ao lado do título da variação.
 pub fn variation_badge_label(v: &CatalogVariation) -> String {
-    if v.required {
+    if v.selection == "single" {
+        if v.required {
+            "Obrigatório".into()
+        } else {
+            "Opcional".into()
+        }
+    } else if v.max_select > 0 {
+        format!("até {} opções", v.max_select)
+    } else if v.min_select >= 1 {
+        format!("mínimo {}", v.min_select)
+    } else if v.required {
         "Obrigatório".into()
     } else {
         "Opcional".into()

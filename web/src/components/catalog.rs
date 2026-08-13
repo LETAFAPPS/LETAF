@@ -118,6 +118,12 @@ pub fn CatalogPage() -> impl IntoView {
 #[derive(Clone, Copy)]
 pub struct DeliveryFee(pub RwSignal<f64>);
 
+/// Loja aberta agora? Provido no `App`, preenchido pelo `CatalogView`
+/// (horário/override), lido pelo `CartDrawer` para avisar quando fechada.
+/// Só exibição — o servidor é a autoridade sobre aceitar o pedido (§11).
+#[derive(Clone, Copy)]
+pub struct StoreOpen(pub RwSignal<bool>);
+
 /// Render do catálogo: meta por tenant (SEO) + header + nav de categorias
 /// + grid. Após a hidratação, clicar num chip filtra o grid reativamente
 /// (estado puro de UI — sem lógica de negócio, §11). No SSR, `sel=""`
@@ -211,6 +217,17 @@ fn CatalogView(data: CatalogData) -> impl IntoView {
     });
     // Relógio do cliente (horário de funcionamento da loja).
     let now = expect_context::<Now>();
+    // Publica "loja aberta?" para o carrinho avisar quando fechada.
+    let store_open = expect_context::<StoreOpen>();
+    {
+        let bh = business_hours.clone();
+        Effect::new(move |_| {
+            let open = availability::store_status(&bh.hours, &bh.store_override, now.0.get())
+                .map(|(o, _)| o)
+                .unwrap_or(true);
+            store_open.0.set(open);
+        });
+    }
 
     view! {
         <div
@@ -344,7 +361,11 @@ fn CatalogView(data: CatalogData) -> impl IntoView {
                         // Buscando, varre TODAS as categorias; sem busca, respeita
                         // a categoria selecionada.
                         .filter(|p| searching || s.is_empty() || p.category_id.as_deref() == Some(s.as_str()))
-                        .filter(|p| !searching || norm(&p.name).contains(&q))
+                        .filter(|p| {
+                            !searching
+                                || norm(&p.name).contains(&q)
+                                || p.description.as_deref().map(|d| norm(d).contains(&q)).unwrap_or(false)
+                        })
                         .cloned()
                         .collect();
                     if filtered.is_empty() {

@@ -40,6 +40,10 @@ pub fn CartDrawer() -> impl IntoView {
     let fee = use_context::<crate::components::catalog::DeliveryFee>()
         .map(|d| d.0)
         .unwrap_or_else(|| RwSignal::new(0.0));
+    // Loja aberta? (só exibição; o servidor decide aceitar o pedido, §11.)
+    let store_open = use_context::<crate::components::catalog::StoreOpen>()
+        .map(|s| s.0)
+        .unwrap_or_else(|| RwSignal::new(true));
     // Modalidade e endereço. Antes o checkout web mandava sempre
     // "entrega" (o default do backend) e NENHUM endereço — o operador
     // recebia um pedido de entrega sem para onde entregar.
@@ -51,6 +55,7 @@ pub fn CartDrawer() -> impl IntoView {
     let (a_numero, set_a_numero) = signal(String::new());
     let (a_bairro, set_a_bairro) = signal(String::new());
     let (a_compl, set_a_compl) = signal(String::new());
+    let (a_label, set_a_label) = signal("Casa".to_string());
 
     // Carrega os endereços salvos quando o cliente está logado.
     let carregar_enderecos = move || {
@@ -87,8 +92,12 @@ pub fn CartDrawer() -> impl IntoView {
             return;
         }
         set_error.set(String::new());
+        let label = {
+            let l = a_label.get_untracked();
+            if l.trim().is_empty() { "Casa".to_string() } else { l }
+        };
         spawn_local(async move {
-            match checkout::add_address("Casa".into(), rua, num, bairro, compl).await {
+            match checkout::add_address(label, rua, num, bairro, compl).await {
                 Ok(novo) => {
                     set_address_id.set(novo.id.clone());
                     set_addresses.update(|v| v.push(novo));
@@ -97,6 +106,7 @@ pub fn CartDrawer() -> impl IntoView {
                     set_a_numero.set(String::new());
                     set_a_bairro.set(String::new());
                     set_a_compl.set(String::new());
+                    set_a_label.set("Casa".to_string());
                 }
                 Err(e) => set_error.set(e.to_string()),
             }
@@ -298,6 +308,9 @@ pub fn CartDrawer() -> impl IntoView {
                                     })}
                                     {move || novo_aberto.get().then(|| view! {
                                         <div class="cart-address-form">
+                                            <input class="field" placeholder="Rótulo (ex.: Casa, Trabalho)" aria-label="Rótulo do endereço"
+                                                prop:value=move || a_label.get()
+                                                on:input=move |e| set_a_label.set(event_target_value(&e)) />
                                             <input class="field" placeholder="Rua" aria-label="Rua"
                                                 prop:value=move || a_rua.get()
                                                 on:input=move |e| set_a_rua.set(event_target_value(&e)) />
@@ -345,6 +358,11 @@ pub fn CartDrawer() -> impl IntoView {
                                 <span>"Total"</span>
                                 <strong>{move || format::money(cart.total() + if delivery.get() { fee.get() } else { 0.0 })}</strong>
                             </div>
+                            {move || (!store_open.get()).then(|| view! {
+                                <p class="cart-closed">
+                                    "A loja está fechada agora. Você pode montar o pedido, mas ele só será confirmado quando a loja reabrir."
+                                </p>
+                            })}
                             {move || (!error.get().is_empty())
                                 .then(|| view! { <p class="auth-error">{error.get()}</p> })}
                             <button
