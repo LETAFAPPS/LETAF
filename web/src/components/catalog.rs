@@ -7,6 +7,30 @@ use super::account_button::AccountButton;
 use super::banner_carousel::BannerCarousel;
 use super::product_card::ProductCard;
 
+/// Mapeia o slug do ícone da categoria (allowlist em
+/// `core::category::icons`) para um glifo exibido no tile. O backend é a
+/// fonte da verdade do slug; cada client escolhe o markup local (aqui,
+/// emoji — sem assets, funciona offline). Slug ausente/desconhecido cai
+/// no prato genérico.
+fn cat_emoji(icon: Option<&str>) -> &'static str {
+    match icon {
+        Some("ice-cream") => "🍦",
+        Some("drink") => "🥤",
+        Some("pizza") => "🍕",
+        Some("burger") => "🍔",
+        Some("combo") => "🍱",
+        Some("snack") => "🥟",
+        Some("dessert") => "🍰",
+        Some("candy") => "🍬",
+        Some("coffee") => "☕",
+        Some("bread") => "🥖",
+        Some("salad") => "🍢",
+        Some("meat") => "🥩",
+        Some("convenience") => "🏪",
+        _ => "🍽️",
+    }
+}
+
 /// Server function: lê o `Host` da requisição SSR, resolve o tenant e
 /// busca o catálogo público na API (server-side). No cliente vira uma
 /// chamada HTTP a este servidor SSR — o navegador nunca fala direto com
@@ -139,6 +163,10 @@ fn CatalogView(data: CatalogData) -> impl IntoView {
     let products = StoredValue::new(data.products);
     // Categoria selecionada ("" = Todos).
     let (sel, set_sel) = signal(String::new());
+    // Busca por nome — filtro puro de apresentação sobre o catálogo
+    // PÚBLICO já carregado (mesmo espírito do filtro por categoria).
+    // Nenhuma regra/decisão no cliente (§11); só recorta o que exibir.
+    let (query, set_query) = signal(String::new());
     // Relógio do cliente (horário de funcionamento da loja).
     let now = expect_context::<Now>();
 
@@ -162,11 +190,10 @@ fn CatalogView(data: CatalogData) -> impl IntoView {
         <Meta name="twitter:title" content=nome.clone()/>
         <Meta name="twitter:description" content=desc/>
 
-        <header class="store-header">
-            {cover.map(|c| view! { <img class="store-cover" src=c alt=""/> })}
-            <div class="store-id">
-                {logo.map({ let n = nome.clone(); move |l| view! { <img class="store-logo" src=l alt=n/> } })}
-                <h1 class="store-name">{nome}</h1>
+        <header class="topbar">
+            <div class="topbar-inner">
+                {logo.map({ let n = nome.clone(); move |l| view! { <img class="topbar-logo" src=l alt=n/> } })}
+                <span class="topbar-name">{nome}</span>
                 {move || availability::store_status(
                     &business_hours.hours, &business_hours.store_override, now.0.get(),
                 ).map(|(open, label)| view! {
@@ -175,30 +202,45 @@ fn CatalogView(data: CatalogData) -> impl IntoView {
                         {label}
                     </span>
                 })}
+                <div class="topbar-search">
+                    <input
+                        class="search-input"
+                        type="search"
+                        aria-label="Buscar no cardápio"
+                        placeholder="O que você quer comer?"
+                        prop:value=move || query.get()
+                        on:input=move |e| set_query.set(event_target_value(&e))
+                    />
+                </div>
                 <AccountButton/>
             </div>
         </header>
 
+        {cover.map(|c| view! { <div class="hero-cover"><img src=c alt="" loading="lazy"/></div> })}
+
         <BannerCarousel banners/>
 
-        <nav class="cat-nav" aria-label="Categorias">
+        <nav class="cat-rail" aria-label="Categorias">
             <button
-                class="cat-chip"
-                class:cat-chip-active=move || sel.get().is_empty()
+                class="cat-tile"
+                class:cat-tile-active=move || sel.get().is_empty()
                 on:click=move |_| set_sel.set(String::new())
             >
-                "Todos"
+                <span class="cat-ico" aria-hidden="true">"🍽️"</span>
+                <span class="cat-lbl">"Todos"</span>
             </button>
             {cats.into_iter().map(|c| {
                 let id_active = c.id.clone();
                 let id_click = c.id.clone();
+                let ico = cat_emoji(c.icon_name.as_deref());
                 view! {
                     <button
-                        class="cat-chip"
-                        class:cat-chip-active=move || sel.get() == id_active
+                        class="cat-tile"
+                        class:cat-tile-active=move || sel.get() == id_active
                         on:click=move |_| set_sel.set(id_click.clone())
                     >
-                        {c.name}
+                        <span class="cat-ico" aria-hidden="true">{ico}</span>
+                        <span class="cat-lbl">{c.name}</span>
                     </button>
                 }
             }).collect_view()}
@@ -207,14 +249,21 @@ fn CatalogView(data: CatalogData) -> impl IntoView {
         <section class="catalog">
             {move || {
                 let s = sel.get();
+                let q = query.get().trim().to_lowercase();
                 products.with_value(|ps| {
                     let filtered: Vec<_> = ps
                         .iter()
                         .filter(|p| s.is_empty() || p.category_id.as_deref() == Some(s.as_str()))
+                        .filter(|p| q.is_empty() || p.name.to_lowercase().contains(&q))
                         .cloned()
                         .collect();
                     if filtered.is_empty() {
-                        view! { <p class="state">"Nenhum produto nesta categoria."</p> }.into_any()
+                        let msg = if q.is_empty() {
+                            "Nenhum produto nesta categoria."
+                        } else {
+                            "Nenhum produto encontrado."
+                        };
+                        view! { <p class="state">{msg}</p> }.into_any()
                     } else {
                         view! {
                             <div class="product-grid">
