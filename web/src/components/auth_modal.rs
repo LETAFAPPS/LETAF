@@ -1,6 +1,7 @@
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 
+use crate::components::icon::Icon;
 use crate::format;
 use crate::session::{self, Session};
 
@@ -87,7 +88,7 @@ pub fn AuthModal(on_close: Callback<()>) -> impl IntoView {
                         </div>
                     </div>
                     <button type="button" class="cart-close" on:click=move |_| on_close.run(()) aria-label="Fechar">
-                        "✕"
+                        <Icon name="fechar"/>
                     </button>
                 </header>
                 <form class="auth-body"
@@ -133,7 +134,11 @@ pub fn AuthModal(on_close: Callback<()>) -> impl IntoView {
                             on:click=move |_| set_show_pw.update(|v| *v = !*v)
                             aria-label=move || if show_pw.get() { "Ocultar senha" } else { "Mostrar senha" }
                         >
-                            {move || if show_pw.get() { "🙈" } else { "👁" }}
+                            {move || if show_pw.get() {
+                                view! { <Icon name="ocultar"/> }.into_any()
+                            } else {
+                                view! { <Icon name="visualizar"/> }.into_any()
+                            }}
                         </button>
                     </div>
                     {move || (!error.get().is_empty())

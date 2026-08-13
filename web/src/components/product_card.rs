@@ -3,6 +3,7 @@ use leptos::prelude::*;
 use crate::api::CatalogProduct;
 use crate::availability::Now;
 use crate::cart::Cart;
+use crate::components::icon::Icon;
 use crate::components::product_modal::ProductModal;
 use crate::favorites::{self, Favorites};
 use crate::{availability, discount, format};
@@ -93,11 +94,11 @@ pub fn ProductCard(product: CatalogProduct) -> impl IntoView {
                             alt=alt loading="lazy"/>
                         <button class="carousel-nav prev" aria-label="Anterior"
                             on:click=move |_| set_img_idx.update(|i| *i = (*i + n_imgs - 1) % n_imgs)>
-                            "‹"
+                            <Icon name="seta-esquerda"/>
                         </button>
                         <button class="carousel-nav next" aria-label="Próxima"
                             on:click=move |_| set_img_idx.update(|i| *i = (*i + 1) % n_imgs)>
-                            "›"
+                            <Icon name="seta-direita"/>
                         </button>
                         <div class="carousel-dots">
                             {(0..n_imgs).map(|k| view! {
@@ -112,7 +113,11 @@ pub fn ProductCard(product: CatalogProduct) -> impl IntoView {
                 <button class="fav" class:fav-on=move || is_fav.get() on:click=toggle
                     aria-pressed=move || is_fav.get().to_string()
                     aria-label=move || if is_fav.get() { "Remover dos favoritos" } else { "Adicionar aos favoritos" }>
-                    "♥"
+                    {move || if is_fav.get() {
+                        view! { <Icon name="favoritos"/> }.into_any()
+                    } else {
+                        view! { <Icon name="favorito"/> }.into_any()
+                    }}
                 </button>
                 {move || (!available.get()).then(|| view! {
                     <div class="unavailable"><span>"Indisponível"</span></div>

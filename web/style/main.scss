@@ -213,6 +213,36 @@
     outline-offset: 2px;
 }
 
+// ── Ícones do sistema ───────────────────────────────────────
+// `.ico`: SVG de UI inline (stroke=currentColor) → herda a cor do contexto.
+// `.cat-svg`: ícone de categoria (SVG raster servido) tingido por `mask`
+// + `currentColor`, então também acompanha a cor (funciona no dark).
+.ico {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 0;
+
+    svg { display: block; width: 20px; height: 20px; }
+}
+.cat-svg {
+    display: inline-block;
+    width: 30px;
+    height: 30px;
+    background: currentColor;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
+    -webkit-mask-size: contain;
+    mask-size: contain;
+}
+// Tamanhos por contexto.
+.cat-ico .ico svg { width: 30px; height: 30px; }
+.cart-success-mark .ico svg { width: 30px; height: 30px; }
+.search-clear .ico svg { width: 16px; height: 16px; }
+.product-card .carousel-nav .ico svg { width: 22px; height: 22px; }
+
 // Só para leitor de tela (mantém hierarquia de headings sem poluir a UI).
 .sr-only {
     position: absolute;
@@ -452,7 +482,7 @@ main {
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.6rem;
+    color: var(--ink);          // cor dos ícones do sistema no tile
     line-height: 1;
     transition: transform 0.12s ease, border-color 0.12s ease, background 0.12s ease;
 }
@@ -474,6 +504,7 @@ main {
     .cat-ico {
         background: color-mix(in srgb, var(--brand) 12%, var(--surface));
         border-color: var(--brand);
+        color: var(--brand-ink);
     }
     .cat-lbl { color: var(--brand-ink); }
 }

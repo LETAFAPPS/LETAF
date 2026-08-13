@@ -6,5 +6,6 @@ pub mod auth_modal;
 pub mod banner_carousel;
 pub mod cart_drawer;
 pub mod catalog;
+pub mod icon;
 pub mod product_card;
 pub mod product_modal;

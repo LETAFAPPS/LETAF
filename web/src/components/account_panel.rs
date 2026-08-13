@@ -2,6 +2,7 @@ use leptos::prelude::*;
 use leptos::task::spawn_local;
 
 use crate::account;
+use crate::components::icon::Icon;
 use crate::format;
 use crate::session::Session;
 
@@ -86,7 +87,7 @@ pub fn AccountPanel(on_close: Callback<()>) -> impl IntoView {
                 <header class="pm-head">
                     <h2 class="pm-name" id="acc-title">"Minha conta"</h2>
                     <button class="cart-close" on:click=move |_| on_close.run(()) aria-label="Fechar">
-                        "✕"
+                        <Icon name="fechar"/>
                     </button>
                 </header>
                 <div class="account-body">

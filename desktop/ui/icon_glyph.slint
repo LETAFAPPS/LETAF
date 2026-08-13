@@ -1,9 +1,9 @@
 // Global `IconGlyph`: mapeia o slug de `Category.icon_name` para o
 // arquivo SVG correspondente em `desktop/ui/assets/icons/categories/`.
 //
-// As SVGs aqui ESPELHAM exatamente as paths em
-// `web/src/components/category_icon.rs`, garantindo que desktop e web
-// renderizem o mesmo desenho para o mesmo slug.
+// Os MESMOS SVGs são usados no web: copiados em `web/public/icons/categories/`
+// e renderizados por `web/src/components/icon.rs` (CategoryIcon, tingidos via
+// CSS `mask`+`currentColor`), garantindo o mesmo desenho para o mesmo slug.
 //
 // Slug desconhecido cai em `placeholder.svg` (círculo neutro).
 // O elemento `Image` consumidor pode aplicar `colorize` para tingir o

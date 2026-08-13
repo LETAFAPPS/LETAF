@@ -4,6 +4,7 @@ use leptos::prelude::*;
 
 use crate::api::CatalogProduct;
 use crate::cart::Cart;
+use crate::components::icon::Icon;
 use crate::{discount, format};
 
 mod blocks;
@@ -139,7 +140,7 @@ pub fn ProductModal(product: CatalogProduct, on_close: Callback<()>) -> impl Int
                     </div>
                     {seal.map(|s| view! { <span class="discount-seal pm-seal">{s}</span> })}
                     <button class="cart-close" on:click=move |_| on_close.run(()) aria-label="Fechar">
-                        "✕"
+                        <Icon name="fechar"/>
                     </button>
                 </header>
 

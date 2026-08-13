@@ -6,6 +6,7 @@ use crate::checkout::{self, OrderItemPayload};
 use crate::format;
 use crate::session::Session;
 use super::auth_modal::AuthModal;
+use super::icon::Icon;
 
 /// Carrinho: botão flutuante (quando há itens) + drawer com linhas,
 /// quantidade e checkout. Deslogado → abre o login; logado → envia o
@@ -184,14 +185,14 @@ pub fn CartDrawer() -> impl IntoView {
                         on:click=move |_| { set_open.set(false); set_confirmation.set(None); }
                         aria-label="Fechar"
                     >
-                        "✕"
+                        <Icon name="fechar"/>
                     </button>
                 </header>
 
                 {move || match confirmation.get() {
                     Some(conf) => view! {
                         <div class="cart-success">
-                            <div class="cart-success-mark" aria-hidden="true">"✓"</div>
+                            <div class="cart-success-mark" aria-hidden="true"><Icon name="sucesso"/></div>
                             <h3>"Pedido #" {conf.number} " enviado!"</h3>
                             <p>"Total: " {format::money(conf.total)}</p>
                             <button

@@ -6,30 +6,7 @@ use crate::availability::{self, Now};
 use super::account_button::AccountButton;
 use super::banner_carousel::BannerCarousel;
 use super::product_card::ProductCard;
-
-/// Mapeia o slug do ícone da categoria (allowlist em
-/// `core::category::icons`) para um glifo exibido no tile. O backend é a
-/// fonte da verdade do slug; cada client escolhe o markup local (aqui,
-/// emoji — sem assets, funciona offline). Slug ausente/desconhecido cai
-/// no prato genérico.
-fn cat_emoji(icon: Option<&str>) -> &'static str {
-    match icon {
-        Some("ice-cream") => "🍦",
-        Some("drink") => "🥤",
-        Some("pizza") => "🍕",
-        Some("burger") => "🍔",
-        Some("combo") => "🍱",
-        Some("snack") => "🥟",
-        Some("dessert") => "🍰",
-        Some("candy") => "🍬",
-        Some("coffee") => "☕",
-        Some("bread") => "🥖",
-        Some("salad") => "🍢",
-        Some("meat") => "🥩",
-        Some("convenience") => "🏪",
-        _ => "🍽️",
-    }
-}
+use super::icon::{CategoryIcon, Icon};
 
 /// Escurece (toward_white=false) ou clareia (true) uma cor hex misturando
 /// com preto/branco por `factor` (0..1). Usada para derivar `--brand-ink`
@@ -286,7 +263,7 @@ fn CatalogView(data: CatalogData) -> impl IntoView {
                             class="search-clear"
                             aria-label="Limpar busca"
                             on:click=move |_| set_query.set(String::new())
-                        >"✕"</button>
+                        ><Icon name="fechar"/></button>
                     })}
                 </div>
                 <button
@@ -303,7 +280,11 @@ fn CatalogView(data: CatalogData) -> impl IntoView {
                         "Mudar para tema escuro"
                     }
                 >
-                    {move || if scheme.0.get() == "dark" { "☀" } else { "🌙" }}
+                    {move || if scheme.0.get() == "dark" {
+                        view! { <Icon name="modo-claro"/> }.into_any()
+                    } else {
+                        view! { <Icon name="modo-escuro"/> }.into_any()
+                    }}
                 </button>
                 <AccountButton/>
             </div>
@@ -319,7 +300,7 @@ fn CatalogView(data: CatalogData) -> impl IntoView {
                 class:cat-tile-active=move || sel.get().is_empty() && !fav_only.get()
                 on:click=move |_| { set_sel.set(String::new()); set_fav_only.set(false); }
             >
-                <span class="cat-ico" aria-hidden="true">"🍽️"</span>
+                <span class="cat-ico" aria-hidden="true"><CategoryIcon slug="all"/></span>
                 <span class="cat-lbl">"Todos"</span>
             </button>
             <button
@@ -328,20 +309,20 @@ fn CatalogView(data: CatalogData) -> impl IntoView {
                 aria-pressed=move || fav_only.get().to_string()
                 on:click=move |_| { set_fav_only.update(|v| *v = !*v); set_sel.set(String::new()); }
             >
-                <span class="cat-ico" aria-hidden="true">"♥"</span>
+                <span class="cat-ico" aria-hidden="true"><Icon name="favorito"/></span>
                 <span class="cat-lbl">"Favoritos"</span>
             </button>
             {cats.into_iter().map(|c| {
                 let id_active = c.id.clone();
                 let id_click = c.id.clone();
-                let ico = cat_emoji(c.icon_name.as_deref());
+                let slug = c.icon_name.clone().unwrap_or_default();
                 view! {
                     <button
                         class="cat-tile"
                         class:cat-tile-active=move || sel.get() == id_active && !fav_only.get()
                         on:click=move |_| { set_sel.set(id_click.clone()); set_fav_only.set(false); }
                     >
-                        <span class="cat-ico" aria-hidden="true">{ico}</span>
+                        <span class="cat-ico" aria-hidden="true"><CategoryIcon slug=slug/></span>
                         <span class="cat-lbl">{c.name}</span>
                     </button>
                 }
