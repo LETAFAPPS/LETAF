@@ -196,12 +196,20 @@ pub fn CartDrawer() -> impl IntoView {
                                     let name = item.product.name.clone();
                                     let qty = item.quantity;
                                     let sub = item.subtotal();
+                                    let thumb = if item.product.image_urls.is_empty() {
+                                        item.product.image_url.clone()
+                                    } else {
+                                        item.product.image_urls.first().cloned()
+                                    };
                                     let addons = item.addons.iter()
                                         .map(|a| a.name.clone())
                                         .collect::<Vec<_>>()
                                         .join(", ");
                                     view! {
                                         <div class="cart-row">
+                                            <div class="cart-thumb">
+                                                {thumb.map(|src| view! { <img src=src alt="" loading="lazy"/> })}
+                                            </div>
                                             <div class="cart-row-info">
                                                 <div class="cart-row-name">{name}</div>
                                                 {(!addons.is_empty())

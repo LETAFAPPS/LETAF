@@ -21,6 +21,12 @@ pub fn ProductModal(product: CatalogProduct, on_close: Callback<()>) -> impl Int
     let description = product.description.clone().unwrap_or_default();
     let seal = discount::discount_badge_label(&product);
     let raw_base = product.price.unwrap_or(0.0);
+    // Foto de destaque no topo do modal (galeria da loja > imagem única).
+    let hero_img = if product.image_urls.is_empty() {
+        product.image_url.clone()
+    } else {
+        product.image_urls.first().cloned()
+    };
 
     let groups_init: Vec<(String, HashMap<String, u32>)> = product
         .addon_groups
@@ -88,6 +94,9 @@ pub fn ProductModal(product: CatalogProduct, on_close: Callback<()>) -> impl Int
     view! {
         <div class="modal-overlay" on:click=move |_| on_close.run(())>
             <div class="product-modal" on:click=|e: leptos::ev::MouseEvent| e.stop_propagation()>
+                {hero_img.map(|src| view! {
+                    <div class="pm-photo"><img src=src alt="" loading="lazy"/></div>
+                })}
                 <header class="pm-head">
                     <div class="pm-head-text">
                         <div class="pm-name">{name}</div>
