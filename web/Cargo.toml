@@ -17,7 +17,7 @@ tokio = { version = "1", features = ["rt-multi-thread"], optional = true }
 wasm-bindgen = { version = "0.2.106", optional = true }
 # Só no cliente (hydrate): localStorage para favoritos (preferência do
 # usuário). É Rust chamando a API do navegador — não é JS solto (§3).
-web-sys = { version = "0.3", optional = true, features = ["Window", "Storage"] }
+web-sys = { version = "0.3", optional = true, features = ["Window", "Storage", "Document", "Element", "MediaQueryList"] }
 # Relógio do navegador (js_sys::Date) para horário de funcionamento — só hydrate.
 js-sys = { version = "0.3", optional = true }
 serde = { version = "1", features = ["derive"] }

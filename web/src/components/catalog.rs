@@ -129,15 +129,23 @@ fn CatalogView(data: CatalogData) -> impl IntoView {
         let h = c.strip_prefix('#').unwrap_or("");
         (h.len() == 3 || h.len() == 6) && h.chars().all(|ch| ch.is_ascii_hexdigit())
     };
-    let palette_style = data
+    let palette = data
         .info
         .palette
         .as_ref()
-        .filter(|p| [&p.brand, &p.price, &p.ink, &p.muted, &p.line].iter().all(|c| is_hex(c)))
+        .filter(|p| [&p.brand, &p.price, &p.ink, &p.muted, &p.line].iter().all(|c| is_hex(c)));
+    // No CLARO a paleta custom carrega tudo (identidade + neutros). No
+    // ESCURO carrega só a IDENTIDADE (brand/price); os neutros
+    // (ink/muted/line) seguem o scheme escuro, senão texto escuro cairia
+    // sobre superfície escura (ilegível). Escolha reativa no `style`.
+    let palette_full = palette
         .map(|p| format!(
             "--brand:{};--price:{};--ink:{};--muted:{};--line:{}",
             p.brand, p.price, p.ink, p.muted, p.line
         ))
+        .unwrap_or_default();
+    let palette_ident = palette
+        .map(|p| format!("--brand:{};--price:{}", p.brand, p.price))
         .unwrap_or_default();
     // URLs já vêm prontas da API (mídia servida como bytes, não base64).
     let cover = data.info.cover_url.clone();
@@ -167,11 +175,17 @@ fn CatalogView(data: CatalogData) -> impl IntoView {
     // PÚBLICO já carregado (mesmo espírito do filtro por categoria).
     // Nenhuma regra/decisão no cliente (§11); só recorta o que exibir.
     let (query, set_query) = signal(String::new());
+    // Tema claro/escuro (preferência do usuário; ver `theme.rs`).
+    let scheme = expect_context::<crate::theme::Scheme>();
     // Relógio do cliente (horário de funcionamento da loja).
     let now = expect_context::<Now>();
 
     view! {
-        <div class="store-root" data-theme=theme style=palette_style>
+        <div
+            class="store-root"
+            data-theme=theme
+            style=move || if scheme.0.get() == "dark" { palette_ident.clone() } else { palette_full.clone() }
+        >
         <Title text=nome.clone()/>
         <Meta name="description" content=desc.clone()/>
         // Open Graph — cada cardápio (subdomínio) tem identidade própria
@@ -212,6 +226,22 @@ fn CatalogView(data: CatalogData) -> impl IntoView {
                         on:input=move |e| set_query.set(event_target_value(&e))
                     />
                 </div>
+                <button
+                    type="button"
+                    class="theme-toggle"
+                    on:click=move |_| {
+                        let next = if scheme.0.get() == "dark" { "light" } else { "dark" };
+                        scheme.0.set(next.to_string());
+                        crate::theme::save(next);
+                    }
+                    aria-label=move || if scheme.0.get() == "dark" {
+                        "Mudar para tema claro"
+                    } else {
+                        "Mudar para tema escuro"
+                    }
+                >
+                    {move || if scheme.0.get() == "dark" { "☀" } else { "🌙" }}
+                </button>
                 <AccountButton/>
             </div>
         </header>

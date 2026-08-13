@@ -62,6 +62,30 @@ pub fn App() -> impl IntoView {
     // `CartDrawer` (irmão) nunca o via → taxa sempre 0.
     provide_context(DeliveryFee(RwSignal::new(0.0)));
 
+    // Tema claro/escuro (preferência do cliente). Nasce vazio (SSR usa o
+    // tema padrão pelo CSS). No cliente: usa a escolha salva; se não há,
+    // segue o sistema (prefers-color-scheme). A escolha do usuário
+    // PREVALECE (§11 — só preferência de UI, sem autoridade).
+    let scheme = crate::theme::Scheme(RwSignal::new(String::new()));
+    provide_context(scheme);
+    // Resolve o esquema inicial no cliente (roda uma vez).
+    Effect::new(move |_| {
+        let saved = crate::theme::load();
+        let val = if saved.is_empty() {
+            if crate::theme::prefers_dark() { "dark" } else { "light" }.to_string()
+        } else {
+            saved
+        };
+        scheme.0.set(val);
+    });
+    // Aplica no <html data-scheme> sempre que o esquema muda (toggle).
+    Effect::new(move |_| {
+        let v = scheme.0.get();
+        if !v.is_empty() {
+            crate::theme::apply(&v);
+        }
+    });
+
     // Relógio do cliente p/ horário de funcionamento. Nasce `None` (SSR
     // = tudo aberto/disponível); o Effect lê o navegador na hidratação e
     // reavalia a cada 60s (status acompanha o relógio).

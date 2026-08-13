@@ -16,6 +16,7 @@ pub mod discount;
 pub mod favorites;
 pub mod format;
 pub mod session;
+pub mod theme;
 
 /// Cliente HTTP compartilhado do SSR (server fns + proxy de mídia). Reusa o
 /// pool de conexões/TLS entre requisições (§13) em vez de recriar por chamada.
