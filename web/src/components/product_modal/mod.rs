@@ -95,8 +95,10 @@ pub fn ProductModal(product: CatalogProduct, on_close: Callback<()>) -> impl Int
     // janela para funcionar independentemente de onde está o foco; o handle é
     // removido quando o modal desmonta.
     let esc = leptos::prelude::window_event_listener(leptos::ev::keydown, move |ev| {
-        if ev.key() == "Escape" {
-            on_close.run(());
+        match ev.key().as_str() {
+            "Escape" => on_close.run(()),
+            "Tab" => crate::focus::trap(".product-modal", &ev),
+            _ => {}
         }
     });
     on_cleanup(move || esc.remove());

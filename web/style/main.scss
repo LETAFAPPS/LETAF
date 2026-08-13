@@ -18,6 +18,11 @@
     // superfície clara, para atingir contraste AA (o vivo dá ~3.5:1).
     --price: #1f9d55;
     --price-ink: #0f7d3e;
+    // Botão primário: fundo com contraste AA para texto branco. No claro usa
+    // o laranja PROFUNDO (--brand-ink #b4560f → branco ~4.9:1); o --brand vivo
+    // (~3:1 com branco) segue só em acentos/bordas/tints (identidade).
+    --btn-bg: var(--brand-ink);
+    --btn-on: #fff;
     --ink: #1a1a1a;
     --muted: #6b7280; // contraste AA (era #9ca3af, ~2.5:1 sobre branco)
     --line: #e5e7eb;
@@ -99,6 +104,10 @@
     // No escuro o verde de texto pode ser claro (alto contraste sobre
     // superfície escura).
     --price-ink: #57d98a;
+    // Botão primário no escuro: fundo é a marca clara (#f2843a) com texto
+    // ESCURO (--on-brand #1c1206) → contraste alto sem escurecer o botão.
+    --btn-bg: var(--brand);
+    --btn-on: var(--on-brand);
     --danger: #f26d6d;
     --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
     --shadow-md: 0 6px 18px rgba(0, 0, 0, 0.5);
@@ -143,8 +152,8 @@
 // próprio (tamanho/raio/fonte). A saída CSS é equivalente — visual idêntico.
 %btn-primary {
     border: none;
-    background: var(--brand);
-    color: var(--on-brand);
+    background: var(--btn-bg);
+    color: var(--btn-on);
     font-family: inherit;
     font-weight: 700;
     cursor: pointer;
@@ -179,7 +188,7 @@
     align-items: center;
     flex-shrink: 0;
     border: 1px solid var(--line-strong);
-    border-radius: 8px;
+    border-radius: var(--r-sm);
     overflow: hidden;
 
     button {
@@ -394,7 +403,7 @@ main {
     box-sizing: content-box;
     padding: 8px 6px;
     border: none;
-    border-radius: 8px;
+    border-radius: var(--r-sm);
     background: rgba(255, 255, 255, 0.6);
     background-clip: content-box;
     cursor: pointer;
@@ -877,7 +886,7 @@ textarea.field {
     flex: 1;
     padding: 0.5rem 0.75rem;
     border: 1px solid var(--line);
-    border-radius: 8px;
+    border-radius: var(--r-sm);
     background: transparent;
     color: inherit;
     font-size: 0.9rem;
@@ -936,7 +945,7 @@ textarea.field {
     @extend %btn-primary;
     width: 100%;
     padding: 12px;
-    border-radius: 10px;
+    border-radius: var(--r-md);
     font-size: 0.95rem;
 }
 
@@ -1032,7 +1041,7 @@ textarea.field {
     display: flex;
     flex-direction: column;
     border: 1px solid var(--line);
-    border-radius: 10px;
+    border-radius: var(--r-md);
     overflow: hidden;
 }
 .opt-row {
@@ -1094,7 +1103,7 @@ button.ind { cursor: pointer; padding: 0; }
 .pm-add {
     @extend %btn-primary;
     padding: 10px 18px;
-    border-radius: 10px;
+    border-radius: var(--r-md);
     font-size: 0.95rem;
 }
 
@@ -1134,7 +1143,7 @@ button.ind { cursor: pointer; padding: 0; }
     width: 100%;
     padding: 11px 12px;
     border: 1px solid var(--line);
-    border-radius: 9px;
+    border-radius: var(--r-sm);
     font-family: inherit;
     font-size: 0.9rem;
 
@@ -1223,7 +1232,7 @@ button.ind { cursor: pointer; padding: 0; }
     display: flex;
     flex-direction: column;
     border: 1px solid var(--line);
-    border-radius: 10px;
+    border-radius: var(--r-md);
     overflow: hidden;
 }
 .acc-order {

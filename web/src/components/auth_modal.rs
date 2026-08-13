@@ -52,8 +52,10 @@ pub fn AuthModal(on_close: Callback<()>) -> impl IntoView {
 
     // Fecha no Esc (§3 acessibilidade). Ouve na janela; handle removido no unmount.
     let esc = leptos::prelude::window_event_listener(leptos::ev::keydown, move |ev| {
-        if ev.key() == "Escape" {
-            on_close.run(());
+        match ev.key().as_str() {
+            "Escape" => on_close.run(()),
+            "Tab" => crate::focus::trap(".auth-modal", &ev),
+            _ => {}
         }
     });
     on_cleanup(move || esc.remove());
