@@ -125,11 +125,15 @@ impl CouponService {
                 "Já existe um cupom com o código '{code}'"
             )));
         }
-        let coupon = Coupon::new(
+        let mut coupon = Coupon::new(
             company_id, title, code, coupon_type, discount_kind, discount_value,
             min_order_value, max_discount, per_user_limit, usage_limit,
             valid_from, valid_until,
         );
+        // Id determinístico pela chave natural (company_id, code): dois
+        // terminais offline que criam o mesmo código convergem para o mesmo
+        // id e o upsert por id dedupa, em vez de envenenar a fila de sync.
+        coupon.base.id = crate::deterministic_id::coupon(company_id, &coupon.code);
         self.repo.create(&coupon).await?;
         Ok(coupon)
     }

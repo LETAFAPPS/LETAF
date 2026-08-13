@@ -129,6 +129,20 @@ pub fn subscription_invoice(subscription_id: Uuid, ciclo: chrono::NaiveDate) -> 
     )
 }
 
+/// Id do cupom — chave natural `(company_id, code)` (código já normalizado
+/// em UPPER e sem espaços por `coupon::service::normalize_code`).
+///
+/// A tabela tem `UNIQUE(company_id, code)`, mas o `sync_upsert` casa por
+/// `ON CONFLICT (id)`. Com id aleatório, dois terminais offline que criam o
+/// MESMO código geram ids diferentes: o primeiro sincroniza e o segundo bate
+/// no índice único do servidor (id novo, code repetido) e fica preso na fila
+/// para sempre (poison), sem nunca convergir. Derivando o id do código, os
+/// dois terminais chegam ao MESMO id e o upsert por id dedupa — vira
+/// last-write-wins normal (§7.7), sem envenenar a fila.
+pub fn coupon(company_id: Uuid, code: &str) -> Uuid {
+    Uuid::new_v5(&NS_LETAF, format!("coupon:{company_id}:{code}").as_bytes())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -144,6 +158,17 @@ mod tests {
         );
         assert_eq!(treasury_account(empresa), treasury_account(empresa));
         assert_eq!(business_hours(empresa, 3), business_hours(empresa, 3));
+        assert_eq!(coupon(empresa, "BEMVINDO10"), coupon(empresa, "BEMVINDO10"));
+    }
+
+    #[test]
+    fn cupom_deriva_do_codigo() {
+        let empresa = Uuid::new_v4();
+        let outra = Uuid::new_v4();
+        // Mesmo código, empresas diferentes → ids diferentes (isolamento).
+        assert_ne!(coupon(empresa, "PROMO"), coupon(outra, "PROMO"));
+        // Códigos diferentes na mesma empresa → ids diferentes.
+        assert_ne!(coupon(empresa, "PROMO"), coupon(empresa, "PROMO2"));
     }
 
     #[test]
