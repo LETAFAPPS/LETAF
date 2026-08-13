@@ -26,11 +26,15 @@ pub fn ProductCard(product: CatalogProduct) -> impl IntoView {
     let n_imgs = images.len();
     let images_sv = StoredValue::new(images);
     let (img_idx, set_img_idx) = signal(0usize);
-    let bg = product
+    // Cor de fundo do upload (quando houver). Sem cor, o `.product-img`
+    // usa o token de superfície do CSS — nada de bloco branco fixo, que
+    // destoava no modo escuro.
+    let bg_style = product
         .cover_color
         .clone()
         .filter(|c| !c.is_empty())
-        .unwrap_or_else(|| "#ffffff".to_string());
+        .map(|c| format!("background:{c};"))
+        .unwrap_or_default();
     let name = product.name.clone();
     let alt = product.name.clone();
     let desc = product.description.clone().unwrap_or_default();
@@ -75,7 +79,7 @@ pub fn ProductCard(product: CatalogProduct) -> impl IntoView {
 
     view! {
         <article class="product-card">
-            <div class="product-img" style=format!("background:{bg};")>
+            <div class="product-img" style=bg_style>
                 {if n_imgs == 0 {
                     view! { <span class="no-image">"sem imagem"</span> }.into_any()
                 } else if n_imgs == 1 {

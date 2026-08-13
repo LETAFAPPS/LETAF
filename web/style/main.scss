@@ -8,7 +8,11 @@
 // `restaurante` é o default (visual atual do sistema) e fica no `:root`.
 :root {
     // Laranja de marca — visual atual (tema "restaurante").
-    --brand: #e8731c; // marca restaurante (default)
+    --brand: #e8731c; // marca restaurante (default) — preenchimento
+    // Laranja ESCURO para a marca usada como TEXTO/ícone sobre superfície
+    // clara: #e8731c dá ~3:1 (reprova AA p/ texto pequeno). #b4560f dá
+    // ~4.9:1. Preenchimentos continuam com --brand; texto usa --brand-ink.
+    --brand-ink: #b4560f;
     // Verde de preço com contraste AA sobre branco (§3 acessibilidade).
     // Antes #66bb6a (~1.9:1, ilegível em texto pequeno).
     --price: #1f9d55;
@@ -43,6 +47,7 @@
 // cascateiam para todo o conteúdo do cardápio.
 [data-theme="loja"] {
     --brand: #2563eb;
+    --brand-ink: #1d4ed8;
     --price: #16a34a;
     --ink: #111827;
     --muted: #64748b; // contraste AA (era #94a3b8)
@@ -58,6 +63,7 @@
 // Fábrica (indústria) — marca teal/aço, tom mais sóbrio.
 [data-theme="fabrica"] {
     --brand: #0e7490;
+    --brand-ink: #0b5e75;
     --price: #16a34a;
     --ink: #0f172a;
     --muted: #64748b; // contraste AA (era #94a3b8)
@@ -84,6 +90,9 @@
     --line: #352c22;
     --line-strong: #473b2d;
     --brand: #f2843a;
+    // No escuro a marca já é clara; como texto sobre superfície escura
+    // fica ainda mais legível — usa um laranja claro dedicado.
+    --brand-ink: #f7a061;
     --price: #57d98a;
     --danger: #f26d6d;
     --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
@@ -130,11 +139,19 @@
     font-family: inherit;
     font-weight: 700;
     cursor: pointer;
+
+    // Estado desabilitado — fonte única (antes duplicado em cada botão).
+    &:disabled {
+        background: var(--muted);
+        cursor: not-allowed;
+        opacity: 0.85;
+    }
 }
 %btn-text {
     border: none;
     background: transparent;
-    color: var(--brand);
+    // Cor de marca como TEXTO usa o tom escuro (contraste AA).
+    color: var(--brand-ink);
     font-family: inherit;
     cursor: pointer;
 }
@@ -161,7 +178,7 @@
         height: 40px;
         border: none;
         background: var(--surface-2);
-        color: var(--brand);
+        color: var(--brand-ink);
         font-size: 1rem;
         font-weight: 700;
         cursor: pointer;
@@ -169,6 +186,14 @@
 }
 
 * { box-sizing: border-box; }
+
+// Foco de teclado visível em TODOS os interativos (§3 acessibilidade).
+// Vários botões usam `border:none`+fundo próprio e dependiam do anel
+// padrão do navegador, invisível sobre superfícies coloridas.
+:focus-visible {
+    outline: 2px solid var(--brand-ink);
+    outline-offset: 2px;
+}
 
 body {
     font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -214,7 +239,12 @@ main {
     font-size: 1.05rem;
     font-weight: 800;
     white-space: nowrap;
-    flex-shrink: 0;
+    // Nome longo não pode empurrar a largura (gerava scroll horizontal):
+    // encolhe e corta com reticências.
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 // Busca: em coluna própria (100%) no mobile; inline a partir de 640px.
 .topbar-search {
@@ -246,8 +276,8 @@ main {
 // Botão de tema claro/escuro (sol/lua) no header.
 .theme-toggle {
     flex-shrink: 0;
-    width: 38px;
-    height: 38px;
+    width: 40px;
+    height: 40px;
     border: 1px solid var(--line);
     border-radius: 50%;
     background: var(--surface-2);
@@ -330,7 +360,8 @@ main {
 
     &.banner-dot-active {
         width: 24px;
-        background: var(--surface);
+        // Fica SOBRE a foto — branco fixo (não --surface, que some no dark).
+        background: #fff;
         box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
     }
 }
@@ -393,13 +424,13 @@ main {
         background: color-mix(in srgb, var(--brand) 12%, var(--surface));
         border-color: var(--brand);
     }
-    .cat-lbl { color: var(--brand); }
+    .cat-lbl { color: var(--brand-ink); }
 }
 
 // ── Grid de produtos ────────────────────────────────────────
 .product-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(138px, 1fr));
     gap: 0.75rem;
 }
 
@@ -422,6 +453,10 @@ main {
     .product-img {
         width: 100%;
         aspect-ratio: 1 / 1;
+        // Fundo padrão via token (produtos sem cover_color/imagem não
+        // ficam com bloco branco no dark). O `cover_color` do produto,
+        // quando existe, é aplicado inline por cima (product_card.rs).
+        background: var(--surface-3);
         overflow: hidden;
         display: flex;
         align-items: center;
@@ -444,8 +479,8 @@ main {
             position: absolute;
             top: 50%;
             transform: translateY(-50%);
-            width: 36px;
-            height: 36px;
+            width: 40px;
+            height: 40px;
             border: none;
             border-radius: 50%;
             background: rgba(0, 0, 0, 0.45);
@@ -480,16 +515,19 @@ main {
             .dot {
                 width: 6px;
                 height: 6px;
-                padding: 0;
+                // Alvo de toque ~22px pintando só o content-box (ponto
+                // visível continua 6px) — mesma técnica do .banner-dot.
+                box-sizing: content-box;
+                padding: 8px;
+                background-clip: content-box;
                 border: none;
                 appearance: none;
                 -webkit-appearance: none;
                 cursor: pointer;
                 border-radius: 50%;
                 background: rgba(255, 255, 255, 0.6);
-                box-shadow: 0 0 2px rgba(0, 0, 0, 0.4);
 
-                &.dot-on { background: var(--surface); }
+                &.dot-on { background: #fff; }
             }
         }
     }
@@ -498,7 +536,9 @@ main {
         position: absolute;
         top: 8px;
         left: 8px;
-        background: var(--brand);
+        // Fundo escuro da marca: texto branco pequeno passa AA (o --brand
+        // claro dava ~3:1 com branco).
+        background: var(--brand-ink);
         color: var(--on-brand);
         font-size: 0.66rem;
         font-weight: 700;
@@ -511,8 +551,8 @@ main {
         position: absolute;
         top: 6px;
         right: 6px;
-        width: 36px;
-        height: 36px;
+        width: 40px;
+        height: 40px;
         border: none;
         border-radius: 50%;
         background: rgba(255, 255, 255, 0.85);
@@ -549,7 +589,7 @@ main {
     .product-desc {
         margin: 0;
         font-size: 0.72rem;
-        color: #6b7280;
+        color: var(--muted);
         display: -webkit-box;
         -webkit-line-clamp: 2;
         -webkit-box-orient: vertical;
@@ -595,7 +635,7 @@ main {
     z-index: 2;
     border: none;
     background: var(--surface);
-    color: var(--brand);
+    color: var(--brand-ink);
     font-family: inherit;
     font-weight: 800;
     padding: 8px 14px;
@@ -681,7 +721,7 @@ main {
 }
 .cart-fab-badge {
     background: var(--surface);
-    color: var(--brand);
+    color: var(--brand-ink);
     border-radius: 999px;
     min-width: 22px;
     height: 22px;
@@ -725,9 +765,19 @@ main {
     font-size: 1.2rem;
     cursor: pointer;
     color: var(--muted);
+    // Alvo de toque ≥40px (§3) — vale p/ carrinho, auth e conta.
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
 }
 .cart-items {
     flex: 1;
+    // Sem isto, o filho flex não encolhe abaixo do conteúdo e o overflow
+    // não engata → o rodapé (Finalizar pedido) sai da tela.
+    min-height: 0;
     overflow-y: auto;
     padding: 0.5rem 1rem;
 }
@@ -750,7 +800,7 @@ main {
 }
 .cart-row-info { flex: 1; min-width: 0; }
 .cart-row-name { font-size: 0.9rem; font-weight: 600; }
-.cart-row-addons { font-size: 0.74rem; color: #6b7280; }
+.cart-row-addons { font-size: 0.74rem; color: var(--muted); }
 .cart-row-sub { font-size: 0.82rem; color: var(--price); font-weight: 700; margin-top: 2px; }
 .cart-qty {
     @include stepper;
@@ -794,7 +844,7 @@ textarea.field {
 
     &.chip-on {
         border-color: var(--brand);
-        color: var(--brand);
+        color: var(--brand-ink);
         background: color-mix(in srgb, var(--brand) 8%, transparent);
     }
 }
@@ -826,7 +876,7 @@ textarea.field {
     text-align: center;
 
     h3 { margin: 0; font-size: 1.1rem; }
-    p { margin: 0; color: #6b7280; }
+    p { margin: 0; color: var(--muted); }
     .cart-checkout { margin-top: 1rem; }
 }
 .cart-success-mark {
@@ -846,8 +896,6 @@ textarea.field {
     padding: 12px;
     border-radius: 10px;
     font-size: 0.95rem;
-
-    &:disabled { background: var(--muted); cursor: not-allowed; opacity: 0.85; }
 }
 
 // ── Modal de produto (adicionais / variações) ───────────────
@@ -875,22 +923,24 @@ textarea.field {
         top: 10px;
         right: 10px;
         z-index: 3;
-        width: 34px;
-        height: 34px;
+        width: 40px;
+        height: 40px;
         border-radius: 50%;
         background: rgba(255, 255, 255, 0.92);
+        // Glifo escuro fixo: o círculo é branco nos dois temas, então a
+        // cor herdada (--muted, clara no dark) sumiria.
+        color: #1a1a1a;
         box-shadow: var(--shadow-sm);
-        display: flex;
-        align-items: center;
-        justify-content: center;
     }
 }
 // Foto de destaque do produto no topo do modal (fiel ao mockup).
 .pm-photo {
     width: 100%;
-    height: 200px;
+    // Altura relativa (antes 200px fixos consumiam quase todo o modal em
+    // telas baixas). Proporção estável + teto por viewport.
+    aspect-ratio: 16 / 9;
+    max-height: 34vh;
     background: var(--surface-3);
-    flex-shrink: 0;
 
     img {
         width: 100%;
@@ -908,15 +958,15 @@ textarea.field {
 }
 .pm-head-text { flex: 1; min-width: 0; }
 .pm-name { font-size: 1.05rem; font-weight: 700; }
-.pm-desc { font-size: 0.78rem; color: #6b7280; margin-top: 2px; white-space: pre-wrap; }
+.pm-desc { font-size: 0.78rem; color: var(--muted); margin-top: 2px; white-space: pre-wrap; }
 .pm-price { margin-top: 6px; display: flex; align-items: baseline; gap: 8px; }
 .pm-seal { position: static; box-shadow: none; }
-.pm-body { padding: 4px 18px; overflow-y: auto; flex: 1; }
+.pm-body { padding: 4px 18px; overflow-y: auto; flex: 1; min-height: 0; }
 .pm-block { margin: 14px 0; }
 .pm-block-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 6px; }
 .pm-block-title { font-size: 0.95rem; font-weight: 700; flex: 1; }
-.pm-badge { font-size: 0.72rem; font-weight: 700; color: #6b7280; }
-.pm-hint { font-size: 0.72rem; color: #6b7280; margin-bottom: 6px; }
+.pm-badge { font-size: 0.72rem; font-weight: 700; color: var(--muted); }
+.pm-hint { font-size: 0.72rem; color: var(--muted); margin-bottom: 6px; }
 .pm-options {
     display: flex;
     flex-direction: column;
@@ -948,7 +998,7 @@ textarea.field {
     width: 18px;
     height: 18px;
     flex-shrink: 0;
-    border: 1.5px solid #d1d5db;
+    border: 1.5px solid var(--line-strong);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -978,15 +1028,13 @@ button.ind { cursor: pointer; padding: 0; }
     border-top: 1px solid var(--line);
 }
 .pm-total { flex: 1; }
-.pm-total-label { font-size: 0.7rem; color: #6b7280; }
+.pm-total-label { font-size: 0.7rem; color: var(--muted); }
 .pm-total-value { font-size: 1.15rem; font-weight: 700; color: var(--price); }
 .pm-add {
     @extend %btn-primary;
     padding: 10px 18px;
     border-radius: 10px;
     font-size: 0.95rem;
-
-    &:disabled { background: var(--muted); cursor: not-allowed; opacity: 0.85; }
 }
 
 // ── Conta (header) + auth modal ─────────────────────────────
@@ -996,12 +1044,12 @@ button.ind { cursor: pointer; padding: 0; }
     gap: 8px;
     margin-left: auto;
 }
-.account-hi { font-size: 0.82rem; color: #374151; }
+.account-hi { font-size: 0.82rem; color: var(--ink); }
 .account-btn {
     margin-left: auto;
     border: 1px solid var(--brand);
     background: var(--surface);
-    color: var(--brand);
+    color: var(--brand-ink);
     border-radius: 999px;
     padding: 6px 14px;
     font-family: inherit;
@@ -1095,6 +1143,8 @@ button.ind { cursor: pointer; padding: 0; }
 }
 .account-body {
     padding: 12px 18px 18px;
+    flex: 1;
+    min-height: 0;
     overflow-y: auto;
     display: flex;
     flex-direction: column;
@@ -1128,7 +1178,7 @@ button.ind { cursor: pointer; padding: 0; }
 .acc-order-num { font-weight: 700; }
 .acc-order-status {
     text-transform: capitalize;
-    color: #6b7280;
+    color: var(--muted);
     background: var(--surface-3);
     border-radius: 999px;
     padding: 2px 8px;
