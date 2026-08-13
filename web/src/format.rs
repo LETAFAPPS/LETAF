@@ -12,7 +12,7 @@ pub fn money(v: f64) -> String {
     let bytes = reais.as_bytes();
     let mut inteiro = String::with_capacity(reais.len() + reais.len() / 3);
     for (i, b) in bytes.iter().enumerate() {
-        if i > 0 && (bytes.len() - i) % 3 == 0 {
+        if i > 0 && (bytes.len() - i).is_multiple_of(3) {
             inteiro.push('.');
         }
         inteiro.push(*b as char);

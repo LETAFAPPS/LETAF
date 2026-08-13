@@ -67,7 +67,14 @@ pub fn AccountPanel(on_close: Callback<()>) -> impl IntoView {
                 <div class="account-body">
                     <section>
                         <h3 class="acc-section">"Meus dados"</h3>
-                        <Suspense fallback=|| view! { <p class="state">"Carregando…"</p> }>
+                        <Suspense fallback=|| view! {
+                            <div class="acc-skel">
+                                <div class="skeleton skel-input"></div>
+                                <div class="skeleton skel-input"></div>
+                                <div class="skeleton skel-input"></div>
+                                <div class="skeleton skel-btn"></div>
+                            </div>
+                        }>
                             {move || Suspend::new(async move {
                                 match profile.await {
                                     Ok(p) => view! {
@@ -110,7 +117,13 @@ pub fn AccountPanel(on_close: Callback<()>) -> impl IntoView {
 
                     <section>
                         <h3 class="acc-section">"Meus pedidos"</h3>
-                        <Suspense fallback=|| view! { <p class="state">"Carregando…"</p> }>
+                        <Suspense fallback=|| view! {
+                            <div class="acc-skel">
+                                <div class="skeleton skel-row"></div>
+                                <div class="skeleton skel-row"></div>
+                                <div class="skeleton skel-row"></div>
+                            </div>
+                        }>
                             {move || Suspend::new(async move {
                                 match orders.await {
                                     Ok(list) if !list.is_empty() => view! {

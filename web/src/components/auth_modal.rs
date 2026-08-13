@@ -17,6 +17,8 @@ pub fn AuthModal(on_close: Callback<()>) -> impl IntoView {
     let (password, set_password) = signal(String::new());
     let (error, set_error) = signal(String::new());
     let (busy, set_busy) = signal(false);
+    // Mostrar/ocultar senha — UI pura (nada sai daqui sem a API).
+    let (show_pw, set_show_pw) = signal(false);
 
     let submit = move || {
         if busy.get_untracked() {
@@ -52,8 +54,17 @@ pub fn AuthModal(on_close: Callback<()>) -> impl IntoView {
         <div class="modal-overlay" on:click=move |_| on_close.run(())>
             <div class="auth-modal" on:click=|e: leptos::ev::MouseEvent| e.stop_propagation()>
                 <header class="pm-head">
-                    <div class="pm-name">
-                        {move || if is_register.get() { "Criar conta" } else { "Entrar" }}
+                    <div class="pm-head-text">
+                        <div class="pm-name">
+                            {move || if is_register.get() { "Criar conta" } else { "Entrar" }}
+                        </div>
+                        <div class="pm-desc">
+                            {move || if is_register.get() {
+                                "Crie sua conta para pedir mais rápido"
+                            } else {
+                                "Acesse sua conta para pedir mais rápido"
+                            }}
+                        </div>
                     </div>
                     <button type="button" class="cart-close" on:click=move |_| on_close.run(()) aria-label="Fechar">
                         "✕"
@@ -84,13 +95,23 @@ pub fn AuthModal(on_close: Callback<()>) -> impl IntoView {
                             on:input=move |e| set_phone.set(event_target_value(&e))
                         />
                     })}
-                    <input
-                        class="field"
-                        type="password"
-                        placeholder="Senha"
-                        prop:value=move || password.get()
-                        on:input=move |e| set_password.set(event_target_value(&e))
-                    />
+                    <div class="pw-wrap">
+                        <input
+                            class="field"
+                            type=move || if show_pw.get() { "text" } else { "password" }
+                            placeholder="Senha"
+                            prop:value=move || password.get()
+                            on:input=move |e| set_password.set(event_target_value(&e))
+                        />
+                        <button
+                            type="button"
+                            class="pw-eye"
+                            on:click=move |_| set_show_pw.update(|v| *v = !*v)
+                            aria-label=move || if show_pw.get() { "Ocultar senha" } else { "Mostrar senha" }
+                        >
+                            {move || if show_pw.get() { "🙈" } else { "👁" }}
+                        </button>
+                    </div>
                     {move || (!error.get().is_empty())
                         .then(|| view! { <p class="auth-error">{error.get()}</p> })}
                     <button type="submit" class="pm-add auth-submit" disabled=move || busy.get()>
