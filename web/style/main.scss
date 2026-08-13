@@ -54,17 +54,18 @@
 // cascateiam para todo o conteúdo do cardápio.
 [data-theme="loja"] {
     --brand: #2563eb;
-    --brand-ink: #1d4ed8;
+    --brand-ink: #1d4ed8;   // azul profundo p/ marca como TEXTO/botão (AA no claro)
     --price: #16a34a;
+    --price-ink: #12833f;   // verde escuro p/ preço como texto (AA)
     --ink: #111827;
     --muted: #64748b; // contraste AA (era #94a3b8)
     --line: #e5e7eb;
-    // Mantém o visual atual da loja (será tratada na sua própria fase).
-    --bg: #f9fafb;
+    // E-commerce: fundo cinza-frio; cantos um pouco menos arredondados.
+    --bg: #f5f7fa;
     --r-sm: 8px;
     --r-md: 10px;
-    --r-lg: 12px;
-    --r-xl: 16px;
+    --r-lg: 14px;
+    --r-xl: 18px;
 }
 
 // Fábrica (indústria) — marca teal/aço, tom mais sóbrio.
@@ -144,6 +145,21 @@
         @include dark-vars;
         @include dark-fixups;
     }
+}
+
+// Loja no ESCURO: a marca é azul e ficaria ilegível como texto/botão sobre
+// superfície escura, então clareia (azul/verde vivos). As superfícies vêm
+// do dark compartilhado (dark-vars). O `data-scheme` fica no <html> e o
+// `data-theme` no `.store-root`, por isso o seletor combinado.
+@mixin loja-dark {
+    --brand: #5b8def;
+    --brand-ink: #7aa5f9;   // azul claro p/ texto/ícone no escuro
+    --price: #43d17f;
+    --price-ink: #43d17f;
+}
+:root[data-scheme="dark"] [data-theme="loja"] { @include loja-dark; }
+@media (prefers-color-scheme: dark) {
+    :root:not([data-scheme="light"]) [data-theme="loja"] { @include loja-dark; }
 }
 
 // ── Placeholders do design system (fonte ÚNICA reaproveitada via @extend) ──
