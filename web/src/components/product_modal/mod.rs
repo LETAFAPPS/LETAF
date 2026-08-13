@@ -100,6 +100,10 @@ pub fn ProductModal(product: CatalogProduct, on_close: Callback<()>) -> impl Int
         }
     });
     on_cleanup(move || esc.remove());
+    // Foco: guarda o gatilho, foca o 1º focável ao abrir e devolve ao fechar.
+    let trigger = crate::focus::active_element();
+    Effect::new(move |_| crate::focus::focus_first(".product-modal"));
+    on_cleanup(move || crate::focus::restore(trigger));
 
     view! {
         <div class="modal-overlay" on:click=move |_| on_close.run(())>

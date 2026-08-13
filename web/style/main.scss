@@ -13,9 +13,11 @@
     // clara: #e8731c dá ~3:1 (reprova AA p/ texto pequeno). #b4560f dá
     // ~4.9:1. Preenchimentos continuam com --brand; texto usa --brand-ink.
     --brand-ink: #b4560f;
-    // Verde de preço com contraste AA sobre branco (§3 acessibilidade).
-    // Antes #66bb6a (~1.9:1, ilegível em texto pequeno).
+    // Verde de preço: --price é o tom VIVO (preenchimentos, ex. selo de
+    // sucesso); --price-ink é o verde ESCURO usado como TEXTO sobre
+    // superfície clara, para atingir contraste AA (o vivo dá ~3.5:1).
     --price: #1f9d55;
+    --price-ink: #0f7d3e;
     --ink: #1a1a1a;
     --muted: #6b7280; // contraste AA (era #9ca3af, ~2.5:1 sobre branco)
     --line: #e5e7eb;
@@ -94,6 +96,9 @@
     // fica ainda mais legível — usa um laranja claro dedicado.
     --brand-ink: #f7a061;
     --price: #57d98a;
+    // No escuro o verde de texto pode ser claro (alto contraste sobre
+    // superfície escura).
+    --price-ink: #57d98a;
     --danger: #f26d6d;
     --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
     --shadow-md: 0 6px 18px rgba(0, 0, 0, 0.5);
@@ -114,6 +119,10 @@
     }
     .product-card .unavailable { background: rgba(0, 0, 0, 0.55); }
     .product-card .fav { background: rgba(20, 18, 16, 0.82); }
+    // No dark, --brand-ink é laranja CLARO → texto branco do selo reprovaria
+    // AA. Selo ganha fundo laranja ESCURO fixo (branco ~5:1), tanto no card
+    // quanto no modal (.pm-seal reusa .discount-seal).
+    .discount-seal { background: #a85410; }
 }
 // Forçado pelo usuário (data-scheme="dark").
 :root[data-scheme="dark"] {
@@ -193,6 +202,19 @@
 :focus-visible {
     outline: 2px solid var(--brand-ink);
     outline-offset: 2px;
+}
+
+// Só para leitor de tela (mantém hierarquia de headings sem poluir a UI).
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
 }
 
 body {
@@ -631,7 +653,7 @@ main {
     .price-now {
         font-size: 0.95rem;
         font-weight: 700;
-        color: var(--price);
+        color: var(--price-ink);
     }
 }
 
@@ -821,7 +843,7 @@ main {
 .cart-row-info { flex: 1; min-width: 0; }
 .cart-row-name { font-size: 0.9rem; font-weight: 600; }
 .cart-row-addons { font-size: 0.74rem; color: var(--muted); }
-.cart-row-sub { font-size: 0.82rem; color: var(--price); font-weight: 700; margin-top: 2px; }
+.cart-row-sub { font-size: 0.82rem; color: var(--price-ink); font-weight: 700; margin-top: 2px; }
 .cart-qty {
     @include stepper;
     span { min-width: 26px; text-align: center; font-size: 0.85rem; font-weight: 700; }
@@ -843,7 +865,7 @@ textarea.field {
     align-items: baseline;
     font-size: 0.95rem;
 
-    strong { font-size: 1.15rem; color: var(--price); }
+    strong { font-size: 1.15rem; color: var(--price-ink); }
 }
 
 /* ── Entrega x retirada e endereço do checkout ── */
@@ -1032,7 +1054,7 @@ textarea.field {
     &.opt-sel { background: color-mix(in srgb, var(--brand) 8%, transparent); }
 }
 .opt-name { flex: 1; min-width: 0; }
-.opt-price { font-size: 0.82rem; font-weight: 600; color: var(--price); flex-shrink: 0; }
+.opt-price { font-size: 0.82rem; font-weight: 600; color: var(--price-ink); flex-shrink: 0; }
 .ind {
     width: 18px;
     height: 18px;
@@ -1068,7 +1090,7 @@ button.ind { cursor: pointer; padding: 0; }
 }
 .pm-total { flex: 1; }
 .pm-total-label { font-size: 0.7rem; color: var(--muted); }
-.pm-total-value { font-size: 1.15rem; font-weight: 700; color: var(--price); }
+.pm-total-value { font-size: 1.15rem; font-weight: 700; color: var(--price-ink); }
 .pm-add {
     @extend %btn-primary;
     padding: 10px 18px;
@@ -1196,7 +1218,7 @@ button.ind { cursor: pointer; padding: 0; }
     font-size: 0.95rem;
     font-weight: 700;
 }
-.acc-saved { color: var(--price); font-size: 0.8rem; margin: 0; }
+.acc-saved { color: var(--price-ink); font-size: 0.8rem; margin: 0; }
 .acc-orders {
     display: flex;
     flex-direction: column;
@@ -1224,7 +1246,7 @@ button.ind { cursor: pointer; padding: 0; }
     font-size: 0.72rem;
 }
 .acc-order-date { color: var(--muted); font-size: 0.76rem; }
-.acc-order-total { margin-left: auto; font-weight: 700; color: var(--price); }
+.acc-order-total { margin-left: auto; font-weight: 700; color: var(--price-ink); }
 .account-logout {
     margin-top: 10px;
     align-self: flex-start;

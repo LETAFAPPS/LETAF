@@ -25,7 +25,9 @@ pub fn CartDrawer() -> impl IntoView {
 
     // Fecha o drawer no Esc quando aberto (§3 acessibilidade).
     let esc = leptos::prelude::window_event_listener(leptos::ev::keydown, move |ev| {
-        if ev.key() == "Escape" && open.get_untracked() {
+        // Não fecha o drawer se o login (AuthModal) estiver por cima — ele
+        // tem o próprio Esc e deve fechar só a camada de cima.
+        if ev.key() == "Escape" && open.get_untracked() && !auth_open.get_untracked() {
             set_open.set(false);
             set_confirmation.set(None);
         }

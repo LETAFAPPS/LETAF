@@ -14,6 +14,7 @@ pub mod checkout;
 pub mod components;
 pub mod discount;
 pub mod favorites;
+pub mod focus;
 pub mod format;
 pub mod session;
 pub mod theme;

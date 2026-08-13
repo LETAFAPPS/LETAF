@@ -313,7 +313,7 @@ fn CatalogView(data: CatalogData) -> impl IntoView {
                 class="cat-tile"
                 class:cat-tile-active=move || fav_only.get()
                 aria-pressed=move || fav_only.get().to_string()
-                on:click=move |_| set_fav_only.update(|v| *v = !*v)
+                on:click=move |_| { set_fav_only.update(|v| *v = !*v); set_sel.set(String::new()); }
             >
                 <span class="cat-ico" aria-hidden="true">"♥"</span>
                 <span class="cat-lbl">"Favoritos"</span>
@@ -336,6 +336,7 @@ fn CatalogView(data: CatalogData) -> impl IntoView {
         </nav>
 
         <section class="catalog">
+            <h2 class="sr-only">"Cardápio"</h2>
             {move || {
                 let s = sel.get();
                 let q = norm(query.get().trim());
