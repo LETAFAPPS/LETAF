@@ -143,6 +143,24 @@ pub fn coupon(company_id: Uuid, code: &str) -> Uuid {
     Uuid::new_v5(&NS_LETAF, format!("coupon:{company_id}:{code}").as_bytes())
 }
 
+/// Id do cliente pela chave natural `(company_id, telefone-só-dígitos)`.
+///
+/// Usado só quando o cliente tem telefone e só no cadastro ADMIN/POS
+/// (`customer::service::create`), onde o offline-first pode duplicar: dois
+/// terminais que ainda não se enxergaram cadastram o mesmo cliente por
+/// telefone e, com id aleatório, viram DOIS registros que nunca se juntam.
+/// Derivando o id do telefone, ambos chegam ao MESMO id e o upsert dedupa
+/// (last-write-wins, §7.7).
+///
+/// TRADEOFF ACEITO: duas pessoas distintas que compartilhem o mesmo número
+/// (casal, família, telefone da loja) são tratadas como UM cliente. Por isso
+/// só vale quando há telefone — cliente sem telefone segue com id aleatório
+/// (senão todos os sem-telefone colapsariam em um só). O `phone` deve vir já
+/// reduzido a dígitos por quem chama.
+pub fn customer_by_phone(company_id: Uuid, phone_digits: &str) -> Uuid {
+    Uuid::new_v5(&NS_LETAF, format!("customer_phone:{company_id}:{phone_digits}").as_bytes())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -169,6 +187,26 @@ mod tests {
         assert_ne!(coupon(empresa, "PROMO"), coupon(outra, "PROMO"));
         // Códigos diferentes na mesma empresa → ids diferentes.
         assert_ne!(coupon(empresa, "PROMO"), coupon(empresa, "PROMO2"));
+    }
+
+    #[test]
+    fn cliente_deriva_do_telefone() {
+        let empresa = Uuid::new_v4();
+        let outra = Uuid::new_v4();
+        // Dois terminais, mesmo telefone (já em dígitos) → mesmo id.
+        assert_eq!(
+            customer_by_phone(empresa, "11999998888"),
+            customer_by_phone(empresa, "11999998888")
+        );
+        // Isolamento por empresa e por telefone.
+        assert_ne!(
+            customer_by_phone(empresa, "11999998888"),
+            customer_by_phone(outra, "11999998888")
+        );
+        assert_ne!(
+            customer_by_phone(empresa, "11999998888"),
+            customer_by_phone(empresa, "11999990000")
+        );
     }
 
     #[test]

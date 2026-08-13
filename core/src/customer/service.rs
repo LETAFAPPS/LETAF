@@ -51,6 +51,13 @@ impl CustomerService {
         }
         let mut customer = Customer::new(company_id, name, email, phone, document);
         customer.notes = notes;
+        // Id determinístico pela chave natural (company_id, telefone): dois
+        // terminais offline que cadastram o mesmo cliente por telefone
+        // convergem para o mesmo id e o upsert dedupa (§7.7). Só quando há
+        // telefone — sem ele, mantém o id aleatório de `Customer::new`.
+        if let Some(digits) = phone_digits(&customer.phone) {
+            customer.base.id = crate::deterministic_id::customer_by_phone(company_id, &digits);
+        }
         self.repo.create(&customer).await?;
         Ok(customer)
     }
@@ -277,4 +284,13 @@ impl CustomerService {
         customer.base.synced = true;
         self.repo.sync_upsert(&customer).await
     }
+}
+
+/// Reduz o telefone a apenas dígitos para servir de chave natural (id
+/// determinístico). `(11) 99999-8888` e `11999998888` convergem. Retorna
+/// `None` quando não há telefone ou ele não tem nenhum dígito — nesse caso
+/// o cliente segue com id aleatório.
+fn phone_digits(phone: &Option<String>) -> Option<String> {
+    let digits: String = phone.as_deref()?.chars().filter(char::is_ascii_digit).collect();
+    (!digits.is_empty()).then_some(digits)
 }
