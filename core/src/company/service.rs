@@ -215,11 +215,11 @@ impl CompanyService {
         company.products_per_page = products_per_page;
         company.orders_per_page = orders_per_page;
         company.delivery_fee = input.delivery_fee.max(rust_decimal::Decimal::ZERO);
-        // Paleta de cores: só aceita slug válido do catálogo; vazio/desconhecido
+        // Cor do site: cor de marca LIVRE em hex (#RRGGBB). Inválido/vazio
         // → None (usa o tema do tipo). §11 — não confia no valor cru do front.
         company.color_palette = input
             .color_palette
-            .filter(|s| crate::theme_palette::palette_is_valid(s));
+            .filter(|s| crate::theme_palette::is_brand_hex(s));
         // Tema padrão: só "light"/"dark"; qualquer outra coisa → None
         // (automático). §11 — não confia no valor cru do front.
         company.default_scheme = input

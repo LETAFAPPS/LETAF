@@ -52,9 +52,17 @@ export global SettingsState {
     /// Taxa de entrega (frete) como texto pt-BR. Persistida em Company;
     /// aplicada automaticamente em pedidos de entrega no PDV.
     in-out property <string> store-delivery-fee;
-    /// Paleta de cores do site (slug de core::theme_palette); "" = usa o tema
-    /// do tipo. Escolhida por swatches nas Configurações.
+    /// Cor de marca do site em hex (color picker); "" = usa o tema do tipo.
     in-out property <string> store-site-palette;
+    /// Estado do color picker (Rust ↔ UI).
+    in-out property <float> site-color-hue;
+    in-out property <float> site-color-tone;
+    in-out property <bool>  site-color-on;
+    in-out property <color> site-color-preview;
+    in-out property <color> site-tone-from;
+    in-out property <color> site-tone-to;
+    callback pick-site-color(float, float);
+    callback clear-site-color();
     /// Tema padrão do site: "" = automático (segue o sistema) | "light" | "dark".
     in-out property <string> store-default-scheme;
     callback refresh-business-hours();

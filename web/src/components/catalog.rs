@@ -31,6 +31,23 @@ fn cat_emoji(icon: Option<&str>) -> &'static str {
     }
 }
 
+/// Escurece (toward_white=false) ou clareia (true) uma cor hex misturando
+/// com preto/branco por `factor` (0..1). Usada para derivar `--brand-ink`
+/// da cor de marca da empresa. Entrada validada como hex; saída é hex.
+fn shade(hex: &str, factor: f32, toward_white: bool) -> String {
+    let h = hex.trim().trim_start_matches('#');
+    let full = if h.len() == 3 {
+        h.chars().flat_map(|c| [c, c]).collect::<String>()
+    } else {
+        h.to_string()
+    };
+    let parse = |i: usize| u8::from_str_radix(full.get(i..i + 2).unwrap_or("00"), 16).unwrap_or(0);
+    let (r, g, b) = (parse(0), parse(2), parse(4));
+    let target = if toward_white { 255.0 } else { 0.0 };
+    let mix = |c: u8| ((c as f32) * (1.0 - factor) + target * factor).round() as u8;
+    format!("#{:02x}{:02x}{:02x}", mix(r), mix(g), mix(b))
+}
+
 /// Normaliza texto para busca: minúsculas + sem acentos (pt-BR). Sem isto,
 /// "acai"/"pao"/"cafe" não achariam "Açaí"/"Pão"/"Café". É recorte de
 /// exibição (§11), não decisão de negócio.
@@ -150,23 +167,19 @@ fn CatalogView(data: CatalogData) -> impl IntoView {
         let h = c.strip_prefix('#').unwrap_or("");
         (h.len() == 3 || h.len() == 6) && h.chars().all(|ch| ch.is_ascii_hexdigit())
     };
-    let palette = data
-        .info
-        .palette
+    // Cor de marca livre escolhida pela empresa (hex). Sobrepõe SÓ o
+    // `--brand` do site e deriva `--brand-ink` por esquema (no claro
+    // escurece p/ texto/botão AA; no escuro clareia). Neutros/preço seguem
+    // do tema. As cores derivadas são hex geradas por nós → o `style` só
+    // recebe hex validado (sem injeção de CSS, §11).
+    let brand = data.info.brand_color.clone().filter(|c| is_hex(c));
+    let style_light = brand
         .as_ref()
-        .filter(|p| [&p.brand, &p.price, &p.ink, &p.muted, &p.line].iter().all(|c| is_hex(c)));
-    // No CLARO a paleta custom carrega tudo (identidade + neutros). No
-    // ESCURO carrega só a IDENTIDADE (brand/price); os neutros
-    // (ink/muted/line) seguem o scheme escuro, senão texto escuro cairia
-    // sobre superfície escura (ilegível). Escolha reativa no `style`.
-    let palette_full = palette
-        .map(|p| format!(
-            "--brand:{};--price:{};--ink:{};--muted:{};--line:{}",
-            p.brand, p.price, p.ink, p.muted, p.line
-        ))
+        .map(|b| format!("--brand:{b};--brand-ink:{}", shade(b, 0.32, false)))
         .unwrap_or_default();
-    let palette_ident = palette
-        .map(|p| format!("--brand:{};--price:{}", p.brand, p.price))
+    let style_dark = brand
+        .as_ref()
+        .map(|b| format!("--brand:{};--brand-ink:{}", shade(b, 0.16, true), shade(b, 0.45, true)))
         .unwrap_or_default();
     // URLs já vêm prontas da API (mídia servida como bytes, não base64).
     let cover = data.info.cover_url.clone();
@@ -226,7 +239,7 @@ fn CatalogView(data: CatalogData) -> impl IntoView {
         <div
             class="store-root"
             data-theme=theme
-            style=move || if scheme.0.get() == "dark" { palette_ident.clone() } else { palette_full.clone() }
+            style=move || if scheme.0.get() == "dark" { style_dark.clone() } else { style_light.clone() }
         >
         <Title text=nome.clone()/>
         <Meta name="description" content=desc.clone()/>

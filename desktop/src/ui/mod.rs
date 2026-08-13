@@ -349,6 +349,7 @@ pub fn setup_callbacks(
     settings::setup_save_business_hours(ui, state, handle, sync_notify.clone());
     settings::setup_set_store_override(ui, state, handle, sync_notify.clone());
     settings::setup_save_store_info(ui, state, handle, sync_notify.clone());
+    settings::setup_site_color(ui);
     settings::setup_pick_store_logo(ui, handle);
     settings::setup_pick_store_cover(ui, handle);
     settings::setup_apply_time_mask(ui);

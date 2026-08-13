@@ -1371,6 +1371,14 @@ export component MainWindow inherits Window {
                 orders-per-page <=> SettingsState.orders-per-page;
                 store-delivery-fee <=> SettingsState.store-delivery-fee;
                 store-site-palette <=> SettingsState.store-site-palette;
+                site-color-hue <=> SettingsState.site-color-hue;
+                site-color-tone <=> SettingsState.site-color-tone;
+                site-color-on <=> SettingsState.site-color-on;
+                site-color-preview <=> SettingsState.site-color-preview;
+                site-tone-from <=> SettingsState.site-tone-from;
+                site-tone-to <=> SettingsState.site-tone-to;
+                pick-site-color(h, t) => { SettingsState.pick-site-color(h, t); }
+                clear-site-color() => { SettingsState.clear-site-color(); }
                 store-default-scheme <=> SettingsState.store-default-scheme;
                 set-store-override(v) => { SettingsState.set-store-override(v); }
                 save-store-info => { SettingsState.save-store-info(); }

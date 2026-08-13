@@ -129,7 +129,33 @@ pub(crate) fn setup_refresh_business_hours(
                         ui.global::<SettingsState>().set_products_per_page(s_per_page);
                         ui.global::<SettingsState>().set_orders_per_page(s_orders_per_page);
                         ui.global::<SettingsState>().set_store_delivery_fee(SharedString::from(s_delivery_fee));
+                        // Reposiciona o color picker a partir do hex salvo
+                        // (hex → matiz+tonalidade + prévia/gradiente). Sem cor
+                        // válida: "usar cores do tema" e posição inicial laranja.
+                        let picker = super::color::from_hex(&s_palette);
                         ui.global::<SettingsState>().set_store_site_palette(SharedString::from(s_palette));
+                        {
+                            let s = ui.global::<SettingsState>();
+                            match picker {
+                                Some((hue, tone, p)) => {
+                                    s.set_site_color_hue(hue);
+                                    s.set_site_color_tone(tone);
+                                    s.set_site_color_preview(p.preview);
+                                    s.set_site_tone_from(p.tone_from);
+                                    s.set_site_tone_to(p.tone_to);
+                                    s.set_site_color_on(true);
+                                }
+                                None => {
+                                    let p = super::color::from_hue_tone(25.0 / 360.0, 0.0);
+                                    s.set_site_color_hue(25.0 / 360.0);
+                                    s.set_site_color_tone(0.0);
+                                    s.set_site_color_preview(p.preview);
+                                    s.set_site_tone_from(p.tone_from);
+                                    s.set_site_tone_to(p.tone_to);
+                                    s.set_site_color_on(false);
+                                }
+                            }
+                        }
                         ui.global::<SettingsState>().set_store_default_scheme(SharedString::from(s_default_scheme));
                         ui.global::<SettingsState>().set_business_hours(ModelRc::new(VecModel::from(data)));
                     });

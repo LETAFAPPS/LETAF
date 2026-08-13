@@ -44,3 +44,15 @@ pub fn palette_by_slug(slug: &str) -> Option<&'static Palette> {
 pub fn palette_is_valid(slug: &str) -> bool {
     palette_by_slug(slug).is_some()
 }
+
+/// `true` se `s` é uma cor de marca LIVRE em hex (`#RGB` ou `#RRGGBB`).
+/// A empresa escolhe a cor no color picker do desktop; guardamos o hex em
+/// `Company.color_palette`. Defesa de borda (§11): o backend valida antes
+/// de persistir/servir.
+pub fn is_brand_hex(s: &str) -> bool {
+    let h = s.trim();
+    match h.strip_prefix('#') {
+        Some(rest) => (rest.len() == 3 || rest.len() == 6) && rest.chars().all(|c| c.is_ascii_hexdigit()),
+        None => false,
+    }
+}

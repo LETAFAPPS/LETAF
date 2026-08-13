@@ -20,6 +20,31 @@ fn parse_money(s: &str) -> rust_decimal::Decimal {
         .max(rust_decimal::Decimal::ZERO)
 }
 
+/// Callbacks do color picker de "Cores do site": converte matiz+tonalidade
+/// em cor/hex (pick) e limpa (usar cores do tema). Só apresentação (§11) —
+/// o hex é validado no backend ao salvar.
+pub(crate) fn setup_site_color(ui: &MainWindow) {
+    let ui_pick = ui.as_weak();
+    ui.global::<SettingsState>().on_pick_site_color(move |hue, tone| {
+        let Some(ui) = ui_pick.upgrade() else { return };
+        let p = super::color::from_hue_tone(hue, tone);
+        let s = ui.global::<SettingsState>();
+        s.set_site_color_preview(p.preview);
+        s.set_site_tone_from(p.tone_from);
+        s.set_site_tone_to(p.tone_to);
+        s.set_site_color_on(true);
+        s.set_store_site_palette(SharedString::from(p.hex));
+    });
+
+    let ui_clear = ui.as_weak();
+    ui.global::<SettingsState>().on_clear_site_color(move || {
+        let Some(ui) = ui_clear.upgrade() else { return };
+        let s = ui.global::<SettingsState>();
+        s.set_site_color_on(false);
+        s.set_store_site_palette(SharedString::from(""));
+    });
+}
+
 /// Callback: salva informações do estabelecimento (nome, endereço, telefone, logo, capa).
 pub(crate) fn setup_save_store_info(
     ui: &MainWindow,
