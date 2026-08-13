@@ -9,10 +9,20 @@
 :root {
     // Laranja de marca — visual atual (tema "restaurante").
     --brand: #e8731c; // marca restaurante (default)
-    --price: #66bb6a;
+    // Verde de preço com contraste AA sobre branco (§3 acessibilidade).
+    // Antes #66bb6a (~1.9:1, ilegível em texto pequeno).
+    --price: #1f9d55;
     --ink: #1a1a1a;
     --muted: #6b7280; // contraste AA (era #9ca3af, ~2.5:1 sobre branco)
     --line: #e5e7eb;
+    // Fundo da página — tematizável. Restaurante = off-white quente
+    // (aconchego de delivery); loja/fábrica mantêm o cinza-frio atual.
+    --bg: #faf7f2;
+    // Escala de raio por tema. Restaurante = mais arredondado/aconchegante.
+    --r-sm: 8px;
+    --r-md: 12px;
+    --r-lg: 18px;
+    --r-xl: 26px;
     // Tokens NÃO-tematizados (iguais em todos os tipos de empresa): fonte
     // única de superfície, semântica e elevação — antes espalhados como
     // literais (#fff, var(--danger), sombras repetidas) por todo o CSS.
@@ -22,9 +32,10 @@
     --on-brand: #fff;       // texto/ícone sobre --brand/--price
     --line-strong: #d1d5db; // borda de controle (mais forte que --line)
     --danger: #dc2626;
-    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.07);
-    --shadow-md: 0 4px 14px rgba(0, 0, 0, 0.2);
-    --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.3);
+    // Sombras suaves e quentes em 3 níveis (fonte única de elevação).
+    --shadow-sm: 0 1px 2px rgba(30, 20, 10, 0.06), 0 1px 3px rgba(30, 20, 10, 0.05);
+    --shadow-md: 0 6px 18px rgba(30, 20, 10, 0.10);
+    --shadow-lg: 0 18px 46px rgba(30, 20, 10, 0.16);
 }
 
 // Loja (varejo) — marca azul, mais "e-commerce". O slug vai no wrapper
@@ -36,6 +47,12 @@
     --ink: #111827;
     --muted: #64748b; // contraste AA (era #94a3b8)
     --line: #e5e7eb;
+    // Mantém o visual atual da loja (será tratada na sua própria fase).
+    --bg: #f9fafb;
+    --r-sm: 8px;
+    --r-md: 10px;
+    --r-lg: 12px;
+    --r-xl: 16px;
 }
 
 // Fábrica (indústria) — marca teal/aço, tom mais sóbrio.
@@ -45,6 +62,11 @@
     --ink: #0f172a;
     --muted: #64748b; // contraste AA (era #94a3b8)
     --line: #e2e8f0;
+    --bg: #f9fafb;
+    --r-sm: 6px;
+    --r-md: 8px;
+    --r-lg: 10px;
+    --r-xl: 14px;
 }
 
 // ── Placeholders do design system (fonte ÚNICA reaproveitada via @extend) ──
@@ -102,7 +124,7 @@ body {
     font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
     margin: 0;
     color: var(--ink);
-    background: var(--surface-2);
+    background: var(--bg);
 }
 
 main {
@@ -150,8 +172,8 @@ main {
     aspect-ratio: 3 / 1;
     overflow: hidden;
     background: var(--surface-3);
-    border-radius: 12px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    border-radius: var(--r-lg);
+    box-shadow: var(--shadow-sm);
 }
 .banner-track {
     display: flex;
@@ -243,13 +265,20 @@ main {
 }
 
 .product-card {
+    position: relative;
     border: 1px solid var(--line);
-    border-radius: 10px;
+    border-radius: var(--r-lg);
     overflow: hidden;
     display: flex;
     flex-direction: column;
     background: var(--surface);
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.07);
+    box-shadow: var(--shadow-sm);
+    transition: box-shadow 0.15s ease, transform 0.15s ease;
+
+    &:hover {
+        box-shadow: var(--shadow-md);
+        transform: translateY(-2px);
+    }
 
     .product-img {
         width: 100%;
@@ -363,7 +392,10 @@ main {
     }
 
     .product-body {
-        padding: 0.6rem;
+        position: relative;
+        // Espaço no topo para o botão "Adicionar" flutuante, que sobe
+        // (margin/posição negativa) e se sobrepõe à base da foto.
+        padding: 22px 0.6rem 0.6rem;
         display: flex;
         flex-direction: column;
         gap: 3px;
@@ -411,18 +443,34 @@ main {
     &.error { color: var(--danger); }
 }
 
-// ── Botão "+ Adicionar" do card ─────────────────────────────
+// ── Botão "Adicionar" flutuante do card ─────────────────────
+// Pílula branca com texto/ícone na cor da marca, ancorada no canto
+// inferior direito da foto e sobreposta à base dela (fiel ao mockup).
+// Fica DENTRO de .product-body (position: relative) e sobe com `top`
+// negativo — a base do card tem overflow: hidden, mas o botão permanece
+// dentro dos limites do card, então não é recortado.
 .add-btn {
-    @extend %btn-primary;
-    margin-top: 8px;
-    width: 100%;
-    padding: 7px 10px;
-    border-radius: 8px;
+    position: absolute;
+    top: -18px;
+    right: 10px;
+    z-index: 2;
+    border: none;
+    background: var(--surface);
+    color: var(--brand);
+    font-family: inherit;
+    font-weight: 800;
+    padding: 8px 14px;
+    border-radius: 999px;
     font-size: 0.8rem;
-    transition: filter 0.15s;
+    line-height: 1;
+    cursor: pointer;
+    box-shadow: var(--shadow-md);
+    transition: transform 0.12s ease, filter 0.15s ease;
 
-    &:hover { filter: brightness(1.05); }
-    &:disabled { background: var(--muted); cursor: not-allowed; filter: none; }
+    &:hover { transform: translateY(-1px); filter: brightness(1.02); }
+    // Indisponível: o overlay "Indisponível" já cobre a foto, então o
+    // botão simplesmente some (evita rótulo longo na pílula).
+    &:disabled { display: none; }
 }
 
 // ── Disponibilidade por horário ─────────────────────────────
