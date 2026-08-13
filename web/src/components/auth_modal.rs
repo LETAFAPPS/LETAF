@@ -50,14 +50,28 @@ pub fn AuthModal(on_close: Callback<()>) -> impl IntoView {
         });
     };
 
+    // Fecha no Esc (§3 acessibilidade). Ouve na janela; handle removido no unmount.
+    let esc = leptos::prelude::window_event_listener(leptos::ev::keydown, move |ev| {
+        if ev.key() == "Escape" {
+            on_close.run(());
+        }
+    });
+    on_cleanup(move || esc.remove());
+
     view! {
         <div class="modal-overlay" on:click=move |_| on_close.run(())>
-            <div class="auth-modal" on:click=|e: leptos::ev::MouseEvent| e.stop_propagation()>
+            <div
+                class="auth-modal"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="auth-title"
+                on:click=|e: leptos::ev::MouseEvent| e.stop_propagation()
+            >
                 <header class="pm-head">
                     <div class="pm-head-text">
-                        <div class="pm-name">
+                        <h2 class="pm-name" id="auth-title">
                             {move || if is_register.get() { "Criar conta" } else { "Entrar" }}
-                        </div>
+                        </h2>
                         <div class="pm-desc">
                             {move || if is_register.get() {
                                 "Crie sua conta para pedir mais rápido"
@@ -76,6 +90,7 @@ pub fn AuthModal(on_close: Callback<()>) -> impl IntoView {
                         <input
                             class="field"
                             placeholder="Nome"
+                            aria-label="Nome"
                             prop:value=move || name.get()
                             on:input=move |e| set_name.set(event_target_value(&e))
                         />
@@ -84,6 +99,7 @@ pub fn AuthModal(on_close: Callback<()>) -> impl IntoView {
                         class="field"
                         type="email"
                         placeholder="E-mail"
+                        aria-label="E-mail"
                         prop:value=move || email.get()
                         on:input=move |e| set_email.set(event_target_value(&e))
                     />
@@ -91,6 +107,7 @@ pub fn AuthModal(on_close: Callback<()>) -> impl IntoView {
                         <input
                             class="field"
                             placeholder="Telefone (opcional)"
+                            aria-label="Telefone (opcional)"
                             prop:value=move || phone.get()
                             on:input=move |e| set_phone.set(event_target_value(&e))
                         />
@@ -100,6 +117,7 @@ pub fn AuthModal(on_close: Callback<()>) -> impl IntoView {
                             class="field"
                             type=move || if show_pw.get() { "text" } else { "password" }
                             placeholder="Senha"
+                            aria-label="Senha"
                             prop:value=move || password.get()
                             on:input=move |e| set_password.set(event_target_value(&e))
                         />

@@ -91,15 +91,31 @@ pub fn ProductModal(product: CatalogProduct, on_close: Callback<()>) -> impl Int
         on_close.run(());
     };
 
+    // Fecha no Esc (padrão universal de diálogo, §3 acessibilidade). Ouve na
+    // janela para funcionar independentemente de onde está o foco; o handle é
+    // removido quando o modal desmonta.
+    let esc = leptos::prelude::window_event_listener(leptos::ev::keydown, move |ev| {
+        if ev.key() == "Escape" {
+            on_close.run(());
+        }
+    });
+    on_cleanup(move || esc.remove());
+
     view! {
         <div class="modal-overlay" on:click=move |_| on_close.run(())>
-            <div class="product-modal" on:click=|e: leptos::ev::MouseEvent| e.stop_propagation()>
+            <div
+                class="product-modal"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="pm-title"
+                on:click=|e: leptos::ev::MouseEvent| e.stop_propagation()
+            >
                 {hero_img.map(|src| view! {
                     <div class="pm-photo"><img src=src alt="" loading="lazy"/></div>
                 })}
                 <header class="pm-head">
                     <div class="pm-head-text">
-                        <div class="pm-name">{name}</div>
+                        <h2 class="pm-name" id="pm-title">{name}</h2>
                         {(!description.is_empty())
                             .then(|| view! { <div class="pm-desc">{description}</div> })}
                         <div class="pm-price">
@@ -146,6 +162,9 @@ pub fn ProductModal(product: CatalogProduct, on_close: Callback<()>) -> impl Int
                     }}
                 </div>
 
+                {move || (!all_valid()).then(|| view! {
+                    <p class="pm-pending">"Escolha as opções obrigatórias para continuar."</p>
+                })}
                 <footer class="pm-foot">
                     <div class="cart-qty">
                         <button on:click=move |_| qty.update(|q| { if *q > 1 { *q -= 1; } })>"−"</button>

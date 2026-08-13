@@ -61,5 +61,27 @@ pub fn iso_date_br(iso: &str) -> String {
 /// Extrai a mensagem amigável do fim de um erro técnico (ex.: o prefixo
 /// do `ServerFnError`), para exibir ao usuário.
 pub fn server_error(raw: &str) -> String {
-    raw.rsplit(": ").next().unwrap_or(raw).trim().to_string()
+    // Remove prefixos técnicos conhecidos do INÍCIO, preservando o resto da
+    // mensagem. Antes um `rsplit(": ")` cortava tudo até o ÚLTIMO ": ",
+    // truncando mensagens amigáveis que contêm ":" (ex.: "Valor inválido: 3").
+    let prefixes = [
+        "error running server function: ",
+        "ServerFnError: ",
+        "Repository: ",
+        "Core: ",
+    ];
+    let mut msg = raw.trim();
+    loop {
+        let mut changed = false;
+        for p in prefixes {
+            if let Some(rest) = msg.strip_prefix(p) {
+                msg = rest.trim();
+                changed = true;
+            }
+        }
+        if !changed {
+            break;
+        }
+    }
+    msg.to_string()
 }

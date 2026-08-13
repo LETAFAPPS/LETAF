@@ -18,17 +18,37 @@ pub fn BannerCarousel(banners: Vec<CatalogBanner>) -> impl IntoView {
         return ().into_any();
     }
     let (index, set_index) = signal(0usize);
+    // Pausa o auto-avanço enquanto o usuário interage (hover/foco) — WCAG
+    // 2.2.2 (conteúdo em movimento precisa poder parar).
+    let (paused, set_paused) = signal(false);
 
     // Auto-cycle só no cliente: o Effect não roda no SSR, então
     // `set_interval` (API do navegador) nunca é chamado no servidor.
+    // Não auto-avança sob prefers-reduced-motion (o CSS não para timers JS).
     if total > 1 {
         Effect::new(move |_| {
-            set_interval(move || set_index.update(|i| *i = (*i + 1) % total), ROTATE);
+            if crate::theme::prefers_reduced_motion() {
+                return;
+            }
+            set_interval(
+                move || {
+                    if !paused.get_untracked() {
+                        set_index.update(|i| *i = (*i + 1) % total);
+                    }
+                },
+                ROTATE,
+            );
         });
     }
 
     view! {
-        <div class="banner-carousel">
+        <div
+            class="banner-carousel"
+            on:pointerenter=move |_| set_paused.set(true)
+            on:pointerleave=move |_| set_paused.set(false)
+            on:focusin=move |_| set_paused.set(true)
+            on:focusout=move |_| set_paused.set(false)
+        >
             <div
                 class="banner-track"
                 style=move || format!(
@@ -61,7 +81,8 @@ pub fn BannerCarousel(banners: Vec<CatalogBanner>) -> impl IntoView {
                             class="banner-dot"
                             class:banner-dot-active=move || index.get() == i
                             on:click=move |_| set_index.set(i)
-                            aria-label="Ir para o banner"
+                            aria-label=move || format!("Ir para o banner {}", i + 1)
+                            aria-current=move || if index.get() == i { "true" } else { "false" }
                         ></button>
                     }).collect_view()}
                 </div>

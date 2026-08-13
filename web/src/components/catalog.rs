@@ -31,6 +31,24 @@ fn cat_emoji(icon: Option<&str>) -> &'static str {
     }
 }
 
+/// Normaliza texto para busca: minúsculas + sem acentos (pt-BR). Sem isto,
+/// "acai"/"pao"/"cafe" não achariam "Açaí"/"Pão"/"Café". É recorte de
+/// exibição (§11), não decisão de negócio.
+fn norm(s: &str) -> String {
+    s.chars()
+        .map(|c| match c {
+            'á' | 'à' | 'â' | 'ã' | 'ä' | 'Á' | 'À' | 'Â' | 'Ã' | 'Ä' => 'a',
+            'é' | 'è' | 'ê' | 'ë' | 'É' | 'È' | 'Ê' | 'Ë' => 'e',
+            'í' | 'ì' | 'î' | 'ï' | 'Í' | 'Ì' | 'Î' | 'Ï' => 'i',
+            'ó' | 'ò' | 'ô' | 'õ' | 'ö' | 'Ó' | 'Ò' | 'Ô' | 'Õ' | 'Ö' => 'o',
+            'ú' | 'ù' | 'û' | 'ü' | 'Ú' | 'Ù' | 'Û' | 'Ü' => 'u',
+            'ç' | 'Ç' => 'c',
+            'ñ' | 'Ñ' => 'n',
+            other => other.to_ascii_lowercase(),
+        })
+        .collect()
+}
+
 /// Server function: lê o `Host` da requisição SSR, resolve o tenant e
 /// busca o catálogo público na API (server-side). No cliente vira uma
 /// chamada HTTP a este servidor SSR — o navegador nunca fala direto com
@@ -178,6 +196,10 @@ fn CatalogView(data: CatalogData) -> impl IntoView {
     // PÚBLICO já carregado (mesmo espírito do filtro por categoria).
     // Nenhuma regra/decisão no cliente (§11); só recorta o que exibir.
     let (query, set_query) = signal(String::new());
+    // Filtro "só favoritos" (preferência de UI; os favoritos vivem no
+    // contexto/localStorage). Recorte de exibição, sem regra de negócio.
+    let favs = expect_context::<crate::favorites::Favorites>();
+    let (fav_only, set_fav_only) = signal(false);
     // Tema claro/escuro (preferência do usuário; ver `theme.rs`).
     let scheme = expect_context::<crate::theme::Scheme>();
     // Estado inicial do scheme: a escolha salva do visitante PREVALECE; na
@@ -227,7 +249,7 @@ fn CatalogView(data: CatalogData) -> impl IntoView {
         <header class="topbar">
             <div class="topbar-inner">
                 {logo.map({ let n = nome.clone(); move |l| view! { <img class="topbar-logo" src=l alt=n/> } })}
-                <span class="topbar-name">{nome}</span>
+                <h1 class="topbar-name">{nome}</h1>
                 {move || availability::store_status(
                     &business_hours.hours, &business_hours.store_override, now.0.get(),
                 ).map(|(open, label)| view! {
@@ -245,6 +267,14 @@ fn CatalogView(data: CatalogData) -> impl IntoView {
                         prop:value=move || query.get()
                         on:input=move |e| set_query.set(event_target_value(&e))
                     />
+                    {move || (!query.get().is_empty()).then(|| view! {
+                        <button
+                            type="button"
+                            class="search-clear"
+                            aria-label="Limpar busca"
+                            on:click=move |_| set_query.set(String::new())
+                        >"✕"</button>
+                    })}
                 </div>
                 <button
                     type="button"
@@ -273,11 +303,20 @@ fn CatalogView(data: CatalogData) -> impl IntoView {
         <nav class="cat-rail" aria-label="Categorias">
             <button
                 class="cat-tile"
-                class:cat-tile-active=move || sel.get().is_empty()
-                on:click=move |_| set_sel.set(String::new())
+                class:cat-tile-active=move || sel.get().is_empty() && !fav_only.get()
+                on:click=move |_| { set_sel.set(String::new()); set_fav_only.set(false); }
             >
                 <span class="cat-ico" aria-hidden="true">"🍽️"</span>
                 <span class="cat-lbl">"Todos"</span>
+            </button>
+            <button
+                class="cat-tile"
+                class:cat-tile-active=move || fav_only.get()
+                aria-pressed=move || fav_only.get().to_string()
+                on:click=move |_| set_fav_only.update(|v| *v = !*v)
+            >
+                <span class="cat-ico" aria-hidden="true">"♥"</span>
+                <span class="cat-lbl">"Favoritos"</span>
             </button>
             {cats.into_iter().map(|c| {
                 let id_active = c.id.clone();
@@ -286,8 +325,8 @@ fn CatalogView(data: CatalogData) -> impl IntoView {
                 view! {
                     <button
                         class="cat-tile"
-                        class:cat-tile-active=move || sel.get() == id_active
-                        on:click=move |_| set_sel.set(id_click.clone())
+                        class:cat-tile-active=move || sel.get() == id_active && !fav_only.get()
+                        on:click=move |_| { set_sel.set(id_click.clone()); set_fav_only.set(false); }
                     >
                         <span class="cat-ico" aria-hidden="true">{ico}</span>
                         <span class="cat-lbl">{c.name}</span>
@@ -299,23 +338,39 @@ fn CatalogView(data: CatalogData) -> impl IntoView {
         <section class="catalog">
             {move || {
                 let s = sel.get();
-                let q = query.get().trim().to_lowercase();
+                let q = norm(query.get().trim());
+                let searching = !q.is_empty();
+                let only_fav = fav_only.get();
+                let fav_set = favs.0.get();
                 products.with_value(|ps| {
                     let filtered: Vec<_> = ps
                         .iter()
-                        .filter(|p| s.is_empty() || p.category_id.as_deref() == Some(s.as_str()))
-                        .filter(|p| q.is_empty() || p.name.to_lowercase().contains(&q))
+                        .filter(|p| !only_fav || fav_set.contains(&p.id))
+                        // Buscando, varre TODAS as categorias; sem busca, respeita
+                        // a categoria selecionada.
+                        .filter(|p| searching || s.is_empty() || p.category_id.as_deref() == Some(s.as_str()))
+                        .filter(|p| !searching || norm(&p.name).contains(&q))
                         .cloned()
                         .collect();
                     if filtered.is_empty() {
-                        let msg = if q.is_empty() {
-                            "Nenhum produto nesta categoria."
-                        } else {
+                        let msg = if only_fav {
+                            "Você ainda não favoritou nenhum item."
+                        } else if searching {
                             "Nenhum produto encontrado."
+                        } else {
+                            "Nenhum produto nesta categoria."
                         };
                         view! { <p class="state">{msg}</p> }.into_any()
                     } else {
+                        let count = filtered.len();
+                        // Contagem só quando há recorte ativo (busca/favoritos).
+                        let show_count = searching || only_fav;
                         view! {
+                            {show_count.then(|| view! {
+                                <p class="result-count">
+                                    {count} {if count == 1 { " item" } else { " itens" }}
+                                </p>
+                            })}
                             <div class="product-grid">
                                 {filtered.into_iter()
                                     .map(|p| view! { <ProductCard product=p/> })

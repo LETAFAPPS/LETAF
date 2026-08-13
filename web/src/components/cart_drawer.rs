@@ -22,6 +22,15 @@ pub fn CartDrawer() -> impl IntoView {
     let (submitting, set_submitting) = signal(false);
     let (error, set_error) = signal(String::new());
     let (confirmation, set_confirmation) = signal(None::<checkout::OrderConfirmation>);
+
+    // Fecha o drawer no Esc quando aberto (§3 acessibilidade).
+    let esc = leptos::prelude::window_event_listener(leptos::ev::keydown, move |ev| {
+        if ev.key() == "Escape" && open.get_untracked() {
+            set_open.set(false);
+            set_confirmation.set(None);
+        }
+    });
+    on_cleanup(move || esc.remove());
     // Taxa de entrega da loja (0 quando não há cadastro ou fora do
     // catálogo). Só exibição — o total oficial vem do servidor. É um signal
     // provido no `App` e preenchido pelo `CatalogView`, lido reativamente.
@@ -150,7 +159,13 @@ pub fn CartDrawer() -> impl IntoView {
 
     view! {
         {move || (cart.count() > 0.0).then(|| view! {
-            <button class="cart-fab" on:click=move |_| set_open.set(true)>
+            <button
+                class="cart-fab"
+                on:click=move |_| set_open.set(true)
+                aria-haspopup="dialog"
+                aria-expanded=move || open.get().to_string()
+                aria-label="Ver carrinho"
+            >
                 <span class="cart-fab-badge">{format!("{:.0}", cart.count())}</span>
                 <span class="cart-fab-label">"Ver carrinho"</span>
                 <span class="cart-fab-total">{format::money(cart.total())}</span>
@@ -159,9 +174,9 @@ pub fn CartDrawer() -> impl IntoView {
 
         {move || open.get().then(|| view! {
             <div class="cart-overlay" on:click=move |_| set_open.set(false)></div>
-            <aside class="cart-drawer">
+            <aside class="cart-drawer" role="dialog" aria-modal="true" aria-labelledby="cart-title">
                 <header class="cart-drawer-head">
-                    <h2>"Seu pedido"</h2>
+                    <h2 id="cart-title">"Seu pedido"</h2>
                     <button
                         class="cart-close"
                         on:click=move |_| { set_open.set(false); set_confirmation.set(None); }
@@ -174,7 +189,7 @@ pub fn CartDrawer() -> impl IntoView {
                 {move || match confirmation.get() {
                     Some(conf) => view! {
                         <div class="cart-success">
-                            <div class="cart-success-mark">"✓"</div>
+                            <div class="cart-success-mark" aria-hidden="true">"✓"</div>
                             <h3>"Pedido #" {conf.number} " enviado!"</h3>
                             <p>"Total: " {format::money(conf.total)}</p>
                             <button
@@ -236,13 +251,15 @@ pub fn CartDrawer() -> impl IntoView {
                                 on:input=move |e| set_notes.set(event_target_value(&e))
                             ></textarea>
                             // ── Entrega ou retirada ──
-                            <div class="cart-modal-row">
+                            <div class="cart-modal-row" role="group" aria-label="Modalidade de entrega">
                                 <button
                                     class=move || if delivery.get() { "chip chip-on" } else { "chip" }
+                                    aria-pressed=move || delivery.get().to_string()
                                     on:click=move |_| set_delivery.set(true)
                                 >"Entrega"</button>
                                 <button
                                     class=move || if delivery.get() { "chip" } else { "chip chip-on" }
+                                    aria-pressed=move || (!delivery.get()).to_string()
                                     on:click=move |_| set_delivery.set(false)
                                 >"Retirar no local"</button>
                             </div>
@@ -305,6 +322,9 @@ pub fn CartDrawer() -> impl IntoView {
                                 prop:value=move || coupon.get()
                                 on:input=move |e| set_coupon.set(event_target_value(&e))
                             />
+                            {move || (!coupon.get().trim().is_empty()).then(|| view! {
+                                <p class="cart-hint">"O desconto do cupom é aplicado na confirmação do pedido."</p>
+                            })}
                             // Com taxa de entrega, o cliente vê a composição
                             // (subtotal + taxa) em vez de um total que não
                             // bate com a soma dos itens.

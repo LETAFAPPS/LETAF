@@ -55,6 +55,22 @@ pub fn prefers_dark() -> bool {
     false
 }
 
+/// `true` se o sistema pede menos movimento (`prefers-reduced-motion`).
+/// Usado para NÃO auto-avançar o carrossel (WCAG 2.2.2), já que o CSS
+/// `@media (prefers-reduced-motion)` não interrompe timers de JS.
+#[cfg(feature = "hydrate")]
+pub fn prefers_reduced_motion() -> bool {
+    web_sys::window()
+        .and_then(|w| w.match_media("(prefers-reduced-motion: reduce)").ok().flatten())
+        .map(|m| m.matches())
+        .unwrap_or(false)
+}
+
+#[cfg(not(feature = "hydrate"))]
+pub fn prefers_reduced_motion() -> bool {
+    false
+}
+
 /// Aplica o esquema no `<html data-scheme>` (fonte do CSS de dark).
 #[cfg(feature = "hydrate")]
 pub fn apply(scheme: &str) {

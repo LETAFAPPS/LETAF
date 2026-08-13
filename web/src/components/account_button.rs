@@ -17,14 +17,24 @@ pub fn AccountButton() -> impl IntoView {
         {move || if session.is_logged() {
             let name = session.name().unwrap_or_default();
             view! {
-                <button class="account-btn" on:click=move |_| set_panel_open.set(true)>
+                <button
+                    class="account-btn"
+                    on:click=move |_| set_panel_open.set(true)
+                    aria-haspopup="dialog"
+                    aria-expanded=move || panel_open.get().to_string()
+                >
                     "Olá, " {name}
                 </button>
             }
             .into_any()
         } else {
             view! {
-                <button class="account-btn" on:click=move |_| set_auth_open.set(true)>
+                <button
+                    class="account-btn"
+                    on:click=move |_| set_auth_open.set(true)
+                    aria-haspopup="dialog"
+                    aria-expanded=move || auth_open.get().to_string()
+                >
                     "Entrar"
                 </button>
             }

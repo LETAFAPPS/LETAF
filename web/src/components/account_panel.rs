@@ -46,6 +46,11 @@ pub fn AccountPanel(on_close: Callback<()>) -> impl IntoView {
                     session.rename(info.name.clone());
                     set_saved.set(true);
                     set_busy.set(false);
+                    // Feedback de sucesso some sozinho (não fica ambíguo).
+                    set_timeout(
+                        move || set_saved.set(false),
+                        std::time::Duration::from_secs(3),
+                    );
                 }
                 Err(e) => {
                     set_err.set(format::server_error(&e.to_string()));
@@ -55,11 +60,25 @@ pub fn AccountPanel(on_close: Callback<()>) -> impl IntoView {
         });
     });
 
+    // Fecha no Esc (§3 acessibilidade). Ouve na janela; removido no unmount.
+    let esc = leptos::prelude::window_event_listener(leptos::ev::keydown, move |ev| {
+        if ev.key() == "Escape" {
+            on_close.run(());
+        }
+    });
+    on_cleanup(move || esc.remove());
+
     view! {
         <div class="modal-overlay" on:click=move |_| on_close.run(())>
-            <div class="account-panel" on:click=|e: leptos::ev::MouseEvent| e.stop_propagation()>
+            <div
+                class="account-panel"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="acc-title"
+                on:click=|e: leptos::ev::MouseEvent| e.stop_propagation()
+            >
                 <header class="pm-head">
-                    <div class="pm-name">"Minha conta"</div>
+                    <h2 class="pm-name" id="acc-title">"Minha conta"</h2>
                     <button class="cart-close" on:click=move |_| on_close.run(()) aria-label="Fechar">
                         "✕"
                     </button>
