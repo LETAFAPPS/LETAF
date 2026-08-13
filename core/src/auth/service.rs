@@ -138,7 +138,11 @@ impl AuthService {
             return Err(CoreError::Validation("E-mail já cadastrado".into()));
         }
         let password_hash = crate::hashing::hash_password(password).await?;
-        let user = User::new(company_id, email, password_hash, name, role);
+        let mut user = User::new(company_id, email, password_hash, name, role);
+        // Id determinístico pela chave natural (company_id, email): dois
+        // terminais offline que cadastram o mesmo e-mail convergem ao mesmo
+        // id e o upsert dedupa, em vez de envenenar a fila na UNIQUE.
+        user.base.id = crate::deterministic_id::user(company_id, &user.email);
         self.repo.create(&user).await?;
         Ok(user)
     }
@@ -207,6 +211,9 @@ impl AuthService {
             None => {
                 let mut user = User::new(company_id, email, password_hash, name, UserRole::Employee);
                 user.job_role_id = job_role_id;
+                // Id determinístico pela chave natural (company_id, email) —
+                // convergência offline; mesmo motivo do `create`.
+                user.base.id = crate::deterministic_id::user(company_id, &user.email);
                 self.repo.create(&user).await?;
                 Ok(user)
             }

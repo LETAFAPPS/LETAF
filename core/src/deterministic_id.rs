@@ -161,6 +161,23 @@ pub fn customer_by_phone(company_id: Uuid, phone_digits: &str) -> Uuid {
     Uuid::new_v5(&NS_LETAF, format!("customer_phone:{company_id}:{phone_digits}").as_bytes())
 }
 
+/// Id do usuário/colaborador pela chave natural `(company_id, email)`.
+///
+/// A tabela `users` tem `UNIQUE(company_id, email)`, mas o `sync_upsert` casa
+/// por `ON CONFLICT (id)` — mesmo poison do [`coupon`]: dois terminais offline
+/// que cadastram o MESMO e-mail geram ids aleatórios diferentes; o primeiro
+/// sincroniza e o segundo bate no índice único (id novo, e-mail repetido) e
+/// fica preso na fila para sempre, sem convergir. Derivando o id do e-mail,
+/// ambos chegam ao MESMO id e o upsert dedupa (§7.7).
+///
+/// Sem tradeoff de identidade: o e-mail é o login da pessoa (único por
+/// empresa por construção do índice). Chaveia pelo e-mail COMO ARMAZENADO —
+/// a UNIQUE do Postgres é case-sensitive, então a dedup por id acompanha a
+/// dedup do índice.
+pub fn user(company_id: Uuid, email: &str) -> Uuid {
+    Uuid::new_v5(&NS_LETAF, format!("user:{company_id}:{email}").as_bytes())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -207,6 +224,17 @@ mod tests {
             customer_by_phone(empresa, "11999998888"),
             customer_by_phone(empresa, "11999990000")
         );
+    }
+
+    #[test]
+    fn usuario_deriva_do_email() {
+        let empresa = Uuid::new_v4();
+        let outra = Uuid::new_v4();
+        // Dois terminais, mesmo e-mail → mesmo id.
+        assert_eq!(user(empresa, "ana@x.com"), user(empresa, "ana@x.com"));
+        // Isolamento por empresa e por e-mail.
+        assert_ne!(user(empresa, "ana@x.com"), user(outra, "ana@x.com"));
+        assert_ne!(user(empresa, "ana@x.com"), user(empresa, "bia@x.com"));
     }
 
     #[test]
