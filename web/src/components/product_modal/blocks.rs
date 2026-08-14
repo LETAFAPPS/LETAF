@@ -143,6 +143,8 @@ pub fn render_group(
                 let (gd, ad) = (gid.clone(), aid.clone());
                 let (gi, ai) = (gid.clone(), aid.clone());
                 let qty_i = qty as i32;
+                // Preço reflete a QUANTIDADE selecionada (ex.: 3 × R$ 4,00).
+                let price_qty = price_label(addon.price * qty as f64);
                 view! {
                     <div class="opt-row opt-sel">
                         <button
@@ -155,7 +157,7 @@ pub fn render_group(
                             "✓"
                         </button>
                         <span class="opt-name">{name}</span>
-                        <span class="opt-price">{price_txt}</span>
+                        <span class="opt-price">{price_qty}</span>
                         <div class="opt-counter">
                             <button on:click=move |_| selection.update(|s| {
                                 logic::change_addon_qty(s, &gd, &ad, -1, false, max_sel);

@@ -22,20 +22,11 @@ pub fn ProductModal(product: CatalogProduct, on_close: Callback<()>) -> impl Int
     let description = product.description.clone().unwrap_or_default();
     let seal = discount::discount_badge_label(&product);
 
-    // Favorito (coração) no topo da foto — igual ao card (§11: só UI).
+    // Coração no topo da foto — apenas INDICADOR (não clicável), aparece só
+    // quando o produto está favoritado. Favoritar/desfavoritar é no card.
     let favs = expect_context::<crate::favorites::Favorites>();
-    let fav_id = product.id.clone();
-    let fav_id_read = fav_id.clone();
+    let fav_id_read = product.id.clone();
     let is_fav = Memo::new(move |_| favs.0.with(|s| s.contains(&fav_id_read)));
-    let toggle_fav = move |_| {
-        let id = fav_id.clone();
-        favs.0.update(|s| {
-            if !s.remove(&id) {
-                s.insert(id);
-            }
-        });
-        crate::favorites::save(&favs.0.get_untracked());
-    };
     let raw_base = product.price.unwrap_or(0.0);
     // Foto de destaque no topo do modal (galeria da loja > imagem única).
     let hero_img = if product.image_urls.is_empty() {
@@ -132,19 +123,19 @@ pub fn ProductModal(product: CatalogProduct, on_close: Callback<()>) -> impl Int
                 aria-labelledby="pm-title"
                 on:click=|e: leptos::ev::MouseEvent| e.stop_propagation()
             >
-                {hero_img.map(|src| view! {
-                    <div class="pm-photo"><img src=src alt="" loading="lazy"/></div>
+                // Foto SEMPRE presente (mesmo sem imagem, mostra o card cinza)
+                // para o layout não cortar/sobrepor nada.
+                <div class="pm-photo">
+                    {match hero_img {
+                        Some(src) => view! { <img src=src alt="" loading="lazy"/> }.into_any(),
+                        None => view! { <span class="no-image">"sem imagem"</span> }.into_any(),
+                    }}
+                </div>
+                // Indicador de favorito (vermelho, só quando favoritado; não
+                // clicável, sem fundo).
+                {move || is_fav.get().then(|| view! {
+                    <span class="pm-fav" aria-label="Favoritado"><Icon name="favoritos"/></span>
                 })}
-                // Ações sobre a foto: favorito (coração) + fechar (X).
-                <button
-                    class="pm-fav"
-                    class:pm-fav-on=move || is_fav.get()
-                    on:click=toggle_fav
-                    aria-pressed=move || is_fav.get().to_string()
-                    aria-label=move || if is_fav.get() { "Remover dos favoritos" } else { "Adicionar aos favoritos" }
-                >
-                    <Icon name="favoritos"/>
-                </button>
                 <button class="cart-close" on:click=move |_| on_close.run(()) aria-label="Fechar">
                     <Icon name="fechar"/>
                 </button>
