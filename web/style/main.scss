@@ -448,11 +448,16 @@ main {
     .topbar .fav-toggle,
     .topbar .theme-toggle,
     .topbar .account-btn { display: none; }
-    // Perfil na barra inferior: coluna ícone + rótulo, igual aos demais itens.
+    // Selo Aberto/Fechado vai para a DIREITA da tela no mobile.
+    .store-status { margin-left: auto; }
+    // Perfil na barra inferior: coluna ícone + rótulo, IGUAL aos demais itens
+    // (mesmo padding/gap/tamanho).
     .mobile-nav .account-btn {
         flex: 1;
         flex-direction: column;
+        justify-content: center;
         gap: 3px;
+        padding: 4px 2px;
         color: var(--muted);
         font-size: 0.62rem;
         font-weight: 600;

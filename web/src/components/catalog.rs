@@ -345,15 +345,6 @@ fn CatalogView(data: CatalogData) -> impl IntoView {
                 <span class="mnav-ico"><Icon name="casa"/></span>
                 <span class="mnav-lbl">"Início"</span>
             </button>
-            <button type="button" class="mnav-item" on:click=move |_| cart_open.0.set(true)>
-                <span class="mnav-ico">
-                    <Icon name="carrinho"/>
-                    {move || (cart_ctx.count() > 0.0).then(|| view! {
-                        <span class="cart-toggle-badge">{format!("{:.0}", cart_ctx.count())}</span>
-                    })}
-                </span>
-                <span class="mnav-lbl">"Carrinho"</span>
-            </button>
             <button
                 type="button"
                 class="mnav-item"
@@ -362,6 +353,21 @@ fn CatalogView(data: CatalogData) -> impl IntoView {
             >
                 <span class="mnav-ico"><Icon name="favoritos"/></span>
                 <span class="mnav-lbl">"Favoritos"</span>
+            </button>
+            // Carrinho ao CENTRO (3º de 5); destacado na cor da marca quando há itens.
+            <button
+                type="button"
+                class="mnav-item"
+                class:mnav-on=move || { cart_ctx.count() > 0.0 }
+                on:click=move |_| cart_open.0.set(true)
+            >
+                <span class="mnav-ico">
+                    <Icon name="carrinho"/>
+                    {move || (cart_ctx.count() > 0.0).then(|| view! {
+                        <span class="cart-toggle-badge">{format!("{:.0}", cart_ctx.count())}</span>
+                    })}
+                </span>
+                <span class="mnav-lbl">"Carrinho"</span>
             </button>
             <button
                 type="button"

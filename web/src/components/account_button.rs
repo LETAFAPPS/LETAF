@@ -23,15 +23,15 @@ pub fn AccountButton() -> impl IntoView {
                     aria-label="Minha conta"
                 >
                     <Icon name="usuario"/>
-                    <span class="account-lbl">"Conta"</span>
+                    <span class="account-lbl">"Perfil"</span>
                 </button>
             }
             .into_any()
         } else {
             view! {
-                <a class="account-btn" href="/entrar" aria-label="Entrar">
+                <a class="account-btn" href="/entrar" aria-label="Perfil">
                     <Icon name="usuario"/>
-                    <span class="account-lbl">"Entrar"</span>
+                    <span class="account-lbl">"Perfil"</span>
                 </a>
             }
             .into_any()
