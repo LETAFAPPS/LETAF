@@ -307,7 +307,7 @@ fn AuthView(info: CatalogInfo) -> impl IntoView {
                     })}
 
                     <div class="field-wrap">
-                        <span class="field-lead" aria-hidden="true"><Icon name="cadeado"/></span>
+                        <span class="field-lead" aria-hidden="true"><Icon name="cadeado-aberto"/></span>
                         <input
                             class="field has-lead has-eye"
                             r#type=move || if show_pw.get() { "text" } else { "password" }
