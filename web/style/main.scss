@@ -1367,13 +1367,18 @@ button.ind { cursor: pointer; padding: 0; }
 
 // ── Tela de login em rota própria (/entrar) — estilo do mockup ──────────
 .auth-page {
-    min-height: 100vh;
+    // Overlay que cobre a viewport inteira (ignora o padding do <main>, que
+    // causava scroll). Centraliza o card igual no mobile; sem scroll de
+    // página. Em telas muito baixas, rola DENTRO do overlay (overflow:auto).
+    position: fixed;
+    inset: 0;
     display: grid;
     place-items: center;
     align-content: center;
     gap: 0;
     padding: 24px 16px;
     background: var(--bg);
+    overflow: auto;
 }
 .auth-card {
     width: min(380px, 100%);
