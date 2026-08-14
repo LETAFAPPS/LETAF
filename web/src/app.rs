@@ -7,7 +7,7 @@ use leptos_router::{
 
 use crate::availability::Now;
 use crate::cart::Cart;
-use crate::components::cart_drawer::CartDrawer;
+use crate::components::cart_page::CartPage;
 use crate::components::catalog::{CatalogPage, DeliveryFee};
 use crate::favorites::Favorites;
 use crate::session::Session;
@@ -60,21 +60,15 @@ pub fn App() -> impl IntoView {
     provide_context(session);
     Effect::new(move |_| session.0.set(crate::session::load()));
 
-    // Taxa de entrega compartilhada: provida AQUI (ancestral comum do
-    // `Router` e do `CartDrawer`), nasce 0.0 e é preenchida pelo
-    // `CatalogView` quando o catálogo carrega. O `CartDrawer` a lê
-    // reativamente. Sem isto, o contexto vivia dentro do `Router` e o
-    // `CartDrawer` (irmão) nunca o via → taxa sempre 0.
+    // Taxa de entrega compartilhada: preenchida pelo `CatalogView` e lida pelo
+    // catálogo/carrinho. (A página do carrinho também busca a taxa via
+    // `/catalog/info`, então funciona mesmo em acesso direto a `/carrinho`.)
     provide_context(DeliveryFee(RwSignal::new(0.0)));
     // Loja aberta? (default aberta no SSR; o CatalogView atualiza no cliente.)
     provide_context(crate::components::catalog::StoreOpen(RwSignal::new(true)));
-    // Sinaliza "retomar o checkout": marcado quando o cliente vai ao login a
-    // partir do carrinho; o `CartDrawer` reabre ao voltar logado, sem perder
-    // nada do pedido (itens/observações/cupom/entrega ficam nos signals, que
-    // sobrevivem à navegação SPA porque o drawer nunca é desmontado).
-    provide_context(crate::components::cart_drawer::ResumeCheckout(RwSignal::new(false)));
-    // Abrir o carrinho a partir do botão de carrinho no topo.
-    provide_context(crate::components::cart_drawer::CartOpen(RwSignal::new(false)));
+    // "Retomar checkout": marcado quando o cliente vai ao login a partir do
+    // carrinho; a `AuthPage` volta para `/carrinho` ao logar.
+    provide_context(crate::components::cart_page::ResumeCheckout(RwSignal::new(false)));
 
     // Tema claro/escuro (preferência do cliente). Nasce vazio (SSR usa o
     // tema padrão pelo CSS). No cliente: usa a escolha salva; se não há,
@@ -120,12 +114,9 @@ pub fn App() -> impl IntoView {
                 <Routes fallback=|| "Página não encontrada.".into_view()>
                     <Route path=StaticSegment("") view=CatalogPage/>
                     <Route path=StaticSegment("entrar") view=crate::components::auth_page::AuthPage/>
+                    <Route path=StaticSegment("carrinho") view=CartPage/>
                 </Routes>
             </main>
-            // Dentro do `Router` (mas FORA das `Routes`): persiste entre rotas
-            // e ainda ganha contexto de rota (navegar/ler a URL). Assim o
-            // checkout sobrevive ao ir ao login e voltar.
-            <CartDrawer/>
         </Router>
     }
 }

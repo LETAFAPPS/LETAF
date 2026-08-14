@@ -1,5 +1,6 @@
 use leptos::prelude::*;
 use leptos_meta::{Meta, Title};
+use leptos_router::hooks::use_navigate;
 
 use crate::api::CatalogData;
 use crate::availability::{self, Now};
@@ -195,9 +196,8 @@ fn CatalogView(data: CatalogData) -> impl IntoView {
     // Filtro "só favoritos" (preferência de UI; os favoritos vivem no
     // contexto/localStorage). Recorte de exibição, sem regra de negócio.
     let favs = expect_context::<crate::favorites::Favorites>();
-    // Carrinho (contador no topo) + pedido de abertura do drawer.
+    // Carrinho (contador no topo). O botão navega para a tela /carrinho.
     let cart_ctx = expect_context::<crate::cart::Cart>();
-    let cart_open = expect_context::<crate::components::cart_drawer::CartOpen>();
     let (fav_only, set_fav_only) = signal(false);
     // Tema claro/escuro (preferência do usuário; ver `theme.rs`).
     let scheme = expect_context::<crate::theme::Scheme>();
@@ -290,7 +290,7 @@ fn CatalogView(data: CatalogData) -> impl IntoView {
                     type="button"
                     class="cart-toggle"
                     aria-label="Abrir carrinho"
-                    on:click=move |_| cart_open.0.set(true)
+                    on:click=move |_| use_navigate()("/carrinho", Default::default())
                 >
                     <Icon name="carrinho"/>
                     {move || (cart_ctx.count() > 0.0).then(|| view! {
@@ -359,7 +359,7 @@ fn CatalogView(data: CatalogData) -> impl IntoView {
                 type="button"
                 class="mnav-item"
                 class:mnav-on=move || { cart_ctx.count() > 0.0 }
-                on:click=move |_| cart_open.0.set(true)
+                on:click=move |_| use_navigate()("/carrinho", Default::default())
             >
                 <span class="mnav-ico">
                     <Icon name="carrinho"/>

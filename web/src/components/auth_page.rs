@@ -91,6 +91,17 @@ fn is_phone(s: &str) -> bool {
     (10..=11).contains(&n)
 }
 
+/// Destino após logar/cadastrar: volta ao `/carrinho` se o cliente veio do
+/// carrinho (consome o sinal), senão vai ao catálogo.
+fn dest_after_login(resume: crate::components::cart_page::ResumeCheckout) -> &'static str {
+    if resume.0.get_untracked() {
+        resume.0.set(false);
+        "/carrinho"
+    } else {
+        "/"
+    }
+}
+
 /// Etapa da tela: login, cadastro ou os dois passos da recuperação de senha.
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Stage {
@@ -123,6 +134,8 @@ pub fn AuthPage() -> impl IntoView {
 fn AuthView(info: CatalogInfo) -> impl IntoView {
     let session = expect_context::<Session>();
     let scheme = expect_context::<Scheme>();
+    // Se o cliente veio do carrinho, volta para /carrinho ao logar/cadastrar.
+    let resume = expect_context::<crate::components::cart_page::ResumeCheckout>();
 
     let nome_loja = info.name.clone();
     let nome_header = info.name.clone();
@@ -242,11 +255,11 @@ fn AuthView(info: CatalogInfo) -> impl IntoView {
         spawn_local(async move {
             match st {
                 Stage::Login => match session::customer_login(id, pw, rem).await {
-                    Ok(info) => { session.set_remembering(info, rem); navigate("/", Default::default()); }
+                    Ok(info) => { session.set_remembering(info, rem); navigate(dest_after_login(resume), Default::default()); }
                     Err(e) => { set_error.set(format::server_error(&e.to_string())); set_busy.set(false); }
                 },
                 Stage::Register => match session::customer_register(n, id, p, pw).await {
-                    Ok(info) => { session.set(info); navigate("/", Default::default()); }
+                    Ok(info) => { session.set(info); navigate(dest_after_login(resume), Default::default()); }
                     Err(e) => { set_error.set(format::server_error(&e.to_string())); set_busy.set(false); }
                 },
                 Stage::ForgotRequest => match session::customer_forgot_password(id).await {
