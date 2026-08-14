@@ -553,12 +553,9 @@ main {
     cursor: pointer;
     transition: width 0.2s ease;
 
-    // Ativo: pílula na COR DA MARCA (mesma altura dos círculos).
+    // Ativo: MESMO tamanho do círculo dos outros — só muda a cor (da marca).
     &.banner-dot-active {
         background: var(--brand);
-        width: 24px;
-        height: 8px;
-        border-radius: 999px;
     }
 }
 
