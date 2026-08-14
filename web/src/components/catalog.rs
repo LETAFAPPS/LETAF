@@ -330,15 +330,6 @@ fn CatalogView(data: CatalogData) -> impl IntoView {
                 <span class="cat-ico" aria-hidden="true"><CategoryIcon slug="all"/></span>
                 <span class="cat-lbl">"Todos"</span>
             </button>
-            <button
-                class="cat-tile"
-                class:cat-tile-active=move || fav_only.get()
-                aria-pressed=move || fav_only.get().to_string()
-                on:click=move |_| { set_fav_only.update(|v| *v = !*v); set_sel.set(String::new()); }
-            >
-                <span class="cat-ico" aria-hidden="true"><Icon name="favoritos"/></span>
-                <span class="cat-lbl">"Favoritos"</span>
-            </button>
             {cats.into_iter().map(|c| {
                 let id_active = c.id.clone();
                 let id_click = c.id.clone();

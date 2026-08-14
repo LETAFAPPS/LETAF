@@ -398,7 +398,7 @@ main {
 
 // Capa da loja (opcional) — banner de identidade acima do carrossel.
 .hero-cover {
-    margin-top: 0.75rem;
+    margin-top: 1.4rem;
 
     img {
         width: 100%;
@@ -493,11 +493,11 @@ main {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 6px;
+    gap: 2px;                   // ícone perto do rótulo
 }
 .cat-ico {
-    width: 60px;
-    height: 60px;
+    width: 44px;
+    height: 44px;
     // Sem card: nada de fundo, borda ou sombra — só o ícone.
     background: transparent;
     border: none;
@@ -538,7 +538,7 @@ main {
 .product-card {
     position: relative;
     border: 1px solid var(--line);
-    border-radius: var(--r-lg);
+    border-radius: var(--r-md);
     overflow: hidden;
     display: flex;
     flex-direction: column;
@@ -704,6 +704,7 @@ main {
         padding-top: 4px;
         display: flex;
         align-items: baseline;
+        justify-content: flex-end;   // valor do produto à direita
         gap: 6px;
         flex-wrap: wrap;
     }
@@ -735,7 +736,8 @@ main {
 .add-btn {
     position: absolute;
     top: -18px;
-    right: 10px;
+    left: 50%;
+    transform: translateX(-50%);   // centralizado sobre a base da foto
     z-index: 2;
     border: none;
     background: var(--surface);
@@ -750,7 +752,8 @@ main {
     box-shadow: var(--shadow-md);
     transition: transform 0.12s ease, filter 0.15s ease;
 
-    &:hover { transform: translateY(-1px); filter: brightness(1.02); }
+    // Mantém a centralização no hover (translateX(-50%) + leve subida).
+    &:hover { transform: translateX(-50%) translateY(-1px); filter: brightness(1.02); }
     // Indisponível: o overlay "Indisponível" já cobre a foto, então o
     // botão simplesmente some (evita rótulo longo na pílula).
     &:disabled { display: none; }
@@ -784,7 +787,7 @@ main {
     gap: 6px;
     margin-left: 4px;
     padding: 4px 10px;
-    border-radius: 999px;
+    border-radius: var(--r-sm);
     background: #dcfce7;
     border: 1px solid #86efac;
     color: #166534;
@@ -1184,12 +1187,15 @@ button.ind { cursor: pointer; padding: 0; }
     border: 1px solid var(--brand);
     background: var(--surface);
     color: var(--brand-ink);
-    border-radius: var(--r-md);
+    border-radius: var(--r-sm);
     padding: 6px 14px;
     font-family: inherit;
     font-size: 0.8rem;
     font-weight: 700;
     cursor: pointer;
+    text-decoration: none;   // é um <a>: sem sublinhado
+    display: inline-flex;
+    align-items: center;
 }
 .account .account-btn { margin-left: 0; }
 
