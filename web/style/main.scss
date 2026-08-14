@@ -128,7 +128,6 @@
         }
     }
     .product-card .unavailable { background: rgba(0, 0, 0, 0.55); }
-    .product-card .fav { background: rgba(20, 18, 16, 0.82); }
     // Selo de desconto mantém a cor da marca em todos os temas (pedido do
     // usuário) — sem override no escuro.
 }
@@ -754,6 +753,7 @@ main {
         box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
     }
 
+    // Favorito SEM círculo de fundo — só o ícone do coração sobre a foto.
     .fav {
         position: absolute;
         top: 6px;
@@ -761,8 +761,7 @@ main {
         width: 40px;
         height: 40px;
         border: none;
-        border-radius: 50%;
-        background: rgba(255, 255, 255, 0.85);
+        background: transparent;
         color: var(--muted);
         font-size: 1rem;
         line-height: 1;
@@ -770,7 +769,6 @@ main {
         display: flex;
         align-items: center;
         justify-content: center;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
         transition: color 0.15s, transform 0.1s;
 
         &:hover { transform: scale(1.1); }
@@ -821,9 +819,8 @@ main {
         flex-wrap: wrap;
     }
     .price-old {
-        font-size: 0.72rem;
+        font-size: 0.8rem;
         color: var(--muted);
-        text-decoration: line-through;
     }
     .price-now {
         font-size: 0.95rem;
