@@ -581,9 +581,9 @@ main {
 .banner-dot {
     width: 8px;
     height: 8px;
-    // Área de toque ~20px sem inflar o ponto visível (pinta só o content-box).
+    // Área de toque sem inflar o ponto visível (pinta só o content-box).
     box-sizing: content-box;
-    padding: 6px;
+    padding: 4px;
     border: none;
     border-radius: 50%;          // círculo cinza pequeno (inativo)
     // Cinza-claro tematizável (claro no tema claro, discreto no escuro).
