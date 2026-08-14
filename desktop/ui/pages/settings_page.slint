@@ -273,72 +273,25 @@ export component SettingsPage inherits VerticalLayout {
                         horizontal-stretch: 1;
                         spacing: 2px;
                         Text { text: "Marca & Identidade"; font-size: Theme.fs-body; font-weight: Theme.fw-bold; color: Theme.text-primary; }
-                        Text { text: "Logo, capa e nome público"; font-size: Theme.fs-11; color: Theme.text-secondary; }
+                        Text { text: "Logo e nome público"; font-size: Theme.fs-11; color: Theme.text-secondary; }
                     }
                     SyncBadge {
                         synced: root.store-synced;
                     }
                 }
 
-                // Wrapper: contém a capa (com clip) e o logo posicionado
-                // por cima como irmão — assim o logo aparece inteiro,
-                // projetando para baixo da linha da capa sem ser cortado
-                //
-                // Capa em proporção FIXA 5:1 (altura = largura / 5).
-                // Altura do wrapper = capa (largura/5) + parte do logo
-                // que projeta (28px do logo de 56px, 50% para fora).
-                Rectangle {
-                    height: self.width / 5 + 28px;
-                    // Capa (mantém clip para a imagem não vazar)
+                // Logo do estabelecimento (a capa foi removida).
+                HorizontalLayout {
                     Rectangle {
-                        x: 0; y: 0;
-                        width: parent.width;
-                        height: parent.width / 5;
+                        width: 72px; height: 72px;
                         border-radius: 8px;
-                        background: Theme.primary;
-                        clip: true;
-                        if root.store-cover-data != "": Image {
-                            x: 0; y: 0;
-                            width: parent.width; height: parent.height;
-                            source: root.store-cover-image;
-                            image-fit: cover;
-                        }
-                        cover-pick-ta := TouchArea {
-                            x: parent.width - 36px;
-                            y: 8px;
-                            width: 28px; height: 28px;
-                            enabled: !root.store-cover-loading;
-                            clicked => { root.pick-store-cover(); }
-                            Rectangle {
-                                border-radius: Theme.radius-3xl;
-                                background: Theme.scrim;
-                                Text {
-                                    text: "\u{270E}";
-                                    font-size: Theme.fs-body;
-                                    color: white;
-                                    width: parent.width; height: parent.height;
-                                    horizontal-alignment: center; vertical-alignment: center;
-                                }
-                            }
-                        }
-                    }
-
-                    // Logo: irmão da capa, posicionado de modo que metade
-                    // sobreponha a capa e metade fique abaixo dela.
-                    // y = (altura da capa − 28) → logo a 50% para fora,
-                    // acompanhando a capa 5:1 (largura/5).
-                    Rectangle {
-                        x: 12px;
-                        y: parent.width / 5 - 28px;
-                        width: 56px; height: 56px;
-                        border-radius: 8px;
-                        border-width: 2px;
-                        border-color: white;
+                        border-width: 1px;
+                        border-color: Theme.border;
                         background: root.store-logo-data == "" ? Theme.bg : Theme.surface;
                         clip: true;
                         if root.store-logo-data == "": Text {
                             text: root.store-name == "" ? "L" : root.store-name;
-                            font-size: 22px;
+                            font-size: 26px;
                             font-weight: Theme.fw-extrabold;
                             color: Theme.primary;
                             width: parent.width; height: parent.height;
@@ -365,7 +318,7 @@ export component SettingsPage inherits VerticalLayout {
                 }
 
                 Text {
-                    text: "Logo e capa: clique no banner para trocar a capa, no quadrado branco para trocar o logo.";
+                    text: "Logo: clique no quadrado para escolher a imagem da sua marca.";
                     font-size: Theme.fs-label;
                     color: Theme.text-secondary;
                     wrap: word-wrap;

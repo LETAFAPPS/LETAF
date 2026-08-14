@@ -167,14 +167,12 @@ fn CatalogView(data: CatalogData) -> impl IntoView {
         .map(|b| format!("--brand:{};--brand-ink:{}", shade(b, 0.16, true), shade(b, 0.45, true)))
         .unwrap_or_default();
     // URLs já vêm prontas da API (mídia servida como bytes, não base64).
-    let cover = data.info.cover_url.clone();
     let logo = data.info.logo_url.clone();
     // URL absoluta para og:image (crawler não resolve caminho relativo).
-    // Preferimos a capa (imagem maior/mais representativa) e caímos no logo.
+    // A capa foi removida — usa a logo.
     let origin = data.site_origin.clone();
-    let og_image = cover
+    let og_image = logo
         .clone()
-        .or_else(|| logo.clone())
         .map(|u| if u.starts_with("http") { u } else { format!("{origin}{u}") });
     // Publica a taxa de entrega no signal compartilhado (provido no `App`,
     // acima do `Router` e do `CartDrawer`): o carrinho a exibe antes do
@@ -391,8 +389,6 @@ fn CatalogView(data: CatalogData) -> impl IntoView {
         {move || (account_panel.0.get() && session.is_logged()).then(|| view! {
             <AccountPanel on_close=Callback::new(move |_| account_panel.0.set(false))/>
         })}
-
-        {cover.map(|c| view! { <div class="hero-cover"><img src=c alt="" loading="lazy"/></div> })}
 
         <BannerCarousel banners/>
 
