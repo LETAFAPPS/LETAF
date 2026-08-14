@@ -414,7 +414,14 @@ main {
     position: relative;
     margin: 0.5rem 0 0;
     width: 100%;
-    aspect-ratio: 3 / 1;
+}
+// Janela que recorta a imagem (altura menor). As bolinhas ficam FORA dela,
+// logo abaixo — por isso o recorte vive aqui, não no container.
+.banner-viewport {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 4 / 1;
+    max-height: 200px;
     overflow: hidden;
     background: var(--surface-3);
     border-radius: var(--r-lg);
@@ -424,6 +431,27 @@ main {
     display: flex;
     width: 100%;
     height: 100%;
+}
+// Setas prev/next sobre a imagem.
+.banner-nav {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 38px;
+    height: 38px;
+    border: none;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.45);
+    color: #fff;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    &.prev { left: 10px; }
+    &.next { right: 10px; }
+    &:hover { background: rgba(0, 0, 0, 0.6); }
+    .ico svg { width: 20px; height: 20px; }
 }
 .banner-slide {
     flex: 0 0 100%;
@@ -440,13 +468,10 @@ main {
     }
 }
 .banner-dots {
-    position: absolute;
-    bottom: 10px;
-    left: 0;
-    right: 0;
     display: flex;
     justify-content: center;
     gap: 8px;
+    margin-top: 8px;
 }
 .banner-dot {
     width: 8px;
@@ -454,19 +479,17 @@ main {
     // Área de toque ~20-24px sem inflar o ponto visível (pinta só o
     // content-box). Alvo de 8px era pequeno demais para o dedo.
     box-sizing: content-box;
-    padding: 8px 6px;
+    padding: 6px;
     border: none;
     border-radius: var(--r-sm);
-    background: rgba(255, 255, 255, 0.6);
+    background: var(--muted);
     background-clip: content-box;
     cursor: pointer;
     transition: width 0.2s;
 
     &.banner-dot-active {
+        background: var(--brand);
         width: 24px;
-        // Fica SOBRE a foto — branco fixo (não --surface, que some no dark).
-        background: #fff;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
     }
 }
 

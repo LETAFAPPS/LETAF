@@ -3,6 +3,7 @@ use std::time::Duration;
 use leptos::prelude::*;
 
 use crate::api::CatalogBanner;
+use crate::components::icon::Icon;
 
 const ROTATE: Duration = Duration::from_millis(5000);
 
@@ -49,31 +50,45 @@ pub fn BannerCarousel(banners: Vec<CatalogBanner>) -> impl IntoView {
             on:focusin=move |_| set_paused.set(true)
             on:focusout=move |_| set_paused.set(false)
         >
-            <div
-                class="banner-track"
-                style=move || format!(
-                    "transform:translateX(-{}00%);transition:transform .55s cubic-bezier(.22,.61,.36,1);",
-                    index.get()
-                )
-            >
-                {banners.into_iter().map(|b| {
-                    let src = b.image_url.clone();
-                    let title = b.title.clone();
-                    let url = (b.item_type == "url").then_some(b.item_url).flatten();
-                    match url {
-                        Some(href) => view! {
-                            <a class="banner-slide" href=href target="_blank" rel="noopener">
-                                <img src=src alt=title draggable="false"/>
-                            </a>
-                        }.into_any(),
-                        None => view! {
-                            <div class="banner-slide">
-                                <img src=src alt=title draggable="false"/>
-                            </div>
-                        }.into_any(),
-                    }
-                }).collect_view()}
+            <div class="banner-viewport">
+                <div
+                    class="banner-track"
+                    style=move || format!(
+                        "transform:translateX(-{}00%);transition:transform .55s cubic-bezier(.22,.61,.36,1);",
+                        index.get()
+                    )
+                >
+                    {banners.into_iter().map(|b| {
+                        let src = b.image_url.clone();
+                        let title = b.title.clone();
+                        let url = (b.item_type == "url").then_some(b.item_url).flatten();
+                        match url {
+                            Some(href) => view! {
+                                <a class="banner-slide" href=href target="_blank" rel="noopener">
+                                    <img src=src alt=title draggable="false"/>
+                                </a>
+                            }.into_any(),
+                            None => view! {
+                                <div class="banner-slide">
+                                    <img src=src alt=title draggable="false"/>
+                                </div>
+                            }.into_any(),
+                        }
+                    }).collect_view()}
+                </div>
+                // Setas de navegação (só com mais de um banner).
+                {(total > 1).then(|| view! {
+                    <button class="banner-nav prev" aria-label="Banner anterior"
+                        on:click=move |_| set_index.update(|i| *i = (*i + total - 1) % total)>
+                        <Icon name="seta-esquerda"/>
+                    </button>
+                    <button class="banner-nav next" aria-label="Próximo banner"
+                        on:click=move |_| set_index.update(|i| *i = (*i + 1) % total)>
+                        <Icon name="seta-direita"/>
+                    </button>
+                })}
             </div>
+            // Bolinhas ABAIXO do banner (só com mais de um).
             {(total > 1).then(|| view! {
                 <div class="banner-dots">
                     {(0..total).map(|i| view! {
