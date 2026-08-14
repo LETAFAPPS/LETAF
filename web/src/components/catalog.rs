@@ -4,7 +4,8 @@ use leptos_router::hooks::use_navigate;
 
 use crate::api::CatalogData;
 use crate::availability::{self, Now};
-use super::account_button::AccountButton;
+use super::account_button::{AccountButton, AccountPanelOpen};
+use super::account_panel::AccountPanel;
 use super::banner_carousel::BannerCarousel;
 use super::product_card::ProductCard;
 use super::icon::{CategoryIcon, Icon};
@@ -198,6 +199,9 @@ fn CatalogView(data: CatalogData) -> impl IntoView {
     let favs = expect_context::<crate::favorites::Favorites>();
     // Carrinho (contador no topo). O botão navega para a tela /carrinho.
     let cart_ctx = expect_context::<crate::cart::Cart>();
+    // Sessão + painel da conta (aberto pelos botões Perfil e Pedidos).
+    let session = expect_context::<crate::session::Session>();
+    let account_panel = expect_context::<AccountPanelOpen>();
     let (fav_only, set_fav_only) = signal(false);
     // Tema claro/escuro (preferência do usuário; ver `theme.rs`).
     let scheme = expect_context::<crate::theme::Scheme>();
@@ -367,27 +371,29 @@ fn CatalogView(data: CatalogData) -> impl IntoView {
                 <span class="mnav-ico"><Icon name="carrinho"/></span>
                 <span class="mnav-lbl">"Carrinho"</span>
             </button>
+            // Pedidos (no lugar do Tema, que foi para o topo). Logado abre o
+            // painel (com "Meus pedidos"); deslogado vai para o login.
             <button
                 type="button"
                 class="mnav-item"
                 on:click=move |_| {
-                    let next = if scheme.0.get() == "dark" { "light" } else { "dark" };
-                    scheme.0.set(next.to_string());
-                    crate::theme::save(next);
+                    if session.is_logged() {
+                        account_panel.0.set(true);
+                    } else {
+                        use_navigate()("/entrar", Default::default());
+                    }
                 }
             >
-                <span class="mnav-ico">
-                    {move || if scheme.0.get() == "dark" {
-                        view! { <Icon name="modo-claro"/> }.into_any()
-                    } else {
-                        view! { <Icon name="modo-escuro"/> }.into_any()
-                    }}
-                </span>
-                <span class="mnav-lbl">"Tema"</span>
+                <span class="mnav-ico"><Icon name="orders"/></span>
+                <span class="mnav-lbl">"Pedidos"</span>
             </button>
-            // Perfil (à direita do Tema) — mesmo botão do topo.
+            // Perfil (à direita) — mesmo botão do topo.
             <AccountButton/>
         </nav>
+        // Painel da conta (perfil + pedidos), aberto por Perfil/Pedidos.
+        {move || (account_panel.0.get() && session.is_logged()).then(|| view! {
+            <AccountPanel on_close=Callback::new(move |_| account_panel.0.set(false))/>
+        })}
 
         {cover.map(|c| view! { <div class="hero-cover"><img src=c alt="" loading="lazy"/></div> })}
 

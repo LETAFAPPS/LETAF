@@ -69,6 +69,8 @@ pub fn App() -> impl IntoView {
     // "Retomar checkout": marcado quando o cliente vai ao login a partir do
     // carrinho; a `AuthPage` volta para `/carrinho` ao logar.
     provide_context(crate::components::cart_page::ResumeCheckout(RwSignal::new(false)));
+    // Painel da conta (perfil + pedidos) — aberto pelos botões Perfil/Pedidos.
+    provide_context(crate::components::account_button::AccountPanelOpen(RwSignal::new(false)));
 
     // Tema claro/escuro (preferência do cliente). Nasce vazio (SSR usa o
     // tema padrão pelo CSS). No cliente: usa a escolha salva; se não há,

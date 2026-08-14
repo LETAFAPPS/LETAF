@@ -463,10 +463,10 @@ main {
         box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.06);
         padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
     }
-    // Os ícones migram para a barra inferior — somem do topo.
+    // Cart/favoritos/perfil migram para a barra inferior — somem do topo.
+    // O TEMA fica no topo (ao lado do "Aberto").
     .topbar .cart-toggle,
     .topbar .fav-toggle,
-    .topbar .theme-toggle,
     .topbar .account-btn { display: none; }
     // Selo Aberto/Fechado vai para a DIREITA da tela no mobile. (Especificidade
     // maior que a base `.store-status`, definida depois no arquivo.)
