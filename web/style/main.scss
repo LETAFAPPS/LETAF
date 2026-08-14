@@ -1293,7 +1293,7 @@ button.ind { cursor: pointer; padding: 0; }
 .auth-page {
     .field-wrap { position: relative; display: flex; width: 100%; }
     .field {
-        border-radius: var(--r-lg);
+        border-radius: var(--r-md);
         padding: 13px 16px;
     }
     .field.has-lead { padding-left: 46px; }
@@ -1309,7 +1309,15 @@ button.ind { cursor: pointer; padding: 0; }
         pointer-events: none;
         .ico { width: 20px; height: 20px; display: block; }
     }
-    .pw-eye { color: var(--muted); }
+    // Olho da senha centralizado na altura do campo: `display:flex` remove o
+    // vão da linha de base do SVG inline (que o deixava fora do centro).
+    .pw-eye {
+        color: var(--muted);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        .ico { width: 20px; height: 20px; display: block; }
+    }
 
     // Botão primário na COR DA MARCA do estabelecimento, retângulo com
     // pontas arredondadas (token do tema).
