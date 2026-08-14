@@ -248,6 +248,33 @@ impl CustomerService {
         Ok(customer)
     }
 
+    /// Redefine a senha do cliente por e-mail, APÓS o código de recuperação
+    /// ter sido validado no servidor (a prova de posse é o código; por isso
+    /// NÃO exige a senha atual — §11). Revoga sessões antigas (bump do
+    /// token_version). Escopo pelo `company_id` (isolamento multi-tenant).
+    #[cfg(feature = "password-hashing")]
+    pub async fn reset_password_by_email(
+        &self,
+        company_id: Uuid,
+        email: &str,
+        new_password: &str,
+    ) -> Result<(), CoreError> {
+        if new_password.len() < 8 {
+            return Err(CoreError::Validation("A senha deve ter ao menos 8 caracteres".into()));
+        }
+        let mut customer = self
+            .repo
+            .find_by_email(company_id, email)
+            .await?
+            .ok_or_else(|| CoreError::NotFound("Customer not found".into()))?;
+        customer.password_hash = Some(crate::hashing::hash_password(new_password.to_string()).await?);
+        customer.base.updated_at = chrono::Utc::now().naive_utc();
+        customer.base.synced = false;
+        self.repo.update(&customer).await?;
+        self.repo.bump_token_version(company_id, customer.base.id).await?;
+        Ok(())
+    }
+
     /// Versão de credencial do cliente para o middleware validar o `tv` do JWT
     /// e para o login carimbar o token (§11 — revogação de sessão web).
     pub async fn find_token_version(&self, company_id: Uuid, id: Uuid) -> Result<Option<i32>, CoreError> {

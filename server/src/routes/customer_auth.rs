@@ -21,8 +21,14 @@ pub fn routes() -> Router<AppState> {
     Router::new()
         .route("/customer/register", post(register))
         .route("/customer/login", post(login))
+        .route("/customer/forgot-password", post(forgot_password))
+        .route("/customer/verify-reset-code", post(verify_reset_code))
+        .route("/customer/reset-password", post(reset_password))
         .route("/customer/profile", get(get_profile).put(update_profile))
 }
+
+/// Mensagem única de excesso de tentativas (freia brute-force do código).
+const RATE_LIMIT_MSG: &str = "Muitas tentativas. Aguarde alguns instantes e tente novamente.";
 
 #[derive(Deserialize)]
 struct RegisterRequest {
@@ -107,6 +113,97 @@ async fn register(
             name: customer.name,
         }),
     ))
+}
+
+#[derive(Deserialize)]
+struct ForgotPasswordRequest {
+    email: String,
+}
+
+/// POST /customer/forgot-password — envia um código de recuperação por e-mail.
+///
+/// Responde SEMPRE 200 (anti-enumeração, §11) — só emite/envia quando há um
+/// cliente ATIVO com aquele e-mail NESTA empresa (isolamento multi-tenant).
+async fn forgot_password(
+    State(state): State<AppState>,
+    tenant: TenantContext,
+    ip: ClientIp,
+    Json(body): Json<ForgotPasswordRequest>,
+) -> Result<StatusCode, ServerError> {
+    if !state.login_rate_limiter.check(ip.0) {
+        return Err(ServerError::TooManyRequests(RATE_LIMIT_MSG));
+    }
+    let email = body.email.trim().to_string();
+    if let Ok(Some(_)) = state
+        .customer_service
+        .find_by_email(tenant.company_id, &email)
+        .await
+    {
+        match state.password_reset_service.issue_code(&email).await {
+            Ok(code) => {
+                if let Err(e) =
+                    crate::email::send_reset_code(&state.config.smtp, &email, &code).await
+                {
+                    tracing::error!("Falha ao enviar e-mail de recuperação (cliente): {e}");
+                }
+            }
+            Err(e) => tracing::error!("Falha ao emitir código de recuperação (cliente): {e}"),
+        }
+    }
+    Ok(StatusCode::OK)
+}
+
+#[derive(Deserialize)]
+struct VerifyResetCodeRequest {
+    email: String,
+    code: String,
+}
+
+/// POST /customer/verify-reset-code — valida o código SEM consumir (libera a
+/// tela de nova senha). A troca final revalida e consome (§11).
+async fn verify_reset_code(
+    State(state): State<AppState>,
+    ip: ClientIp,
+    Json(body): Json<VerifyResetCodeRequest>,
+) -> Result<StatusCode, ServerError> {
+    if !state.login_rate_limiter.check(ip.0) {
+        return Err(ServerError::TooManyRequests(RATE_LIMIT_MSG));
+    }
+    state
+        .password_reset_service
+        .verify_code(body.email.trim(), body.code.trim())
+        .await?;
+    Ok(StatusCode::OK)
+}
+
+#[derive(Deserialize)]
+struct ResetPasswordRequest {
+    email: String,
+    code: String,
+    new_password: String,
+}
+
+/// POST /customer/reset-password — conclui a recuperação: consome o código e
+/// troca a senha do cliente (escopo do tenant).
+async fn reset_password(
+    State(state): State<AppState>,
+    tenant: TenantContext,
+    ip: ClientIp,
+    Json(body): Json<ResetPasswordRequest>,
+) -> Result<StatusCode, ServerError> {
+    if !state.login_rate_limiter.check(ip.0) {
+        return Err(ServerError::TooManyRequests(RATE_LIMIT_MSG));
+    }
+    let email = body.email.trim().to_string();
+    state
+        .password_reset_service
+        .verify_and_consume(&email, body.code.trim())
+        .await?;
+    state
+        .customer_service
+        .reset_password_by_email(tenant.company_id, &email, &body.new_password)
+        .await?;
+    Ok(StatusCode::OK)
 }
 
 /// GET /customer/profile — retorna dados do perfil do cliente autenticado.

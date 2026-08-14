@@ -283,6 +283,40 @@ pub async fn customer_register(
     Ok(display_only(info))
 }
 
+/// POST /customer/forgot-password (proxy). Sempre 200 (anti-enumeração).
+#[server]
+pub async fn customer_forgot_password(email: String) -> Result<(), ServerFnError> {
+    verify_same_origin().await?;
+    let host = tenant_host().await?;
+    crate::api::customer_forgot_password(&host, &email)
+        .await
+        .map_err(ServerFnError::new)
+}
+
+/// POST /customer/verify-reset-code (proxy). Valida o código sem consumir.
+#[server]
+pub async fn customer_verify_reset(email: String, code: String) -> Result<(), ServerFnError> {
+    verify_same_origin().await?;
+    let host = tenant_host().await?;
+    crate::api::customer_verify_reset(&host, &email, &code)
+        .await
+        .map_err(ServerFnError::new)
+}
+
+/// POST /customer/reset-password (proxy). Consome o código e troca a senha.
+#[server]
+pub async fn customer_reset_password(
+    email: String,
+    code: String,
+    new_password: String,
+) -> Result<(), ServerFnError> {
+    verify_same_origin().await?;
+    let host = tenant_host().await?;
+    crate::api::customer_reset_password(&host, &email, &code, &new_password)
+        .await
+        .map_err(ServerFnError::new)
+}
+
 /// Encerra a sessão: apaga o cookie HttpOnly (o cliente já limpa a exibição).
 #[server]
 pub async fn customer_logout() -> Result<(), ServerFnError> {

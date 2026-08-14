@@ -331,6 +331,59 @@ mod server {
         }
     }
 
+    /// POST sem corpo de resposta (204/200): sucesso → `()`, erro → mensagem.
+    async fn post_ok(
+        client: &reqwest::Client,
+        base: &str,
+        tenant_host: &str,
+        path: &str,
+        body: serde_json::Value,
+    ) -> Result<(), String> {
+        let resp = client
+            .post(format!("{base}{path}"))
+            .header(reqwest::header::HOST, tenant_host)
+            .json(&body)
+            .send()
+            .await
+            .map_err(|e| format!("POST {path}: {e}"))?;
+        let status = resp.status();
+        if status.is_success() {
+            Ok(())
+        } else {
+            let text = resp.text().await.unwrap_or_default();
+            Err(auth_error(status, &text))
+        }
+    }
+
+    pub async fn customer_forgot_password(host: &str, email: &str) -> Result<(), String> {
+        let base = api_base();
+        let th = host.split(':').next().unwrap_or(host).to_string();
+        let client = crate::http_client();
+        let body = serde_json::json!({ "email": email });
+        post_ok(client, &base, &th, "/customer/forgot-password", body).await
+    }
+
+    pub async fn customer_verify_reset(host: &str, email: &str, code: &str) -> Result<(), String> {
+        let base = api_base();
+        let th = host.split(':').next().unwrap_or(host).to_string();
+        let client = crate::http_client();
+        let body = serde_json::json!({ "email": email, "code": code });
+        post_ok(client, &base, &th, "/customer/verify-reset-code", body).await
+    }
+
+    pub async fn customer_reset_password(
+        host: &str,
+        email: &str,
+        code: &str,
+        new_password: &str,
+    ) -> Result<(), String> {
+        let base = api_base();
+        let th = host.split(':').next().unwrap_or(host).to_string();
+        let client = crate::http_client();
+        let body = serde_json::json!({ "email": email, "code": code, "new_password": new_password });
+        post_ok(client, &base, &th, "/customer/reset-password", body).await
+    }
+
     pub async fn customer_login(
         host: &str,
         identifier: &str,
@@ -563,6 +616,7 @@ mod server {
 #[cfg(feature = "ssr")]
 pub use server::{
     create_order, customer_login, customer_orders, customer_profile, customer_register,
+    customer_forgot_password, customer_verify_reset, customer_reset_password,
     fetch_catalog, fetch_catalog_info, update_customer_profile,
     customer_addresses, create_customer_address,
 };

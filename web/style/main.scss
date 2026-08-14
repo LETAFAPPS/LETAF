@@ -1319,12 +1319,11 @@ button.ind { cursor: pointer; padding: 0; }
         .ico { width: 20px; height: 20px; display: block; }
     }
 
-    // Botão primário na COR DA MARCA do estabelecimento, retângulo com
-    // pontas arredondadas (token do tema).
+    // Botão primário na COR DA MARCA do estabelecimento, mesmo raio dos campos.
     .auth-submit {
         width: 100%;
         border: none;
-        border-radius: var(--r-lg);
+        border-radius: var(--r-md);
         padding: 14px;
         font-size: 1rem;
         font-weight: 700;
@@ -1339,7 +1338,15 @@ button.ind { cursor: pointer; padding: 0; }
         &:disabled { opacity: 0.6; cursor: default; }
     }
 }
-// "Lembrar de mim": checkbox custom, arredondado e moderno.
+// Linha de opções do login: "Lembrar" à esquerda, "Esqueceu a senha?" à direita.
+.auth-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+// "Lembrar": checkbox custom, arredondado e moderno.
 .auth-remember {
     display: flex;
     align-items: center;
@@ -1395,11 +1402,20 @@ button.ind { cursor: pointer; padding: 0; }
     font-size: inherit;
     font-family: inherit;
 }
-// Erro ABAIXO do card, em vermelho (sem alertas/modais nativos).
+// Avisos ABAIXO do card (sem alertas/modais nativos): erro em vermelho,
+// informação (código enviado / senha redefinida) em verde.
 .auth-page-error {
     margin: 14px auto 0;
     max-width: min(440px, 100%);
     color: var(--danger);
+    font-weight: 600;
+    font-size: 0.9rem;
+    text-align: center;
+}
+.auth-page-info {
+    margin: 14px auto 0;
+    max-width: min(440px, 100%);
+    color: var(--price);
     font-weight: 600;
     font-size: 0.9rem;
     text-align: center;
