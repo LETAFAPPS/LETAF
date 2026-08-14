@@ -1045,6 +1045,98 @@ main {
 
     .ico svg { width: 22px; height: 22px; }
 }
+
+// ── Estilo do carrinho (referência: cards + stepper pílula + resumo) ──────
+.cart-page {
+    // Itens como CARDS.
+    .cart-items { padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; }
+    .cart-row {
+        align-items: center;
+        gap: 12px;
+        padding: 10px;
+        border: 1px solid var(--line);
+        border-bottom: 1px solid var(--line);   // sobrepõe a borda-inferior base
+        border-radius: var(--r-md);
+        background: var(--surface-2);
+    }
+    .cart-thumb { width: 60px; height: 60px; border-radius: var(--r-md); }
+    .cart-row-name { font-size: 0.95rem; font-weight: 700; }
+    .cart-row-addons { font-size: 0.75rem; color: var(--muted); margin-top: 1px; }
+    // Preço + stepper na mesma linha.
+    .cart-row-priceline {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        margin-top: 8px;
+    }
+    .cart-row-price { font-size: 1rem; font-weight: 800; color: var(--brand-ink); }
+    // Stepper em PÍLULA (− qtd +).
+    .cart-qty {
+        border: 1px solid var(--line-strong);
+        border-radius: 999px;
+        overflow: hidden;
+        button {
+            width: 30px; height: 30px; background: transparent; color: var(--ink);
+            font-size: 1rem; font-weight: 700;
+        }
+        span { min-width: 22px; }
+    }
+    // Botão lixeira.
+    .cart-del {
+        flex-shrink: 0;
+        align-self: flex-start;
+        border: none;
+        background: transparent;
+        color: var(--muted);
+        cursor: pointer;
+        width: 34px; height: 34px;
+        display: flex; align-items: center; justify-content: center;
+        border-radius: var(--r-sm);
+        .ico svg { width: 20px; height: 20px; }
+        &:hover { color: var(--danger); }
+    }
+    // Cupom: input + botão Aplicar.
+    .cart-promo {
+        display: flex;
+        gap: 8px;
+        align-items: stretch;
+        .field { flex: 1; }
+    }
+    .cart-promo-apply {
+        display: inline-flex;
+        align-items: center;
+        padding: 0 18px;
+        border-radius: var(--r-md);
+        background: var(--brand);
+        color: #fff;
+        font-weight: 700;
+        font-size: 0.9rem;
+        white-space: nowrap;
+    }
+    // Resumo.
+    .cart-summary {
+        border-top: 1px solid var(--line);
+        padding-top: 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+    .cart-free { color: var(--price-ink); font-weight: 700; }
+    .cart-total-final {
+        border-top: 1px solid var(--line);
+        margin-top: 4px;
+        padding-top: 10px;
+        font-size: 1.05rem;
+        strong { font-size: 1.25rem; color: var(--price-ink); }
+    }
+    // Botão finalizar: pílula cheia na cor da marca.
+    .cart-checkout {
+        border-radius: 999px;
+        padding: 15px;
+        font-size: 1rem;
+    }
+}
 .cart-close {
     border: none;
     background: transparent;

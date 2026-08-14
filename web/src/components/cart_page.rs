@@ -220,7 +220,7 @@ fn CartView(info: CatalogInfo) -> impl IntoView {
                                 items.into_iter().enumerate().map(|(idx, item)| {
                                     let name = item.product.name.clone();
                                     let qty = item.quantity;
-                                    let sub = item.subtotal();
+                                    let unit = item.unit_price();
                                     let thumb = if item.product.image_urls.is_empty() {
                                         item.product.image_url.clone()
                                     } else {
@@ -237,15 +237,25 @@ fn CartView(info: CatalogInfo) -> impl IntoView {
                                             </div>
                                             <div class="cart-row-info">
                                                 <div class="cart-row-name">{name}</div>
-                                                {(!addons.is_empty())
-                                                    .then(|| view! { <div class="cart-row-addons">{addons}</div> })}
-                                                <div class="cart-row-sub">{format::money(sub)}</div>
+                                                <div class="cart-row-addons">
+                                                    {if addons.is_empty() { format::qty(qty) } else { addons }}
+                                                </div>
+                                                <div class="cart-row-priceline">
+                                                    <span class="cart-row-price">{format::money(unit)}</span>
+                                                    <div class="cart-qty">
+                                                        <button aria-label="Diminuir" on:click=move |_| cart.bump(idx, -1.0)>"−"</button>
+                                                        <span>{format::qty(qty)}</span>
+                                                        <button aria-label="Aumentar" on:click=move |_| cart.bump(idx, 1.0)>"+"</button>
+                                                    </div>
+                                                </div>
                                             </div>
-                                            <div class="cart-qty">
-                                                <button aria-label="Diminuir" on:click=move |_| cart.bump(idx, -1.0)>"−"</button>
-                                                <span>{format::qty(qty)}</span>
-                                                <button aria-label="Aumentar" on:click=move |_| cart.bump(idx, 1.0)>"+"</button>
-                                            </div>
+                                            <button
+                                                class="cart-del"
+                                                aria-label="Remover item"
+                                                on:click=move |_| cart.bump(idx, -qty)
+                                            >
+                                                <Icon name="lixeira"/>
+                                            </button>
                                         </div>
                                     }
                                 }).collect_view().into_any()
@@ -314,29 +324,36 @@ fn CartView(info: CatalogInfo) -> impl IntoView {
                                 </div>
                             })}
 
-                            <input
-                                class="field"
-                                aria-label="Cupom de desconto"
-                                placeholder="Cupom (opcional)"
-                                prop:value=move || coupon.get()
-                                on:input=move |e| set_coupon.set(event_target_value(&e))
-                            />
+                            <div class="cart-promo">
+                                <input
+                                    class="field"
+                                    aria-label="Cupom de desconto"
+                                    placeholder="Cupom de desconto"
+                                    prop:value=move || coupon.get()
+                                    on:input=move |e| set_coupon.set(event_target_value(&e))
+                                />
+                                <span class="cart-promo-apply">"Aplicar"</span>
+                            </div>
                             {move || (!coupon.get().trim().is_empty()).then(|| view! {
                                 <p class="cart-hint">"O desconto do cupom é aplicado na confirmação do pedido."</p>
                             })}
-                            {move || (fee > 0.0 && delivery.get()).then(|| view! {
+                            <div class="cart-summary">
                                 <div class="cart-total-row">
                                     <span>"Subtotal"</span>
-                                    <span>{format::money(cart.total())}</span>
+                                    <span>{move || format::money(cart.total())}</span>
                                 </div>
                                 <div class="cart-total-row">
-                                    <span>"Taxa de entrega"</span>
-                                    <span>{format::money(fee)}</span>
+                                    <span>"Entrega"</span>
+                                    {move || if delivery.get() && fee > 0.0 {
+                                        view! { <span>{format::money(fee)}</span> }.into_any()
+                                    } else {
+                                        view! { <span class="cart-free">"Grátis"</span> }.into_any()
+                                    }}
                                 </div>
-                            })}
-                            <div class="cart-total-row">
-                                <span>"Total"</span>
-                                <strong>{move || format::money(cart.total() + if delivery.get() { fee } else { 0.0 })}</strong>
+                                <div class="cart-total-row cart-total-final">
+                                    <span>"Total"</span>
+                                    <strong>{move || format::money(cart.total() + if delivery.get() { fee } else { 0.0 })}</strong>
+                                </div>
                             </div>
                             {move || (!error.get().is_empty())
                                 .then(|| view! { <p class="auth-error">{error.get()}</p> })}
