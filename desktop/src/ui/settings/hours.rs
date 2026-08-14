@@ -141,17 +141,18 @@ pub(crate) fn setup_refresh_business_hours(
                                     s.set_site_color_hue(hue);
                                     s.set_site_color_tone(tone);
                                     s.set_site_color_preview(p.preview);
-                                    s.set_site_tone_from(p.tone_from);
-                                    s.set_site_tone_to(p.tone_to);
+                                    s.set_site_tone_mid(p.tone_mid);
                                     s.set_site_color_on(true);
                                 }
                                 None => {
-                                    let p = super::color::from_hue_tone(25.0 / 360.0, 0.0);
-                                    s.set_site_color_hue(25.0 / 360.0);
-                                    s.set_site_color_tone(0.0);
+                                    // Posição inicial: laranja vivo (tom 0.5 = cor
+                                    // viva na nova escala branco→viva→preto).
+                                    let hue0 = 25.0 / 330.0;
+                                    let p = super::color::from_hue_tone(hue0, 0.5);
+                                    s.set_site_color_hue(hue0);
+                                    s.set_site_color_tone(0.5);
                                     s.set_site_color_preview(p.preview);
-                                    s.set_site_tone_from(p.tone_from);
-                                    s.set_site_tone_to(p.tone_to);
+                                    s.set_site_tone_mid(p.tone_mid);
                                     s.set_site_color_on(false);
                                 }
                             }

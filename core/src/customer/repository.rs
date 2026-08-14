@@ -28,6 +28,26 @@ pub trait CustomerRepository: Send + Sync {
     }
 
     async fn find_by_email(&self, company_id: Uuid, email: &str) -> Result<Option<Customer>, CoreError>;
+
+    /// Busca por TELEFONE (só dígitos) — usado no login por telefone do
+    /// cliente final. Implementação padrão filtra `find_all` (suficiente para
+    /// o SQLite local, pequeno; o login de cliente é server-only). O
+    /// PostgreSQL sobrescreve com query direta (§13). Compara dígito a dígito
+    /// dos dois lados, tolerando formatação divergente no armazenado.
+    async fn find_by_phone(&self, company_id: Uuid, phone_digits: &str) -> Result<Option<Customer>, CoreError> {
+        let alvo: String = phone_digits.chars().filter(char::is_ascii_digit).collect();
+        if alvo.is_empty() {
+            return Ok(None);
+        }
+        Ok(self.find_all(company_id).await?.into_iter().find(|c| {
+            c.phone
+                .as_deref()
+                .map(|p| p.chars().filter(char::is_ascii_digit).collect::<String>())
+                .as_deref()
+                == Some(alvo.as_str())
+        }))
+    }
+
     async fn create(&self, customer: &Customer) -> Result<(), CoreError>;
     async fn update(&self, customer: &Customer) -> Result<(), CoreError>;
     async fn soft_delete(&self, company_id: Uuid, id: Uuid) -> Result<(), CoreError>;

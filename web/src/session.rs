@@ -26,6 +26,14 @@ impl Session {
         self.persist();
     }
 
+    /// Guarda a sessão escolhendo onde persistir a exibição: `remember=true`
+    /// → localStorage (persistente); `false` → sessionStorage (só a sessão do
+    /// navegador). Espelha o cookie gravado pela server fn de login.
+    pub fn set_remembering(&self, info: SessionInfo, remember: bool) {
+        self.0.set(Some(info));
+        save_where(&self.0.get_untracked(), remember);
+    }
+
     pub fn clear(&self) {
         self.0.set(None);
         self.persist();
@@ -60,11 +68,19 @@ impl Session {
 const KEY: &str = "letaf:session";
 
 #[cfg(feature = "hydrate")]
+fn read_storage(local: bool) -> Option<web_sys::Storage> {
+    let w = web_sys::window()?;
+    if local { w.local_storage().ok().flatten() } else { w.session_storage().ok().flatten() }
+}
+
+#[cfg(feature = "hydrate")]
 pub fn load() -> Option<SessionInfo> {
-    web_sys::window()
-        .and_then(|w| w.local_storage().ok().flatten())
-        .and_then(|s| s.get_item(KEY).ok().flatten())
-        .and_then(|json| serde_json::from_str::<SessionInfo>(&json).ok())
+    // Persistente (localStorage) tem prioridade; senão a sessão do navegador
+    // (sessionStorage, login sem "Lembrar de mim").
+    [true, false]
+        .into_iter()
+        .filter_map(|local| read_storage(local)?.get_item(KEY).ok().flatten())
+        .find_map(|json| serde_json::from_str::<SessionInfo>(&json).ok())
 }
 
 #[cfg(not(feature = "hydrate"))]
@@ -72,24 +88,39 @@ pub fn load() -> Option<SessionInfo> {
     None
 }
 
+/// Persiste a exibição da sessão. `persistent=true` → localStorage (sobrevive
+/// a fechar o navegador, "Lembrar de mim"); `false` → sessionStorage (só a
+/// sessão atual). Sempre limpa o OUTRO storage para não ficar sessão fantasma.
 #[cfg(feature = "hydrate")]
-fn save(info: &Option<SessionInfo>) {
-    if let Some(storage) = web_sys::window().and_then(|w| w.local_storage().ok().flatten()) {
+fn save_where(info: &Option<SessionInfo>, persistent: bool) {
+    let (this, other) = (read_storage(persistent), read_storage(!persistent));
+    if let Some(s) = other {
+        let _ = s.remove_item(KEY);
+    }
+    if let Some(s) = this {
         match info {
             Some(i) => {
                 if let Ok(json) = serde_json::to_string(i) {
-                    let _ = storage.set_item(KEY, &json);
+                    let _ = s.set_item(KEY, &json);
                 }
             }
             None => {
-                let _ = storage.remove_item(KEY);
+                let _ = s.remove_item(KEY);
             }
         }
     }
 }
 
+#[cfg(feature = "hydrate")]
+fn save(info: &Option<SessionInfo>) {
+    save_where(info, true);
+}
+
 #[cfg(not(feature = "hydrate"))]
 fn save(_info: &Option<SessionInfo>) {}
+
+#[cfg(not(feature = "hydrate"))]
+fn save_where(_info: &Option<SessionInfo>, _persistent: bool) {}
 
 /// Lê o `Host` da requisição SSR (resolve o tenant na API). Reusado
 /// pelas server fns de auth/conta.
@@ -183,17 +214,27 @@ async fn secure_context() -> bool {
     !host_is_local(host)
 }
 
+/// Sentinela para `write_cookie`: cookie de SESSÃO (sem `Max-Age` → o
+/// navegador o descarta ao fechar). Usado no login sem "Lembrar de mim".
+#[cfg(feature = "ssr")]
+const SESSION_COOKIE: i64 = -1;
+
 /// Grava o cookie de sessão. `HttpOnly` (JS não lê → sem exfiltração por XSS),
 /// `SameSite=Lax` (não é enviado em POST cross-site → CSRF nas server-fns),
-/// `Path=/`, `Max-Age` alinhado ao exp do JWT (72h). `max_age=0` limpa.
+/// `Path=/`. `max_age>0` → cookie persistente com esse `Max-Age` (alinhado ao
+/// exp do JWT, 72h); `max_age=0` limpa; `max_age<0` → cookie de SESSÃO (sem
+/// `Max-Age`).
 #[cfg(feature = "ssr")]
 async fn write_cookie(value: &str, max_age: i64) {
     use axum::http::header::SET_COOKIE;
     use axum::http::HeaderValue;
     let secure = if secure_context().await { "; Secure" } else { "" };
-    let cookie = format!(
-        "{COOKIE_NAME}={value}; HttpOnly; SameSite=Lax; Path=/; Max-Age={max_age}{secure}"
-    );
+    let age = if max_age < 0 {
+        String::new()
+    } else {
+        format!("; Max-Age={max_age}")
+    };
+    let cookie = format!("{COOKIE_NAME}={value}; HttpOnly; SameSite=Lax; Path=/{age}{secure}");
     if let Ok(hv) = HeaderValue::from_str(&cookie) {
         expect_context::<leptos_axum::ResponseOptions>().append_header(SET_COOKIE, hv);
     }
@@ -208,13 +249,20 @@ fn display_only(info: SessionInfo) -> SessionInfo {
 /// POST /customer/login (proxy). Backend valida; o JWT vai para um cookie
 /// HttpOnly e NÃO é devolvido ao navegador (só nome/id para exibição).
 #[server]
-pub async fn customer_login(email: String, password: String) -> Result<SessionInfo, ServerFnError> {
+pub async fn customer_login(
+    identifier: String,
+    password: String,
+    remember: bool,
+) -> Result<SessionInfo, ServerFnError> {
     verify_same_origin().await?;
     let host = tenant_host().await?;
-    let info = crate::api::customer_login(&host, &email, &password)
+    // `identifier` = e-mail OU telefone; a API resolve/valida (§11).
+    let info = crate::api::customer_login(&host, &identifier, &password)
         .await
         .map_err(ServerFnError::new)?;
-    write_cookie(&info.token, 259_200).await;
+    // "Lembrar de mim": cookie PERSISTENTE (72h, alinhado ao exp do JWT) quando
+    // marcado; senão cookie de SESSÃO (some ao fechar o navegador).
+    write_cookie(&info.token, if remember { 259_200 } else { SESSION_COOKIE }).await;
     Ok(display_only(info))
 }
 

@@ -34,7 +34,10 @@ struct RegisterRequest {
 
 #[derive(Deserialize)]
 struct LoginRequest {
-    email: String,
+    /// E-mail ou telefone. `alias = "email"` mantém compatibilidade com
+    /// clientes que ainda enviam o campo antigo.
+    #[serde(alias = "email")]
+    identifier: String,
     password: String,
 }
 
@@ -166,7 +169,7 @@ async fn login(
     }
     let customer = state
         .customer_service
-        .authenticate(tenant.company_id, &body.email, &body.password)
+        .authenticate_by_identifier(tenant.company_id, &body.identifier, &body.password)
         .await?;
 
     // Versão de credencial atual (§11): carimbada no token para que trocar a

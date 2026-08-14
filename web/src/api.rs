@@ -7,7 +7,7 @@
 use serde::{Deserialize, Serialize};
 
 /// `/catalog/info` (subconjunto — serde ignora campos extras).
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct CatalogInfo {
     pub name: String,
     /// URL relativa da mídia servida pela API (`/catalog/media/...`).
@@ -275,6 +275,15 @@ mod server {
         })
     }
 
+    /// Busca SÓ a info pública do tenant (nome/logo/tema/cor de marca) —
+    /// usada pela tela de login, que não precisa de produtos/categorias.
+    pub async fn fetch_catalog_info(host: &str) -> Result<CatalogInfo, String> {
+        let base = api_base();
+        let th = host.split(':').next().unwrap_or(host).to_string();
+        let client = crate::http_client();
+        get_json::<CatalogInfo>(client, &base, &th, "/catalog/info").await
+    }
+
     /// Extrai uma mensagem amigável do corpo de erro (JSON `{error|message}`)
     /// ou cai num texto por status.
     fn auth_error(status: reqwest::StatusCode, body: &str) -> String {
@@ -324,13 +333,14 @@ mod server {
 
     pub async fn customer_login(
         host: &str,
-        email: &str,
+        identifier: &str,
         password: &str,
     ) -> Result<SessionInfo, String> {
         let base = api_base();
         let th = host.split(':').next().unwrap_or(host).to_string();
         let client = crate::http_client();
-        let body = serde_json::json!({ "email": email, "password": password });
+        // `identifier` = e-mail OU telefone; quem resolve/valida é o backend (§11).
+        let body = serde_json::json!({ "identifier": identifier, "password": password });
         post_auth(client, &base, &th, "/customer/login", body).await
     }
 
@@ -553,6 +563,6 @@ mod server {
 #[cfg(feature = "ssr")]
 pub use server::{
     create_order, customer_login, customer_orders, customer_profile, customer_register,
-    fetch_catalog, update_customer_profile,
+    fetch_catalog, fetch_catalog_info, update_customer_profile,
     customer_addresses, create_customer_address,
 };

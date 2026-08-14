@@ -36,7 +36,8 @@ pub fn AuthModal(on_close: Callback<()>) -> impl IntoView {
             let res = if reg {
                 session::customer_register(n, e, p, pw).await
             } else {
-                session::customer_login(e, pw).await
+                // No modal (checkout) mantemos a sessão persistente por padrão.
+                session::customer_login(e, pw, true).await
             };
             match res {
                 Ok(info) => {

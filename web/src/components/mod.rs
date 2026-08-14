@@ -3,6 +3,7 @@
 pub mod account_button;
 pub mod account_panel;
 pub mod auth_modal;
+pub mod auth_page;
 pub mod banner_carousel;
 pub mod cart_drawer;
 pub mod catalog;

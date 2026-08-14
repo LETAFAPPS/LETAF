@@ -126,6 +126,30 @@ impl CustomerRepository for PgCustomerRepository {
         .map_err(map_db)
     }
 
+    /// Override: busca por telefone comparando só os dígitos (tolera
+    /// formatação divergente no armazenado), o cliente ATIVO mais antigo
+    /// primeiro. Usado no login por telefone do cliente final.
+    async fn find_by_phone(&self, company_id: Uuid, phone_digits: &str) -> Result<Option<Customer>, CoreError> {
+        let alvo: String = phone_digits.chars().filter(char::is_ascii_digit).collect();
+        if alvo.is_empty() {
+            return Ok(None);
+        }
+        sqlx::query_as::<_, CustomerRow>(
+            "SELECT * FROM customers
+              WHERE company_id = $1
+                AND regexp_replace(COALESCE(phone, ''), '\\D', '', 'g') = $2
+                AND deleted_at IS NULL
+              ORDER BY created_at
+              LIMIT 1",
+        )
+        .bind(company_id)
+        .bind(&alvo)
+        .fetch_optional(&self.pool)
+        .await
+        .map(|opt| opt.map(Customer::from))
+        .map_err(map_db)
+    }
+
     /// Override eficiente: `COUNT(*)` em vez de materializar as linhas (§13).
     async fn count_all(&self, company_id: Uuid) -> Result<i64, CoreError> {
         let row: (i64,) = sqlx::query_as(

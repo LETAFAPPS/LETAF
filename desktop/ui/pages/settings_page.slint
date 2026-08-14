@@ -149,8 +149,7 @@ export component SettingsPage inherits VerticalLayout {
     in-out property <float> site-color-tone;   // 0..1 (posição na barra de tonalidade)
     in-out property <bool>  site-color-on;      // false = "usar cores do tema"
     in-out property <color> site-color-preview; // cor resultante (prévia)
-    in-out property <color> site-tone-from;     // gradiente de tonalidade (início)
-    in-out property <color> site-tone-to;       // gradiente de tonalidade (fim)
+    in-out property <color> site-tone-mid;      // cor viva (meio do gradiente de tonalidade)
     /// Usuário mexeu no picker (matiz, tonalidade em 0..1) → Rust calcula o hex.
     callback pick-site-color(float, float);
     /// "Usar cores do tema" → limpa a cor.
@@ -768,12 +767,17 @@ export component SettingsPage inherits VerticalLayout {
             // Barra de MATIZ (todo o espectro)
             Rectangle {
                 height: 24px;
-                border-radius: 999px;
+                // Metade da altura = cantos semicirculares (pílula com pontas
+                // arredondadas). O Slint não clampa `border-radius` como o CSS:
+                // 999px numa barra larga viraria elipse (formato de lente).
+                border-radius: self.height / 2;
                 clip: true;
                 border-width: 1px; border-color: Theme.border;
+                // Espectro percorrido UMA vez (vermelho→rosa), sem repetir o
+                // vermelho no fim.
                 background: @linear-gradient(90deg,
-                    #ff0000 0%, #ffd000 17%, #21d100 33%, #00d5d5 50%,
-                    #0040ff 67%, #c400ff 83%, #ff0000 100%);
+                    #ff0000 0%, #ffc400 14%, #55ff00 28%, #00ff5e 43%,
+                    #00e5ff 57%, #0f3cff 71%, #aa00ff 85%, #ff0080 100%);
                 hue-ta := TouchArea {
                     clicked => {
                         root.site-color-hue = color-card.frac(self.mouse-x, self.width);
@@ -798,10 +802,14 @@ export component SettingsPage inherits VerticalLayout {
             // Barra de TONALIDADE (tons do matiz escolhido)
             Rectangle {
                 height: 24px;
-                border-radius: 999px;
+                // Metade da altura = cantos semicirculares (pílula com pontas
+                // arredondadas). O Slint não clampa `border-radius` como o CSS:
+                // 999px numa barra larga viraria elipse (formato de lente).
+                border-radius: self.height / 2;
                 clip: true;
                 border-width: 1px; border-color: Theme.border;
-                background: @linear-gradient(90deg, root.site-tone-from, root.site-tone-to);
+                // Luminosidade: branco → cor viva → preto (preto/branco nas pontas).
+                background: @linear-gradient(90deg, white 0%, root.site-tone-mid 50%, black 100%);
                 tone-ta := TouchArea {
                     clicked => {
                         root.site-color-tone = color-card.frac(self.mouse-x, self.width);

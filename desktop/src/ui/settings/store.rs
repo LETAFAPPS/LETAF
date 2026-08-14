@@ -30,8 +30,7 @@ pub(crate) fn setup_site_color(ui: &MainWindow) {
         let p = super::color::from_hue_tone(hue, tone);
         let s = ui.global::<SettingsState>();
         s.set_site_color_preview(p.preview);
-        s.set_site_tone_from(p.tone_from);
-        s.set_site_tone_to(p.tone_to);
+        s.set_site_tone_mid(p.tone_mid);
         s.set_site_color_on(true);
         s.set_store_site_palette(SharedString::from(p.hex));
     });

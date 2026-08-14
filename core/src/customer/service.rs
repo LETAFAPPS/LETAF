@@ -133,11 +133,40 @@ impl CustomerService {
         email: &str,
         password: &str,
     ) -> Result<Customer, CoreError> {
-        // Anti-enumeração (§11): mensagem ÚNICA para todos os casos de falha e
-        // tempo equalizado (verify_dummy quando não há conta/senha) — não vazar
-        // se o e-mail é cliente do tenant, nem marcar contas sem senha por
-        // mensagem/latência distinta.
-        let customer = match self.repo.find_by_email(company_id, email).await? {
+        let candidate = self.repo.find_by_email(company_id, email).await?;
+        self.verify_credentials(candidate, password).await
+    }
+
+    /// Autentica por IDENTIFICADOR: e-mail (contém `@`) ou telefone (dígitos).
+    /// A resolução do cliente é do backend (§11) — o frontend só manda o texto
+    /// digitado e a senha.
+    #[cfg(feature = "password-hashing")]
+    pub async fn authenticate_by_identifier(
+        &self,
+        company_id: Uuid,
+        identifier: &str,
+        password: &str,
+    ) -> Result<Customer, CoreError> {
+        let id = identifier.trim();
+        let candidate = if id.contains('@') {
+            self.repo.find_by_email(company_id, id).await?
+        } else {
+            self.repo.find_by_phone(company_id, id).await?
+        };
+        self.verify_credentials(candidate, password).await
+    }
+
+    /// Verificação de senha com defesa anti-enumeração (§11): mensagem ÚNICA
+    /// para todos os casos de falha e tempo equalizado (`verify_dummy` quando
+    /// não há conta ou não há senha) — não vaza se o identificador pertence a
+    /// um cliente do tenant, nem marca contas sem senha por latência/mensagem.
+    #[cfg(feature = "password-hashing")]
+    async fn verify_credentials(
+        &self,
+        candidate: Option<Customer>,
+        password: &str,
+    ) -> Result<Customer, CoreError> {
+        let customer = match candidate {
             Some(c) => c,
             None => {
                 crate::hashing::verify_dummy(password.to_string()).await;

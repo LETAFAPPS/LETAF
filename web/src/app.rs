@@ -112,6 +112,7 @@ pub fn App() -> impl IntoView {
             <main>
                 <Routes fallback=|| "Página não encontrada.".into_view()>
                     <Route path=StaticSegment("") view=CatalogPage/>
+                    <Route path=StaticSegment("entrar") view=crate::components::auth_page::AuthPage/>
                 </Routes>
             </main>
         </Router>

@@ -11,7 +11,7 @@ use super::icon::{CategoryIcon, Icon};
 /// Escurece (toward_white=false) ou clareia (true) uma cor hex misturando
 /// com preto/branco por `factor` (0..1). Usada para derivar `--brand-ink`
 /// da cor de marca da empresa. Entrada validada como hex; saída é hex.
-fn shade(hex: &str, factor: f32, toward_white: bool) -> String {
+pub(crate) fn shade(hex: &str, factor: f32, toward_white: bool) -> String {
     let h = hex.trim().trim_start_matches('#');
     let full = if h.len() == 3 {
         h.chars().flat_map(|c| [c, c]).collect::<String>()

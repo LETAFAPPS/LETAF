@@ -6,26 +6,32 @@
 
 use slint::Color;
 
-/// Saturação fixa das barras. A tonalidade controla o "valor" (brilho).
+/// Saturação fixa das barras. A luminosidade (tonalidade) leva a cor de
+/// BRANCO a PRETO passando pela cor viva.
 const SAT: f32 = 0.9;
 
-/// tonalidade (0..1) → valor HSV (0.35..1.0): 0 = vívido, 1 = escuro.
-fn tone_to_val(tone: f32) -> f32 {
-    1.0 - tone.clamp(0.0, 1.0) * 0.65
+/// Amplitude do matiz na barra: 0..330° (em vez de 0..360°) para o espectro
+/// NÃO repetir o vermelho no fim — a barra vai do vermelho (esq.) ao rosa
+/// (dir.), cobrindo todas as cores uma única vez.
+const HUE_SPAN: f32 = 330.0;
+
+/// tonalidade (0..1) → luminosidade HSL (1.0..0.0): 0 = branco, 0.5 = cor
+/// viva, 1 = preto.
+fn tone_to_light(tone: f32) -> f32 {
+    1.0 - tone.clamp(0.0, 1.0)
 }
 
-/// valor HSV → tonalidade (inverso de `tone_to_val`).
-fn val_to_tone(v: f32) -> f32 {
-    ((1.0 - v) / 0.65).clamp(0.0, 1.0)
+/// luminosidade HSL → tonalidade (inverso de `tone_to_light`).
+fn light_to_tone(l: f32) -> f32 {
+    (1.0 - l).clamp(0.0, 1.0)
 }
 
-/// HSV (h em graus 0..360, s/v 0..1) → RGB 0..255.
-fn hsv_to_rgb(h: f32, s: f32, v: f32) -> (u8, u8, u8) {
-    let h = h.rem_euclid(360.0) / 60.0;
-    let c = v * s;
-    let x = c * (1.0 - (h % 2.0 - 1.0).abs());
-    let m = v - c;
-    let (r, g, b) = match h as i32 {
+/// HSL (h em graus 0..360, s/l 0..1) → RGB 0..255.
+fn hsl_to_rgb(h: f32, s: f32, l: f32) -> (u8, u8, u8) {
+    let c = (1.0 - (2.0 * l - 1.0).abs()) * s;
+    let hp = h.rem_euclid(360.0) / 60.0;
+    let x = c * (1.0 - (hp % 2.0 - 1.0).abs());
+    let (r, g, b) = match hp as i32 {
         0 => (c, x, 0.0),
         1 => (x, c, 0.0),
         2 => (0.0, c, x),
@@ -33,16 +39,23 @@ fn hsv_to_rgb(h: f32, s: f32, v: f32) -> (u8, u8, u8) {
         4 => (x, 0.0, c),
         _ => (c, 0.0, x),
     };
+    let m = l - c / 2.0;
     let to = |f: f32| ((f + m) * 255.0).round().clamp(0.0, 255.0) as u8;
     (to(r), to(g), to(b))
 }
 
-/// RGB 0..255 → HSV (h graus, s, v).
-fn rgb_to_hsv(r: u8, g: u8, b: u8) -> (f32, f32, f32) {
+/// RGB 0..255 → HSL (h graus, s, l).
+fn rgb_to_hsl(r: u8, g: u8, b: u8) -> (f32, f32, f32) {
     let (r, g, b) = (r as f32 / 255.0, g as f32 / 255.0, b as f32 / 255.0);
     let max = r.max(g).max(b);
     let min = r.min(g).min(b);
     let d = max - min;
+    let l = (max + min) / 2.0;
+    let s = if d == 0.0 {
+        0.0
+    } else {
+        d / (1.0 - (2.0 * l - 1.0).abs())
+    };
     let h = if d == 0.0 {
         0.0
     } else if max == r {
@@ -52,8 +65,7 @@ fn rgb_to_hsv(r: u8, g: u8, b: u8) -> (f32, f32, f32) {
     } else {
         60.0 * ((r - g) / d + 4.0)
     };
-    let s = if max == 0.0 { 0.0 } else { d / max };
-    (h.rem_euclid(360.0), s, max)
+    (h.rem_euclid(360.0), s, l)
 }
 
 fn parse_hex(hex: &str) -> Option<(u8, u8, u8)> {
@@ -67,24 +79,22 @@ fn parse_hex(hex: &str) -> Option<(u8, u8, u8)> {
     Some((p(0)?, p(2)?, p(4)?))
 }
 
-/// Resultado do picker: prévia, extremos do gradiente de tonalidade e o hex.
+/// Resultado do picker: prévia, a cor VIVA do matiz (meio do gradiente de
+/// tonalidade — branco e preto são fixos nas pontas) e o hex.
 pub struct Picked {
     pub preview: Color,
-    pub tone_from: Color,
-    pub tone_to: Color,
+    pub tone_mid: Color,
     pub hex: String,
 }
 
 /// A partir de matiz (0..1) + tonalidade (0..1) → cores + hex.
 pub fn from_hue_tone(hue_frac: f32, tone: f32) -> Picked {
-    let h = hue_frac.clamp(0.0, 1.0) * 360.0;
-    let (r, g, b) = hsv_to_rgb(h, SAT, tone_to_val(tone));
-    let (fr, fg, fb) = hsv_to_rgb(h, SAT, 1.0);
-    let (tr, tg, tb) = hsv_to_rgb(h, SAT, 0.35);
+    let h = hue_frac.clamp(0.0, 1.0) * HUE_SPAN;
+    let (r, g, b) = hsl_to_rgb(h, SAT, tone_to_light(tone));
+    let (mr, mg, mb) = hsl_to_rgb(h, SAT, 0.5);
     Picked {
         preview: Color::from_rgb_u8(r, g, b),
-        tone_from: Color::from_rgb_u8(fr, fg, fb),
-        tone_to: Color::from_rgb_u8(tr, tg, tb),
+        tone_mid: Color::from_rgb_u8(mr, mg, mb),
         hex: format!("#{r:02x}{g:02x}{b:02x}"),
     }
 }
@@ -92,9 +102,9 @@ pub fn from_hue_tone(hue_frac: f32, tone: f32) -> Picked {
 /// Do hex salvo → (matiz 0..1, tonalidade 0..1, cores). `None` se inválido.
 pub fn from_hex(hex: &str) -> Option<(f32, f32, Picked)> {
     let (r, g, b) = parse_hex(hex)?;
-    let (h, _s, v) = rgb_to_hsv(r, g, b);
-    let hue_frac = h / 360.0;
-    let tone = val_to_tone(v);
+    let (h, _s, l) = rgb_to_hsl(r, g, b);
+    let hue_frac = (h / HUE_SPAN).clamp(0.0, 1.0);
+    let tone = light_to_tone(l);
     let mut picked = from_hue_tone(hue_frac, tone);
     // Prévia com a cor REAL salva (não a recomputada), caso a saturação
     // divirja do padrão do picker.

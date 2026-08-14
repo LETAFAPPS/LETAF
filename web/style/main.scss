@@ -1241,6 +1241,103 @@ button.ind { cursor: pointer; padding: 0; }
     color: var(--muted);
 }
 
+// ── Tela de login em rota própria (/entrar) — estilo do mockup ──────────
+.auth-page {
+    min-height: 100vh;
+    display: grid;
+    place-items: center;
+    padding: 24px 16px;
+    background: var(--bg);
+}
+.auth-card {
+    width: min(440px, 100%);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--r-xl);
+    box-shadow: var(--shadow-lg);
+    padding: 30px 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+.auth-brand {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    text-decoration: none;
+    margin-bottom: 4px;
+
+    .auth-logo { height: 40px; width: auto; border-radius: var(--r-sm); }
+    .auth-brand-name { color: var(--brand-ink); font-weight: 800; font-size: 1.5rem; }
+}
+.auth-title {
+    margin: 0;
+    text-align: center;
+    font-size: 1.9rem;
+    font-weight: 800;
+    color: var(--ink);
+}
+.auth-sub {
+    margin: 0 0 8px;
+    text-align: center;
+    color: var(--muted);
+    font-size: 0.92rem;
+}
+// Campos da tela de login: pílula, ícone opcional à esquerda, olho à direita.
+.auth-page {
+    .field-wrap { position: relative; display: flex; width: 100%; }
+    .field {
+        border-radius: 999px;
+        padding: 13px 16px;
+    }
+    .field.has-lead { padding-left: 46px; }
+    .field.has-eye { padding-right: 46px; }
+    .field-lead {
+        position: absolute;
+        left: 16px;
+        top: 50%;
+        transform: translateY(-50%);
+        display: flex;
+        color: var(--muted);
+        pointer-events: none;
+        .ico { width: 20px; height: 20px; }
+    }
+    .auth-submit {
+        border-radius: 999px;
+        padding: 14px;
+        font-size: 1rem;
+        margin-top: 2px;
+    }
+}
+.auth-remember {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    font-size: 0.9rem;
+    color: var(--ink);
+    cursor: pointer;
+    user-select: none;
+
+    input { width: 18px; height: 18px; accent-color: var(--brand); cursor: pointer; }
+}
+.auth-foot {
+    text-align: center;
+    color: var(--muted);
+    font-size: 0.9rem;
+    margin: 6px 0 0;
+}
+.auth-foot-link {
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    color: var(--brand-ink);
+    font-weight: 700;
+    font-size: inherit;
+    font-family: inherit;
+}
+
 // ── Skeletons de carregamento (§3 feedback imediato) ────────
 .acc-skel {
     display: flex;
