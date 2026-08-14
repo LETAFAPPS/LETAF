@@ -1361,25 +1361,18 @@ button.ind { cursor: pointer; padding: 0; }
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    color: #fff;
     transition: background 0.15s, border-color 0.15s;
 
-    // Check centralizado dentro do quadrado (o `top` compensa a rotação).
-    &::after {
-        content: "";
-        width: 5px;
-        height: 9px;
-        border: solid #fff;
-        border-width: 0 2px 2px 0;
-        transform: rotate(45deg);
-        position: relative;
-        top: -1px;
-        opacity: 0;
-    }
+    // Check do sistema (confirmar.svg), centralizado pelo flex do `.ico`.
+    // Escondido enquanto desmarcado.
+    .ico { opacity: 0; transition: opacity 0.12s; }
+    .ico svg { width: 12px; height: 12px; stroke-width: 3; }
 }
 .auth-remember input:checked + .auth-remember-box {
     background: var(--brand);
     border-color: var(--brand);
-    &::after { opacity: 1; }
+    .ico { opacity: 1; }
 }
 .auth-remember input:focus-visible + .auth-remember-box {
     outline: 2px solid var(--brand);

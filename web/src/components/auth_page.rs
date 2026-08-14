@@ -338,7 +338,7 @@ fn AuthView(info: CatalogInfo) -> impl IntoView {
                                 prop:checked=move || remember.get()
                                 on:change=move |e| set_remember.set(event_target_checked(&e))
                             />
-                            <span class="auth-remember-box" aria-hidden="true"></span>
+                            <span class="auth-remember-box" aria-hidden="true"><Icon name="confirmar"/></span>
                             <span>"Lembrar"</span>
                         </label>
                     })}
