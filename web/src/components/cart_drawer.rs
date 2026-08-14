@@ -1,12 +1,18 @@
 use leptos::prelude::*;
 use leptos::task::spawn_local;
+use leptos_router::hooks::{use_location, use_navigate};
 
 use crate::cart::Cart;
 use crate::checkout::{self, OrderItemPayload};
 use crate::format;
 use crate::session::Session;
-use super::auth_modal::AuthModal;
 use super::icon::Icon;
+
+/// Sinaliza que o cliente foi ao login PELO carrinho e o checkout deve ser
+/// retomado ao voltar logado. Provido no `App`; o `CartDrawer` reabre sozinho
+/// quando fica logado com este sinal ligado — sem perder o pedido montado.
+#[derive(Clone, Copy)]
+pub struct ResumeCheckout(pub RwSignal<bool>);
 
 /// Carrinho: botão flutuante (quando há itens) + drawer com linhas,
 /// quantidade e checkout. Deslogado → abre o login; logado → envia o
@@ -16,8 +22,9 @@ use super::icon::Icon;
 pub fn CartDrawer() -> impl IntoView {
     let cart = expect_context::<Cart>();
     let session = expect_context::<Session>();
+    let resume = expect_context::<ResumeCheckout>();
+    let location = use_location();
     let (open, set_open) = signal(false);
-    let (auth_open, set_auth_open) = signal(false);
     let (notes, set_notes) = signal(String::new());
     let (coupon, set_coupon) = signal(String::new());
     let (submitting, set_submitting) = signal(false);
@@ -26,9 +33,7 @@ pub fn CartDrawer() -> impl IntoView {
 
     // Fecha o drawer no Esc quando aberto (§3 acessibilidade).
     let esc = leptos::prelude::window_event_listener(leptos::ev::keydown, move |ev| {
-        // Não fecha o drawer se o login (AuthModal) estiver por cima — ele
-        // tem o próprio Esc e deve fechar só a camada de cima.
-        if ev.key() == "Escape" && open.get_untracked() && !auth_open.get_untracked() {
+        if ev.key() == "Escape" && open.get_untracked() {
             set_open.set(false);
             set_confirmation.set(None);
         }
@@ -78,6 +83,18 @@ pub fn CartDrawer() -> impl IntoView {
         }
     });
 
+    // Retoma o checkout ao voltar do login: se o cliente foi ao login PELO
+    // carrinho (`resume`) e agora está logado, reabre o drawer com tudo
+    // preservado (os signals do pedido sobreviveram à navegação SPA porque o
+    // drawer nunca é desmontado). Só dispara uma vez (consome o sinal).
+    Effect::new(move |_| {
+        if resume.0.get() && session.is_logged() {
+            resume.0.set(false);
+            set_open.set(true);
+            carregar_enderecos();
+        }
+    });
+
     // Salva um endereço novo e já o seleciona.
     let salvar_endereco = move |_: leptos::ev::MouseEvent| {
         if !session.is_logged() { return; }
@@ -113,10 +130,16 @@ pub fn CartDrawer() -> impl IntoView {
         });
     };
 
-    // Decide no clique: deslogado abre o login; logado envia o pedido.
+    // Decide no clique: deslogado vai para a tela de login (/entrar) marcando
+    // "retomar checkout" — ao voltar logado o drawer reabre com o pedido
+    // intacto; logado envia o pedido. `use_navigate()` é chamado aqui dentro
+    // (não capturado) para o handler seguir `Copy` — o closure de render é
+    // reativo e reexecuta.
     let on_checkout = move |_| {
         if !session.is_logged() {
-            set_auth_open.set(true);
+            resume.0.set(true);
+            set_open.set(false);
+            use_navigate()("/entrar", Default::default());
             return;
         }
         if submitting.get_untracked() {
@@ -171,7 +194,7 @@ pub fn CartDrawer() -> impl IntoView {
     };
 
     view! {
-        {move || (cart.count() > 0.0).then(|| view! {
+        {move || (cart.count() > 0.0 && location.pathname.get() != "/entrar").then(|| view! {
             <button
                 class="cart-fab"
                 on:click=move |_| set_open.set(true)
@@ -382,10 +405,6 @@ pub fn CartDrawer() -> impl IntoView {
                     }.into_any(),
                 }}
             </aside>
-
-            {move || auth_open.get().then(|| view! {
-                <AuthModal on_close=Callback::new(move |_| set_auth_open.set(false))/>
-            })}
         })}
     }
 }

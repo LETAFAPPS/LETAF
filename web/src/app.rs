@@ -68,6 +68,11 @@ pub fn App() -> impl IntoView {
     provide_context(DeliveryFee(RwSignal::new(0.0)));
     // Loja aberta? (default aberta no SSR; o CatalogView atualiza no cliente.)
     provide_context(crate::components::catalog::StoreOpen(RwSignal::new(true)));
+    // Sinaliza "retomar o checkout": marcado quando o cliente vai ao login a
+    // partir do carrinho; o `CartDrawer` reabre ao voltar logado, sem perder
+    // nada do pedido (itens/observações/cupom/entrega ficam nos signals, que
+    // sobrevivem à navegação SPA porque o drawer nunca é desmontado).
+    provide_context(crate::components::cart_drawer::ResumeCheckout(RwSignal::new(false)));
 
     // Tema claro/escuro (preferência do cliente). Nasce vazio (SSR usa o
     // tema padrão pelo CSS). No cliente: usa a escolha salva; se não há,
@@ -115,7 +120,10 @@ pub fn App() -> impl IntoView {
                     <Route path=StaticSegment("entrar") view=crate::components::auth_page::AuthPage/>
                 </Routes>
             </main>
+            // Dentro do `Router` (mas FORA das `Routes`): persiste entre rotas
+            // e ainda ganha contexto de rota (navegar/ler a URL). Assim o
+            // checkout sobrevive ao ir ao login e voltar.
+            <CartDrawer/>
         </Router>
-        <CartDrawer/>
     }
 }
