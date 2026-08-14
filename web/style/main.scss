@@ -1252,20 +1252,24 @@ button.ind { cursor: pointer; padding: 0; }
     background: var(--bg);
 }
 .auth-card {
-    width: min(440px, 100%);
+    width: min(380px, 100%);
     background: var(--surface);
     border: 1px solid var(--line);
     border-radius: var(--r-xl);
     box-shadow: var(--shadow-lg);
-    padding: 30px 28px;
+    padding: 30px 26px;
     display: flex;
     flex-direction: column;
     gap: 12px;
 }
-// Logo do estabelecimento (sem logo, o elemento nem é renderizado).
+// Marca no topo do card: logo cadastrada OU badge (ícone) + nome, na cor
+// da empresa (mockup). Centralizado.
 .auth-brand {
     display: flex;
+    align-items: center;
     justify-content: center;
+    gap: 10px;
+    text-decoration: none;
     margin-bottom: 2px;
 
     .auth-logo {
@@ -1274,6 +1278,27 @@ button.ind { cursor: pointer; padding: 0; }
         width: auto;
         object-fit: contain;
     }
+}
+// Badge: quadrado arredondado na cor da marca com o ícone branco (estilo do
+// mockup — glifo claro sobre a cor cadastrada).
+.auth-badge {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 42px;
+    height: 42px;
+    border-radius: 13px;
+    background: var(--brand);
+    color: #fff;
+
+    .ico svg { width: 24px; height: 24px; }
+}
+.auth-brand-name {
+    color: var(--brand);
+    font-weight: 800;
+    font-size: 1.5rem;
+    line-height: 1.1;
 }
 .auth-title {
     margin: 0;

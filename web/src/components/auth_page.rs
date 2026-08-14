@@ -125,6 +125,7 @@ fn AuthView(info: CatalogInfo) -> impl IntoView {
     let scheme = expect_context::<Scheme>();
 
     let nome_loja = info.name.clone();
+    let nome_header = info.name.clone();
     let logo = info.logo_url.clone();
     let theme = info.theme.clone();
     let default_scheme = info.default_scheme.clone();
@@ -289,11 +290,21 @@ fn AuthView(info: CatalogInfo) -> impl IntoView {
                 Stage::Login => format!("Entrar — {nome_loja}"),
             }/>
             <main class="auth-card" role="main">
-                {logo.map(|l| view! {
-                    <a class="auth-brand" href="/" aria-label="Voltar ao cardápio">
-                        <img class="auth-logo" src=l alt="" />
-                    </a>
-                })}
+                // Marca da loja: a LOGO cadastrada, se houver; senão um badge
+                // com ícone + o nome da empresa, na cor cadastrada no painel.
+                {match logo {
+                    Some(l) => view! {
+                        <a class="auth-brand" href="/" aria-label="Voltar ao cardápio">
+                            <img class="auth-logo" src=l alt="" />
+                        </a>
+                    }.into_any(),
+                    None => view! {
+                        <a class="auth-brand auth-brand--name" href="/" aria-label="Voltar ao cardápio">
+                            <span class="auth-badge" aria-hidden="true"><Icon name="empresa"/></span>
+                            <span class="auth-brand-name">{nome_header.clone()}</span>
+                        </a>
+                    }.into_any(),
+                }}
 
                 <h1 class="auth-title">
                     {move || match stage.get() {
