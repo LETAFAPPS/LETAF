@@ -33,6 +33,7 @@ fn ui_svg(name: &str) -> &'static str {
         "empresa" => include_str!("../../public/icons/empresa.svg"),
         "talheres" => include_str!("../../public/icons/talheres.svg"),
         "carrinho" => include_str!("../../public/icons/carrinho.svg"),
+        "casa" => include_str!("../../public/icons/casa.svg"),
         _ => "",
     }
 }

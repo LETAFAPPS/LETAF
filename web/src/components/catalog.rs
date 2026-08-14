@@ -333,6 +333,18 @@ fn CatalogView(data: CatalogData) -> impl IntoView {
 
         // Barra inferior estilo app (só no mobile): carrinho, favoritos, tema.
         <nav class="mobile-nav" aria-label="Ações">
+            <button
+                type="button"
+                class="mnav-item"
+                class:mnav-on=move || sel.get().is_empty() && !fav_only.get()
+                on:click=move |_| {
+                    set_sel.set(String::new());
+                    set_fav_only.set(false);
+                }
+            >
+                <span class="mnav-ico"><Icon name="casa"/></span>
+                <span class="mnav-lbl">"Início"</span>
+            </button>
             <button type="button" class="mnav-item" on:click=move |_| cart_open.0.set(true)>
                 <span class="mnav-ico">
                     <Icon name="carrinho"/>

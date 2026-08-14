@@ -452,6 +452,8 @@ main {
     main { padding-bottom: 76px; }
     // O FAB do carrinho colidiria com a barra — a barra já tem o carrinho.
     .cart-fab { display: none; }
+    // Carrinho ocupa a TELA INTEIRA no mobile (tela separada, estilo app).
+    .cart-drawer { width: 100%; }
 }
 
 // Favoritos ativo: coração na cor de favorito (vermelho), preenchido.
