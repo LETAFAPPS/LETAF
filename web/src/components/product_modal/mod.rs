@@ -21,6 +21,21 @@ pub fn ProductModal(product: CatalogProduct, on_close: Callback<()>) -> impl Int
     let name = product.name.clone();
     let description = product.description.clone().unwrap_or_default();
     let seal = discount::discount_badge_label(&product);
+
+    // Favorito (coração) no topo da foto — igual ao card (§11: só UI).
+    let favs = expect_context::<crate::favorites::Favorites>();
+    let fav_id = product.id.clone();
+    let fav_id_read = fav_id.clone();
+    let is_fav = Memo::new(move |_| favs.0.with(|s| s.contains(&fav_id_read)));
+    let toggle_fav = move |_| {
+        let id = fav_id.clone();
+        favs.0.update(|s| {
+            if !s.remove(&id) {
+                s.insert(id);
+            }
+        });
+        crate::favorites::save(&favs.0.get_untracked());
+    };
     let raw_base = product.price.unwrap_or(0.0);
     // Foto de destaque no topo do modal (galeria da loja > imagem única).
     let hero_img = if product.image_urls.is_empty() {
@@ -120,30 +135,41 @@ pub fn ProductModal(product: CatalogProduct, on_close: Callback<()>) -> impl Int
                 {hero_img.map(|src| view! {
                     <div class="pm-photo"><img src=src alt="" loading="lazy"/></div>
                 })}
+                // Ações sobre a foto: favorito (coração) + fechar (X).
+                <button
+                    class="pm-fav"
+                    class:pm-fav-on=move || is_fav.get()
+                    on:click=toggle_fav
+                    aria-pressed=move || is_fav.get().to_string()
+                    aria-label=move || if is_fav.get() { "Remover dos favoritos" } else { "Adicionar aos favoritos" }
+                >
+                    <Icon name="favoritos"/>
+                </button>
+                <button class="cart-close" on:click=move |_| on_close.run(()) aria-label="Fechar">
+                    <Icon name="fechar"/>
+                </button>
                 <header class="pm-head">
                     <div class="pm-head-text">
-                        // Selo no TOPO do texto (fluxo normal) — não sobrepõe
-                        // título nem o botão fechar.
+                        // Selo (quando há desconto) no topo, no fluxo.
                         {seal.map(|s| view! { <span class="discount-seal pm-seal">{s}</span> })}
-                        <h2 class="pm-name" id="pm-title">{name}</h2>
+                        <div class="pm-head-top">
+                            <h2 class="pm-name" id="pm-title">{name}</h2>
+                            <div class="pm-price">
+                                {move || if has_disc() {
+                                    view! {
+                                        <span class="price-old">{format::money(raw_base)}</span>
+                                        <span class="price-now">{format::money(base_price())}</span>
+                                    }.into_any()
+                                } else {
+                                    view! {
+                                        <span class="price-now">{format::money(base_price())}</span>
+                                    }.into_any()
+                                }}
+                            </div>
+                        </div>
                         {(!description.is_empty())
                             .then(|| view! { <div class="pm-desc">{description}</div> })}
-                        <div class="pm-price">
-                            {move || if has_disc() {
-                                view! {
-                                    <span class="price-old">{format::money(raw_base)}</span>
-                                    <span class="price-now">{format::money(base_price())}</span>
-                                }.into_any()
-                            } else {
-                                view! {
-                                    <span class="price-now">{format::money(base_price())}</span>
-                                }.into_any()
-                            }}
-                        </div>
                     </div>
-                    <button class="cart-close" on:click=move |_| on_close.run(()) aria-label="Fechar">
-                        <Icon name="fechar"/>
-                    </button>
                 </header>
 
                 <div class="pm-body">
@@ -180,12 +206,8 @@ pub fn ProductModal(product: CatalogProduct, on_close: Callback<()>) -> impl Int
                         <span>{move || qty.get().to_string()}</span>
                         <button on:click=move |_| qty.update(|q| *q += 1)>"+"</button>
                     </div>
-                    <div class="pm-total">
-                        <div class="pm-total-label">"Total"</div>
-                        <div class="pm-total-value">{move || format::money(total())}</div>
-                    </div>
                     <button class="pm-add" disabled=move || !all_valid() on:click=confirm>
-                        "Adicionar"
+                        {move || format!("Adicionar • {}", format::money(total()))}
                     </button>
                 </footer>
             </div>
