@@ -1,4 +1,5 @@
 use leptos::prelude::*;
+use leptos_router::hooks::use_navigate;
 
 use crate::account;
 use crate::api::CatalogInfo;
@@ -56,6 +57,14 @@ fn OrdersView(info: CatalogInfo) -> impl IntoView {
         scheme.0.set(initial.to_string());
     });
 
+    // Sem login → abre a MESMA tela de login do Perfil (/entrar). Usa
+    // `session::load()` (localStorage) direto para não correr com o signal.
+    Effect::new(move |_| {
+        if crate::session::load().is_none() {
+            use_navigate()("/entrar", Default::default());
+        }
+    });
+
     // Pedidos do cliente (autenticado via cookie no servidor, §11).
     let orders = Resource::new(|| (), |_| async move { account::list_orders().await });
 
@@ -72,12 +81,8 @@ fn OrdersView(info: CatalogInfo) -> impl IntoView {
                 </header>
                 <div class="account-body">
                     {move || if !session.is_logged() {
-                        view! {
-                            <div class="state">
-                                <p>"Entre para ver os seus pedidos."</p>
-                                <a class="cart-checkout" href="/entrar">"Entrar"</a>
-                            </div>
-                        }.into_any()
+                        // Redirecionando para /entrar (Effect acima).
+                        view! { <p class="state">"Carregando…"</p> }.into_any()
                     } else {
                         view! {
                             <Suspense fallback=|| view! {

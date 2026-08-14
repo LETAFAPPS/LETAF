@@ -372,10 +372,14 @@ fn CatalogView(data: CatalogData) -> impl IntoView {
                 <span class="mnav-lbl">"Carrinho"</span>
             </button>
             // Pedidos (no lugar do Tema, que foi para o topo) — tela dedicada.
+            // Deslogado abre a MESMA tela de login do Perfil (/entrar).
             <button
                 type="button"
                 class="mnav-item"
-                on:click=move |_| use_navigate()("/pedidos", Default::default())
+                on:click=move |_| {
+                    let dest = if session.is_logged() { "/pedidos" } else { "/entrar" };
+                    use_navigate()(dest, Default::default());
+                }
             >
                 <span class="mnav-ico"><Icon name="orders"/></span>
                 <span class="mnav-lbl">"Pedidos"</span>
