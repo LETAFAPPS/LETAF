@@ -431,12 +431,10 @@ main {
 // Carrinho: CARD QUADRADO destacado na cor da marca (ícone/texto brancos).
 .mnav-cart {
     position: relative;
-    flex: 0 0 auto;          // não estica: card quadrado
-    width: 54px;
-    height: 54px;
+    flex: 0 0 auto;          // não estica: retângulo compacto (menor)
     justify-content: center;
     gap: 2px;
-    padding: 0;
+    padding: 7px 16px;
     background: var(--brand);
     color: #fff;
     border-radius: var(--r-md);
