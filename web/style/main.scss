@@ -638,9 +638,12 @@ main {
     box-shadow: var(--shadow-sm);
     transition: box-shadow 0.15s ease, transform 0.15s ease;
 
+    // Sem `transform` no hover: o modal do produto é renderizado DENTRO do
+    // card e `transform` faz o card virar bloco de contenção de `position:
+    // fixed`, prendendo/recortando o modal no card (overflow:hidden). Feedback
+    // de hover fica só na sombra.
     &:hover {
         box-shadow: var(--shadow-md);
-        transform: translateY(-2px);
     }
 
     .product-img {
