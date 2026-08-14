@@ -524,7 +524,7 @@ main {
     position: relative;
     width: 100%;
     aspect-ratio: 4 / 1;
-    max-height: 280px;
+    max-height: 320px;
     overflow: hidden;
     background: var(--surface-3);
     border-radius: var(--r-lg);
@@ -591,8 +591,10 @@ main {
     transition: width 0.2s ease;
 
     // Ativo: MESMO tamanho do círculo dos outros — só muda a cor (da marca).
+    // `background-color` (não o shorthand) preserva o `background-clip:
+    // content-box`; com o shorthand a bolinha pintava o padding inteiro (maior).
     &.banner-dot-active {
-        background: var(--brand);
+        background-color: var(--brand);
     }
 }
 
