@@ -113,11 +113,7 @@ pub fn ProductCard(product: CatalogProduct) -> impl IntoView {
                 <button class="fav" class:fav-on=move || is_fav.get() on:click=toggle
                     aria-pressed=move || is_fav.get().to_string()
                     aria-label=move || if is_fav.get() { "Remover dos favoritos" } else { "Adicionar aos favoritos" }>
-                    {move || if is_fav.get() {
-                        view! { <Icon name="favoritos"/> }.into_any()
-                    } else {
-                        view! { <Icon name="favorito"/> }.into_any()
-                    }}
+                    <Icon name="favoritos"/>
                 </button>
                 {move || (!available.get()).then(|| view! {
                     <div class="unavailable"><span>"Indisponível"</span></div>

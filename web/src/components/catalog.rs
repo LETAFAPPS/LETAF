@@ -285,6 +285,16 @@ fn CatalogView(data: CatalogData) -> impl IntoView {
                 </div>
                 <button
                     type="button"
+                    class="fav-toggle"
+                    class:fav-toggle-on=move || fav_only.get()
+                    aria-pressed=move || fav_only.get().to_string()
+                    aria-label="Ver favoritos"
+                    on:click=move |_| { set_fav_only.update(|v| *v = !*v); set_sel.set(String::new()); }
+                >
+                    <Icon name="favoritos"/>
+                </button>
+                <button
+                    type="button"
                     class="theme-toggle"
                     on:click=move |_| {
                         let next = if scheme.0.get() == "dark" { "light" } else { "dark" };
@@ -326,7 +336,7 @@ fn CatalogView(data: CatalogData) -> impl IntoView {
                 aria-pressed=move || fav_only.get().to_string()
                 on:click=move |_| { set_fav_only.update(|v| *v = !*v); set_sel.set(String::new()); }
             >
-                <span class="cat-ico" aria-hidden="true"><Icon name="favorito"/></span>
+                <span class="cat-ico" aria-hidden="true"><Icon name="favoritos"/></span>
                 <span class="cat-lbl">"Favoritos"</span>
             </button>
             {cats.into_iter().map(|c| {
