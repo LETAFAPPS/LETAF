@@ -1345,9 +1345,9 @@ button.ind { cursor: pointer; padding: 0; }
 }
 .auth-remember-box {
     flex: 0 0 auto;
-    width: 24px;
-    height: 24px;
-    border-radius: 6px;
+    width: 18px;
+    height: 18px;
+    border-radius: 5px;
     border: 2px solid var(--line);
     background: var(--surface);
     display: inline-flex;
@@ -1355,13 +1355,16 @@ button.ind { cursor: pointer; padding: 0; }
     justify-content: center;
     transition: background 0.15s, border-color 0.15s;
 
+    // Check centralizado dentro do quadrado (o `top` compensa a rotação).
     &::after {
         content: "";
-        width: 6px;
-        height: 11px;
+        width: 5px;
+        height: 9px;
         border: solid #fff;
-        border-width: 0 2.5px 2.5px 0;
-        transform: rotate(45deg) translate(-1px, -1px);
+        border-width: 0 2px 2px 0;
+        transform: rotate(45deg);
+        position: relative;
+        top: -1px;
         opacity: 0;
     }
 }
@@ -1385,7 +1388,8 @@ button.ind { cursor: pointer; padding: 0; }
     border: none;
     padding: 0;
     cursor: pointer;
-    color: var(--brand-ink);
+    // Cor exata escolhida no painel da empresa (marca), não o tom derivado.
+    color: var(--brand);
     font-weight: 700;
     font-size: inherit;
     font-family: inherit;
