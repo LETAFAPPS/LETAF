@@ -1230,30 +1230,28 @@ textarea.field {
 .pm-desc { font-size: 0.82rem; color: var(--muted); margin-top: 6px; line-height: 1.4; white-space: pre-wrap; }
 .pm-price { display: flex; align-items: baseline; gap: 8px; flex-shrink: 0; }
 .pm-price .price-now { font-size: 1.2rem; font-weight: 800; color: var(--price-ink); }
-// O modal é renderizado DENTRO do `.product-card`, então `.product-card
-// .discount-seal` (absoluto) vazava para o selo do modal e o jogava sobre o
-// título. Especificidade igual + fonte posterior → aqui vence, e o selo fica
-// no TOPO do texto (bloco no fluxo), sem sobrepor título nem o botão fechar.
+// Preço "de" no modal: SEM risco e um pouco maior (pedido do usuário).
+.pm-price .price-old { text-decoration: none; font-size: 0.95rem; color: var(--muted); }
+// Selo de desconto sobre a foto, no canto superior ESQUERDO (espelha o
+// coração à direita). Alinha com o inset da foto.
 .product-modal .pm-seal {
-    position: static;
-    top: auto;
-    left: auto;
-    align-self: flex-start;
-    display: inline-block;
-    margin: 0 0 6px;
+    position: absolute;
+    top: 24px;
+    left: 24px;
+    z-index: 3;
     box-shadow: none;
 }
 .pm-body { padding: 4px 24px; overflow-y: auto; flex: 1; min-height: 0; }
 .pm-block { margin: 18px 0; }
 .pm-block-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
 .pm-block-title { font-size: 1rem; font-weight: 800; }
-// Chip cinza "Escolha 1" ao lado do título.
+// Chip cinza "até N opções" — retângulo com pontas arredondadas.
 .pm-badge {
     font-size: 0.68rem;
     font-weight: 600;
     color: var(--muted);
     background: color-mix(in srgb, var(--ink) 7%, transparent);
-    border-radius: 999px;
+    border-radius: var(--r-sm);
     padding: 3px 9px;
 }
 .pm-hint { font-size: 0.72rem; color: var(--muted); margin-bottom: 6px; }

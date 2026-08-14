@@ -131,18 +131,15 @@ pub fn ProductModal(product: CatalogProduct, on_close: Callback<()>) -> impl Int
                         None => view! { <span class="no-image">"sem imagem"</span> }.into_any(),
                     }}
                 </div>
+                // Selo de desconto sobre a foto (topo-ESQUERDA), igual ao card.
+                {seal.map(|s| view! { <span class="discount-seal pm-seal">{s}</span> })}
                 // Indicador de favorito (vermelho, só quando favoritado; não
-                // clicável, sem fundo).
+                // clicável, sem fundo) no topo-DIREITA.
                 {move || is_fav.get().then(|| view! {
                     <span class="pm-fav" aria-label="Favoritado"><Icon name="favoritos"/></span>
                 })}
-                <button class="cart-close" on:click=move |_| on_close.run(()) aria-label="Fechar">
-                    <Icon name="fechar"/>
-                </button>
                 <header class="pm-head">
                     <div class="pm-head-text">
-                        // Selo (quando há desconto) no topo, no fluxo.
-                        {seal.map(|s| view! { <span class="discount-seal pm-seal">{s}</span> })}
                         <div class="pm-head-top">
                             <h2 class="pm-name" id="pm-title">{name}</h2>
                             <div class="pm-price">
