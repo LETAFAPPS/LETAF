@@ -1410,6 +1410,36 @@ button.ind { cursor: pointer; padding: 0; }
     &:disabled { opacity: 0.55; cursor: not-allowed; }
 }
 
+// Sinais − e + DESENHADOS com CSS (barras), não texto — centralização exata
+// e independente da fonte. Vale para os steppers do modal (rodapé e adicionais).
+.pm-foot .cart-qty button,
+.opt-counter button { position: relative; }
+.pm-foot .cart-qty button::before,
+.opt-counter button::before {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 14px;
+    height: 2.5px;
+    border-radius: 2px;
+    background: currentColor;
+}
+// Barra vertical só no botão "+" (último) → forma a cruz.
+.pm-foot .cart-qty button:last-child::after,
+.opt-counter button:last-child::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 2.5px;
+    height: 14px;
+    border-radius: 2px;
+    background: currentColor;
+}
+
 // ── Conta (header) + auth modal ─────────────────────────────
 .account {
     display: flex;

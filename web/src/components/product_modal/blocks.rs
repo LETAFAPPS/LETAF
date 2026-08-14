@@ -159,11 +159,12 @@ pub fn render_group(
                         <span class="opt-name">{name}</span>
                         <span class="opt-price">{price_qty}</span>
                         <div class="opt-counter">
-                            <button on:click=move |_| selection.update(|s| {
+                            <button aria-label="Diminuir" on:click=move |_| selection.update(|s| {
                                 logic::change_addon_qty(s, &gd, &ad, -1, false, max_sel);
-                            })>"−"</button>
+                            })></button>
                             <span>{qty.to_string()}</span>
                             <button
+                                aria-label="Aumentar"
                                 disabled=!can_inc
                                 on:click=move |_| {
                                     if can_inc {
@@ -172,9 +173,7 @@ pub fn render_group(
                                         });
                                     }
                                 }
-                            >
-                                "+"
-                            </button>
+                            ></button>
                         </div>
                     </div>
                 }

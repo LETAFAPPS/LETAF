@@ -190,9 +190,9 @@ pub fn ProductModal(product: CatalogProduct, on_close: Callback<()>) -> impl Int
                 })}
                 <footer class="pm-foot">
                     <div class="cart-qty">
-                        <button on:click=move |_| qty.update(|q| { if *q > 1 { *q -= 1; } })>"−"</button>
+                        <button aria-label="Diminuir" on:click=move |_| qty.update(|q| { if *q > 1 { *q -= 1; } })></button>
                         <span>{move || qty.get().to_string()}</span>
-                        <button on:click=move |_| qty.update(|q| *q += 1)>"+"</button>
+                        <button aria-label="Aumentar" on:click=move |_| qty.update(|q| *q += 1)></button>
                     </div>
                     <button class="pm-add" disabled=move || !all_valid() on:click=confirm>
                         {move || format!("Adicionar • {}", format::money(total()))}
