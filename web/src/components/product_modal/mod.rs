@@ -95,7 +95,7 @@ pub fn ProductModal(product: CatalogProduct, on_close: Callback<()>) -> impl Int
             s
         });
         product.with_value(|p| cart.add(p.clone(), q, snap.clone()));
-        on_close.run(());
+        go_back();
     };
 
     // Fecha no Esc (padrão universal de diálogo, §3 acessibilidade). Ouve na
@@ -103,7 +103,7 @@ pub fn ProductModal(product: CatalogProduct, on_close: Callback<()>) -> impl Int
     // removido quando o modal desmonta.
     let esc = leptos::prelude::window_event_listener(leptos::ev::keydown, move |ev| {
         match ev.key().as_str() {
-            "Escape" => on_close.run(()),
+            "Escape" => go_back(),
             "Tab" => crate::focus::trap(".product-modal", &ev),
             _ => {}
         }
@@ -114,8 +114,16 @@ pub fn ProductModal(product: CatalogProduct, on_close: Callback<()>) -> impl Int
     Effect::new(move |_| crate::focus::focus_first(".product-modal"));
     on_cleanup(move || crate::focus::restore(trigger));
 
+    // "Voltar" (navegador/gesto) FECHA o modal em vez de sair do site: ao
+    // abrir empilhamos uma entrada no histórico; o `popstate` (voltar) a
+    // consome e fecha. Os fechamentos por clique-fora/Esc chamam `go_back()`,
+    // passando pelo mesmo caminho (sem entradas órfãs).
+    push_modal_state();
+    let pop = leptos::prelude::window_event_listener(leptos::ev::popstate, move |_| on_close.run(()));
+    on_cleanup(move || pop.remove());
+
     view! {
-        <div class="modal-overlay" on:click=move |_| on_close.run(())>
+        <div class="modal-overlay" on:click=move |_| go_back()>
             <div
                 class="product-modal"
                 role="dialog"
@@ -202,3 +210,28 @@ pub fn ProductModal(product: CatalogProduct, on_close: Callback<()>) -> impl Int
         </div>
     }
 }
+
+// ── Integração com o botão "voltar" (só no cliente) ─────────────────
+/// Empilha uma entrada no histórico ao abrir o modal, para o "voltar"
+/// fechar o modal em vez de sair do site.
+#[cfg(feature = "hydrate")]
+fn push_modal_state() {
+    if let Some(w) = web_sys::window() {
+        if let Ok(h) = w.history() {
+            let _ = h.push_state_with_url(&wasm_bindgen::JsValue::NULL, "", None);
+        }
+    }
+}
+/// Volta uma entrada no histórico (dispara `popstate`, que fecha o modal).
+#[cfg(feature = "hydrate")]
+fn go_back() {
+    if let Some(w) = web_sys::window() {
+        if let Ok(h) = w.history() {
+            let _ = h.back();
+        }
+    }
+}
+#[cfg(not(feature = "hydrate"))]
+fn push_modal_state() {}
+#[cfg(not(feature = "hydrate"))]
+fn go_back() {}
