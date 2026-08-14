@@ -339,7 +339,7 @@ fn AuthView(info: CatalogInfo) -> impl IntoView {
                                 on:change=move |e| set_remember.set(event_target_checked(&e))
                             />
                             <span class="auth-remember-box" aria-hidden="true"></span>
-                            <span>"Lembrar de mim"</span>
+                            <span>"Lembrar"</span>
                         </label>
                     })}
 
