@@ -1168,7 +1168,7 @@ textarea.field {
 .pm-fav {
     position: absolute;
     top: 24px;
-    right: 72px;
+    right: 24px;
     z-index: 3;
     display: flex;
     align-items: center;
@@ -1240,18 +1240,22 @@ textarea.field {
     left: 24px;
     z-index: 3;
     box-shadow: none;
+    // ~Dobro do tamanho do selo do card.
+    font-size: 1.05rem;
+    padding: 6px 13px;
+    border-radius: 8px;
 }
 .pm-body { padding: 4px 24px; overflow-y: auto; flex: 1; min-height: 0; }
 .pm-block { margin: 18px 0; }
 .pm-block-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
 .pm-block-title { font-size: 1rem; font-weight: 800; }
-// Chip cinza "até N opções" — retângulo com pontas arredondadas.
+// Chip cinza "até N opções" — retangular (cantos levemente suavizados).
 .pm-badge {
     font-size: 0.68rem;
     font-weight: 600;
     color: var(--muted);
     background: color-mix(in srgb, var(--ink) 7%, transparent);
-    border-radius: var(--r-sm);
+    border-radius: 4px;
     padding: 3px 9px;
 }
 .pm-hint { font-size: 0.72rem; color: var(--muted); margin-bottom: 6px; }
@@ -1310,12 +1314,32 @@ textarea.field {
     &.check.on { background: var(--brand); border-color: var(--brand); }
 }
 button.ind { cursor: pointer; padding: 0; }
+// Contador do adicional: IGUAL ao stepper de quantidade do produto —
+// botões quadrados arredondados (− claro / + marca), sinais centralizados.
 .opt-counter {
-    @include stepper;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+
     button {
-        &:disabled { color: var(--line-strong); cursor: not-allowed; }
+        width: 34px;
+        height: 34px;
+        border-radius: var(--r-md);
+        border: none;
+        font-size: 1.1rem;
+        font-weight: 700;
+        line-height: 1;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        &:first-child { background: var(--surface-3); color: var(--ink); }
+        &:last-child { background: var(--brand); color: #fff; }
+        &:disabled { opacity: 0.5; cursor: not-allowed; }
     }
-    span { min-width: 24px; text-align: center; font-size: 0.85rem; font-weight: 700; }
+    span { min-width: 20px; text-align: center; font-size: 0.95rem; font-weight: 700; }
 }
 .pm-foot {
     display: flex;
