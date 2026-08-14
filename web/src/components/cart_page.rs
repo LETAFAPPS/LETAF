@@ -211,13 +211,19 @@ fn CartView(info: CatalogInfo) -> impl IntoView {
                         </div>
                     }.into_any(),
                     None => view! {
-                        <div class="cart-items">
-                            {move || {
-                                let items = cart.0.get();
-                                if items.is_empty() {
-                                    return view! { <p class="state">"Carrinho vazio."</p> }.into_any();
-                                }
-                                items.into_iter().enumerate().map(|(idx, item)| {
+                        {move || {
+                            let items = cart.0.get();
+                            if items.is_empty() {
+                                return view! {
+                                    <div class="cart-empty">
+                                        <div class="cart-empty-mark" aria-hidden="true"><Icon name="carrinho"/></div>
+                                        <h3>"Seu carrinho está vazio"</h3>
+                                        <p>"Adicione itens do cardápio para começar seu pedido."</p>
+                                        <a class="cart-checkout" href="/">"Ver cardápio"</a>
+                                    </div>
+                                }.into_any();
+                            }
+                            let rows = items.into_iter().enumerate().map(|(idx, item)| {
                                     let name = item.product.name.clone();
                                     let qty = item.quantity;
                                     let unit = item.unit_price();
@@ -233,7 +239,10 @@ fn CartView(info: CatalogInfo) -> impl IntoView {
                                     view! {
                                         <div class="cart-row">
                                             <div class="cart-thumb">
-                                                {thumb.map(|src| view! { <img src=src alt="" loading="lazy"/> })}
+                                                {match thumb {
+                                                    Some(src) => view! { <img src=src alt="" loading="lazy"/> }.into_any(),
+                                                    None => view! { <span class="cart-thumb-ph" aria-hidden="true"><Icon name="imagem"/></span> }.into_any(),
+                                                }}
                                             </div>
                                             <div class="cart-row-info">
                                                 <div class="cart-row-name">{name}</div>
@@ -258,85 +267,105 @@ fn CartView(info: CatalogInfo) -> impl IntoView {
                                             </button>
                                         </div>
                                     }
-                                }).collect_view().into_any()
-                            }}
-                        </div>
+                            }).collect_view();
+                            view! {
+                            <div class="cart-items">{rows}</div>
 
-                        <footer class="cart-drawer-foot">
-                            <textarea
-                                class="field"
-                                aria-label="Observações do pedido"
-                                placeholder="Observações (opcional)"
-                                prop:value=move || notes.get()
-                                on:input=move |e| set_notes.set(event_target_value(&e))
-                            ></textarea>
-                            <div class="cart-modal-row" role="group" aria-label="Modalidade de entrega">
-                                <button
-                                    class=move || if delivery.get() { "chip chip-on" } else { "chip" }
-                                    aria-pressed=move || delivery.get().to_string()
-                                    on:click=move |_| set_delivery.set(true)
-                                >"Entrega"</button>
-                                <button
-                                    class=move || if delivery.get() { "chip" } else { "chip chip-on" }
-                                    aria-pressed=move || (!delivery.get()).to_string()
-                                    on:click=move |_| set_delivery.set(false)
-                                >"Retirar no local"</button>
+                            <footer class="cart-drawer-foot">
+                            // ── Como receber ──
+                            <div class="cart-sec">
+                                <label class="cart-sec-title">"Como você quer receber?"</label>
+                                <div class="cart-seg" role="group" aria-label="Modalidade de entrega">
+                                    <button
+                                        class:cart-seg-on=move || delivery.get()
+                                        aria-pressed=move || delivery.get().to_string()
+                                        on:click=move |_| set_delivery.set(true)
+                                    >"Entrega"</button>
+                                    <button
+                                        class:cart-seg-on=move || !delivery.get()
+                                        aria-pressed=move || (!delivery.get()).to_string()
+                                        on:click=move |_| set_delivery.set(false)
+                                    >"Retirar no local"</button>
+                                </div>
                             </div>
 
+                            // ── Endereço (só em entrega) ──
                             {move || delivery.get().then(|| view! {
-                                <div class="cart-address">
-                                    {move || (!addresses.get().is_empty()).then(|| view! {
-                                        <select
-                                            class="field"
-                                            aria-label="Endereço de entrega"
-                                            on:change=move |e| set_address_id.set(event_target_value(&e))
-                                        >
-                                            <For each=move || addresses.get() key=|a| a.id.clone() let:a>
-                                                <option value=a.id.clone() selected=move || address_id.get() == a.id>
-                                                    {format!("{} — {}", a.label, a.resumo)}
-                                                </option>
-                                            </For>
-                                        </select>
-                                    })}
-                                    {move || (!novo_aberto.get()).then(|| view! {
-                                        <button class="link-btn" on:click=move |_| set_novo_aberto.set(true)>"+ Novo endereço"</button>
-                                    })}
-                                    {move || novo_aberto.get().then(|| view! {
-                                        <div class="cart-address-form">
-                                            <input class="field" placeholder="Rótulo (ex.: Casa, Trabalho)" aria-label="Rótulo do endereço"
-                                                prop:value=move || a_label.get()
-                                                on:input=move |e| set_a_label.set(event_target_value(&e)) />
-                                            <input class="field" placeholder="Rua" aria-label="Rua"
-                                                prop:value=move || a_rua.get()
-                                                on:input=move |e| set_a_rua.set(event_target_value(&e)) />
-                                            <input class="field" placeholder="Número" aria-label="Número"
-                                                prop:value=move || a_numero.get()
-                                                on:input=move |e| set_a_numero.set(event_target_value(&e)) />
-                                            <input class="field" placeholder="Bairro" aria-label="Bairro"
-                                                prop:value=move || a_bairro.get()
-                                                on:input=move |e| set_a_bairro.set(event_target_value(&e)) />
-                                            <input class="field" placeholder="Complemento (opcional)" aria-label="Complemento"
-                                                prop:value=move || a_compl.get()
-                                                on:input=move |e| set_a_compl.set(event_target_value(&e)) />
-                                            <button class="link-btn" on:click=salvar_endereco>"Salvar endereço"</button>
-                                        </div>
-                                    })}
+                                <div class="cart-sec">
+                                    <label class="cart-sec-title">"Endereço de entrega"</label>
+                                    <div class="cart-address">
+                                        {move || (!addresses.get().is_empty()).then(|| view! {
+                                            <select
+                                                class="field"
+                                                aria-label="Endereço de entrega"
+                                                on:change=move |e| set_address_id.set(event_target_value(&e))
+                                            >
+                                                <For each=move || addresses.get() key=|a| a.id.clone() let:a>
+                                                    <option value=a.id.clone() selected=move || address_id.get() == a.id>
+                                                        {format!("{} — {}", a.label, a.resumo)}
+                                                    </option>
+                                                </For>
+                                            </select>
+                                        })}
+                                        {move || (!novo_aberto.get()).then(|| view! {
+                                            <button class="link-btn" on:click=move |_| set_novo_aberto.set(true)>"+ Novo endereço"</button>
+                                        })}
+                                        {move || novo_aberto.get().then(|| view! {
+                                            <div class="cart-address-form">
+                                                <input class="field" placeholder="Rótulo (ex.: Casa, Trabalho)" aria-label="Rótulo do endereço"
+                                                    prop:value=move || a_label.get()
+                                                    on:input=move |e| set_a_label.set(event_target_value(&e)) />
+                                                <input class="field" placeholder="Rua" aria-label="Rua"
+                                                    prop:value=move || a_rua.get()
+                                                    on:input=move |e| set_a_rua.set(event_target_value(&e)) />
+                                                <div class="cart-addr-grid">
+                                                    <input class="field" placeholder="Número" aria-label="Número" inputmode="numeric"
+                                                        prop:value=move || a_numero.get()
+                                                        on:input=move |e| set_a_numero.set(event_target_value(&e)) />
+                                                    <input class="field" placeholder="Bairro" aria-label="Bairro"
+                                                        prop:value=move || a_bairro.get()
+                                                        on:input=move |e| set_a_bairro.set(event_target_value(&e)) />
+                                                </div>
+                                                <input class="field" placeholder="Complemento (opcional)" aria-label="Complemento"
+                                                    prop:value=move || a_compl.get()
+                                                    on:input=move |e| set_a_compl.set(event_target_value(&e)) />
+                                                <button class="cart-save-addr" on:click=salvar_endereco>"Salvar endereço"</button>
+                                            </div>
+                                        })}
+                                    </div>
                                 </div>
                             })}
 
-                            <div class="cart-promo">
-                                <input
+                            // ── Observações ──
+                            <div class="cart-sec">
+                                <label class="cart-sec-title">"Observações"</label>
+                                <textarea
                                     class="field"
-                                    aria-label="Cupom de desconto"
-                                    placeholder="Cupom de desconto"
-                                    prop:value=move || coupon.get()
-                                    on:input=move |e| set_coupon.set(event_target_value(&e))
-                                />
-                                <span class="cart-promo-apply">"Aplicar"</span>
+                                    aria-label="Observações do pedido"
+                                    placeholder="Alguma observação para a loja? (opcional)"
+                                    prop:value=move || notes.get()
+                                    on:input=move |e| set_notes.set(event_target_value(&e))
+                                ></textarea>
                             </div>
-                            {move || (!coupon.get().trim().is_empty()).then(|| view! {
-                                <p class="cart-hint">"O desconto do cupom é aplicado na confirmação do pedido."</p>
-                            })}
+
+                            // ── Cupom ──
+                            <div class="cart-sec">
+                                <label class="cart-sec-title">"Cupom de desconto"</label>
+                                <div class="cart-promo">
+                                    <input
+                                        class="field"
+                                        aria-label="Cupom de desconto"
+                                        placeholder="Digite seu cupom"
+                                        prop:value=move || coupon.get()
+                                        on:input=move |e| set_coupon.set(event_target_value(&e))
+                                    />
+                                    <span class="cart-promo-apply">"Aplicar"</span>
+                                </div>
+                                {move || (!coupon.get().trim().is_empty()).then(|| view! {
+                                    <p class="cart-hint">"O desconto do cupom é aplicado na confirmação do pedido."</p>
+                                })}
+                            </div>
+
                             <div class="cart-summary">
                                 <div class="cart-total-row">
                                     <span>"Subtotal"</span>
@@ -366,7 +395,9 @@ fn CartView(info: CatalogInfo) -> impl IntoView {
                                     "Finalizar pedido".to_string()
                                 }}
                             </button>
-                        </footer>
+                            </footer>
+                            }.into_any()
+                        }}
                     }.into_any(),
                 }}
             </main>

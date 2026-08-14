@@ -1059,7 +1059,14 @@ main {
         border-radius: var(--r-md);
         background: var(--surface-2);
     }
-    .cart-thumb { width: 60px; height: 60px; border-radius: var(--r-md); }
+    .cart-thumb {
+        width: 60px; height: 60px; border-radius: var(--r-md);
+        display: flex; align-items: center; justify-content: center;
+    }
+    .cart-thumb-ph {
+        display: flex; color: var(--muted);
+        .ico svg { width: 26px; height: 26px; opacity: 0.65; }
+    }
     .cart-row-name { font-size: 0.95rem; font-weight: 700; }
     .cart-row-addons { font-size: 0.75rem; color: var(--muted); margin-top: 1px; }
     // Preço + stepper na mesma linha.
@@ -1096,6 +1103,64 @@ main {
         .ico svg { width: 20px; height: 20px; }
         &:hover { color: var(--danger); }
     }
+    // Rodapé em SEÇÕES: título curto (uppercase) + conteúdo, com respiro.
+    .cart-drawer-foot { gap: 18px; padding: 16px; }
+    .cart-sec { display: flex; flex-direction: column; gap: 8px; }
+    .cart-sec-title {
+        font-size: 0.72rem; font-weight: 800; letter-spacing: 0.04em;
+        text-transform: uppercase; color: var(--muted);
+    }
+    // Campos com mais arredondamento (coerência com os cards).
+    .field { border-radius: var(--r-md); }
+    textarea.field { min-height: 60px; }
+
+    // Segmented control: Entrega × Retirar (metade ativa preenchida na marca).
+    .cart-seg {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 4px;
+        padding: 4px;
+        border-radius: 999px;
+        background: var(--surface-3);
+        border: 1px solid var(--line);
+        button {
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            padding: 9px 8px;
+            border-radius: 999px;
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: var(--muted);
+            transition: background 0.15s ease, color 0.15s ease;
+            &.cart-seg-on { background: var(--brand); color: #fff; box-shadow: var(--shadow-sm); }
+        }
+    }
+
+    // Endereço agrupado num card sutil.
+    .cart-address {
+        gap: 10px;
+        padding: 12px;
+        border: 1px solid var(--line);
+        border-radius: var(--r-md);
+        background: var(--surface-2);
+    }
+    // Número (estreito) + Bairro (largo) lado a lado.
+    .cart-addr-grid { display: grid; grid-template-columns: 92px 1fr; gap: 8px; }
+    // Salvar endereço: botão contornado na cor da marca.
+    .cart-save-addr {
+        align-self: stretch;
+        border: 1px solid var(--brand);
+        background: transparent;
+        color: var(--brand-ink);
+        border-radius: 999px;
+        padding: 11px;
+        font-size: 0.9rem;
+        font-weight: 700;
+        cursor: pointer;
+        &:hover { background: color-mix(in srgb, var(--brand) 8%, transparent); }
+    }
+
     // Cupom: input + botão Aplicar.
     .cart-promo {
         display: flex;
@@ -1114,27 +1179,41 @@ main {
         font-size: 0.9rem;
         white-space: nowrap;
     }
-    // Resumo.
+
+    // Resumo em card elevado.
     .cart-summary {
-        border-top: 1px solid var(--line);
-        padding-top: 12px;
+        border: 1px solid var(--line);
+        border-radius: var(--r-lg);
+        background: var(--surface-2);
+        padding: 14px 16px;
         display: flex;
         flex-direction: column;
-        gap: 6px;
+        gap: 8px;
     }
     .cart-free { color: var(--price-ink); font-weight: 700; }
     .cart-total-final {
         border-top: 1px solid var(--line);
         margin-top: 4px;
-        padding-top: 10px;
+        padding-top: 12px;
         font-size: 1.05rem;
-        strong { font-size: 1.25rem; color: var(--price-ink); }
+        strong { font-size: 1.35rem; color: var(--price-ink); }
     }
-    // Botão finalizar: pílula cheia na cor da marca.
+
+    // Botão finalizar: pílula cheia na cor da MARCA (coerência com o tema).
+    // Serve para <button> e <a> (confirmação / carrinho vazio).
     .cart-checkout {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
         border-radius: 999px;
-        padding: 15px;
-        font-size: 1rem;
+        padding: 16px;
+        font-size: 1.02rem;
+        font-weight: 800;
+        background: var(--brand);
+        color: #fff;
+        text-decoration: none;
+        box-shadow: var(--shadow-md);
+        &:hover:not(:disabled) { filter: brightness(0.94); }
     }
 }
 .cart-close {
@@ -1267,6 +1346,32 @@ textarea.field {
     display: flex;
     align-items: center;
     justify-content: center;
+}
+// Estado de carrinho vazio: ícone suave + mensagem + CTA para o cardápio.
+.cart-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    padding: 3rem 1.5rem;
+    text-align: center;
+
+    h3 { margin: 0.4rem 0 0; font-size: 1.15rem; font-weight: 800; }
+    p { margin: 0; color: var(--muted); max-width: 26ch; }
+    .cart-checkout { margin-top: 1.2rem; max-width: 280px; text-decoration: none; }
+}
+.cart-empty-mark {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: color-mix(in srgb, var(--brand) 12%, var(--surface-2));
+    color: var(--brand-ink);
+
+    .ico svg { width: 34px; height: 34px; }
 }
 .cart-checkout {
     @extend %btn-primary;
