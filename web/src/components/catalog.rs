@@ -354,19 +354,17 @@ fn CatalogView(data: CatalogData) -> impl IntoView {
                 <span class="mnav-ico"><Icon name="favoritos"/></span>
                 <span class="mnav-lbl">"Favoritos"</span>
             </button>
-            // Carrinho ao CENTRO (3º de 5); destacado na cor da marca quando há itens.
+            // Carrinho ao CENTRO (3º de 5), como CARD destacado na cor da marca.
+            // O contador fica no canto superior do card (não sobre o ícone).
             <button
                 type="button"
-                class="mnav-item"
-                class:mnav-on=move || { cart_ctx.count() > 0.0 }
+                class="mnav-item mnav-cart"
                 on:click=move |_| use_navigate()("/carrinho", Default::default())
             >
-                <span class="mnav-ico">
-                    <Icon name="carrinho"/>
-                    {move || (cart_ctx.count() > 0.0).then(|| view! {
-                        <span class="cart-toggle-badge">{format!("{:.0}", cart_ctx.count())}</span>
-                    })}
-                </span>
+                {move || (cart_ctx.count() > 0.0).then(|| view! {
+                    <span class="cart-toggle-badge">{format!("{:.0}", cart_ctx.count())}</span>
+                })}
+                <span class="mnav-ico"><Icon name="carrinho"/></span>
                 <span class="mnav-lbl">"Carrinho"</span>
             </button>
             <button
