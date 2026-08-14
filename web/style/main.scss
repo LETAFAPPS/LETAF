@@ -491,6 +491,8 @@ main {
     .cart-fab { display: none; }
     // Carrinho ocupa a TELA INTEIRA no mobile (tela separada, estilo app).
     .cart-drawer { width: 100%; }
+    // Banner um pouco mais alto no mobile (4/1 fica muito baixo em tela estreita).
+    .banner-viewport { aspect-ratio: 3 / 1; }
 }
 
 // Favoritos ativo: coração na cor de favorito (vermelho), preenchido.
@@ -590,11 +592,13 @@ main {
     cursor: pointer;
     transition: width 0.2s ease;
 
-    // Ativo: MESMO tamanho do círculo dos outros — só muda a cor (da marca).
-    // `background-color` (não o shorthand) preserva o `background-clip:
-    // content-box`; com o shorthand a bolinha pintava o padding inteiro (maior).
+    // Ativo: MESMA altura dos círculos, porém ESTICADO (pílula) na cor da
+    // marca. `background-color` (não o shorthand) preserva o `background-clip:
+    // content-box`, senão o padding seria pintado e a bolinha ficaria maior.
     &.banner-dot-active {
         background-color: var(--brand);
+        width: 22px;
+        border-radius: 999px;
     }
 }
 
