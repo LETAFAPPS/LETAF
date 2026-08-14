@@ -739,18 +739,19 @@ main {
         }
     }
 
+    // Banner de desconto com calda (mesmo estilo do modal), pendurado no topo.
     .discount-seal {
         position: absolute;
-        top: 8px;
-        left: 8px;
+        top: 0;
+        left: 12px;
         // Cor da marca escolhida no painel (mesma em todos os temas).
         background: var(--brand);
         color: #fff;
         font-size: 0.66rem;
         font-weight: 700;
-        padding: 3px 7px;
-        border-radius: 6px;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+        padding: 5px 9px 12px;
+        border-radius: 0 0 3px 3px;
+        clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 72%, 0 100%);
     }
 
     // Favorito SEM círculo de fundo — só o ícone do coração sobre a foto.
@@ -1252,10 +1253,10 @@ textarea.field {
     // ~Dobro do tamanho do selo do card.
     font-size: 1.05rem;
     // Banner de pano: rabo em V descendo (o padding extra embaixo abriga a
-    // calda; o clip-path recorta o entalhe). Sai do topo da foto.
-    padding: 12px 14px 16px;
+    // calda; o clip-path recorta o entalhe). Sai do topo da foto e desce mais.
+    padding: 12px 16px 26px;
     border-radius: 0 0 3px 3px;
-    clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 72%, 0 100%);
+    clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 78%, 0 100%);
 }
 .pm-body { padding: 4px 24px; overflow-y: auto; flex: 1; min-height: 0; }
 .pm-block { margin: 18px 0; }
@@ -1339,6 +1340,7 @@ button.ind { cursor: pointer; padding: 0; }
         height: 34px;
         border-radius: var(--r-md);
         border: none;
+        padding: 0;                 // sem padding padrão do <button> (centraliza o sinal)
         font-size: 1.4rem;
         font-weight: 700;
         line-height: 1;
@@ -1375,6 +1377,7 @@ button.ind { cursor: pointer; padding: 0; }
         height: 38px;
         border-radius: var(--r-md);
         border: none;
+        padding: 0;                 // sem padding padrão do <button> (centraliza o sinal)
         font-size: 1.5rem;
         font-weight: 700;
         line-height: 1;
