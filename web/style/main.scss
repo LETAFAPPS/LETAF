@@ -1288,12 +1288,12 @@ button.ind { cursor: pointer; padding: 0; }
     color: var(--muted);
     font-size: 0.92rem;
 }
-// Campos: pílula (pontas arredondadas), ícone à esquerda centralizado na
-// altura, olho à direita no campo de senha.
+// Campos: retângulo com pontas arredondadas (token do tema), ícone à
+// esquerda centralizado na altura, olho à direita no campo de senha.
 .auth-page {
     .field-wrap { position: relative; display: flex; width: 100%; }
     .field {
-        border-radius: 999px;
+        border-radius: var(--r-lg);
         padding: 13px 16px;
     }
     .field.has-lead { padding-left: 46px; }
@@ -1311,11 +1311,12 @@ button.ind { cursor: pointer; padding: 0; }
     }
     .pw-eye { color: var(--muted); }
 
-    // Botão primário na COR DA MARCA do estabelecimento, pílula.
+    // Botão primário na COR DA MARCA do estabelecimento, retângulo com
+    // pontas arredondadas (token do tema).
     .auth-submit {
         width: 100%;
         border: none;
-        border-radius: 999px;
+        border-radius: var(--r-lg);
         padding: 14px;
         font-size: 1rem;
         font-weight: 700;

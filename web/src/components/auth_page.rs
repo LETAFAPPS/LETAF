@@ -161,7 +161,7 @@ fn AuthView(info: CatalogInfo) -> impl IntoView {
     let validate = move |reg: bool| -> Result<(), String> {
         if reg {
             if mask_nome(nome.get_untracked().trim()).trim().chars().count() < 2 {
-                return Err("Informe seu nome (só letras).".into());
+                return Err("Informe seu nome.".into());
             }
             if !is_email(&ident.get_untracked()) {
                 return Err("Informe um e-mail válido.".into());
