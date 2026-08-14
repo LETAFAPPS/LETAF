@@ -447,7 +447,19 @@ main {
     // Os ícones migram para a barra inferior — somem do topo.
     .topbar .cart-toggle,
     .topbar .fav-toggle,
-    .topbar .theme-toggle { display: none; }
+    .topbar .theme-toggle,
+    .topbar .account-btn { display: none; }
+    // Perfil na barra inferior: coluna ícone + rótulo, igual aos demais itens.
+    .mobile-nav .account-btn {
+        flex: 1;
+        flex-direction: column;
+        gap: 3px;
+        color: var(--muted);
+        font-size: 0.62rem;
+        font-weight: 600;
+
+        .account-lbl { display: block; }
+    }
     // Espaço p/ o conteúdo não ficar sob a barra fixa.
     main { padding-bottom: 76px; }
     // O FAB do carrinho colidiria com a barra — a barra já tem o carrinho.
@@ -1236,14 +1248,17 @@ textarea.field {
 // coração à direita). Alinha com o inset da foto.
 .product-modal .pm-seal {
     position: absolute;
-    top: 24px;
+    top: 0;
     left: 24px;
     z-index: 3;
     box-shadow: none;
     // ~Dobro do tamanho do selo do card.
     font-size: 1.05rem;
-    padding: 6px 13px;
-    border-radius: 8px;
+    // Banner de pano: rabo em V descendo (o padding extra embaixo abriga a
+    // calda; o clip-path recorta o entalhe). Sai do topo da foto.
+    padding: 12px 14px 16px;
+    border-radius: 0 0 3px 3px;
+    clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 72%, 0 100%);
 }
 .pm-body { padding: 4px 24px; overflow-y: auto; flex: 1; min-height: 0; }
 .pm-block { margin: 18px 0; }
@@ -1327,7 +1342,7 @@ button.ind { cursor: pointer; padding: 0; }
         height: 34px;
         border-radius: var(--r-md);
         border: none;
-        font-size: 1.1rem;
+        font-size: 1.4rem;
         font-weight: 700;
         line-height: 1;
         cursor: pointer;
@@ -1363,7 +1378,7 @@ button.ind { cursor: pointer; padding: 0; }
         height: 38px;
         border-radius: var(--r-md);
         border: none;
-        font-size: 1.15rem;
+        font-size: 1.5rem;
         font-weight: 700;
         line-height: 1;
         cursor: pointer;
@@ -1384,7 +1399,7 @@ button.ind { cursor: pointer; padding: 0; }
     background: var(--brand);
     color: #fff;
     padding: 14px 18px;
-    border-radius: var(--r-lg);
+    border-radius: var(--r-md);
     font-family: inherit;
     font-size: 1rem;
     font-weight: 700;
@@ -1403,22 +1418,32 @@ button.ind { cursor: pointer; padding: 0; }
     margin-left: auto;
 }
 .account-hi { font-size: 0.82rem; color: var(--ink); }
+// Botão de PERFIL (ícone de usuário). Base neutra; a aparência muda por
+// contexto (topo desktop x barra inferior mobile).
 .account-btn {
-    margin-left: auto;
-    border: 1px solid var(--brand);
-    background: var(--surface);
-    color: var(--brand-ink);
-    border-radius: var(--r-sm);
-    padding: 6px 14px;
-    font-family: inherit;
-    font-size: 0.8rem;
-    font-weight: 700;
-    cursor: pointer;
-    text-decoration: none;   // é um <a>: sem sublinhado
     display: inline-flex;
     align-items: center;
+    gap: 6px;
+    border: none;
+    background: transparent;
+    color: var(--ink);
+    font-family: inherit;
+    cursor: pointer;
+    text-decoration: none;   // é um <a>: sem sublinhado
+
+    .ico svg { width: 24px; height: 24px; }
 }
-.account .account-btn { margin-left: 0; }
+// No topo (desktop): só o ícone, à direita (mesmo lugar do antigo "Entrar").
+.topbar .account-btn {
+    margin-left: auto;
+    width: 40px;
+    height: 40px;
+    justify-content: center;
+    border-radius: var(--r-md);
+
+    .account-lbl { display: none; }
+    &:hover { color: var(--brand-ink); }
+}
 
 .auth-modal {
     @extend %modal-card;

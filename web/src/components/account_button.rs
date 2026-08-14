@@ -1,11 +1,12 @@
 use leptos::prelude::*;
 
+use crate::components::icon::Icon;
 use crate::session::Session;
 use super::account_panel::AccountPanel;
 
-/// Área de conta no header: "Entrar" (vai para a tela de login `/entrar`)
-/// quando deslogado; "Olá, {nome}" (abre o painel da conta) quando logado.
-/// No SSR a sessão é vazia → "Entrar"; após a hidratação reflete o storage.
+/// Botão de PERFIL (ícone de usuário). Deslogado → vai para a tela de login
+/// (`/entrar`); logado → abre o painel da conta. Usado no topo (desktop) e na
+/// barra inferior (mobile) — a aparência muda por CSS conforme o contexto.
 #[component]
 pub fn AccountButton() -> impl IntoView {
     let session = expect_context::<Session>();
@@ -13,21 +14,25 @@ pub fn AccountButton() -> impl IntoView {
 
     view! {
         {move || if session.is_logged() {
-            let name = session.name().unwrap_or_default();
             view! {
                 <button
                     class="account-btn"
                     on:click=move |_| set_panel_open.set(true)
                     aria-haspopup="dialog"
                     aria-expanded=move || panel_open.get().to_string()
+                    aria-label="Minha conta"
                 >
-                    "Olá, " {name}
+                    <Icon name="usuario"/>
+                    <span class="account-lbl">"Conta"</span>
                 </button>
             }
             .into_any()
         } else {
             view! {
-                <a class="account-btn" href="/entrar">"Entrar"</a>
+                <a class="account-btn" href="/entrar" aria-label="Entrar">
+                    <Icon name="usuario"/>
+                    <span class="account-lbl">"Entrar"</span>
+                </a>
             }
             .into_any()
         }}

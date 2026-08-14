@@ -381,6 +381,8 @@ fn CatalogView(data: CatalogData) -> impl IntoView {
                 </span>
                 <span class="mnav-lbl">"Tema"</span>
             </button>
+            // Perfil (à direita do Tema) — mesmo botão do topo.
+            <AccountButton/>
         </nav>
 
         {cover.map(|c| view! { <div class="hero-cover"><img src=c alt="" loading="lazy"/></div> })}
