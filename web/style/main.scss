@@ -538,23 +538,24 @@ main {
     margin-top: 8px;
 }
 .banner-dot {
-    width: 7px;
-    height: 7px;
-    // Área de toque ~19px sem inflar o ponto visível (pinta só o content-box).
+    width: 8px;
+    height: 8px;
+    // Área de toque ~20px sem inflar o ponto visível (pinta só o content-box).
     box-sizing: content-box;
     padding: 6px;
     border: none;
-    border-radius: 50%;          // círculo pequeno
-    background: var(--muted);
+    border-radius: 50%;          // círculo cinza pequeno (inativo)
+    // Cinza-claro tematizável (claro no tema claro, discreto no escuro).
+    background: color-mix(in srgb, var(--ink) 22%, transparent);
     background-clip: content-box;
     cursor: pointer;
     transition: width 0.2s ease;
 
-    // Ativo: MESMA altura (7px) dos círculos, só que em forma de linha.
+    // Ativo: pílula na COR DA MARCA (mesma altura dos círculos).
     &.banner-dot-active {
         background: var(--brand);
-        width: 18px;
-        height: 7px;
+        width: 24px;
+        height: 8px;
         border-radius: 999px;
     }
 }
