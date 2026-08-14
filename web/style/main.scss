@@ -241,8 +241,8 @@
 }
 .cat-svg {
     display: inline-block;
-    width: 60px;
-    height: 60px;
+    width: 72px;
+    height: 72px;
     background: currentColor;
     -webkit-mask-repeat: no-repeat;
     mask-repeat: no-repeat;
@@ -407,6 +407,53 @@ main {
     line-height: 16px;
     text-align: center;
 }
+// ── Barra inferior estilo app (mobile) ─────────────────────────────
+// Desktop: escondida (os ícones ficam no topo). Mobile: barra fixa embaixo.
+.mobile-nav { display: none; }
+.mnav-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    border: none;
+    background: transparent;
+    color: var(--muted);
+    font-family: inherit;
+    font-size: 0.62rem;
+    font-weight: 600;
+    padding: 4px 2px;
+    cursor: pointer;
+
+    .mnav-ico { position: relative; display: flex; }
+    .ico svg { width: 24px; height: 24px; }
+    &.mnav-on { color: var(--brand); }
+}
+@media (max-width: 639px) {
+    .mobile-nav {
+        display: flex;
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 40;
+        justify-content: space-around;
+        align-items: stretch;
+        background: var(--surface);
+        border-top: 1px solid var(--line);
+        box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.06);
+        padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
+    }
+    // Os ícones migram para a barra inferior — somem do topo.
+    .topbar .cart-toggle,
+    .topbar .fav-toggle,
+    .topbar .theme-toggle { display: none; }
+    // Espaço p/ o conteúdo não ficar sob a barra fixa.
+    main { padding-bottom: 76px; }
+    // O FAB do carrinho colidiria com a barra — a barra já tem o carrinho.
+    .cart-fab { display: none; }
+}
+
 // Favoritos ativo: coração na cor de favorito (vermelho), preenchido.
 .fav-toggle-on {
     color: #ef4444;
@@ -491,9 +538,9 @@ main {
     margin-top: 8px;
 }
 .banner-dot {
-    width: 8px;
-    height: 8px;
-    // Área de toque ~20px sem inflar o ponto visível (pinta só o content-box).
+    width: 7px;
+    height: 7px;
+    // Área de toque ~19px sem inflar o ponto visível (pinta só o content-box).
     box-sizing: content-box;
     padding: 6px;
     border: none;
@@ -503,10 +550,11 @@ main {
     cursor: pointer;
     transition: width 0.2s ease;
 
-    // Ativo: MESMA altura dos círculos, mas em forma de linha (pílula).
+    // Ativo: MESMA altura (7px) dos círculos, só que em forma de linha.
     &.banner-dot-active {
         background: var(--brand);
-        width: 22px;
+        width: 18px;
+        height: 7px;
         border-radius: 999px;
     }
 }
@@ -514,6 +562,7 @@ main {
 // ── Categorias em tiles (rail rolável) ──────────────────────
 .cat-rail {
     display: flex;
+    flex-wrap: nowrap;          // uma única linha (carrossel horizontal)
     gap: 0.6rem;
     overflow-x: auto;
     padding: 1rem 0 0.5rem;
@@ -525,7 +574,7 @@ main {
 }
 .cat-tile {
     flex: 0 0 auto;
-    width: 84px;
+    width: 92px;
     padding: 0;
     border: none;
     background: transparent;
@@ -537,8 +586,8 @@ main {
     gap: 2px;                   // ícone perto do rótulo
 }
 .cat-ico {
-    width: 68px;
-    height: 68px;
+    width: 80px;
+    height: 80px;
     // Sem card: nada de fundo, borda ou sombra — só o ícone.
     background: transparent;
     // Ícone maior não pode ser recortado.
@@ -553,7 +602,7 @@ main {
     transition: transform 0.12s ease, color 0.12s ease;
 }
 .cat-lbl {
-    max-width: 84px;
+    max-width: 92px;
     font-size: 0.72rem;
     font-weight: 600;
     line-height: 1.15;

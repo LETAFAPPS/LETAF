@@ -331,6 +331,46 @@ fn CatalogView(data: CatalogData) -> impl IntoView {
             </div>
         </header>
 
+        // Barra inferior estilo app (só no mobile): carrinho, favoritos, tema.
+        <nav class="mobile-nav" aria-label="Ações">
+            <button type="button" class="mnav-item" on:click=move |_| cart_open.0.set(true)>
+                <span class="mnav-ico">
+                    <Icon name="carrinho"/>
+                    {move || (cart_ctx.count() > 0.0).then(|| view! {
+                        <span class="cart-toggle-badge">{format!("{:.0}", cart_ctx.count())}</span>
+                    })}
+                </span>
+                <span class="mnav-lbl">"Carrinho"</span>
+            </button>
+            <button
+                type="button"
+                class="mnav-item"
+                class:mnav-on=move || fav_only.get()
+                on:click=move |_| { set_fav_only.update(|v| *v = !*v); set_sel.set(String::new()); }
+            >
+                <span class="mnav-ico"><Icon name="favoritos"/></span>
+                <span class="mnav-lbl">"Favoritos"</span>
+            </button>
+            <button
+                type="button"
+                class="mnav-item"
+                on:click=move |_| {
+                    let next = if scheme.0.get() == "dark" { "light" } else { "dark" };
+                    scheme.0.set(next.to_string());
+                    crate::theme::save(next);
+                }
+            >
+                <span class="mnav-ico">
+                    {move || if scheme.0.get() == "dark" {
+                        view! { <Icon name="modo-claro"/> }.into_any()
+                    } else {
+                        view! { <Icon name="modo-escuro"/> }.into_any()
+                    }}
+                </span>
+                <span class="mnav-lbl">"Tema"</span>
+            </button>
+        </nav>
+
         {cover.map(|c| view! { <div class="hero-cover"><img src=c alt="" loading="lazy"/></div> })}
 
         <BannerCarousel banners/>
