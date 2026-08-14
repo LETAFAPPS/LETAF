@@ -243,8 +243,8 @@
 }
 .cat-svg {
     display: inline-block;
-    width: 30px;
-    height: 30px;
+    width: 40px;
+    height: 40px;
     background: currentColor;
     -webkit-mask-repeat: no-repeat;
     mask-repeat: no-repeat;
@@ -519,10 +519,12 @@ main {
     gap: 2px;                   // ícone perto do rótulo
 }
 .cat-ico {
-    width: 44px;
-    height: 44px;
+    width: 48px;
+    height: 48px;
     // Sem card: nada de fundo, borda ou sombra — só o ícone.
     background: transparent;
+    // Ícone maior não pode ser recortado.
+    overflow: visible;
     border: none;
     box-shadow: none;
     display: flex;
@@ -712,13 +714,19 @@ main {
         font-size: 0.82rem;
         font-weight: 600;
         line-height: 1.3;
+        // Até 2 linhas; corta com "…".
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
     }
     .product-desc {
         margin: 0;
         font-size: 0.72rem;
         color: var(--muted);
+        // Apenas 1 linha; corta com "…".
         display: -webkit-box;
-        -webkit-line-clamp: 2;
+        -webkit-line-clamp: 1;
         -webkit-box-orient: vertical;
         overflow: hidden;
     }
@@ -767,10 +775,11 @@ main {
     color: var(--brand-ink);
     font-family: inherit;
     font-weight: 800;
-    padding: 8px 14px;
-    border-radius: 999px;
+    padding: 8px 16px;
+    border-radius: var(--r-sm);     // retangular com pontas arredondadas
     font-size: 0.8rem;
     line-height: 1;
+    white-space: nowrap;            // "+ Adicionar" em uma linha só
     cursor: pointer;
     box-shadow: var(--shadow-md);
     transition: transform 0.12s ease, filter 0.15s ease;
@@ -809,13 +818,14 @@ main {
     align-items: center;
     gap: 6px;
     margin-left: 4px;
-    padding: 4px 10px;
+    padding: 5px 10px;
     border-radius: var(--r-sm);
     background: #dcfce7;
     border: 1px solid #86efac;
     color: #166534;
     font-size: 0.76rem;
     font-weight: 600;
+    line-height: 1;            // texto centralizado na altura do selo
     white-space: nowrap;
 
     &.closed {
