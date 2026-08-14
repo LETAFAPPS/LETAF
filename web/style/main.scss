@@ -428,20 +428,24 @@ main {
     .ico svg { width: 24px; height: 24px; }
     &.mnav-on { color: var(--brand); }
 }
-// Carrinho: CARD destacado na cor da marca (ícone/texto brancos).
+// Carrinho: CARD QUADRADO destacado na cor da marca (ícone/texto brancos).
 .mnav-cart {
     position: relative;
+    flex: 0 0 auto;          // não estica: card quadrado
+    width: 54px;
+    height: 54px;
+    justify-content: center;
+    gap: 2px;
+    padding: 0;
     background: var(--brand);
     color: #fff;
     border-radius: var(--r-md);
-    margin: 2px 3px;
-    padding: 6px 2px;
 
     // Contador no CANTO superior direito do card (não sobre o ícone):
     // círculo branco com o número na cor da marca.
     .cart-toggle-badge {
         top: 3px;
-        right: 5px;
+        right: 4px;
         background: #fff;
         color: var(--brand);
     }
