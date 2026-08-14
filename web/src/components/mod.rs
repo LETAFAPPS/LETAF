@@ -7,5 +7,6 @@ pub mod banner_carousel;
 pub mod cart_page;
 pub mod catalog;
 pub mod icon;
+pub mod orders_page;
 pub mod product_card;
 pub mod product_modal;

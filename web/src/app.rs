@@ -117,6 +117,7 @@ pub fn App() -> impl IntoView {
                     <Route path=StaticSegment("") view=CatalogPage/>
                     <Route path=StaticSegment("entrar") view=crate::components::auth_page::AuthPage/>
                     <Route path=StaticSegment("carrinho") view=CartPage/>
+                    <Route path=StaticSegment("pedidos") view=crate::components::orders_page::OrdersPage/>
                 </Routes>
             </main>
         </Router>

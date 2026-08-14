@@ -16,7 +16,6 @@ pub fn AccountPanel(on_close: Callback<()>) -> impl IntoView {
     // Ações autenticadas leem o JWT do cookie HttpOnly no servidor — o cliente
     // não guarda nem envia token (§11).
     let profile = Resource::new(|| (), |_| async move { account::get_profile().await });
-    let orders = Resource::new(|| (), |_| async move { account::list_orders().await });
 
     let (name, set_name) = signal(String::new());
     let (phone, set_phone) = signal(String::new());
@@ -135,42 +134,6 @@ pub fn AccountPanel(on_close: Callback<()>) -> impl IntoView {
                                     }.into_any(),
                                     Err(_) => view! {
                                         <p class="state error">"Não foi possível carregar o perfil."</p>
-                                    }.into_any(),
-                                }
-                            })}
-                        </Suspense>
-                    </section>
-
-                    <section>
-                        <h3 class="acc-section">"Meus pedidos"</h3>
-                        <Suspense fallback=|| view! {
-                            <div class="acc-skel">
-                                <div class="skeleton skel-row"></div>
-                                <div class="skeleton skel-row"></div>
-                                <div class="skeleton skel-row"></div>
-                            </div>
-                        }>
-                            {move || Suspend::new(async move {
-                                match orders.await {
-                                    Ok(list) if !list.is_empty() => view! {
-                                        <div class="acc-orders">
-                                            {list.into_iter().map(|o| view! {
-                                                <div class="acc-order">
-                                                    <span class="acc-order-num">"#" {o.number}</span>
-                                                    <span class="acc-order-status">{o.status}</span>
-                                                    <span class="acc-order-date">
-                                                        {format::iso_date_br(&o.created_at)}
-                                                    </span>
-                                                    <span class="acc-order-total">{format::money(o.total)}</span>
-                                                </div>
-                                            }).collect_view()}
-                                        </div>
-                                    }.into_any(),
-                                    Ok(_) => view! {
-                                        <p class="state">"Você ainda não fez pedidos."</p>
-                                    }.into_any(),
-                                    Err(_) => view! {
-                                        <p class="state error">"Não foi possível carregar os pedidos."</p>
                                     }.into_any(),
                                 }
                             })}

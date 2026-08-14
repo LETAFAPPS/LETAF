@@ -371,18 +371,11 @@ fn CatalogView(data: CatalogData) -> impl IntoView {
                 <span class="mnav-ico"><Icon name="carrinho"/></span>
                 <span class="mnav-lbl">"Carrinho"</span>
             </button>
-            // Pedidos (no lugar do Tema, que foi para o topo). Logado abre o
-            // painel (com "Meus pedidos"); deslogado vai para o login.
+            // Pedidos (no lugar do Tema, que foi para o topo) — tela dedicada.
             <button
                 type="button"
                 class="mnav-item"
-                on:click=move |_| {
-                    if session.is_logged() {
-                        account_panel.0.set(true);
-                    } else {
-                        use_navigate()("/entrar", Default::default());
-                    }
-                }
+                on:click=move |_| use_navigate()("/pedidos", Default::default())
             >
                 <span class="mnav-ico"><Icon name="orders"/></span>
                 <span class="mnav-lbl">"Pedidos"</span>
