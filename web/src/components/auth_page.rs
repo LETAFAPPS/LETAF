@@ -300,7 +300,7 @@ fn AuthView(info: CatalogInfo) -> impl IntoView {
                     }.into_any(),
                     None => view! {
                         <a class="auth-brand auth-brand--name" href="/" aria-label="Voltar ao cardápio">
-                            <span class="auth-badge" aria-hidden="true"><Icon name="empresa"/></span>
+                            <span class="auth-badge" aria-hidden="true"><Icon name="talheres"/></span>
                             <span class="auth-brand-name">{nome_header.clone()}</span>
                         </a>
                     }.into_any(),

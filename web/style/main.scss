@@ -1257,7 +1257,7 @@ button.ind { cursor: pointer; padding: 0; }
     border: 1px solid var(--line);
     border-radius: var(--r-xl);
     box-shadow: var(--shadow-lg);
-    padding: 30px 26px;
+    padding: 30px 18px;
     display: flex;
     flex-direction: column;
     gap: 12px;
@@ -1279,20 +1279,16 @@ button.ind { cursor: pointer; padding: 0; }
         object-fit: contain;
     }
 }
-// Badge: quadrado arredondado na cor da marca com o ícone branco (estilo do
-// mockup — glifo claro sobre a cor cadastrada).
+// Badge: o próprio ícone de talheres (hexágono na cor da marca + talheres
+// brancos). `color` tinge o hexágono (currentColor); sem fundo próprio.
 .auth-badge {
     flex: 0 0 auto;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 42px;
-    height: 42px;
-    border-radius: 13px;
-    background: var(--brand);
-    color: #fff;
+    color: var(--brand);
 
-    .ico svg { width: 24px; height: 24px; }
+    .ico svg { width: 42px; height: 42px; }
 }
 .auth-brand-name {
     color: var(--brand);
@@ -1370,6 +1366,9 @@ button.ind { cursor: pointer; padding: 0; }
     justify-content: space-between;
     gap: 10px;
     flex-wrap: wrap;
+
+    // "Esqueceu a senha?" menor que o texto padrão do link.
+    .auth-foot-link { font-size: 0.8rem; }
 }
 // "Lembrar": checkbox custom, arredondado e moderno.
 .auth-remember {
