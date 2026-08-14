@@ -73,6 +73,8 @@ pub fn App() -> impl IntoView {
     // nada do pedido (itens/observações/cupom/entrega ficam nos signals, que
     // sobrevivem à navegação SPA porque o drawer nunca é desmontado).
     provide_context(crate::components::cart_drawer::ResumeCheckout(RwSignal::new(false)));
+    // Abrir o carrinho a partir do botão de carrinho no topo.
+    provide_context(crate::components::cart_drawer::CartOpen(RwSignal::new(false)));
 
     // Tema claro/escuro (preferência do cliente). Nasce vazio (SSR usa o
     // tema padrão pelo CSS). No cliente: usa a escolha salva; se não há,

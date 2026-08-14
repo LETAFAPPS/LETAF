@@ -129,10 +129,8 @@
     }
     .product-card .unavailable { background: rgba(0, 0, 0, 0.55); }
     .product-card .fav { background: rgba(20, 18, 16, 0.82); }
-    // No dark, --brand-ink é laranja CLARO → texto branco do selo reprovaria
-    // AA. Selo ganha fundo laranja ESCURO fixo (branco ~5:1), tanto no card
-    // quanto no modal (.pm-seal reusa .discount-seal).
-    .discount-seal { background: #a85410; }
+    // Selo de desconto mantém a cor da marca em todos os temas (pedido do
+    // usuário) — sem override no escuro.
 }
 // Forçado pelo usuário (data-scheme="dark").
 :root[data-scheme="dark"] {
@@ -243,8 +241,8 @@
 }
 .cat-svg {
     display: inline-block;
-    width: 40px;
-    height: 40px;
+    width: 48px;
+    height: 48px;
     background: currentColor;
     -webkit-mask-repeat: no-repeat;
     mask-repeat: no-repeat;
@@ -370,10 +368,12 @@ main {
 @media (min-width: 640px) {
     .topbar-search { flex: 1 1 240px; order: 0; }
 }
-// Botões de ícone do header (tema e favoritos): SEM card — ícone puro,
-// sem borda nem fundo.
+// Botões de ícone do header (carrinho, tema e favoritos): SEM card — ícone
+// puro, sem borda nem fundo.
 .theme-toggle,
-.fav-toggle {
+.fav-toggle,
+.cart-toggle {
+    position: relative;
     flex-shrink: 0;
     width: 40px;
     height: 40px;
@@ -389,6 +389,23 @@ main {
     justify-content: center;
 
     &:hover { color: var(--brand-ink); }
+}
+// Contador de itens sobre o ícone do carrinho.
+.cart-toggle-badge {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+    box-sizing: border-box;
+    border-radius: 999px;
+    background: var(--brand);
+    color: #fff;
+    font-size: 0.62rem;
+    font-weight: 700;
+    line-height: 16px;
+    text-align: center;
 }
 // Favoritos ativo: coração na cor de favorito (vermelho), preenchido.
 .fav-toggle-on {
@@ -476,21 +493,16 @@ main {
 .banner-dot {
     width: 8px;
     height: 8px;
-    // Área de toque ~20-24px sem inflar o ponto visível (pinta só o
-    // content-box). Alvo de 8px era pequeno demais para o dedo.
+    // Área de toque ~20px sem inflar o ponto visível (pinta só o content-box).
     box-sizing: content-box;
     padding: 6px;
     border: none;
-    border-radius: var(--r-sm);
+    border-radius: 50%;          // círculo pequeno
     background: var(--muted);
     background-clip: content-box;
     cursor: pointer;
-    transition: width 0.2s;
 
-    &.banner-dot-active {
-        background: var(--brand);
-        width: 24px;
-    }
+    &.banner-dot-active { background: var(--brand); }
 }
 
 // ── Categorias em tiles (rail rolável) ──────────────────────
@@ -519,8 +531,8 @@ main {
     gap: 2px;                   // ícone perto do rótulo
 }
 .cat-ico {
-    width: 48px;
-    height: 48px;
+    width: 56px;
+    height: 56px;
     // Sem card: nada de fundo, borda ou sombra — só o ícone.
     background: transparent;
     // Ícone maior não pode ser recortado.
@@ -662,10 +674,9 @@ main {
         position: absolute;
         top: 8px;
         left: 8px;
-        // Fundo escuro da marca: texto branco pequeno passa AA (o --brand
-        // claro dava ~3:1 com branco).
-        background: var(--brand-ink);
-        color: var(--on-brand);
+        // Cor da marca escolhida no painel (mesma em todos os temas).
+        background: var(--brand);
+        color: #fff;
         font-size: 0.66rem;
         font-weight: 700;
         padding: 3px 7px;
@@ -1130,7 +1141,16 @@ textarea.field {
 }
 .pm-desc { font-size: 0.78rem; color: var(--muted); margin-top: 2px; white-space: pre-wrap; }
 .pm-price { margin-top: 6px; display: flex; align-items: baseline; gap: 8px; }
-.pm-seal { position: static; box-shadow: none; }
+// O modal é renderizado DENTRO do `.product-card`, então `.product-card
+// .discount-seal` (absoluto) vazava para o selo do modal e o jogava sobre o
+// título. Especificidade igual + fonte posterior → aqui vence, deixando o
+// selo no fluxo (flex) do cabeçalho.
+.product-modal .pm-seal {
+    position: static;
+    top: auto;
+    left: auto;
+    box-shadow: none;
+}
 .pm-body { padding: 4px 18px; overflow-y: auto; flex: 1; min-height: 0; }
 .pm-block { margin: 14px 0; }
 .pm-block-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 6px; }

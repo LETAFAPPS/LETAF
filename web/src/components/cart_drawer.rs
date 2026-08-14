@@ -14,6 +14,11 @@ use super::icon::Icon;
 #[derive(Clone, Copy)]
 pub struct ResumeCheckout(pub RwSignal<bool>);
 
+/// Pedido para ABRIR o carrinho a partir de outro componente (ex.: botão de
+/// carrinho no topo). Provido no `App`; o `CartDrawer` observa e abre.
+#[derive(Clone, Copy)]
+pub struct CartOpen(pub RwSignal<bool>);
+
 /// Carrinho: botão flutuante (quando há itens) + drawer com linhas,
 /// quantidade e checkout. Deslogado → abre o login; logado → envia o
 /// pedido (a API revalida preços/cupom, §11), limpa o carrinho e mostra
@@ -23,6 +28,7 @@ pub fn CartDrawer() -> impl IntoView {
     let cart = expect_context::<Cart>();
     let session = expect_context::<Session>();
     let resume = expect_context::<ResumeCheckout>();
+    let cart_open = expect_context::<CartOpen>();
     let location = use_location();
     let (open, set_open) = signal(false);
     let (notes, set_notes) = signal(String::new());
@@ -92,6 +98,14 @@ pub fn CartDrawer() -> impl IntoView {
             resume.0.set(false);
             set_open.set(true);
             carregar_enderecos();
+        }
+    });
+
+    // Abre o carrinho quando outro componente pede (botão do topo).
+    Effect::new(move |_| {
+        if cart_open.0.get() {
+            cart_open.0.set(false);
+            set_open.set(true);
         }
     });
 

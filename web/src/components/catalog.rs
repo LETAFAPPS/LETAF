@@ -195,6 +195,9 @@ fn CatalogView(data: CatalogData) -> impl IntoView {
     // Filtro "só favoritos" (preferência de UI; os favoritos vivem no
     // contexto/localStorage). Recorte de exibição, sem regra de negócio.
     let favs = expect_context::<crate::favorites::Favorites>();
+    // Carrinho (contador no topo) + pedido de abertura do drawer.
+    let cart_ctx = expect_context::<crate::cart::Cart>();
+    let cart_open = expect_context::<crate::components::cart_drawer::CartOpen>();
     let (fav_only, set_fav_only) = signal(false);
     // Tema claro/escuro (preferência do usuário; ver `theme.rs`).
     let scheme = expect_context::<crate::theme::Scheme>();
@@ -283,6 +286,17 @@ fn CatalogView(data: CatalogData) -> impl IntoView {
                         ><Icon name="fechar"/></button>
                     })}
                 </div>
+                <button
+                    type="button"
+                    class="cart-toggle"
+                    aria-label="Abrir carrinho"
+                    on:click=move |_| cart_open.0.set(true)
+                >
+                    <Icon name="carrinho"/>
+                    {move || (cart_ctx.count() > 0.0).then(|| view! {
+                        <span class="cart-toggle-badge">{format!("{:.0}", cart_ctx.count())}</span>
+                    })}
+                </button>
                 <button
                     type="button"
                     class="fav-toggle"
