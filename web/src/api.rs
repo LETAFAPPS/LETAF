@@ -36,6 +36,10 @@ pub struct CatalogInfo {
     /// visitante (localStorage) prevalece.
     #[serde(default)]
     pub default_scheme: Option<String>,
+    /// Há cupom ATIVO na empresa? Só então o carrinho mostra o campo de cupom
+    /// (a decisão é do backend, §11). Default `false` (some por segurança).
+    #[serde(default)]
+    pub has_coupons: bool,
 }
 
 fn default_theme() -> String {

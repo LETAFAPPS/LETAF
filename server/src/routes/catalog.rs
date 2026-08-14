@@ -238,6 +238,10 @@ struct CatalogInfo {
     /// `"dark"` | `None` (automático, segue o sistema). O web usa como
     /// estado inicial — a escolha manual do visitante prevalece.
     default_scheme: Option<String>,
+    /// Há pelo menos um cupom ATIVO nesta empresa? O web só exibe o campo de
+    /// cupom quando `true` (fonte de verdade no backend, §11). A validação
+    /// real do código continua ocorrendo no checkout.
+    has_coupons: bool,
 }
 
 #[derive(Serialize)]
@@ -396,6 +400,12 @@ async fn get_info(
         .as_deref()
         .filter(|c| letaf_core::theme_palette::is_brand_hex(c))
         .map(|c| c.trim().to_string());
+    // Só há campo de cupom no carrinho se a empresa tiver algum cupom ATIVO.
+    let has_coupons = !state
+        .coupon_service
+        .find_active(tenant.company_id)
+        .await?
+        .is_empty();
     Ok(Json(CatalogInfo {
         name: company.name,
         logo_url: company.logo_data.as_ref().map(|_| media_url("logo", v)),
@@ -406,6 +416,7 @@ async fn get_info(
         theme,
         brand_color,
         default_scheme: company.default_scheme,
+        has_coupons,
     }))
 }
 

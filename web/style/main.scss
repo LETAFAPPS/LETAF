@@ -1016,21 +1016,36 @@ main {
 .cart-page {
     min-height: 100vh;
     background: var(--bg);
-    padding: 24px 16px 40px;
+    padding: 1.5rem 0 2.5rem;
 }
-.cart-panel {
-    max-width: 520px;
-    margin: 0 auto;
-    background: var(--surface);
-    border: 1px solid var(--line);
-    border-radius: var(--r-xl);
-    box-shadow: var(--shadow-md);
+// Container fluido (mesma largura da home: `main{max-width:1100px}`) — sem
+// card único englobando tudo; o conteúdo é distribuído na tela.
+.cart-wrap { width: 100%; }
+// Cabeçalho da página: seta voltar + título, com divisória.
+.cart-head {
     display: flex;
-    flex-direction: column;
-    overflow: hidden;
+    align-items: center;
+    gap: 8px;
+    padding: 0 0 16px;
+    margin-bottom: 20px;
+    border-bottom: 1px solid var(--line);
+
+    h2 { margin: 0; font-size: 1.3rem; font-weight: 800; }
 }
-// Cabeçalho da página: seta voltar + título (alinhados à esquerda).
-.cart-panel .cart-drawer-head { justify-content: flex-start; gap: 8px; }
+// Layout: 1 coluna no mobile; 2 colunas (dados | resumo fixo) no desktop.
+.cart-layout {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 22px;
+    align-items: start;
+}
+.cart-main { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+.cart-aside { display: flex; flex-direction: column; gap: 12px; }
+@media (min-width: 880px) {
+    .cart-layout { grid-template-columns: minmax(0, 1fr) 360px; gap: 32px; }
+    // Resumo acompanha a rolagem no desktop.
+    .cart-aside { position: sticky; top: 1.25rem; }
+}
 .cart-back {
     border: none;
     background: transparent;
@@ -1048,8 +1063,8 @@ main {
 
 // ── Estilo do carrinho (referência: cards + stepper pílula + resumo) ──────
 .cart-page {
-    // Itens como CARDS.
-    .cart-items { padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; }
+    // Itens como CARDS (o espaçamento vem do .cart-main; sem scroll interno).
+    .cart-items { padding: 0; display: flex; flex-direction: column; gap: 10px; overflow: visible; }
     .cart-row {
         align-items: center;
         gap: 12px;
@@ -1078,10 +1093,10 @@ main {
         margin-top: 8px;
     }
     .cart-row-price { font-size: 1rem; font-weight: 800; color: var(--brand-ink); }
-    // Stepper em PÍLULA (− qtd +).
+    // Stepper retangular levemente arredondado (− qtd +).
     .cart-qty {
         border: 1px solid var(--line-strong);
-        border-radius: 999px;
+        border-radius: var(--r-md);
         overflow: hidden;
         button {
             width: 30px; height: 30px; background: transparent; color: var(--ink);
@@ -1103,8 +1118,7 @@ main {
         .ico svg { width: 20px; height: 20px; }
         &:hover { color: var(--danger); }
     }
-    // Rodapé em SEÇÕES: título curto (uppercase) + conteúdo, com respiro.
-    .cart-drawer-foot { gap: 18px; padding: 16px; }
+    // Seções: título curto (uppercase) + conteúdo.
     .cart-sec { display: flex; flex-direction: column; gap: 8px; }
     .cart-sec-title {
         font-size: 0.72rem; font-weight: 800; letter-spacing: 0.04em;
@@ -1112,7 +1126,9 @@ main {
     }
     // Campos com mais arredondamento (coerência com os cards).
     .field { border-radius: var(--r-md); }
-    textarea.field { min-height: 60px; }
+    // Observações: sem alça de redimensionar (evita o artefato no canto que
+    // vazava o border-radius); altura fixa confortável.
+    textarea.field { min-height: 64px; resize: none; }
 
     // Segmented control: Entrega × Retirar (metade ativa preenchida na marca).
     .cart-seg {
@@ -1120,7 +1136,7 @@ main {
         grid-template-columns: 1fr 1fr;
         gap: 4px;
         padding: 4px;
-        border-radius: 999px;
+        border-radius: var(--r-md);
         background: var(--surface-3);
         border: 1px solid var(--line);
         button {
@@ -1128,7 +1144,7 @@ main {
             background: transparent;
             cursor: pointer;
             padding: 9px 8px;
-            border-radius: 999px;
+            border-radius: var(--r-sm);
             font-size: 0.9rem;
             font-weight: 700;
             color: var(--muted);
@@ -1153,7 +1169,7 @@ main {
         border: 1px solid var(--brand);
         background: transparent;
         color: var(--brand-ink);
-        border-radius: 999px;
+        border-radius: var(--r-md);
         padding: 11px;
         font-size: 0.9rem;
         font-weight: 700;
@@ -1199,13 +1215,13 @@ main {
         strong { font-size: 1.35rem; color: var(--price-ink); }
     }
 
-    // Botão finalizar: pílula cheia na cor da MARCA (coerência com o tema).
+    // Botão finalizar: retangular levemente arredondado, na cor da MARCA.
     // Serve para <button> e <a> (confirmação / carrinho vazio).
     .cart-checkout {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        border-radius: 999px;
+        border-radius: var(--r-md);
         padding: 16px;
         font-size: 1.02rem;
         font-weight: 800;
