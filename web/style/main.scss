@@ -241,8 +241,8 @@
 }
 .cat-svg {
     display: inline-block;
-    width: 48px;
-    height: 48px;
+    width: 60px;
+    height: 60px;
     background: currentColor;
     -webkit-mask-repeat: no-repeat;
     mask-repeat: no-repeat;
@@ -501,8 +501,14 @@ main {
     background: var(--muted);
     background-clip: content-box;
     cursor: pointer;
+    transition: width 0.2s ease;
 
-    &.banner-dot-active { background: var(--brand); }
+    // Ativo: MESMA altura dos círculos, mas em forma de linha (pílula).
+    &.banner-dot-active {
+        background: var(--brand);
+        width: 22px;
+        border-radius: 999px;
+    }
 }
 
 // ── Categorias em tiles (rail rolável) ──────────────────────
@@ -519,7 +525,7 @@ main {
 }
 .cat-tile {
     flex: 0 0 auto;
-    width: 72px;
+    width: 84px;
     padding: 0;
     border: none;
     background: transparent;
@@ -531,8 +537,8 @@ main {
     gap: 2px;                   // ícone perto do rótulo
 }
 .cat-ico {
-    width: 56px;
-    height: 56px;
+    width: 68px;
+    height: 68px;
     // Sem card: nada de fundo, borda ou sombra — só o ícone.
     background: transparent;
     // Ícone maior não pode ser recortado.
@@ -547,7 +553,7 @@ main {
     transition: transform 0.12s ease, color 0.12s ease;
 }
 .cat-lbl {
-    max-width: 72px;
+    max-width: 84px;
     font-size: 0.72rem;
     font-weight: 600;
     line-height: 1.15;
@@ -1104,7 +1110,8 @@ textarea.field {
     display: flex;
     align-items: flex-start;
     gap: 12px;
-    padding: 16px 18px;
+    // Espaço à direita p/ o botão fechar (absoluto) não cobrir o texto.
+    padding: 16px 52px 16px 18px;
     border-bottom: 1px solid var(--line);
 }
 .pm-head-text { flex: 1; min-width: 0; }
@@ -1143,12 +1150,15 @@ textarea.field {
 .pm-price { margin-top: 6px; display: flex; align-items: baseline; gap: 8px; }
 // O modal é renderizado DENTRO do `.product-card`, então `.product-card
 // .discount-seal` (absoluto) vazava para o selo do modal e o jogava sobre o
-// título. Especificidade igual + fonte posterior → aqui vence, deixando o
-// selo no fluxo (flex) do cabeçalho.
+// título. Especificidade igual + fonte posterior → aqui vence, e o selo fica
+// no TOPO do texto (bloco no fluxo), sem sobrepor título nem o botão fechar.
 .product-modal .pm-seal {
     position: static;
     top: auto;
     left: auto;
+    align-self: flex-start;
+    display: inline-block;
+    margin: 0 0 6px;
     box-shadow: none;
 }
 .pm-body { padding: 4px 18px; overflow-y: auto; flex: 1; min-height: 0; }

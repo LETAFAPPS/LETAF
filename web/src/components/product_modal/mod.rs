@@ -122,6 +122,9 @@ pub fn ProductModal(product: CatalogProduct, on_close: Callback<()>) -> impl Int
                 })}
                 <header class="pm-head">
                     <div class="pm-head-text">
+                        // Selo no TOPO do texto (fluxo normal) — não sobrepõe
+                        // título nem o botão fechar.
+                        {seal.map(|s| view! { <span class="discount-seal pm-seal">{s}</span> })}
                         <h2 class="pm-name" id="pm-title">{name}</h2>
                         {(!description.is_empty())
                             .then(|| view! { <div class="pm-desc">{description}</div> })}
@@ -138,7 +141,6 @@ pub fn ProductModal(product: CatalogProduct, on_close: Callback<()>) -> impl Int
                             }}
                         </div>
                     </div>
-                    {seal.map(|s| view! { <span class="discount-seal pm-seal">{s}</span> })}
                     <button class="cart-close" on:click=move |_| on_close.run(()) aria-label="Fechar">
                         <Icon name="fechar"/>
                     </button>
