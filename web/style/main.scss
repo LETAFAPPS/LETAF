@@ -1246,6 +1246,8 @@ button.ind { cursor: pointer; padding: 0; }
     min-height: 100vh;
     display: grid;
     place-items: center;
+    align-content: center;
+    gap: 0;
     padding: 24px 16px;
     background: var(--bg);
 }
@@ -1260,16 +1262,18 @@ button.ind { cursor: pointer; padding: 0; }
     flex-direction: column;
     gap: 12px;
 }
+// Logo do estabelecimento (sem logo, o elemento nem é renderizado).
 .auth-brand {
     display: flex;
-    align-items: center;
     justify-content: center;
-    gap: 10px;
-    text-decoration: none;
-    margin-bottom: 4px;
+    margin-bottom: 2px;
 
-    .auth-logo { height: 40px; width: auto; border-radius: var(--r-sm); }
-    .auth-brand-name { color: var(--brand-ink); font-weight: 800; font-size: 1.5rem; }
+    .auth-logo {
+        max-height: 56px;
+        max-width: 70%;
+        width: auto;
+        object-fit: contain;
+    }
 }
 .auth-title {
     margin: 0;
@@ -1284,7 +1288,8 @@ button.ind { cursor: pointer; padding: 0; }
     color: var(--muted);
     font-size: 0.92rem;
 }
-// Campos da tela de login: pílula, ícone opcional à esquerda, olho à direita.
+// Campos: pílula (pontas arredondadas), ícone à esquerda centralizado na
+// altura, olho à direita no campo de senha.
 .auth-page {
     .field-wrap { position: relative; display: flex; width: 100%; }
     .field {
@@ -1299,27 +1304,74 @@ button.ind { cursor: pointer; padding: 0; }
         top: 50%;
         transform: translateY(-50%);
         display: flex;
+        align-items: center;
         color: var(--muted);
         pointer-events: none;
-        .ico { width: 20px; height: 20px; }
+        .ico { width: 20px; height: 20px; display: block; }
     }
+    .pw-eye { color: var(--muted); }
+
+    // Botão primário na COR DA MARCA do estabelecimento, pílula.
     .auth-submit {
+        width: 100%;
+        border: none;
         border-radius: 999px;
         padding: 14px;
         font-size: 1rem;
-        margin-top: 2px;
+        font-weight: 700;
+        font-family: inherit;
+        color: #fff;
+        background: var(--brand);
+        cursor: pointer;
+        margin-top: 4px;
+        transition: filter 0.15s;
+
+        &:hover:not(:disabled) { filter: brightness(0.93); }
+        &:disabled { opacity: 0.6; cursor: default; }
     }
 }
+// "Lembrar de mim": checkbox custom, arredondado e moderno.
 .auth-remember {
     display: flex;
     align-items: center;
-    gap: 9px;
+    gap: 10px;
     font-size: 0.9rem;
     color: var(--ink);
     cursor: pointer;
     user-select: none;
 
-    input { width: 18px; height: 18px; accent-color: var(--brand); cursor: pointer; }
+    input { position: absolute; opacity: 0; width: 0; height: 0; }
+}
+.auth-remember-box {
+    flex: 0 0 auto;
+    width: 22px;
+    height: 22px;
+    border-radius: 7px;
+    border: 2px solid var(--line);
+    background: var(--surface);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s, border-color 0.15s;
+
+    &::after {
+        content: "";
+        width: 6px;
+        height: 11px;
+        border: solid #fff;
+        border-width: 0 2.5px 2.5px 0;
+        transform: rotate(45deg) translate(-1px, -1px);
+        opacity: 0;
+    }
+}
+.auth-remember input:checked + .auth-remember-box {
+    background: var(--brand);
+    border-color: var(--brand);
+    &::after { opacity: 1; }
+}
+.auth-remember input:focus-visible + .auth-remember-box {
+    outline: 2px solid var(--brand);
+    outline-offset: 2px;
 }
 .auth-foot {
     text-align: center;
@@ -1336,6 +1388,15 @@ button.ind { cursor: pointer; padding: 0; }
     font-weight: 700;
     font-size: inherit;
     font-family: inherit;
+}
+// Erro ABAIXO do card, em vermelho (sem alertas/modais nativos).
+.auth-page-error {
+    margin: 14px auto 0;
+    max-width: min(440px, 100%);
+    color: var(--danger);
+    font-weight: 600;
+    font-size: 0.9rem;
+    text-align: center;
 }
 
 // ── Skeletons de carregamento (§3 feedback imediato) ────────

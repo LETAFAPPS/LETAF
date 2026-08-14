@@ -26,6 +26,9 @@ fn ui_svg(name: &str) -> &'static str {
         "ocultar" => include_str!("../../public/icons/ocultar.svg"),
         "busca" => include_str!("../../public/icons/busca.svg"),
         "email" => include_str!("../../public/icons/email.svg"),
+        "usuario" => include_str!("../../public/icons/usuario.svg"),
+        "telefone" => include_str!("../../public/icons/telefone.svg"),
+        "cadeado" => include_str!("../../public/icons/cadeado.svg"),
         _ => "",
     }
 }
