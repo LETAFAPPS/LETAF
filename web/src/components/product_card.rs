@@ -4,6 +4,7 @@ use crate::api::CatalogProduct;
 use crate::availability::Now;
 use crate::cart::Cart;
 use crate::components::icon::Icon;
+use crate::components::catalog::StoreOpen;
 use crate::components::product_modal::ProductModal;
 use crate::favorites::{self, Favorites};
 use crate::{availability, discount, format};
@@ -65,11 +66,17 @@ pub fn ProductCard(product: CatalogProduct) -> impl IntoView {
     let product_sv = StoredValue::new(product.clone());
     let (modal_open, set_modal_open) = signal(false);
 
-    // Disponibilidade por horário (§3): no SSR `now=None` → disponível;
-    // após a hidratação reflete o relógio do cliente. Reativo via `Now`.
+    // Disponibilidade (§3, só exibição): indisponível quando a LOJA está
+    // FECHADA ou o produto está fora do horário dele. No SSR `now=None` e
+    // `store_open=true` → disponível (bom p/ SEO, sem mismatch); após a
+    // hidratação reflete o relógio/horários. O backend recusa o pedido de
+    // qualquer forma (§11).
     let now = expect_context::<Now>();
+    let store_open = expect_context::<StoreOpen>();
     let sched = product.availability_schedule.clone();
-    let available = Memo::new(move |_| availability::is_available_now(sched.as_deref(), now.0.get()));
+    let available = Memo::new(move |_| {
+        store_open.0.get() && availability::is_available_now(sched.as_deref(), now.0.get())
+    });
     let on_add = move |_| {
         if has_options {
             set_modal_open.set(true);
@@ -79,7 +86,7 @@ pub fn ProductCard(product: CatalogProduct) -> impl IntoView {
     };
 
     view! {
-        <article class="product-card">
+        <article class="product-card" class:card-unavailable=move || !available.get()>
             <div class="product-img" style=bg_style>
                 {if n_imgs == 0 {
                     view! { <span class="no-image">"sem imagem"</span> }.into_any()

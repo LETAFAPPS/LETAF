@@ -233,6 +233,27 @@ fn CatalogView(data: CatalogData) -> impl IntoView {
             store_open.0.set(open);
         });
     }
+    // Modal "loja fechada": ao ENTRAR no site com a loja fechada, avisa uma
+    // única vez (após a hidratação; no SSR `now=None` → aberto, sem modal e
+    // sem mismatch). Só informativo — o cliente ainda navega o cardápio.
+    let (closed_modal, set_closed_modal) = signal(false);
+    let closed_label = {
+        let bh = business_hours.clone();
+        Memo::new(move |_| {
+            availability::store_status(&bh.hours, &bh.store_override, now.0.get())
+                .map(|(_, label)| label)
+                .unwrap_or_default()
+        })
+    };
+    {
+        let shown = StoredValue::new(false);
+        Effect::new(move |_| {
+            if !store_open.0.get() && !shown.get_value() {
+                shown.set_value(true);
+                set_closed_modal.set(true);
+            }
+        });
+    }
 
     view! {
         <div
@@ -240,6 +261,18 @@ fn CatalogView(data: CatalogData) -> impl IntoView {
             data-theme=theme
             style=move || if scheme.0.get() == "dark" { style_dark.clone() } else { style_light.clone() }
         >
+        // Modal informativo de loja fechada (aparece 1x ao entrar).
+        {move || closed_modal.get().then(|| view! {
+            <div class="modal-overlay" on:click=move |_| set_closed_modal.set(false)>
+                <div class="closed-modal" on:click=move |e: leptos::ev::MouseEvent| e.stop_propagation()>
+                    <div class="closed-modal-mark" aria-hidden="true"><Icon name="empresa"/></div>
+                    <h3>"Loja fechada"</h3>
+                    <p class="closed-modal-when">{move || closed_label.get()}</p>
+                    <p class="closed-modal-sub">"Você pode ver o cardápio, mas não é possível fazer pedidos agora."</p>
+                    <button class="closed-modal-btn" on:click=move |_| set_closed_modal.set(false)>"Entendi"</button>
+                </div>
+            </div>
+        })}
         <Title text=nome.clone()/>
         <Meta name="description" content=desc.clone()/>
         // Open Graph — cada cardápio (subdomínio) tem identidade própria

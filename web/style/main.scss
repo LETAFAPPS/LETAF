@@ -127,7 +127,6 @@
             color: #fca5a5;
         }
     }
-    .product-card .unavailable { background: rgba(0, 0, 0, 0.55); }
     // Selo de desconto mantém a cor da marca em todos os temas (pedido do
     // usuário) — sem override no escuro.
 }
@@ -903,25 +902,76 @@ main {
     &:disabled { display: none; }
 }
 
-// ── Disponibilidade por horário ─────────────────────────────
+// ── Indisponível (loja fechada OU produto fora de horário) ──────────
+// Escurece a foto e mostra um CARD central "Indisponível".
 .product-card .unavailable {
     position: absolute;
     inset: 0;
-    background: rgba(255, 255, 255, 0.72);
+    z-index: 3;                 // sobre imagem/selo/carrossel
+    background: rgba(0, 0, 0, 0.5);
     display: flex;
     align-items: center;
     justify-content: center;
+    // Só visual: deixa favorito/carrossel ainda clicáveis por baixo.
+    pointer-events: none;
 
     span {
-        background: #6b7280;
-        color: var(--on-brand);
-        font-size: 0.72rem;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.03em;
-        padding: 4px 10px;
-        border-radius: 6px;
+        background: var(--surface);
+        color: var(--ink);
+        font-size: 0.78rem;
+        font-weight: 800;
+        letter-spacing: 0.02em;
+        padding: 8px 16px;
+        border-radius: var(--r-md);
+        border: 1px solid var(--line);
+        box-shadow: var(--shadow-md);
     }
+}
+// Esmaece o restante do card (nome/preço) quando indisponível.
+.product-card.card-unavailable .product-body { opacity: 0.5; }
+
+// ── Modal "loja fechada" (usa .modal-overlay como fundo) ────────────
+.closed-modal {
+    width: min(360px, 100%);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--r-lg);
+    box-shadow: var(--shadow-lg);
+    padding: 24px 22px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+
+    h3 { margin: 6px 0 0; font-size: 1.2rem; font-weight: 800; }
+    .closed-modal-when { margin: 0; font-weight: 700; color: var(--danger); }
+    .closed-modal-sub { margin: 2px 0 0; font-size: 0.88rem; color: var(--muted); }
+}
+.closed-modal-mark {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: color-mix(in srgb, var(--danger) 12%, var(--surface-2));
+    color: var(--danger);
+
+    .ico svg { width: 30px; height: 30px; }
+}
+.closed-modal-btn {
+    margin-top: 14px;
+    width: 100%;
+    border: none;
+    border-radius: var(--r-md);
+    padding: 13px;
+    font-size: 0.98rem;
+    font-weight: 800;
+    background: var(--brand);
+    color: #fff;
+    cursor: pointer;
+    &:hover { filter: brightness(0.94); }
 }
 
 // Selo de status da loja (aberto/fechado) no header.
