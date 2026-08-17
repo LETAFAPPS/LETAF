@@ -170,8 +170,12 @@ fn CartView(info: CatalogInfo) -> impl IntoView {
         let coupon_v = coupon.get_untracked();
         let entrega = delivery.get_untracked();
         let addr = address_id.get_untracked();
+        // Entrega exige endereço no pedido (§11: o backend também revalida).
+        // Sem endereço → não finaliza; abre o formulário para o cliente
+        // cadastrar um.
         if entrega && addr.is_empty() {
-            set_error.set("Escolha um endereço de entrega.".into());
+            set_error.set("Adicione um endereço de entrega para finalizar o pedido.".into());
+            set_novo_aberto.set(true);
             return;
         }
         set_error.set(String::new());
@@ -396,7 +400,12 @@ fn CartView(info: CatalogInfo) -> impl IntoView {
                                 </div>
                                 {move || (!error.get().is_empty())
                                     .then(|| view! { <p class="auth-error">{error.get()}</p> })}
-                                <button class="cart-checkout" disabled=move || submitting.get() on:click=on_checkout>
+                                <button
+                                    class="cart-checkout"
+                                    disabled=move || submitting.get()
+                                        || (session.is_logged() && delivery.get() && address_id.get().trim().is_empty())
+                                    on:click=on_checkout
+                                >
                                     {move || if !session.is_logged() {
                                         "Entrar para finalizar".to_string()
                                     } else if submitting.get() {
@@ -405,6 +414,12 @@ fn CartView(info: CatalogInfo) -> impl IntoView {
                                         "Finalizar pedido".to_string()
                                     }}
                                 </button>
+                                // Aviso quando falta endereço (logado + entrega): explica por que
+                                // o botão está bloqueado.
+                                {move || (session.is_logged() && delivery.get() && address_id.get().trim().is_empty())
+                                    .then(|| view! {
+                                        <p class="cart-hint cart-hint-warn">"Adicione um endereço de entrega acima para finalizar o pedido."</p>
+                                    })}
                             </aside>
                             </div>
                             }.into_any()

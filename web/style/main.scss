@@ -1230,7 +1230,19 @@ main {
         text-decoration: none;
         box-shadow: var(--shadow-md);
         &:hover:not(:disabled) { filter: brightness(0.94); }
+        // Desabilitado (ex.: entrega sem endereço) — precisa vencer o
+        // `background: var(--brand)` acima, por isso o seletor escopado.
+        &:disabled {
+            background: var(--muted);
+            color: #fff;
+            cursor: not-allowed;
+            opacity: 0.65;
+            box-shadow: none;
+            filter: none;
+        }
     }
+    // Aviso do porquê o botão está bloqueado (falta endereço).
+    .cart-hint-warn { color: var(--danger); font-weight: 600; text-align: center; margin-top: 2px; }
 }
 .cart-close {
     border: none;
