@@ -832,16 +832,6 @@ main {
         -webkit-box-orient: vertical;
         overflow: hidden;
     }
-    .product-desc {
-        margin: 0;
-        font-size: 0.72rem;
-        color: var(--muted);
-        // Apenas 1 linha; corta com "…".
-        display: -webkit-box;
-        -webkit-line-clamp: 1;
-        -webkit-box-orient: vertical;
-        overflow: hidden;
-    }
     .price {
         margin-top: auto;
         padding-top: 4px;
@@ -915,16 +905,16 @@ main {
     // Só visual: deixa favorito/carrossel ainda clicáveis por baixo.
     pointer-events: none;
 
+    // Rótulo INCOLOR: sem card/fundo — só o texto branco sobre a foto
+    // escurecida (com leve sombra para legibilidade).
     span {
-        background: var(--surface);
-        color: var(--ink);
-        font-size: 0.78rem;
+        background: transparent;
+        color: #fff;
+        font-size: 0.95rem;
         font-weight: 800;
-        letter-spacing: 0.02em;
-        padding: 8px 16px;
-        border-radius: var(--r-md);
-        border: 1px solid var(--line);
-        box-shadow: var(--shadow-md);
+        letter-spacing: 0.03em;
+        text-transform: uppercase;
+        text-shadow: 0 1px 4px rgba(0, 0, 0, 0.55);
     }
 }
 // Esmaece o restante do card (nome/preço) quando indisponível.

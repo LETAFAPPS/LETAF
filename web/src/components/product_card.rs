@@ -39,7 +39,6 @@ pub fn ProductCard(product: CatalogProduct) -> impl IntoView {
         .unwrap_or_default();
     let name = product.name.clone();
     let alt = product.name.clone();
-    let desc = product.description.clone().unwrap_or_default();
 
     // Favorito: preferência de UI compartilhada por contexto (§11 — sem
     // lógica de negócio no cliente). No SSR o conjunto é vazio → coração
@@ -128,7 +127,6 @@ pub fn ProductCard(product: CatalogProduct) -> impl IntoView {
             </div>
             <div class="product-body">
                 <h3 class="product-name">{name}</h3>
-                {(!desc.is_empty()).then(|| view! { <p class="product-desc">{desc}</p> })}
                 <div class="price">
                     {if has_disc {
                         view! {

@@ -266,7 +266,6 @@ fn CatalogView(data: CatalogData) -> impl IntoView {
             <div class="modal-overlay" on:click=move |_| set_closed_modal.set(false)>
                 <div class="closed-modal" on:click=move |e: leptos::ev::MouseEvent| e.stop_propagation()>
                     <div class="closed-modal-mark" aria-hidden="true"><Icon name="empresa"/></div>
-                    <h3>"Loja fechada"</h3>
                     <p class="closed-modal-when">{move || closed_label.get()}</p>
                     <p class="closed-modal-sub">"Você pode ver o cardápio, mas não é possível fazer pedidos agora."</p>
                     <button class="closed-modal-btn" on:click=move |_| set_closed_modal.set(false)>"Entendi"</button>
