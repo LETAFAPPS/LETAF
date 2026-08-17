@@ -256,22 +256,14 @@ fn CartView(info: CatalogInfo) -> impl IntoView {
                                                 <div class="cart-row-addons">
                                                     {if addons.is_empty() { format::qty(qty) } else { addons }}
                                                 </div>
-                                                <div class="cart-row-priceline">
-                                                    <span class="cart-row-price">{format::money(unit)}</span>
-                                                    <div class="cart-qty">
-                                                        <button aria-label="Diminuir" on:click=move |_| cart.bump(idx, -1.0)>"−"</button>
-                                                        <span>{format::qty(qty)}</span>
-                                                        <button aria-label="Aumentar" on:click=move |_| cart.bump(idx, 1.0)>"+"</button>
-                                                    </div>
-                                                </div>
+                                                <span class="cart-row-price">{format::money(unit)}</span>
                                             </div>
-                                            <button
-                                                class="cart-del"
-                                                aria-label="Remover item"
-                                                on:click=move |_| cart.bump(idx, -qty)
-                                            >
-                                                <Icon name="lixeira"/>
-                                            </button>
+                                            // Stepper à direita do card (o "−" em 1 remove o item).
+                                            <div class="cart-qty">
+                                                <button aria-label="Diminuir" on:click=move |_| cart.bump(idx, -1.0)>"−"</button>
+                                                <span>{format::qty(qty)}</span>
+                                                <button aria-label="Aumentar" on:click=move |_| cart.bump(idx, 1.0)>"+"</button>
+                                            </div>
                                         </div>
                                     }
                             }).collect_view();

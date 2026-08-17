@@ -1124,17 +1124,12 @@ main {
     }
     .cart-row-name { font-size: 0.95rem; font-weight: 700; }
     .cart-row-addons { font-size: 0.75rem; color: var(--muted); margin-top: 1px; }
-    // Preço + stepper na mesma linha.
-    .cart-row-priceline {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 10px;
-        margin-top: 8px;
-    }
-    .cart-row-price { font-size: 1rem; font-weight: 800; color: var(--brand-ink); }
-    // Stepper retangular levemente arredondado (− qtd +).
+    // Preço em bloco, logo abaixo do nome/adicionais.
+    .cart-row-price { display: block; margin-top: 6px; font-size: 1rem; font-weight: 800; color: var(--brand-ink); }
+    // Stepper retangular levemente arredondado (− qtd +), fixo à DIREITA do
+    // card e centralizado na vertical (o card usa align-items:center).
     .cart-qty {
+        flex-shrink: 0;
         border: 1px solid var(--line-strong);
         border-radius: var(--r-md);
         overflow: hidden;
@@ -1143,20 +1138,6 @@ main {
             font-size: 1rem; font-weight: 700;
         }
         span { min-width: 22px; }
-    }
-    // Botão lixeira.
-    .cart-del {
-        flex-shrink: 0;
-        align-self: flex-start;
-        border: none;
-        background: transparent;
-        color: var(--muted);
-        cursor: pointer;
-        width: 34px; height: 34px;
-        display: flex; align-items: center; justify-content: center;
-        border-radius: var(--r-sm);
-        .ico svg { width: 20px; height: 20px; }
-        &:hover { color: var(--danger); }
     }
     // Seções: título curto (uppercase) + conteúdo.
     .cart-sec { display: flex; flex-direction: column; gap: 8px; }
